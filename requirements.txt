@@ -73,6 +73,7 @@ pure-eval=0.2.3=pypi_0
 pydantic=2.8.2=pyhd8ed1ab_0
 pydantic-core=2.20.1=py38h186058e_0
 pygments=2.18.0=pyhd8ed1ab_0
+pymongo=4.8.0=py38h11842c7_0
 python=3.8.19=h2469fbe_0_cpython
 python-dateutil=2.9.0.post0=pypi_0
 python-multipart=0.0.9=pyhd8ed1ab_0

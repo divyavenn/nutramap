@@ -6,6 +6,7 @@ from databases.food_data_connect import engine
 from databases.user_data_connect import close_mongo_db
 
 
+
 app = FastAPI()
 
 Base.metadata.create_all(bind = engine)
@@ -23,6 +24,7 @@ app = FastAPI(lifespan=lifespan)
 @app.get("/")
 def welcome():
   return "Welome to Nutramapper!"
+
 
 app.include_router(auth.router)
 app.include_router(food_data.router)
