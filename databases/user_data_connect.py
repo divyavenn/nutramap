@@ -1,5 +1,6 @@
 from pymongo import MongoClient, ASCENDING
 
+__package__ = "nutramap.databases"
 URL = "mongodb+srv://venndivya:qZ6BE54Q5DDVGW4H@users.akqcvfu.mongodb.net/"
 DB = "nutramapper"
 

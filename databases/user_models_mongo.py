@@ -4,6 +4,7 @@ from datetime import datetime
 from bson import ObjectId
 from pydantic import BaseModel, Field
 
+__package__ = "nutramap.databases"
 
 class LogCreate(BaseModel):
     food_id: int
@@ -71,6 +72,7 @@ class User(BaseModel):
     name: str
     email: EmailStr
     password_hash: str
+    role: str
 
     @field_validator('user_id')
     def validate_objectid(cls, v):

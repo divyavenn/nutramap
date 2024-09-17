@@ -1,0 +1,29 @@
+<form id="email-form" name="email-form" data-name="Email Form" method="get" class="form-2" data-wf-page-id="66e714b17cfb2ef43ad85bba" data-wf-element-id="ea6708ee-bc04-67f2-a9b9-288cf43c3798">
+  <div class="w-layout-vflex">
+    <input class="field" autofocus="true" maxlength="256" name="email" data-name="email" placeholder="email" type="email" id="email" required="">
+    <input class="field" autofocus="true" maxlength="256" name="password" data-name="password" placeholder="password" type="password" id="password" required="">
+  </div>
+  <button type="submit" class="div-block-13 submit-butt"></button>
+</form>
+
+
+.body {
+  background-color: var(--grey-1\<deleted\|variable-e22caf0b\>);
+  -webkit-backdrop-filter: blur(9px);
+  backdrop-filter: blur(9px);
+  background-image: url('../images/background.jpg'), url('../images/background.jpg');
+  background-position: 0 0, 0 0;
+  background-repeat: repeat, repeat;
+  background-size: cover, cover;
+  background-attachment: scroll, scroll;
+  font-family: Inter, sans-serif;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+}
+

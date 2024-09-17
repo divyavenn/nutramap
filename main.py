@@ -1,16 +1,14 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from contextlib import asynccontextmanager
-from databases.food_models import Base
-from routers import auth, food_data, user_data
-from databases.food_data_connect import engine
-from databases.user_data_connect import close_mongo_db
+from .databases.food_models import Base
+from .routers import auth, food_data, user_data
+from .databases.main_connection import engine, close_mongo_db
+from fastapi.staticfiles import StaticFiles
+from .imports import templates, static_folder
 
 
-
-app = FastAPI()
-
-Base.metadata.create_all(bind = engine)
-
+#__package__ = 'nutramap'
+#__name__ = 'nutramap.main'
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -20,10 +18,14 @@ async def lifespan(app: FastAPI):
     close_mongo_db()
 
 app = FastAPI(lifespan=lifespan)
+Base.metadata.create_all(bind = engine) 
+app.mount("/static", StaticFiles(directory=static_folder), name = "static")
+
     
 @app.get("/")
-def welcome():
-  return "Welome to Nutramapper!"
+def welcome(request: Request):
+  # request is the data being passed into the template. in this case, empty.
+  return templates.TemplateResponse("home.html", {"request" : request})
 
 
 app.include_router(auth.router)

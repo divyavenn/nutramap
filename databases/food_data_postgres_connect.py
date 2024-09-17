@@ -1,16 +1,13 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-import os
 
 __package__ = "nutramap.databases"
 
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-URL = f"sqlite:///{os.path.join(BASE_DIR, 'food_data.db')}"
+URL = 'postgresql://'
 
 # configures connection
-engine = create_engine(URL, connect_args = {'check_same_thread' : False})
+engine = create_engine(URL)
 
 # a factory for creating new Session objects, used for database transactions
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -27,6 +24,4 @@ def get_session():
     yield db
   finally:
     db.close()
-    
-
     

@@ -1,8 +1,10 @@
 import csv
 from sqlalchemy.orm import Session
-from databases.food_data_connect import SessionLocal, engine, Base
-from databases.food_models import Nutrient, Food, Data
+from .food_data_connect import SessionLocal, engine, Base
+from .food_models import Nutrient, Food, Data
 import os
+
+__package__ = "nutramap.databases"
 
 Base.metadata.create_all(bind=engine)
 

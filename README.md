@@ -22,6 +22,8 @@ Entry into the database is made simple using autocomplete. You choose which nutr
 - `conda install -c conda-forge sqlalchemy`
 - `conda install -c conda-forge typing-extensions`
 - `conda install -c conda-forge python-multipart`
+- `conda -install -c conda-forge  aiofiles`
+- 
 - `./install_reqs.sh`
 
 Make sure to select your environment-specific interpreter in Visual Studio.
