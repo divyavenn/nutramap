@@ -9,16 +9,17 @@
   <section class="main-section"><img src="../static/images/vegan.svg" loading="lazy" alt="" class="login-image"></section>
   <section class="main-section">
     <div class="login-form w-form">
-      <form id="login-form" 
-      name="email-form" 
-      action = "/auth/submit_login"
-      data-name="Email Form" method="POST" class="form-2" data-wf-page-id="66e714b17cfb2ef43ad85bba" data-wf-element-id="ea6708ee-bc04-67f2-a9b9-288cf43c3798">
-        <div class="w-layout-vflex">
-          <div class="form-field"><input class="field w-input" autofocus="true" maxlength="256" name="username" data-name="email" placeholder="email" type="email" id="email" required=""></div>
-          <div class="form-field"><input class="field w-input" autofocus="true" maxlength="256" name="password" data-name="password" placeholder="password" type="password" id="password" required=""></div>
+      <form id="loginForm">
+        <div class="form-group">
+            <label>Username</label>
+            <input type="text" class="form-control" name="username" autocomplete="username" required>
         </div>
-        <div class="div-block-13"><input type="submit" data-wait="Please wait..." class="submit-butt w-button" value=""></div>
-      </form>
+        <div class="form-group">
+            <label>Password</label>
+            <input type="password" class="form-control" name="password" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Login</button>
+    </form
       <div class="w-form-done">
         <div>welcome!</div>
       </div>

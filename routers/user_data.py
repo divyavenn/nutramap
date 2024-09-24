@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pymongo.database import Database
 from pymongo.errors import DuplicateKeyError
 from sqlalchemy.orm import Session
@@ -93,6 +93,8 @@ def get_requirements_for_user(user, user_db):
                                 
     return requirements
 
+    
+    
 @router.get("/logs", response_model = None)
 def get_logs(user: user_dependency, user_db : user_db_dependency, food_db : food_db_dependency):
     logs = list(get_logs_for_user(user, user_db)) 

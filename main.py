@@ -5,6 +5,7 @@ from .routers import auth, food_data, user_data
 from .databases.main_connection import engine, close_mongo_db
 from fastapi.staticfiles import StaticFiles
 from .imports import templates, static_folder
+from fastapi.middleware.cors import CORSMiddleware
 
 
 #__package__ = 'nutramap'
@@ -18,6 +19,15 @@ async def lifespan(app: FastAPI):
     close_mongo_db()
 
 app = FastAPI(lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Adjust this to your frontend's URL in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 Base.metadata.create_all(bind = engine) 
 app.mount("/static", StaticFiles(directory=static_folder), name = "static")
 
