@@ -7,9 +7,12 @@ from typing_extensions import Annotated
 from bson import ObjectId
 from datetime import timedelta, datetime
 
+
 from ..databases.main_connection import get_user_data, User, UserCreate, Log, LogCreate, Requirement, RequirementCreate, get_session, Food, Nutrient
 from .food_data import get_food_data, amount_by_weight, get_food_name, get_nutrient_name
 from .auth import hash_password, get_current_user
+from nutramap.imports import templates
+from fastapi.responses import JSONResponse
 
 __package__ = "nutramap.routers"
 
@@ -22,6 +25,14 @@ router = APIRouter(
 user_dependency = Annotated[dict, Depends(get_current_user)]
 user_db_dependency = Annotated[Database, Depends(get_user_data)]
 food_db_dependency = Annotated[Session, Depends(get_session)] 
+
+
+#------------------------------------------pages-------------------------------------------------# 
+@router.get("/dashboard")
+def render_dashboard(request: Request):
+  return templates.TemplateResponse("dashboard.html", {"request": request})
+
+#--------------------------------------helpers---------------------------------------------------# 
 
 def get_logs_for_user(user, user_db, time_ago : timedelta = None):
     query = {"user_id": str(user["_id"])}
@@ -59,7 +70,18 @@ def count_unique_days(logs: List[Log]) -> int:
         # Extract the date part from the datetime and add to the set
         unique_days.add(log["date"].date())
     return len(unique_days)
-    
+
+#--------------------------------------end points------------------------------------------------------# 
+
+# A protected route that requires a valid token
+@router.get("/protected-route")
+def protected_route(user: dict = Depends(get_current_user)):
+    if user:
+      return JSONResponse(content={"message": "You are authenticated!", "user": user}, status_code=200)
+    else:
+      return JSONResponse(content={"message": "You are not authenticated"}, status_code=401)
+
+
 @router.post("/new", response_model=User)
 def create_user(user: UserCreate, user_db : user_db_dependency):
     # converts to dictionary

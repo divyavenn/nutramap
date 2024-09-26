@@ -6,6 +6,11 @@ console.log('Script loaded and executed.');
 // before the HTML is fully loaded, those elements might not exist yet, resulting in errors
 // you get the same thing by placing script at end of html, but good to have both just in case.
 document.addEventListener('DOMContentLoaded', function () {
+    if (window.location.pathname.startsWith('/user')) {
+        console.log("Authorized.")
+        // Call the function only for paths that start with /user
+        requestWithToken(window.location.pathname);
+    }
 
     //----------------------------------------------LOGIN------------------------------------------------
     const loginForm = document.getElementById('login-form');
@@ -24,7 +29,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             try {
                 // Send a POST request to the login endpoint
-                const response = await fetch('/auth/token', {
+                const response = await fetch('/auth/submit_login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded'
@@ -39,10 +44,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     // Store the token in localStorage (or sessionStorage if desired)
                     localStorage.setItem('access_token', token);
 
-                    console.log('Login successful, redirecting...');
-                    // Redirect after login
-                    window.location.href = '/auth/protected-route';
-                    requestWithToken('/auth/protected-route')
+                    console.log('Login successful.');
+                    console.log('Redirecting...');
+                            window.location.href = '/user/dashboard'; // Redirect after verifying token
                 } else {
                     // Log the full response for debugging
                     const errorData = await response.json();
@@ -64,14 +68,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
 });
 
-
-// 
 function requestWithToken(url, method = 'GET', data = null) {
+    console.log("requesting with token")
     const token = localStorage.getItem('access_token');
+    if (!token) {
+        throw new Error('Authentication token not found');
+    }
     const headers = {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json'
-    };
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+    }
+    
 
     return fetch(url, {
         method: method,
@@ -87,11 +94,7 @@ function requestWithToken(url, method = 'GET', data = null) {
           return response.json();
         }
     })
-    .then(data => console.log(data))
-    .catch(error => console.error('Error:', error));
 }
-
-requestWithToken('/auth/protected-route')
 
     // Add Todo JS
     const todoForm = document.getElementById('todoForm');
@@ -126,139 +129,6 @@ requestWithToken('/auth/protected-route')
                     // Handle error
                     const errorData = await response.json();
                     alert(`Error: ${errorData.detail}`);
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('An error occurred. Please try again.');
-            }
-        });
-    }
-
-    // Edit Todo JS
-    const editTodoForm = document.getElementById('editTodoForm');
-    if (editTodoForm) {
-        editTodoForm.addEventListener('submit', async function (event) {
-        event.preventDefault();
-        const form = event.target;
-        const formData = new FormData(form);
-        const data = Object.fromEntries(formData.entries());
-        var url = window.location.pathname;
-        const todoId = url.substring(url.lastIndexOf('/') + 1);
-
-        const payload = {
-            title: data.title,
-            description: data.description,
-            priority: parseInt(data.priority),
-            complete: data.complete === "on"
-        };
-
-        try {
-            const token = getCookie('access_token');
-            console.log(token)
-            if (!token) {
-                throw new Error('Authentication token not found');
-            }
-
-            console.log(`${todoId}`)
-
-            const response = await fetch(`/todos/todo/${todoId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (response.ok) {
-                window.location.href = '/todos/todo-page'; // Redirect to the todo page
-            } else {
-                // Handle error
-                const errorData = await response.json();
-                alert(`Error: ${errorData.detail}`);
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('An error occurred. Please try again.');
-        }
-    });
-
-        document.getElementById('deleteButton').addEventListener('click', async function () {
-            var url = window.location.pathname;
-            const todoId = url.substring(url.lastIndexOf('/') + 1);
-
-            try {
-                const token = getCookie('access_token');
-                if (!token) {
-                    throw new Error('Authentication token not found');
-                }
-
-                const response = await fetch(`/todos/todo/${todoId}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                if (response.ok) {
-                    // Handle success
-                    window.location.href = '/todos/todo-page'; // Redirect to the todo page
-                } else {
-                    // Handle error
-                    const errorData = await response.json();
-                    alert(`Error: ${errorData.detail}`);
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('An error occurred. Please try again.');
-            }
-        });
-
-        
-    }
-
-
-    
-    // Register JS
-    const registerForm = document.getElementById('registerForm');
-    if (registerForm) {
-        registerForm.addEventListener('submit', async function (event) {
-            event.preventDefault();
-
-            const form = event.target;
-            const formData = new FormData(form);
-            const data = Object.fromEntries(formData.entries());
-
-            if (data.password !== data.password2) {
-                alert("Passwords do not match");
-                return;
-            }
-
-            const payload = {
-                email: data.email,
-                username: data.username,
-                first_name: data.firstname,
-                last_name: data.lastname,
-                role: data.role,
-                phone_number: data.phone_number,
-                password: data.password
-            };
-
-            try {
-                const response = await fetch('/auth', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                });
-
-                if (response.ok) {
-                    window.location.href = '/auth/login-page';
-                } else {
-                    // Handle error
-                    const errorData = await response.json();
-                    alert(`Error: ${errorData.message}`);
                 }
             } catch (error) {
                 console.error('Error:', error);

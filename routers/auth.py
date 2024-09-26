@@ -1,11 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Form, Response
-from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
+from fastapi import APIRouter, Depends, HTTPException, Request, Form
+from fastapi.security import OAuth2PasswordBearer
 from pymongo.database import Database
 from typing_extensions import Annotated
 import hashlib
 from jose import jwt, JWTError
 from datetime import timedelta, timezone, datetime 
-from fastapi.templating import Jinja2Templates
 from fastapi.responses import JSONResponse
 from nutramap.imports import templates
 
@@ -38,7 +37,6 @@ def render_login(request: Request):
 @router.get("/register")
 def render_register(request: Request):
   return templates.TemplateResponse("register.html", {"request" : request})
-
 #--------------------------------------helpers---------------------------------------------------# 
 
 #just for Swagger docs - this is the endpoint where the token in generated
@@ -78,23 +76,6 @@ def get_current_user(token:Annotated[str, Depends(oauth2_bearer)]):
       raise HTTPException(status_code = 401, detail = "Unauthorized; could not validate credentials.")
 
 #--------------------------------------end points------------------------------------------------------# 
-
-
-# A protected route that requires a valid token
-@router.get("/protected-route")
-def protected_route(user: dict = Depends(get_current_user)):
-    if user:
-      return JSONResponse(content={"message": "You are authenticated!", "user": user}, status_code=200)
-    else:
-      return JSONResponse(content={"message": "You are not authenticated"}, status_code=401)
-
-
-@router.post("/token") 
-async def login_for_access_token(form_data : Annotated[OAuth2PasswordRequestForm, Depends()], user_db: Database = Depends(get_user_data)):
-  user = authenticate_user(form_data.username, form_data.password, user_db)
-  token = create_access_token(user["email"], user["_id"], user["role"], timedelta(minutes=60))
-  return {'access_token': token, 'token_type': 'bearer'}
-
 
 @router.post("/submit_login")
 def handle_login(username: str = Form(...), password: str = Form(...)):
