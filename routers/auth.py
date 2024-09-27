@@ -40,7 +40,7 @@ def render_register(request: Request):
 #--------------------------------------helpers---------------------------------------------------# 
 
 #just for Swagger docs - this is the endpoint where the token in generated
-oauth2_bearer = OAuth2PasswordBearer(tokenUrl='/auth/submit_login')
+oauth2_bearer = OAuth2PasswordBearer(tokenUrl='auth/submit_login')
 
 def authenticate_user(email: str, password: str, user_db : Database) :
   user = user_db.users.find_one({"email" : email})

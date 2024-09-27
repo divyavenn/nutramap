@@ -6,11 +6,7 @@ console.log('Script loaded and executed.');
 // before the HTML is fully loaded, those elements might not exist yet, resulting in errors
 // you get the same thing by placing script at end of html, but good to have both just in case.
 document.addEventListener('DOMContentLoaded', function () {
-    if (window.location.pathname.startsWith('/user')) {
-        console.log("Authorized.")
-        // Call the function only for paths that start with /user
-        requestWithToken(window.location.pathname);
-    }
+    getDataForRoute('/user/dashboard', '/user/info', update_email )
 
     //----------------------------------------------LOGIN------------------------------------------------
     const loginForm = document.getElementById('login-form');
@@ -45,8 +41,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     localStorage.setItem('access_token', token);
 
                     console.log('Login successful.');
-                    console.log('Redirecting...');
-                            window.location.href = '/user/dashboard'; // Redirect after verifying token
+                    window.location.href = '/user/dashboard'
                 } else {
                     // Log the full response for debugging
                     const errorData = await response.json();
@@ -68,6 +63,22 @@ document.addEventListener('DOMContentLoaded', function () {
 
 });
 
+//browsers do not automatically include custom headers when navigating to new pages or rendering templates.
+//therefore, pages must always be unprotected but you can call protected APIs from the page.
+function getDataForRoute(renderPage, protectedEndpoint, task) {
+    if (window.location.pathname === renderPage)
+        {
+            console.log("requesting protected data")
+            requestWithToken(protectedEndpoint).
+            then(data => task(data))
+            .catch(error => {
+                console.error("Error fetching protected data:", error);
+                window.location.href = "/auth/login";
+            })
+        }
+    }
+
+
 function requestWithToken(url, method = 'GET', data = null) {
     console.log("requesting with token")
     const token = localStorage.getItem('access_token');
@@ -79,7 +90,6 @@ function requestWithToken(url, method = 'GET', data = null) {
         'Content-Type': 'application/json'
     }
     
-
     return fetch(url, {
         method: method,
         headers: headers,
@@ -91,48 +101,14 @@ function requestWithToken(url, method = 'GET', data = null) {
           console.error('Unauthorized. Redirecting to login.');
           window.location.href = '/auth/login';
         } else {
+          //data of response
           return response.json();
         }
     })
 }
 
-    // Add Todo JS
-    const todoForm = document.getElementById('todoForm');
-    if (todoForm) {
-        todoForm.addEventListener('submit', async function (event) {
-            event.preventDefault();
-
-            const form = event.target;
-            const formData = new FormData(form);
-            const data = Object.fromEntries(formData.entries());
-
-            const payload = {
-                title: data.title,
-                description: data.description,
-                priority: parseInt(data.priority),
-                complete: false
-            };
-
-            try {
-                const response = await fetch('/todos/todo', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${getCookie('access_token')}`
-                    },
-                    body: JSON.stringify(payload)
-                });
-
-                if (response.ok) {
-                    form.reset(); // Clear the form
-                } else {
-                    // Handle error
-                    const errorData = await response.json();
-                    alert(`Error: ${errorData.detail}`);
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('An error occurred. Please try again.');
-            }
-        });
-    }
+//----------------------------------------------------------------------
+function update_email(data){
+    const userInfo = document.getElementById("user-info");
+    userInfo.innerText = data.email;
+}

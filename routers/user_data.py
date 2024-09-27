@@ -30,7 +30,7 @@ food_db_dependency = Annotated[Session, Depends(get_session)]
 #------------------------------------------pages-------------------------------------------------# 
 @router.get("/dashboard")
 def render_dashboard(request: Request):
-  return templates.TemplateResponse("dashboard.html", {"request": request})
+    return templates.TemplateResponse("dashboard.html", {"request": request})
 
 #--------------------------------------helpers---------------------------------------------------# 
 
@@ -74,10 +74,10 @@ def count_unique_days(logs: List[Log]) -> int:
 #--------------------------------------end points------------------------------------------------------# 
 
 # A protected route that requires a valid token
-@router.get("/protected-route")
+@router.get("/info")
 def protected_route(user: dict = Depends(get_current_user)):
     if user:
-      return JSONResponse(content={"message": "You are authenticated!", "user": user}, status_code=200)
+      return user
     else:
       return JSONResponse(content={"message": "You are not authenticated"}, status_code=401)
 
