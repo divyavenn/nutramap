@@ -73,7 +73,7 @@ function getDataForRoute(renderPage, protectedEndpoint, task) {
             then(data => task(data))
             .catch(error => {
                 console.error("Error fetching protected data:", error);
-                //window.location.href = "/auth/login";
+                window.location.href = "/auth/login";
             })
         }
     }
@@ -99,7 +99,7 @@ function requestWithToken(url, method = 'GET', data = null) {
         if (response.status === 401) {
           // Token might be expired or invalid
           console.error('Unauthorized. Redirecting to login.');
-          //window.location.href = '/auth/login';
+          window.location.href = '/auth/login';
         } else {
           //data of response
           return response.json();
