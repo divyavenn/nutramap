@@ -1808,6 +1808,9 @@ label {
 }
 
 .nutramap-header {
+  top: 0; /* Aligns it to the top of the page */
+  left: 0; /* Aligns it to the left of the page */
+  width: 100%; /* Makes sure the header spans the full width of the viewport */
   justify-content: flex-start;
   align-items: center;
   height: 100px;
@@ -2749,6 +2752,34 @@ label {
   .right-block {
     margin-right: 0;
   }
+
+  .custom-list{
+    list-style-type: none;
+  }
+  
+  .custom-list li {
+    background-color: var(--nutramap-accent);
+    color: #fff;
+    border-radius: 15px;
+    align-self: center;
+    margin-top: 40px;
+    padding: 8px 20px;
+    font-family: Inconsolata, monospace;
+    font-size: 20px;
+    font-weight: 400;
+  }
+  
+  .custom-list li:hover {
+    background-color: var(--nutramap-accent);
+    color: #fff;
+    border-radius: 15px;
+    align-self: center;
+    margin-top: 40px;
+    padding: 8px 20px;
+    font-family: Inconsolata, monospace;
+    font-size: 20px;
+    font-weight: 400;
+  
 }
 
 #w-node-c58bf3b9-e5fe-3dad-e639-841a9321b319-a6b4d892 {
@@ -2875,6 +2906,5 @@ label {
   #w-node-_7b4ee5dd-db98-078f-f362-3ab216b461b7-aa0baa28 {
     justify-self: center;
   }
-}
-
+}  
 
