@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, ForeignKey, DECIMAL, Float, Date
 from sqlalchemy.orm import relationship
 from .food_data_connect import Base
 
-__package__ = "nutramap.databases"
+__package__ = "nutramap.backend.databases"
 
 # Food data
 class Nutrient(Base):

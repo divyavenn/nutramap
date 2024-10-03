@@ -6,7 +6,7 @@ import hashlib
 from jose import jwt, JWTError
 from datetime import timedelta, timezone, datetime 
 from fastapi.responses import JSONResponse
-from nutramap.imports import templates
+from ..imports import templates
 
 
 from ..databases.main_connection import get_user_data

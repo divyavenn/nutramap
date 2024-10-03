@@ -7,7 +7,7 @@ from jose import jwt, JWTError
 from datetime import timedelta, timezone, datetime 
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import JSONResponse
-from nutramap.imports import templates
+from nutramap.backend.imports import templates
 
 
 from ..databases.main_connection import get_user_data

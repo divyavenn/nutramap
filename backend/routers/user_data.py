@@ -11,7 +11,7 @@ from datetime import timedelta, datetime
 from ..databases.main_connection import get_user_data, User, UserCreate, Log, LogCreate, Requirement, RequirementCreate, get_session, Food, Nutrient
 from .food_data import get_food_data, amount_by_weight, get_food_name, get_nutrient_name
 from .auth import hash_password, get_current_user
-from nutramap.imports import templates
+from ..imports import templates
 from fastapi.responses import JSONResponse
 
 __package__ = "nutramap.routers"

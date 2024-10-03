@@ -29,7 +29,7 @@ app.add_middleware(
 )
 
 Base.metadata.create_all(bind = engine) 
-app.mount("/static", StaticFiles(directory=static_folder), name = "static")
+app.mount("/static", StaticFiles(directory="backend/static"), name="static")
 
     
 @app.get("/")
