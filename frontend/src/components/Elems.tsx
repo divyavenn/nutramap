@@ -20,8 +20,8 @@ function LogList ({logs} : LogbookProps){
       {logs.map((log, index) => (
         <Log
           key={index} // Using index as a key. Ideally, use a unique id if available.
-          foodName={log.foodName}
-          date={log.date}
+          food_name={log.food_name}
+          date={new Date(log.date)}
           amount_in_grams={log.amount_in_grams}
         />
       ))}
@@ -30,14 +30,15 @@ function LogList ({logs} : LogbookProps){
 };
 
 interface LogProps {
-  foodName: string;
+  food_name: string;
   date: Date;
   amount_in_grams : number;
 }
 
-function Log({ foodName, date, amount_in_grams} : LogProps) { 
+function Log({ food_name, date, amount_in_grams} : LogProps) { 
   return (<div className = 'log-bubble'> 
-    <div className = 'entry-name'> {foodName + ' | ' + amount_in_grams + ' g '} </div>
+    <div className = 'entry-food-name'> {food_name} </div>
+    <div className = 'entry-food-amt'> {amount_in_grams + ' g '}</div>
     <div className = 'entry-date'> {formatTime(date)} </div>
   </div>)
 }

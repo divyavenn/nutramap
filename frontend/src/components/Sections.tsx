@@ -1,4 +1,6 @@
 import nutramapLogo from '../assets/images/nutramap_logo.png'
+import '../assets/css/buttons.css'
+import React, { useState } from 'react';
 
 // 3 rules of JSX
 // (1) return a single root elem (wrap in div or React Fragment <>...</>)
@@ -7,6 +9,11 @@ import nutramapLogo from '../assets/images/nutramap_logo.png'
 interface ParentComponentProps {
   children: React.ReactNode
 }
+
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  children: React.ReactNode
+}
+
 
 function Background({children} : ParentComponentProps) {
   return (
@@ -40,4 +47,32 @@ function BottomMargin() {
   return(<section className="margin-bottom"></section>)
 }
 
-export {Background, Header, MainSection}
+function Button({children, ...props} : ButtonProps){
+  return (
+    <button className="svg-button" {...props}>
+     {children}
+    </button>
+  )
+}
+
+interface HoverButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  childrenOn: React.ReactNode
+  childrenOff: React.ReactNode
+}
+
+
+function HoverButton({childrenOn, childrenOff, ...props} : HoverButtonProps){
+  const [mouseOn, setMouseOn] = useState(false);
+  return (
+    <button 
+    className="svg-button" 
+    onMouseEnter={() => setMouseOn(true)}  // Set hover state to true
+    onMouseLeave={() => setMouseOn(false)} // Set hover state to false{...props}>
+    {...props} >
+      {mouseOn? childrenOn : childrenOff}
+    </button>
+  )
+}
+
+
+export {Background, Header, MainSection, Button, HoverButton}

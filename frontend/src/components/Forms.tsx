@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { PageLink } from './Elems';
 import { useNavigate } from 'react-router-dom';
+import { Button, HoverButton } from './Sections';
+import SubmitButton from '../assets/images/login.svg?react'
+import SubmitButtonHollow from '../assets/images/login-hollow.svg?react'
 
 function LoginForm() {
   // State to store the email and password
@@ -92,11 +95,11 @@ function LoginForm() {
         </div>
       ) : (
         <div>
-        <form id="login-form" name="email-form" onSubmit={handleSubmit} className="form-2">
+        <form id="login-form" name="email-form" onSubmit={handleSubmit} className="login-form">
           <div className="w-layout-vflex">
             <div className="form-field">
               <input
-                className="field w-input"
+                className="field"
                 autoFocus
                 maxLength={256}
                 name="username"
@@ -110,7 +113,7 @@ function LoginForm() {
             </div>
             <div className="form-field">
               <input
-                className="field w-input"
+                className="field"
                 autoFocus
                 maxLength={256}
                 name="password"
@@ -122,14 +125,14 @@ function LoginForm() {
                 required
               /> </div>
           </div>
-          <div className="div-block-13">
-            <input
+            <HoverButton
               type="submit"
-              className="submit-butt w-button"
+              className="login-button"
               value={formData.isSubmitting ? 'Please wait...' : 'Login'}
               disabled={formData.isSubmitting}
-            />
-          </div>
+              childrenOn={<SubmitButton/>}
+              childrenOff={<SubmitButtonHollow/>}>
+              </HoverButton>
         </form>
         <div>
               {formData.errorMessage && (  

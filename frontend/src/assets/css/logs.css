@@ -1,7 +1,7 @@
 
 @import url('./variables.css');
 
-.entry-name {
+.entry-food-name {
   padding-top: 15px;
   padding-bottom: 15px;
   padding-left: 27px;
@@ -12,10 +12,19 @@
   font-family: Inconsolata;
 }
 
+.entry-food-amt {
+  display: block;
+  padding-left: 60px;
+  justify-content: flex-end;
+  align-items: center;
+  order: 1;
+  font-family: Inconsolata;
+}
+
 .entry-date {
   display: block;
   padding-right: 27px;
-  padding-left: 60px;
+  padding-left: 27px;
   justify-content: flex-end;
   align-items: center;
   order: 1;
@@ -24,7 +33,7 @@
 
 .log-bubble {
   display: flex;
-  width: 363px;
+  width: 500px;
   margin-top: 20px;
   flex-direction: row;
   justify-content: center;
@@ -40,7 +49,7 @@
 
 .log-bubble:hover {
   display: flex;
-  width: 363px;
+  width: 500px;
   margin-top: 20px;
   flex-direction: row;
   justify-content: center;

@@ -18,6 +18,13 @@ declare module '*.gif' {
   export default value;
 }
 
+declare module '*.svg?react' {
+  import React = require('react');
+  export const ReactComponent: React.FunctionComponent<React.SVGProps<SVGSVGElement>>;
+  const src: string;
+  export default src;
+}
+
 declare module '*.svg' {
   const value: string;
   export default value;

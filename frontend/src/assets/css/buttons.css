@@ -1,0 +1,45 @@
+
+
+
+.svg-button {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.svg-button svg {
+  fill: #8400ffa8; /* You can change the SVG color here */
+  width: 50px;
+  height: 50px;
+}
+
+.svg-button:hover svg {
+  fill: #ffffff; /* Change the color on hover */
+}
+
+.svg-button {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+
+.login-button {
+  display: flex;
+  align-items: center; /* Vertically center the SVG within the button */
+  justify-content: center;
+  background: none;
+  cursor: pointer;
+}
+
+.login-button svg {
+  fill: #ffffffa8; /* You can change the SVG color here */
+  width: 45px;
+  height: 45px;
+}
+
+.login-button:hover svg {
+  fill: #ffffff; /* Change the color on hover */
+}

@@ -43,6 +43,10 @@ def get_logs_for_user(user, user_db, time_ago : timedelta = None):
     logs = user_db.logs.find(query)
     return logs
 
+# output form:
+# food_name: string
+# date: Optional[datetime]
+# amount_in_grams: float
 def make_log_readable(logs: List[Log], food_db):
     for log in logs:
         # Replace food_id with food_name
