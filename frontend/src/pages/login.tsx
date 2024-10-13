@@ -1,5 +1,5 @@
 import { StrictMode } from 'react'
-import LoginForm from '../components/Forms'
+import LoginForm from '../components/LoginForm'
 import { Graphic } from '../components/Graphics'
 import {Header, MainSection } from '../components/Sections'
 import bowl from '../assets/images/vegan.svg'

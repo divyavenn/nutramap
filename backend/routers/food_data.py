@@ -41,12 +41,22 @@ async def find_nutrient_data_for_food(food_db: food_db_dependency, food_id : int
   data = get_food_data(food_db, food_id)
   return [{nutrient_name: str(amt) + " " + unit} for nutrient_id, nutrient_name, amt, unit in data]
 
+# returns data as a list of lists
 @router.get("/all_nutrients")
 async def get_all_nutrients(food_db: food_db_dependency): 
   data = food_db.query(Nutrient).all()
   if not data:
     return "No data found."
   return data
+ 
+# returns data as a list of dictionaries
+@router.get("/all_foods")
+async def get_all_food(food_db: food_db_dependency): 
+  data = food_db.query(Food.food_id, Food.food_name).all()
+  if not data:
+    return "No data found."
+  return {food_name: food_id for food_id, food_name in data}
+
 
 @router.get("/nutrients_by_weight")
 async def data_for_food_by_weight(food_db: food_db_dependency, food_id : int, grams : float): 

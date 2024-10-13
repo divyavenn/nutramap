@@ -68,8 +68,7 @@ async function requestWithToken(url : string, method = 'GET', data = null) {
   })
   .then(response => {
       if (response.status === 401) {
-        // Token might be expired or invalid
-        console.error('Unauthorized. Redirecting to login.');
+        console.error("Error")
       } else {
         //data of response
         return response.json();
@@ -77,15 +76,39 @@ async function requestWithToken(url : string, method = 'GET', data = null) {
   })
 }
 
+async function request(url : string, method = 'GET', data = null) {
+  const headers = {
+      'Content-Type': 'application/json'
+  }
+  return fetch(url, {
+      method: method,
+      headers: headers,
+      body: data ? JSON.stringify(data) : null
+  })
+  .then(response => {
+      if (response.status == 200) {
+        return response.json();
+      } else {
+        console.log(response)
+      }
+  })
+}
+
+
+function getCorrectRequestMethod(isProtected : boolean){
+  if (isProtected){
+    return requestWithToken
+  }
+  else return request
+}
+
 //browsers do not automatically include custom headers when navigating to new pages or rendering templates.
 //therefore, pages must always be unprotected but you can call protected APIs from the page.
-function doWithData (protectedEndpoint : string , task : (data: any) => void) {
-  console.log("requesting protected data")
-  requestWithToken(protectedEndpoint).
-  then(data => task(data))
+function doWithData (endpoint : string, task : (data: any) => void, method = 'GET', data = null, isProtected: boolean = true,) {
+  (getCorrectRequestMethod(isProtected))(endpoint, method, data)
+  .then(data => task(data))
   .catch(error => {
-      console.error("Error fetching protected data:", error);
-      window.location.href = "/login";
+      console.error(error);
   })
 }
 

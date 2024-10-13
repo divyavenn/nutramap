@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Form
 from pymongo.database import Database
 from pymongo.errors import DuplicateKeyError
 from sqlalchemy.orm import Session
@@ -209,6 +209,18 @@ def get_requirements(user : user_dependency, user_db : user_db_dependency, food_
     requirements = list(get_requirements_for_user(user, user_db))
     return make_log_readable(requirements, food_db)
 
+@router.post("/submit_new_log")
+def handle_login(user : user_dependency, food_db : food_db_dependency, user_db : user_db_dependency, food_id: str = Form(...), amount_in_grams: str = Form(...)):
+    try:
+        log_data = LogCreate(food_id=int(food_id), amount_in_grams=float(amount_in_grams))
+        return add_log(
+            user=user,
+            log=log_data,
+            food_db=food_db,
+            user_db=user_db)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid data format for food_id or amount_in_grams")
+    
 @router.post("/add/log", response_model=Log)
 def add_log(user: user_dependency, log: LogCreate, food_db : food_db_dependency, user_db : user_db_dependency):
 
@@ -220,7 +232,7 @@ def add_log(user: user_dependency, log: LogCreate, food_db : food_db_dependency,
     # Insert log into MongoDB
     log_dict = log.model_dump()
     
-    log_dict["date"] = datetime.datetime.now()
+    log_dict["date"] = datetime.now()
     # set log ID to current logged in user
     log_dict["user_id"] = user["_id"]
     log_dict["_id"] = str(ObjectId())  # Ensure log_id is returned as a string
