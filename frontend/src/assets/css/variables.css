@@ -1,0 +1,17 @@
+:root {
+  --white: white;
+  --navy: #0056a7;
+  --dark: #37393a;
+  --color: #000;
+  --translucent-white: #ffffff7d;
+  --parchment: #c0bebc;
+  --highlight: #00fff7;
+  --tangerine: #ff9d2d;
+  --medium-blue: #1d4b8b;
+  --dark-blue: #101930d4;
+  --clear: #fff0;
+  --nutramap-accent: #ebaaff52;
+  --nutramap-accent-dark: rgba(25, 5, 5, 0.79)
+  --nutramap-main: #2f0053;
+
+}
