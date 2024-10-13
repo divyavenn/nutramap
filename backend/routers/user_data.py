@@ -77,6 +77,7 @@ def count_unique_days(logs: List[Log]) -> int:
 @router.get("/info")
 def protected_route(user: dict = Depends(get_current_user)):
     if user:
+      print(user)
       return user
     else:
       return JSONResponse(content={"message": "You are not authenticated"}, status_code=401)
@@ -114,7 +115,6 @@ def get_requirements_for_user(user, user_db):
         raise HTTPException(status_code = 401, detail = "This user has no requirements.")
                                 
     return requirements
-
     
     
 @router.get("/logs", response_model = None)
@@ -205,7 +205,7 @@ def get_requirements(user : user_dependency, user_db : user_db_dependency, food_
     requirements = list(get_requirements_for_user(user, user_db))
     return make_log_readable(requirements, food_db)
 
-@router.post("/add/lcog", response_model=Log)
+@router.post("/add/log", response_model=Log)
 def add_log(user: user_dependency, log: LogCreate, food_db : food_db_dependency, user_db : user_db_dependency):
 
     # Validate that the food exists in SQLite

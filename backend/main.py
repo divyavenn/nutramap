@@ -5,6 +5,11 @@ from .routers import auth, food_data, user_data
 from .databases.main_connection import engine, close_mongo_db
 from fastapi.staticfiles import StaticFiles
 from .imports import templates, static_folder
+from starlette.responses import FileResponse\
+  
+  
+from pathlib import Path
+
 from fastapi.middleware.cors import CORSMiddleware
 
 
@@ -31,7 +36,7 @@ app.add_middleware(
 Base.metadata.create_all(bind = engine) 
 app.mount("/static", StaticFiles(directory="backend/static"), name="static")
 
-    
+
 @app.get("/")
 def welcome(request: Request):
   # request is the data being passed into the template. in this case, empty.

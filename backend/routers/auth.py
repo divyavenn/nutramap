@@ -53,8 +53,8 @@ def authenticate_user(email: str, password: str, user_db : Database) :
   else:
     raise HTTPException(status_code=404, detail="Incorrect password")
   
-def create_access_token(email : str, user_id: int, role: str, expires : timedelta):
-  encode = {'email': email, '_id': user_id, 'role' : role}
+def create_access_token(email : str, user_id: int, role: str, name: str, expires : timedelta):
+  encode = {'email': email, '_id': user_id, 'role' : role, 'name' : name}
   expires = datetime.now(timezone.utc) + expires
   encode.update({'exp': expires})
   return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
@@ -67,12 +67,12 @@ def get_current_user(token:Annotated[str, Depends(oauth2_bearer)]):
     email = payload.get('email')
     user_id = payload.get('_id')
     role = payload.get('role')
+    name = payload.get('name')
     
-    if email is None or user_id is None or role is None:
+    if email is None or user_id is None or role is None or name is None:
       raise HTTPException(status_code = 401, detail = "Unauthorized; could not validate credentials.")
-    return {'email' : email, '_id' : user_id, "role" : role}
+    return {'email' : email, '_id' : user_id, "role" : role, "name" : name}
   except JWTError:
-    if email is None or user_id is None or role is None:
       raise HTTPException(status_code = 401, detail = "Unauthorized; could not validate credentials.")
 
 #--------------------------------------end points------------------------------------------------------# 
@@ -81,7 +81,8 @@ def get_current_user(token:Annotated[str, Depends(oauth2_bearer)]):
 def handle_login(username: str = Form(...), password: str = Form(...)):
   try:
     user = authenticate_user(username, password, get_user_data())
-    token = create_access_token(user["email"], user["_id"], user["role"], timedelta(minutes=60))
+    print(user)
+    token = create_access_token(user["email"], user["_id"], user["role"], user["name"], timedelta(minutes=60))
     # Return the token in the response body
     return JSONResponse(content={"access_token": token, "token_type": "bearer"}, status_code=200)
     
