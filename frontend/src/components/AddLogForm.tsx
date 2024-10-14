@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react' 
 import {getHeaderWithToken, doWithData } from './LoadHtml';
 import {HoverButton } from './Sections';
-import SubmitButton from '../assets/images/login.svg?react'
-import SubmitButtonHollow from '../assets/images/login-hollow.svg?react'
+import Arrow from '../assets/images/arrow.svg?react'
+import Ok from '../assets/images/checkmark.svg?react'
+import '../assets/css/logs.css'
+import '../assets/css/buttons.css'
 
 interface KeyValue {
   id : number;
@@ -57,9 +59,10 @@ function NewLogForm({ callAfterSubmitting }: ComponentCallingFunctionProps){
 
   return (
     <form
-      id="login-form" onSubmit={handleSubmit}>
+      id="login-form" className = 'log-bubble' onSubmit={handleSubmit}>
       <input
         name='food_name'
+        className = 'entry-food-name'
         placeholder='food'
         value = {formData.food_name}
         onChange={handleTyping}
@@ -67,18 +70,19 @@ function NewLogForm({ callAfterSubmitting }: ComponentCallingFunctionProps){
       ></input>
       <input
         name='amount_in_grams'
+        className = 'entry-food-amt'
         type = 'number'
-        placeholder=''
+        placeholder='0'
         value = {formData.amount_in_grams}
         onChange={handleTyping}
         required
       ></input>
       <HoverButton
               type="submit"
-              className="login-button"
+              className="new-log-button"
               disabled={!formData.food_name || !formData.amount_in_grams}
-              childrenOn={<SubmitButton/>}
-              childrenOff={<SubmitButtonHollow/>}>
+              childrenOn={<Ok/>}
+              childrenOff={<Arrow/>}>
       </HoverButton>
     </form>
   )

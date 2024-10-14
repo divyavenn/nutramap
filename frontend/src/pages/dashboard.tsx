@@ -5,7 +5,7 @@ import { Log , LogList, LogProps} from '../components/Elems'
 import {doWithData} from '../components/LoadHtml'
 import {Heading} from '../components/Title'
 import {Header, MainSection, Button} from '../components/Sections'
-import { NewLogForm } from '../components/NewLogForm'
+import { NewLogForm } from '../components/AddLogForm' 
 
 import AddLogButton from '../assets/images/new-log.svg?react'
 

@@ -43,3 +43,27 @@
 .login-button:hover svg {
   fill: #ffffff; /* Change the color on hover */
 }
+
+.new-log-button {
+  display: flex;
+  align-items: center; /* Vertically center the SVG within the button */
+  justify-content: center;
+  background: none;
+  cursor: pointer;
+  border: none;
+  padding-right: 27px;
+  padding-left: 27px;
+  justify-content: flex-end;
+  align-items: center;
+  order: 1;
+}
+
+.new-log-button svg {
+  fill: #ffffffa8; /* You can change the SVG color here */
+  width: 15px;
+  height: 15px;
+}
+
+.new-log-button:hover svg {
+  fill: #1e002e; /* Change the color on hover */
+}

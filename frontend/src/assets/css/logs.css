@@ -1,28 +1,53 @@
 
 @import url('./variables.css');
 
+input, textarea {
+  font-family: inherit;  /* Ensures input fields inherit the font-family of the parent */
+  font-size: inherit;
+  font-weight: inherit;
+  color: var(--white); /* Default text color */
+  background-color: transparent; /* Make sure the background is transparent initially */
+  border: none; /* Removes default borders */
+  outline: none; /* Removes outline when focused */
+  transition: color 0.3s ease, background-color 0.3s ease; /* Smooth transition */
+}
+
+/* When log-bubble is hovered, change input text and background color */
+.log-bubble:hover input,
+.log-bubble:hover textarea {
+  color: #1e002e; /* Change input text color to dark */
+  background-color: transparent; /* Ensure the background is transparent on hover */
+}
+
+
 .entry-food-name {
   padding-top: 15px;
   padding-bottom: 15px;
   padding-left: 27px;
+  width: 300px;
   order: -1;
   flex-grow: 1;
+  background: none;
+  border: none;
   flex-shrink: 1;
   flex-basis: 0%;
   font-family: Inconsolata;
-}
+}qa
 
 .entry-food-amt {
   display: block;
+  background: none;
+  border: none;
   padding-left: 60px;
   justify-content: flex-end;
   align-items: center;
-  order: 1;
   font-family: Inconsolata;
 }
 
 .entry-date {
   display: block;
+  background: none;
+  border: none;
   padding-right: 27px;
   padding-left: 27px;
   justify-content: flex-end;
