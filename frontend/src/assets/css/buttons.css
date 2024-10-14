@@ -18,14 +18,6 @@
   fill: #ffffff; /* Change the color on hover */
 }
 
-.svg-button {
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-}
-
-
 .login-button {
   display: flex;
   align-items: center; /* Vertically center the SVG within the button */
@@ -44,17 +36,20 @@
   fill: #ffffff; /* Change the color on hover */
 }
 
+.new-log-button-container {
+  display: flex; /* Enables flexbox on the container */
+  width: 25%;
+  justify-content: flex-end; /* Pushes content to the right side */
+  align-items: center; /* Vertically centers the button */
+  padding: 10px; /* Optional: padding */
+}
+
 .new-log-button {
-  display: flex;
   align-items: center; /* Vertically center the SVG within the button */
-  justify-content: center;
   background: none;
+  margin-right: 5px;
   cursor: pointer;
   border: none;
-  padding-right: 27px;
-  padding-left: 27px;
-  justify-content: flex-end;
-  align-items: center;
   order: 1;
 }
 
@@ -65,5 +60,7 @@
 }
 
 .new-log-button:hover svg {
-  fill: #1e002e; /* Change the color on hover */
+  fill: #1e002e;; /* You can change the SVG color here */
+  width: 15px;
+  height: 15px;
 }

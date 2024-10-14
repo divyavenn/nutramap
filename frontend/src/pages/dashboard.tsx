@@ -62,7 +62,7 @@ function Dashboard(){
   <MainSection>
     <LogList logs = {logs}></LogList>
   </MainSection>
-  </StrictMode>)
+  </StrictMode>) 
 
 }
 

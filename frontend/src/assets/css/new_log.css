@@ -1,0 +1,174 @@
+/* External styles.css */
+
+/* Hide number input spinners in WebKit browsers (Chrome, Safari, Edge) */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Hide number input spinners in Firefox */
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* When log-bubble is hovered, change input text and background color */
+.entry-form-bubble:hover input,
+.entry-form-bubble:hover textarea {
+  color: #1e002e; /* Change input text color to dark */
+  background-color: transparent; /* Ensure the background is transparent on hover */
+}
+
+
+input, textarea {
+  font-family: inherit;  /* Ensures input fields inherit the font-family of the parent */
+  font-size: inherit;
+  font-weight: inherit;
+  color: var(--white); /* Default text color */
+  background-color: transparent; /* Make sure the background is transparent initially */
+  border: none; /* Removes default borders */
+  outline: none; /* Removes outline when focused */
+  transition: color 0.3s ease, background-color 0.3s ease; /* Smooth transition */
+}
+
+
+.form-elements-wrapper{
+  width: 500px;
+  display: flex;
+  margin-top: 20px;
+  background-color: #19050584;
+  color: var(--white);
+  flex-direction: column;
+  border-radius: 14px;
+}
+
+/* Activate suggestions dropdown */
+.form-elements-wrapper.active .suggestions-list {
+  opacity: .5;
+  transform: translateY(0);
+  pointer-events: all;
+}
+
+/* Autocomplete suggestions styling */
+.input-food-name-wrapper {
+  width: 60%;
+  flex-grow: 1;
+  /* border: 1px solid rgb(47, 156, 114); Add a red border to visually see the amount's boundaries */
+  position: relative; /* This is to ensure the suggestions dropdown aligns with the input */
+}
+
+.input-food-name {
+  padding-top: 15px;
+  padding-bottom: 15px;
+  padding-left: 27px;
+  flex-grow: 1;
+  flex-shrink: 1;
+  background: none;
+  width: 100%;
+  /* border: 1px solid red; Add a red border to visually see the amount's boundaries */
+  position: relative;
+  font-family: Inconsolata;
+  color: inherit;
+  outline: none;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  text-align: left; /* Ensures the text aligns properly */
+}
+
+
+
+.entry-form-bubble{
+  display: flex;
+  border-radius: 14px;
+  width: 100%;
+  /* border: 1px solid red; */
+  flex-direction: row;
+  align-items: center;
+  color: var(--white);
+  justify-content: space-between; /* Ensure space is distributed between elements */
+}
+
+.entry-form-bubble.active{
+  border-bottom-left-radius: 0px;
+  border-bottom-right-radius: 0px;
+}
+
+.entry-form-bubble:hover{
+  background-color: #ffffffa1;
+  color: #1e002e;
+}
+
+
+
+
+/* Wrapper for the input and "g" unit */
+.input-food-amt-wrapper {
+  display: flex;
+  justify-self: right;
+  align-items: center;
+  align-self: center;
+  /* border: 1px solid rgb(0, 89, 255); Add a red border to visually see the amount's boundaries */
+  position: relative;
+  width: 10%; /* Set width to match your layout */
+}
+
+/* The input for entering food amount */
+.input-food-amt {
+  width: 100%; /* Ensures the input takes full available space in the wrapper */
+  padding-right: 20px; /* Creates space for the "g" */
+  background: none;
+  border: none; /* Removes the default border */
+  font-family: Inconsolata;
+  text-align: left; /* Align the input text to the left */
+  color: inherit; /* Inherit the text color (useful for hover) */
+}
+
+/* Styling for the "g" unit */
+.unit {
+  position: absolute;
+  right: 10px; /* Position the unit at the right side of the input */
+  font-family: Inconsolata;
+  color: inherit; /* Inherit text color (important for hover) */
+  pointer-events: none; /* Ensure the span doesn't interfere with input focus */
+}
+
+
+/*-----------------------------------SUGGESTIONS------------------------------*/
+.suggestions-list {
+  list-style-type: none; 
+  padding-left: 0; /* Removes default padding */
+  margin-left: 0; /* Removes default margin */
+  margin: 0; /* Optionally set the entire margin to 0 */
+
+  width: 100%; /* Ensure the suggestions take up the full width of the input */
+  max-height: 300px; /* Optional: Limit height */
+  overflow-y: auto; /* Scrollable if suggestions overflow */
+  z-index: 999;
+  opacity: 1;
+  transition: opacity 0.3s ease, max-height 0.3s ease;
+  /* Hides scrollbar in WebKit browsers (Chrome, Safari, etc.) */
+  -webkit-overflow-scrolling: touch; /* Enables smooth scrolling on mobile */
+  scrollbar-width: none; /* For Firefox */
+  }
+
+.suggestions-list::-webkit-scrollbar {
+  display: none; /* Hides scrollbar for WebKit browsers */
+  }
+
+/* Individual suggestion items */
+.suggestion-item {
+  padding-top: 10px;
+  padding-left: 27px;
+  padding-right: 40px;
+  font-family: Inconsolata;
+  background-color: none;
+  color: var(--white);
+
+  cursor: pointer;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Hover effect for suggestions */
+.suggestion-item:hover {
+  background-color: #ffffffa1;
+  color: #1e002e;
+}

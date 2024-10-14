@@ -1,59 +1,43 @@
 
 @import url('./variables.css');
 
-input, textarea {
-  font-family: inherit;  /* Ensures input fields inherit the font-family of the parent */
-  font-size: inherit;
-  font-weight: inherit;
-  color: var(--white); /* Default text color */
-  background-color: transparent; /* Make sure the background is transparent initially */
-  border: none; /* Removes default borders */
-  outline: none; /* Removes outline when focused */
-  transition: color 0.3s ease, background-color 0.3s ease; /* Smooth transition */
-}
-
-/* When log-bubble is hovered, change input text and background color */
-.log-bubble:hover input,
-.log-bubble:hover textarea {
-  color: #1e002e; /* Change input text color to dark */
-  background-color: transparent; /* Ensure the background is transparent on hover */
-}
-
-
 .entry-food-name {
   padding-top: 15px;
   padding-bottom: 15px;
   padding-left: 27px;
-  width: 300px;
-  order: -1;
+  /* border: 1px solid red; Add a red border to visually see the amount's boundaries */
   flex-grow: 1;
-  background: none;
-  border: none;
   flex-shrink: 1;
-  flex-basis: 0%;
+  background: none;
   font-family: Inconsolata;
-}qa
+  width: 60%; /* Set a consistent width for the food name */
+  text-align: left; /* Ensure the text aligns to the left */
+}
 
 .entry-food-amt {
   display: block;
   background: none;
-  border: none;
-  padding-left: 60px;
-  justify-content: flex-end;
-  align-items: center;
+  width: 10%;
+  /* border: 1px solid red; Add a red border to visually see the amount's boundaries */
+  /* border: 1px solid red; Add a red border to visually see the amount's boundaries */
+  margin-right: auto; /* This pushes the amount to the right side */
+  padding-right: 15px; /* Optional padding adjustment */
   font-family: Inconsolata;
+  text-align: left; /* Ensure the amount is right-aligned */
+  flex-shrink: 0; /* Prevent shrinking */
 }
 
 .entry-date {
   display: block;
   background: none;
   border: none;
+  width: 25%;
+  /* border: 1px solid red; Add a red border to visually see the amount's boundaries */
   padding-right: 27px;
-  padding-left: 27px;
-  justify-content: flex-end;
-  align-items: center;
-  order: 1;
+  padding-left: 10px;
   font-family: Inconsolata;
+  text-align: right; /* Align the date to the right */
+  flex-shrink: 0;
 }
 
 .log-bubble {
@@ -61,15 +45,11 @@ input, textarea {
   width: 500px;
   margin-top: 20px;
   flex-direction: row;
-  justify-content: center;
-  flex-wrap: nowrap;
   align-items: center;
-  border-top-left-radius: 14px;
-  border-top-right-radius: 14px;
-  border-bottom-left-radius: 14px;
-  border-bottom-right-radius: 14px;
+  border-radius: 14px;
   background-color: #19050584;
   color: var(--white);
+  justify-content: space-between; /* Ensure space is distributed between elements */
 }
 
 .log-bubble:hover {
@@ -91,4 +71,3 @@ input, textarea {
 .log-list{
   list-style-type: none;
 }
-
