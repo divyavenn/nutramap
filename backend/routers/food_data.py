@@ -1,5 +1,6 @@
 from typing_extensions import Annotated
 from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from decimal import Decimal
 
@@ -44,17 +45,17 @@ async def find_nutrient_data_for_food(food_db: food_db_dependency, food_id : int
 # returns data as a list of lists
 @router.get("/all_nutrients")
 async def get_all_nutrients(food_db: food_db_dependency): 
-  data = food_db.query(Nutrient).all()
+  data = food_db.query(Nutrient.nutrient_name, Nutrient.nutrient_id).all()
   if not data:
-    return "No data found."
-  return data
+    return JSONResponse(content={"message": "No data found."}, status_code=404)
+  return {nutrient_name: nutrient_id for nutrient_name, nutrient_id in data}
  
 # returns data as a list of dictionaries
 @router.get("/all_foods")
 async def get_all_food(food_db: food_db_dependency): 
   data = food_db.query(Food.food_id, Food.food_name).all()
   if not data:
-    return "No data found."
+    return JSONResponse(content={"message": "No data found."}, status_code=404)
   return {food_name: food_id for food_id, food_name in data}
 
 
@@ -62,7 +63,8 @@ async def get_all_food(food_db: food_db_dependency):
 async def data_for_food_by_weight(food_db: food_db_dependency, food_id : int, grams : float): 
   data = get_food_data(food_db, food_id)
   if not data:
-    return "No data found."
+    return "No data found." 
+  print(data)
   return [{nutrient_name: str(amount_by_weight(amt, grams)) + " " + unit} for nutrient_id, nutrient_name, amt, unit in data]
 
 @router.get("/{food}")

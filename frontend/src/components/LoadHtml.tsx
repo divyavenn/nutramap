@@ -50,20 +50,22 @@ async function loadContent(url : string) {
   }
 }
 
-async function requestWithToken(url : string, method = 'GET', data = null) {
-  console.log("requesting with token")
+function getHeaderWithToken(content_type : string = "application/x-www-form-urlencoded"){
   const token = localStorage.getItem('access_token');
   if (!token) {
       throw new Error('Authentication token not found');
   }
-  const headers = {
+  return {
       'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
+      'Content-Type': content_type
   }
-  
+}
+async function requestWithToken(url : string, method = 'GET', data = null) {
+  console.log("requesting with token")
+
   return fetch(url, {
       method: method,
-      headers: headers,
+      headers: getHeaderWithToken('application/json'),
       body: data ? JSON.stringify(data) : null
   })
   .then(response => {
@@ -77,21 +79,22 @@ async function requestWithToken(url : string, method = 'GET', data = null) {
 }
 
 async function request(url : string, method = 'GET', data = null) {
-  const headers = {
-      'Content-Type': 'application/json'
-  }
   return fetch(url, {
       method: method,
-      headers: headers,
       body: data ? JSON.stringify(data) : null
   })
-  .then(response => {
-      if (response.status == 200) {
-        return response.json();
-      } else {
-        console.log(response)
-      }
+  .then(async response => {
+    if (!response.ok) {
+      const errorText = await response.text();  // Get the HTML error response for debugging
+      console.error('Response Error:', response.status, errorText);
+      throw new Error(`Request failed with status: ${response.status}`);
+    }
+    return response.json();  // Parse JSON only if response is OK
   })
+  .catch(error => {
+    console.error('Request error:', error);
+    throw error;
+  });
 }
 
 
@@ -104,13 +107,16 @@ function getCorrectRequestMethod(isProtected : boolean){
 
 //browsers do not automatically include custom headers when navigating to new pages or rendering templates.
 //therefore, pages must always be unprotected but you can call protected APIs from the page.
-function doWithData (endpoint : string, task : (data: any) => void, method = 'GET', data = null, isProtected: boolean = true,) {
+function doWithData (endpoint : string, task : (data: any) => void, method = 'GET', data = null, isProtected: boolean = true, printData : boolean = false) {
   (getCorrectRequestMethod(isProtected))(endpoint, method, data)
-  .then(data => task(data))
+  .then(data => {
+    if (printData) console.log(data);
+    task(data)
+  })
   .catch(error => {
-      console.error(error);
+      console.log("there was an error" + error)
   })
 }
 
 
-export {HTMLContent, doWithData}
+export {HTMLContent, doWithData, getHeaderWithToken}

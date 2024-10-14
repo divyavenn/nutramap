@@ -5,8 +5,14 @@ import { Log , LogList, LogProps} from '../components/Elems'
 import {doWithData} from '../components/LoadHtml'
 import {Heading} from '../components/Title'
 import {Header, MainSection, Button} from '../components/Sections'
+import { NewLogForm } from '../components/NewLogForm'
 
 import AddLogButton from '../assets/images/new-log.svg?react'
+
+interface KeyValue {
+  id : number;
+  name : string;
+}
 
 function Dashboard(){
   const [name, setName] = useState('user');
@@ -17,13 +23,27 @@ function Dashboard(){
   }
 
   const writeLogs = (logBook : LogProps[]) => {
-    console.log(logBook[0])
     setLogs(logBook)
   }
 
+  const addFoodsToLocalStorage = (foods : Record<string, string>) => {
+    localStorage.setItem('foods', JSON.stringify(foods))
+  }
+
+  const addNutrientsToLocalStorage = (nutrients : Record<string, string>) => {
+    localStorage.setItem('nutrients', JSON.stringify(nutrients))
+  }
+
+  const refreshLogs = () => {
+    doWithData('/user/logs', writeLogs);
+  };
+
   useEffect(() => {
+    console.log("executing shit")
     doWithData('/user/info', writeFirstName)
     doWithData('/user/logs', writeLogs)
+    doWithData('/food/all_foods', addFoodsToLocalStorage, undefined, undefined, false, false)
+    doWithData('/food/all_nutrients', addNutrientsToLocalStorage)
   }, [])
 
   return(
@@ -33,6 +53,10 @@ function Dashboard(){
 
   <MainSection>
     <Button><AddLogButton/></Button>
+  </MainSection>
+
+  <MainSection>
+    <NewLogForm callAfterSubmitting = {refreshLogs}/>
   </MainSection>
 
   <MainSection>

@@ -1,14 +1,22 @@
 import React, { useEffect, useState } from 'react' 
-import { doWithData } from './LoadHtml';
+import {getHeaderWithToken, doWithData } from './LoadHtml';
+import {HoverButton } from './Sections';
+import SubmitButton from '../assets/images/login.svg?react'
+import SubmitButtonHollow from '../assets/images/login-hollow.svg?react'
 
 interface KeyValue {
   id : number;
   name : string;
 }
-function newLogForm(){
+
+interface ComponentCallingFunctionProps {
+  callAfterSubmitting: () => void;
+}
+
+function NewLogForm({ callAfterSubmitting }: ComponentCallingFunctionProps){
 
   // Mock food data for autocomplete
-  const foodList : Record<string, string> = {'Apple' : '1', 'Banana' : '2', 'Carrot' : '3'}
+  const foodList : Record<string, string> = JSON.parse(localStorage.getItem('foods') || '{}');
 
   const [formData, setFormData] = useState({
     food_name : '',
@@ -26,19 +34,55 @@ function newLogForm(){
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault() // prevent automatic submission
+    console.log(foodList[formData.food_name] + ',' + formData.amount_in_grams)
     try {
+      console.log(foodList[formData.food_name] + ',' + formData.amount_in_grams)
       const response = await fetch('/user/submit_new_log', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
+        headers: getHeaderWithToken(),
         body: new URLSearchParams({
           food_id: foodList[formData.food_name],
           amount_in_grams: formData.amount_in_grams,
-          
         }),
       })
+      // used to refresh log list
+      callAfterSubmitting()
+      //reset after submitting
+      setFormData({ food_name: '', amount_in_grams: '', date : new Date()})
+    }
+    catch (error) {
+      console.error('An unexpected error occurred:', error);
     }
   }
 
+  return (
+    <form
+      id="login-form" onSubmit={handleSubmit}>
+      <input
+        name='food_name'
+        placeholder='food'
+        value = {formData.food_name}
+        onChange={handleTyping}
+        required
+      ></input>
+      <input
+        name='amount_in_grams'
+        type = 'number'
+        placeholder=''
+        value = {formData.amount_in_grams}
+        onChange={handleTyping}
+        required
+      ></input>
+      <HoverButton
+              type="submit"
+              className="login-button"
+              disabled={!formData.food_name || !formData.amount_in_grams}
+              childrenOn={<SubmitButton/>}
+              childrenOff={<SubmitButtonHollow/>}>
+      </HoverButton>
+    </form>
+  )
+
 }
+
+export  {NewLogForm}
