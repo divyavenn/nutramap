@@ -10,21 +10,49 @@ function ListElems({ nutrients} : ListElemProps) {
   return <ul className='custom-list'>{nutrientList}</ul>;
 }
 
+
+function DateDivider({date} : {date : Date}) {
+  return (
+    <div className = 'date-divider'>
+      <div className = 'day'>
+        {date.toLocaleDateString('en-US', 
+        { weekday: 'long', 
+          month: 'long', 
+          day: 'numeric'} )}</div>
+    </div>
+  )
+}
+
 interface LogbookProps {
   logs : LogProps[]
 }
 
 function LogList ({logs} : LogbookProps){
+  console.log(logs)
+  const sortedLogs = [...logs].sort((a, b) => (new Date(b.date).getTime()) - (new Date(a.date).getTime()));
+
   return (
-    <div className='log-list'>
-      {logs.map((log, index) => (
-        <Log
-          key={index} // Using index as a key. Ideally, use a unique id if available.
-          food_name={log.food_name}
-          date={new Date(log.date)}
-          amount_in_grams={log.amount_in_grams}
-        />
-      ))}
+    <div className = "log-list" >
+      {sortedLogs.map((log, index) => {
+        const currentDate = new Date(log.date);
+        const previousDate = index > 0 ? new Date(sortedLogs[index - 1].date) : null;
+
+        return (
+        <div className = "logs-wrapper">
+
+            {index>0 && currentDate.getDate() !== previousDate?.getDate() && (
+                <DateDivider date = {currentDate}/>
+            )}
+
+            <Log
+              key={index} // Using index as a key. Ideally, use a unique id if available.
+              food_name={log.food_name}
+              date={new Date(log.date)}
+              amount_in_grams={log.amount_in_grams}
+            /> 
+
+        </div>)
+        })}
     </div>
   );
 };

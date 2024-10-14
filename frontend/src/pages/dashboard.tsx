@@ -88,7 +88,6 @@ function Dashboard(){
         )}
   </MainSection>
 
-
   <MainSection>
     <LogList logs = {logs}></LogList>
   </MainSection>
