@@ -1,5 +1,5 @@
 /// <reference types="vite-plugin-svgr/client" />
-import { StrictMode, useEffect, useState } from 'react'
+import { StrictMode, useEffect, useState, useRef } from 'react'
 import { Log , LogList, LogProps} from '../components/Elems'
 
 import {doWithData} from '../components/LoadHtml'
@@ -17,6 +17,22 @@ interface KeyValue {
 function Dashboard(){
   const [name, setName] = useState('user');
   const [logs, setLogs] = useState<LogProps[]>([])
+  const [logEntryVisible, setLogEntryVisible] = useState<boolean>(false)
+
+  const formRef = useRef<HTMLDivElement>(null); 
+  const logsRep = useRef<HTMLDivElement>(null); 
+
+  // Function to close form if clicked outside
+  const handleClickOutside = (event: MouseEvent) => {
+    if (formRef.current && !formRef.current.contains(event.target as Node)) {
+      setLogEntryVisible(false); // Close the form when clicking outside
+    }
+  };
+
+  // Function to toggle the form visibility
+  const toggleFormVisibility = () => {
+    setLogEntryVisible(!logEntryVisible);
+  };
 
   const writeFirstName = (userData : any) => {
     setName(userData.name.trim().split(' ')[0])
@@ -44,7 +60,15 @@ function Dashboard(){
     doWithData('/user/logs', writeLogs)
     doWithData('/food/all_foods', addFoodsToLocalStorage, undefined, undefined, false, false)
     doWithData('/food/all_nutrients', addNutrientsToLocalStorage)
-  }, [])
+    if (logEntryVisible) {
+      document.addEventListener('mousedown', handleClickOutside);
+    } else {
+      document.removeEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside); // Cleanup
+    };
+  }, [logEntryVisible])
 
   return(
   <StrictMode>
@@ -52,12 +76,18 @@ function Dashboard(){
   <Heading words = {'Hello, ' + name}/>
 
   <MainSection>
-    <Button><AddLogButton/></Button>
+    {/* Toggle between button and form */}
+    {!logEntryVisible ? (
+          <Button onClick={toggleFormVisibility}>
+            <AddLogButton />
+          </Button>
+        ) : (
+          <div ref={formRef}>
+            <NewLogForm callAfterSubmitting={refreshLogs} />
+          </div>
+        )}
   </MainSection>
 
-  <MainSection>
-    <NewLogForm callAfterSubmitting = {refreshLogs}/>
-  </MainSection>
 
   <MainSection>
     <LogList logs = {logs}></LogList>
