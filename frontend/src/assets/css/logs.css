@@ -43,7 +43,7 @@
 .log-bubble {
   display: flex;
   width: 500px;
-  margin-top: 20px;
+  margin-bottom: 20px;
   flex-direction: row;
   align-items: center;
   border-radius: 14px;
@@ -68,6 +68,23 @@
   color: #1e002e;
 }
 
+.list-container {
+  position: relative;   /* Ensure the container is positioned relative */        /* Set the fixed height for the container */
+  overflow: hidden;     /* Hide any overflow content */
+}
+
 .log-list{
   list-style-type: none;
+  padding: 0;            /* Removes padding */
+  margin-top: 20px;     
+  height:500px;    /* Removes margin */
+  overflow-y: auto; /* Scrollable if suggestions overflow */
+  /* Hides scrollbar in WebKit browsers (Chrome, Safari, etc.) */
+  -webkit-overflow-scrolling: touch; /* Enables smooth scrolling on mobile */
+  scrollbar-width: none; /* For Firefox */
+  -ms-overflow-style: none;  /* IE/Edge: Hide scrollbar */
+}
+
+.log-list::-webkit-scrollbar {
+  display: none; /* Hides scrollbar for WebKit browsers */
 }
