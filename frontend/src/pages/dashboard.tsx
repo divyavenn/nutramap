@@ -1,6 +1,6 @@
 /// <reference types="vite-plugin-svgr/client" />
 import { StrictMode, useEffect, useState, useRef } from 'react'
-import { Log , LogList, LogProps} from '../components/Elems'
+import { DateSelector , LogList, LogProps} from '../components/Logs'
 
 import {doWithData} from '../components/LoadHtml'
 import {Heading} from '../components/Title'
@@ -18,6 +18,9 @@ function Dashboard(){
   const [name, setName] = useState('user');
   const [logs, setLogs] = useState<LogProps[]>([])
   const [logEntryVisible, setLogEntryVisible] = useState<boolean>(false)
+  const now = new Date();
+  const [startDate, setStartDate] = useState<Date>(new Date(now.getFullYear(), now.getMonth(), 1))
+  const [endDate, setEndDate] = useState<Date>(now)
 
   const formRef = useRef<HTMLDivElement>(null); 
   const logsRep = useRef<HTMLDivElement>(null); 
@@ -91,6 +94,7 @@ function Dashboard(){
   <MainSection>
     <LogList logs = {logs}></LogList>
   </MainSection>
+  <DateSelector startDate={startDate} endDate={endDate}/>
   </StrictMode>) 
 
 }

@@ -115,3 +115,81 @@
 .log-list::-webkit-scrollbar {
   display: none; /* Hides scrollbar for WebKit browsers */
 }
+
+/*------------------------------------DATE SELECTOR---------------------------------------*/
+
+.dashboard-menu {
+  margin-top: 50px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.date-selector {
+  display: flex;
+  overflow: visible;
+  width: auto;
+  min-height: 30px;
+  margin-right: 100px;
+  padding-right: 0px;
+  float: right;
+  clear: none;
+  flex-direction: row;
+  justify-content: center;
+  flex-wrap: nowrap;
+  align-items: center;
+  align-self: flex-end;
+  order: 0;
+  grid-column-gap: 0px;
+  grid-row-gap: 0px;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+  background-color: hsla(280, 100%, 6%, 0.403);
+  color: #ffffff99;
+  font-size: 12px;
+  object-fit: contain;
+}
+
+
+
+  
+  .month-arrow:hover svg {
+    fill: #ffffff; /* Change the color on hover */
+  }
+
+  .range-text {
+    padding-right: 20px;
+    padding-left: 20px;
+    order: 1;
+    font-family: Ubuntu;
+    font-weight: 300;
+  }
+
+  .month-arrow {
+    display: block;
+    padding-left: 0px;
+    padding-right: 10px;
+    clear: none;
+    align-self: center;
+    order: 1;
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 0%;
+    background: none;
+    font-size: 10px;
+    text-align: center;
+  }
+  
+  .month-arrow svg {
+    fill: #ffffff31; /* You can change the SVG color here */ 
+    height: 15px;
+    
+  }
+
+  .month-arrow.left {
+    padding-right: 0px;
+    padding-left: 10px;
+  }
+

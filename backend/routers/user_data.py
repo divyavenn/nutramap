@@ -34,11 +34,9 @@ def render_dashboard(request: Request):
 
 #--------------------------------------helpers---------------------------------------------------# 
 
-def get_logs_for_user(user, user_db, time_ago : timedelta = None):
+def get_logs_for_user(user, user_db, startDate : datetime, endDate: datetime):
     query = {"user_id": str(user["_id"])}
-    if time_ago:
-        cutoff_datetime = datetime.now() - time_ago
-        query["date"] = {"$gte": cutoff_datetime}
+    query["date"] = {"$gte": startDate, "$lte": endDate}
     
     logs = user_db.logs.find(query)
     return logs
@@ -122,7 +120,7 @@ def get_requirements_for_user(user, user_db):
     
     
 @router.get("/logs", response_model = None)
-def get_logs(user: user_dependency, user_db : user_db_dependency, food_db : food_db_dependency):
+def get_logs(startDate : datetime, endDate : datetime, user: user_dependency, user_db : user_db_dependency, food_db : food_db_dependency):
     logs = list(get_logs_for_user(user, user_db)) 
     return make_log_readable(logs, food_db)
 
