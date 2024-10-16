@@ -9,7 +9,7 @@ from datetime import timedelta, datetime
 
 
 from ..databases.main_connection import get_user_data, User, UserCreate, Log, LogCreate, Requirement, RequirementCreate, get_session, Food, Nutrient
-from .food_data import get_food_data, amount_by_weight, get_food_name, get_nutrient_name
+from .food_data import get_food_data, amount_by_weight, get_food_name, get_nutrient_details
 from .auth import hash_password, get_current_user
 from ..imports import templates
 from fastapi.responses import JSONResponse
@@ -33,6 +33,21 @@ def render_dashboard(request: Request):
     return templates.TemplateResponse("dashboard.html", {"request": request})
 
 #-----------------------------------------helpers---------------------------------------------------# 
+
+def get_day_logs(user, date: datetime, user_db):
+        # Set the start of the day (00:00:00) for the given date
+    start_of_day = datetime(date.year, date.month, date.day)
+
+    # Set the end of the day (23:59:59) for the given date
+    end_of_day = start_of_day + timedelta(days=1) - timedelta(seconds=1)
+
+    query = {"user_id": str(user["_id"]),
+             "date": {
+                 "$gte": start_of_day,
+                 "$lte": end_of_day
+             }}
+    logs = user_db.logs.find(query)
+    return logs
 
 def get_logs_for_user(user, startDate : datetime, endDate: datetime, user_db):
     query = {"user_id": str(user["_id"]),
@@ -60,12 +75,6 @@ def make_log_readable(logs: List[Log], food_db):
         #    log["date"] = str(log["date"].strftime("%b %-d %-H:%-M"))
     
     return logs 
-
-def make_requirement_readable(requirements: List[Requirement], food_db):
-    for req in requirements:
-        req["nutrient_name"] = get_nutrient_name(req["nutrient_id"])
-        req.pop("nutrient_id")
-        return
               
 def count_unique_days(logs: List[Log]) -> int:
     unique_days = set()
@@ -245,39 +254,69 @@ def add_log(user: user_dependency, log: LogCreate, food_db : food_db_dependency,
 def remove_log(user: user_dependency, log_id: str, user_db : user_db_dependency):
     return None
 
-@router.get("/meets_target")
-def meets(startDate : datetime, endDate: datetime, user: user_dependency, user_db : user_db_dependency, food_db : food_db_dependency):
-    # Validate that the food exists in SQLite
-    logs = list(get_logs_for_user(user,startDate, endDate, user_db))
-    
-    if len(logs) == 0:
-        raise HTTPException(status_code=404, detail="No data logged for this user")
 
-    
+@router.get("/day_intake")
+def day_intake(date: datetime, user: user_dependency, user_db : user_db_dependency, food_db : food_db_dependency):
     requirements = user_db.requirements.find({"user_id" : user["_id"]})
-    
-    if user_db.requirements.count_documents({"user_id" : user["_id"]}) == 0:
-        raise HTTPException(status_code=404, detail="This user has no requirements.")
-    
     tally = {}
+    if user_db.requirements.count_documents({"user_id" : user["_id"]}) == 0:
+        return tally
     
     for r in requirements:
-      tally[r["nutrient_id"]] = {"name" : str(get_nutrient_name(food_db, r["nutrient_id"])), "target" : r["amt"], "intake" : 0, "avg_intake" : 0, "should_exceed": r["should_exceed"]}
-      
+      name, units = get_nutrient_details(food_db, r["nutrient_id"])
+      tally[r["nutrient_id"]] = 0
+    
+    # Validate that the food exists in SQLite
+    logs = list(get_day_logs(user, date, user_db))
     for log in logs:
       data = get_food_data(food_db, log["food_id"])
       for d in data:
           if d.nutrient_id in tally:
-            tally[d.nutrient_id]["intake"] += amount_by_weight(d.amt, log["amount_in_grams"])
+            tally[d.nutrient_id] += amount_by_weight(d.amt, log["amount_in_grams"])
+
+    return tally
+
+@router.get("/requirement_info")
+def requirement_info(user: user_dependency, user_db : user_db_dependency, food_db : food_db_dependency):
+    requirements = user_db.requirements.find({"user_id" : user["_id"]})
+    info = {}
+    for r in requirements:
+        name, units = get_nutrient_details(food_db, r["nutrient_id"])
+        info[r["nutrient_id"]] = {"name" : name,
+                                 "target" : r["amt"],
+                                 "should_exceed": r["should_exceed"],
+                                 "units" : units}
+    
+    return info
+    
+# 2024-10-01T00:00:00
+# 2024-10-31T23:59:59
+@router.get("/range_intake")
+def meets(startDate : datetime, endDate: datetime, user: user_dependency, user_db : user_db_dependency, food_db : food_db_dependency):
+    requirements = user_db.requirements.find({"user_id" : user["_id"]})
+    tally = {}
+    if user_db.requirements.count_documents({"user_id" : user["_id"]}) == 0:
+        return tally
+    
+    for r in requirements:
+      name, units = get_nutrient_details(food_db, r["nutrient_id"])
+      tally[r["nutrient_id"]] = 0
+    
+    # Validate that the food exists in SQLite
+    logs = list(get_logs_for_user(user,startDate, endDate, user_db))
+    for log in logs:
+      data = get_food_data(food_db, log["food_id"])
+      for d in data:
+          if d.nutrient_id in tally:
+            tally[d.nutrient_id] += amount_by_weight(d.amt, log["amount_in_grams"])
     
     # number of days 
     days = count_unique_days(logs)
-    
-
-    for nutrient in tally:
-      stats = tally[nutrient]
-      stats["avg_intake"]= stats["intake"] / days
-      stats["meets"] = (stats["should_exceed"] and stats["avg_intake"] >= stats["target"]) or (not stats["should_exceed"] and stats["avg_intake"] <= stats["target"])
+    if (days > 0):
+        for nutrient in tally:
+            total = tally[nutrient]
+            avg = total / days
+            tally[nutrient] = avg
     
     return tally
 

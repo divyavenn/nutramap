@@ -21,6 +21,18 @@
   background-color: hsla(0, 0%, 0%, 0.518);
   color: var(--white);
 }
+
+.nutrient-dashboard-title {
+  position: relative;
+  width: 100%;
+  font-family: Inconsolata;
+  color: hsla(276, 80.00%, 46.67%, 1.00);
+  font-size: 18px;
+  font-weight: 300;
+  text-align: center;
+  text-transform: none;
+}
+
 .dashboard-row {
   position: relative;
   display: flex;
@@ -64,17 +76,12 @@
   position: relative;
   width: 25%;
   align-self: center;
-  font-family: Ubuntu;
-  font-size: 13px;
-  font-style: italic;
-  font-weight: 300;
   text-align: center;
   text-transform: none;
 }
 
 .nutrient-name {
   cursor: pointer;
-  font-weight: bold;
 }
 
 .daily-intake {
@@ -109,7 +116,9 @@
 }
 
 .avg-intake {
-  font-size: 14px;
+  font-family: Poppins;
+  font-size: 15px;
+  font-weight: 300;
   font-weight: bold;
   cursor: default;
 }

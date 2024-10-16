@@ -2,30 +2,27 @@ import React, { useState } from 'react';
 import '../assets/css/NutrientStats.css'; // Import your CSS file for styling
 
 
-function NutrientDash(){
-  return(
-    <div className='nutrient-dashboard'>
-      <NutrientStats  name = {'Protein'}
-                      target = {100} 
-                      dayIntake={100}
-                      avgIntake={100}
-                      shouldExceed = {true}
-                      units={'g'}>
-      </NutrientStats>
-      <NutrientStats  name = {'Iron'}
-                      target = {100} 
-                      dayIntake={50}
-                      avgIntake={100}
-                      shouldExceed = {true}
-                      units={'g'}>
-      </NutrientStats>
-      <NutrientStats  name = {'PUFA'}
-                      target = {30} 
-                      dayIntake={31}
-                      avgIntake={100}
-                      shouldExceed = {false}
-                      units={'g'}>
-      </NutrientStats>  
+function NutrientDashboard({nutrientStats} : {nutrientStats : NutrientStatsProps[]}){
+  return (
+    <div className="nutrient-dashboard">
+      <NutrientDashboardTitle/>
+
+      {nutrientStats.length === 0 ? 
+      (<div> no requirements </div>) : 
+      (<div>
+        {nutrientStats.map((n, index) => 
+          {return(
+            <NutrientStats
+              key={index}  // Using index as a key. Ideally, use a unique id if available.
+              name={n.name}
+              target={n.target}
+              dayIntake={n.dayIntake}
+              avgIntake={Math.round(n.avgIntake * 10) / 10}
+              shouldExceed={n.shouldExceed}
+              units={n.units}/>);
+          })
+        }
+      </div>)}
     </div>
   )
 }
@@ -33,14 +30,33 @@ function NutrientDash(){
 interface NutrientStatsProps {
   name: string;
   target: number;
-  dayIntake: number;
+  dayIntake?: number;
   avgIntake: number;
   shouldExceed: boolean;
   units: string;
 }
 
+function formatDay(day : Date){
+  if (day == new Date()) return "today"
+  else return day.getMonth() + " " + day.getDate()
+}
 
-function NutrientStats({ name, target, dayIntake, avgIntake, shouldExceed, units }: NutrientStatsProps) {
+function NutrientDashboardTitle({currentDay = new Date()} : {currentDay? : Date}){
+  return <div className='dashboard-row'>
+    <div className = 'nutrient-name-wrapper'>
+
+    </div>
+    <div className = 'today-stats-wrapper'>
+      <div className = 'nutrient-dashboard-title'> {formatDay(currentDay)} </div>
+    </div>
+
+    <div className='avg-stats-wrapper'>
+      <div className = 'nutrient-dashboard-title'> average </div>
+    </div>
+  </div>
+}
+
+function NutrientStats({ name, target, dayIntake = 0, avgIntake, shouldExceed, units }: NutrientStatsProps) {
   const [hovered, setHovered] = useState(false);
   const [hoveredName, setHoveredName] = useState(false);
 
@@ -85,7 +101,7 @@ function NutrientStats({ name, target, dayIntake, avgIntake, shouldExceed, units
     const difference = Math.abs(target - dayIntake);
     if (shouldExceed) {
       if (intake < target) return difference.toFixed() + " " + units + " until target";
-      else return "target met : " + intake.toFixed() + " " + units;
+      else return "target met: " + intake.toFixed() + " " + units;
     }
     else {
       if (intake < target) return difference.toFixed() + " within target";
@@ -129,4 +145,4 @@ function NutrientStats({ name, target, dayIntake, avgIntake, shouldExceed, units
   );
 }
 
-export {NutrientDash}
+export {NutrientDashboard, NutrientStatsProps}

@@ -27,11 +27,11 @@ def get_food_name(food_db: Session, food_id: int):
     return "No data found."
   return name
 
-def get_nutrient_name(food_db: Session, nutrient_id: int):
-  name = food_db.query(Nutrient.nutrient_name).filter(Nutrient.nutrient_id == nutrient_id).first()
-  if not name:
+def get_nutrient_details(food_db: Session, nutrient_id: int):
+  details = food_db.query(Nutrient.nutrient_name, Nutrient.unit).filter(Nutrient.nutrient_id == nutrient_id).first()
+  if not details:
     return "No data found."
-  return name[0]
+  return details
 
 
 def amount_by_weight(amt: float, grams: float):
