@@ -1,41 +1,52 @@
 import '../assets/css/logs.css'
+import { DateRange } from 'react-date-range';
+import 'react-date-range/dist/styles.css'; // main style file
+import 'react-date-range/dist/theme/default.css'; 
+
+import {useState, useEffect, useRef} from 'react'
+
 import {Button} from '../components/Sections'
 import RightArrow from '../assets/images/caret-right.svg?react'
 import LeftArrow from '../assets/images/caret-left.svg?react'
 
+
 interface LogbookProps {
-  logs : LogProps[]
+logs : LogProps[]
 }
 
 function LogList ({logs} : LogbookProps){
   console.log(logs)
+  if (logs.length == 0) {
+    return <div className="log-list">
+      <div className = 'no-logs-message'> no logs in this time.</div> </div>;  // Display this when logs array is empty
+  }
+
   const sortedLogs = [...logs].sort((a, b) => (new Date(b.date).getTime()) - (new Date(a.date).getTime()));
 
   return (
-    <div className = "log-list" >
+    <div className="log-list">
       {sortedLogs.map((log, index) => {
         const currentDate = new Date(log.date);
         const previousDate = index > 0 ? new Date(sortedLogs[index - 1].date) : null;
 
         return (
-        <div key={index} className = "logs-wrapper">
-
-            {index>0 && currentDate.getDate() !== previousDate?.getDate() && (
-                <DateDivider date = {currentDate}/>
+          <div key={index} className="logs-wrapper">
+            {index > 0 && currentDate.getDate() !== previousDate?.getDate() && (
+              <DateDivider date={currentDate} />
             )}
 
             <Log
-              key={index} // Using index as a key. Ideally, use a unique id if available.
+              key={index}  // Using index as a key. Ideally, use a unique id if available.
               food_name={log.food_name}
               date={new Date(log.date)}
               amount_in_grams={log.amount_in_grams}
             /> 
-
-        </div>)
-        })}
+          </div>
+        );
+      })}
     </div>
   );
-};
+}
 
 interface LogProps {
   food_name: string;
@@ -100,14 +111,79 @@ function formatDateRange(startDate: Date, endDate: Date) {
   }
 }
 
-function DateSelector({startDate, endDate} : {startDate: Date, endDate: Date}){
+interface DateSelectorProps {
+  startDate: Date;
+  endDate: Date;
+  onDateChange: (range: { startDate: Date, endDate: Date }) => void
+  onNextMonth: () => void;
+  onPreviousMonth: () => void;
+}
+
+function DateSelector({startDate, endDate, onNextMonth, onPreviousMonth, onDateChange} : DateSelectorProps){
+  const [isOpen, setIsOpen] = useState(false); // To control the visibility of the calendar
+  const [range, setRange] = useState([
+    {
+      startDate: startDate,
+      endDate: endDate,
+      key: 'selection',
+    },
+  ]);
+
+  const toggleCalendar = () => setIsOpen(!isOpen);
+
+  const handleSelect = (ranges: any) => {
+    const { startDate, endDate } = ranges.selection;
+    setRange([ranges.selection]);
+    onDateChange({ startDate, endDate }); // Pass the selected dates to the parent component
+  };
+
+  const formRef = useRef<HTMLDivElement>(null); 
+
+  // Function to close form if clicked outside
+  const handleClickOutside = (event: MouseEvent) => {
+    if (formRef.current // check if not null
+        && !formRef.current.contains(event.target as Node)) { //  checks if the element that was clicked (event.target) is not a child of or the calendar component itself.
+      setIsOpen(false); // Close the form when clicking outside
+    }
+  };
+  
+  
+  useEffect(() => {
+    if (isOpen) {
+      // Attach event listener when the calendar opens
+      document.addEventListener('mousedown', handleClickOutside);
+    } else {
+      // Remove event listener when the calendar closes
+      document.removeEventListener('mousedown', handleClickOutside);
+    }
+    // Cleanup function to remove the event listener when the component unmounts
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+
   return (
-    <div className="dashboard-menu w-clearfix">
-    <div className="date-selector">
-      <Button className="month-arrow left"> <LeftArrow/> </Button>
-      <div className="range-text">{formatDateRange(startDate, endDate)}</div>
-      <Button className="month-arrow"> <RightArrow/> </Button>
-    </div>
+    <div className="dashboard-menu">
+      {!isOpen && (
+      <div className="date-selector">
+        <Button className="month-arrow left" onClick={onPreviousMonth}> <LeftArrow/> </Button>
+        <div className="range-text" onClick = {toggleCalendar}>{formatDateRange(startDate, endDate)}</div>
+        <Button className="month-arrow" onClick={onNextMonth}> <RightArrow/> </Button>
+      </div>)}
+
+      {isOpen && (
+          <div ref={formRef} className = 'calendar-popup'>
+          <DateRange
+            ranges={range}
+            onChange={handleSelect}
+            moveRangeOnFirstSelection={false}
+            editableDateInputs={true}
+            rangeColors={['#1e002e8d']}
+          />
+          </div>
+        )}
+
     </div>
   )
 }

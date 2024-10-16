@@ -6,6 +6,7 @@ import {doWithData} from '../components/LoadHtml'
 import {Heading} from '../components/Title'
 import {Header, MainSection, Button} from '../components/Sections'
 import { NewLogForm } from '../components/AddLogForm' 
+import { NutrientDash } from '../components/NutrientDash'
 
 import AddLogButton from '../assets/images/new-log.svg?react'
 
@@ -23,13 +24,29 @@ function Dashboard(){
   const [endDate, setEndDate] = useState<Date>(now)
 
   const formRef = useRef<HTMLDivElement>(null); 
-  const logsRep = useRef<HTMLDivElement>(null); 
 
   // Function to close form if clicked outside
   const handleClickOutside = (event: MouseEvent) => {
     if (formRef.current && !formRef.current.contains(event.target as Node)) {
       setLogEntryVisible(false); // Close the form when clicking outside
     }
+  };
+
+
+  const handleDateChange = ({ startDate, endDate }: { startDate: Date; endDate: Date }) => {
+    setStartDate(startDate);
+    setEndDate(endDate);
+    // Call refreshLogs or any function that updates based on the new dates
+  };
+
+  const handleNextMonth = () => {
+    setStartDate(new Date(startDate.getFullYear(), startDate.getMonth() + 1, 1));
+    setEndDate(new Date(startDate.getFullYear(), startDate.getMonth() + 2, 0));
+  };
+  
+  const handlePreviousMonth = () => {
+    setStartDate(new Date(startDate.getFullYear(), startDate.getMonth() - 1, 1));
+    setEndDate(new Date(startDate.getFullYear(), startDate.getMonth(), 0));
   };
 
   // Function to toggle the form visibility
@@ -54,13 +71,20 @@ function Dashboard(){
   }
 
   const refreshLogs = () => {
-    doWithData('/user/logs', writeLogs);
+    doWithData('/user/logs?startDate=' 
+                + startDate.toISOString() 
+                + '&endDate=' 
+                + endDate.toISOString() + '', writeLogs);
   };
+
+  useEffect(() => {
+    refreshLogs();
+  }, [startDate, endDate])
 
   useEffect(() => {
     console.log("executing shit")
     doWithData('/user/info', writeFirstName)
-    doWithData('/user/logs', writeLogs)
+    refreshLogs()
     doWithData('/food/all_foods', addFoodsToLocalStorage, undefined, undefined, false, false)
     doWithData('/food/all_nutrients', addNutrientsToLocalStorage)
     if (logEntryVisible) {
@@ -78,6 +102,15 @@ function Dashboard(){
   <Header/>
   <Heading words = {'Hello, ' + name}/>
 
+
+  <MainSection>
+  <DateSelector startDate={startDate} endDate={endDate} onNextMonth={handleNextMonth} onPreviousMonth={handlePreviousMonth} onDateChange={handleDateChange}/>
+  </MainSection>
+
+  <MainSection>
+  <NutrientDash/>
+  </MainSection>
+
   <MainSection>
     {/* Toggle between button and form */}
     {!logEntryVisible ? (
@@ -91,10 +124,10 @@ function Dashboard(){
         )}
   </MainSection>
 
+
   <MainSection>
     <LogList logs = {logs}></LogList>
   </MainSection>
-  <DateSelector startDate={startDate} endDate={endDate}/>
   </StrictMode>) 
 
 }

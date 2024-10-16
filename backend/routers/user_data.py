@@ -27,21 +27,22 @@ user_db_dependency = Annotated[Database, Depends(get_user_data)]
 food_db_dependency = Annotated[Session, Depends(get_session)] 
 
 
-#------------------------------------------pages-------------------------------------------------# 
+#------------------------------------------pages----------------------------------------------------# 
 @router.get("/dashboard")
 def render_dashboard(request: Request):
     return templates.TemplateResponse("dashboard.html", {"request": request})
 
-#--------------------------------------helpers---------------------------------------------------# 
+#-----------------------------------------helpers---------------------------------------------------# 
 
-def get_logs_for_user(user, user_db, startDate : datetime, endDate: datetime):
-    query = {"user_id": str(user["_id"])}
-    query["date"] = {"$gte": startDate, "$lte": endDate}
-    
+def get_logs_for_user(user, startDate : datetime, endDate: datetime, user_db):
+    query = {"user_id": str(user["_id"]),
+             "date" : { "$gte" : startDate,
+                        "$lte" : endDate}}
+    print(query)
     logs = user_db.logs.find(query)
     return logs
 
-# output form:
+# outpuwqt form:
 # food_name: string
 # date: Optional[datetime]
 # amount_in_grams: float
@@ -120,8 +121,8 @@ def get_requirements_for_user(user, user_db):
     
     
 @router.get("/logs", response_model = None)
-def get_logs(startDate : datetime, endDate : datetime, user: user_dependency, user_db : user_db_dependency, food_db : food_db_dependency):
-    logs = list(get_logs_for_user(user, user_db)) 
+def get_logs(endDate : datetime, startDate : datetime, user : user_dependency, user_db : user_db_dependency, food_db : food_db_dependency):
+    logs = list(get_logs_for_user(user, startDate, endDate, user_db)) 
     return make_log_readable(logs, food_db)
 
 @router.post("/update-password", response_model = User)
@@ -245,9 +246,9 @@ def remove_log(user: user_dependency, log_id: str, user_db : user_db_dependency)
     return None
 
 @router.get("/meets_target")
-def meets(user: user_dependency, user_db : user_db_dependency, food_db : food_db_dependency):
+def meets(startDate : datetime, endDate: datetime, user: user_dependency, user_db : user_db_dependency, food_db : food_db_dependency):
     # Validate that the food exists in SQLite
-    logs = get_logs_for_user(user, user_db)
+    logs = list(get_logs_for_user(user,startDate, endDate, user_db))
     
     if len(logs) == 0:
         raise HTTPException(status_code=404, detail="No data logged for this user")
@@ -261,13 +262,12 @@ def meets(user: user_dependency, user_db : user_db_dependency, food_db : food_db
     tally = {}
     
     for r in requirements:
-      tally[r["nutrient_id"]] = {"name" : None, "target" : r["amt"], "intake" : 0, "avg_intake" : 0, "should_exceed": r["should_exceed"]}
+      tally[r["nutrient_id"]] = {"name" : str(get_nutrient_name(food_db, r["nutrient_id"])), "target" : r["amt"], "intake" : 0, "avg_intake" : 0, "should_exceed": r["should_exceed"]}
       
     for log in logs:
       data = get_food_data(food_db, log["food_id"])
       for d in data:
           if d.nutrient_id in tally:
-            tally[d.nutrient_id]["name"] = d.nutrient_name
             tally[d.nutrient_id]["intake"] += amount_by_weight(d.amt, log["amount_in_grams"])
     
     # number of days 

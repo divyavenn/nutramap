@@ -116,12 +116,21 @@
   display: none; /* Hides scrollbar for WebKit browsers */
 }
 
+.no-logs-message{
+  margin-bottom: 0px;
+  font-family: 'Ubuntu';
+  color: hsla(0, 0.00%, 100.00%, 0.53);
+  font-size: 14px;
+  font-weight: 300; 
+  font-style: italic;
+}
 /*------------------------------------DATE SELECTOR---------------------------------------*/
 
 .dashboard-menu {
-  margin-top: 50px;
+  margin-top: 100px;
   display: flex;
-  justify-content: flex-end;
+  flex-direction: vertical;
+  justify-content: center;
   align-items: center;
 }
 
@@ -130,8 +139,6 @@
   overflow: visible;
   width: auto;
   min-height: 30px;
-  margin-right: 100px;
-  padding-right: 0px;
   float: right;
   clear: none;
   flex-direction: row;
@@ -139,14 +146,10 @@
   flex-wrap: nowrap;
   align-items: center;
   align-self: flex-end;
-  order: 0;
-  grid-column-gap: 0px;
-  grid-row-gap: 0px;
-  border-top-left-radius: 20px;
-  border-top-right-radius: 20px;
-  border-bottom-left-radius: 20px;
-  border-bottom-right-radius: 20px;
-  background-color: hsla(280, 100%, 6%, 0.403);
+
+  border-radius: 20px;
+  margin-bottom: 50px;
+  background-color: #19050500;
   color: #ffffff99;
   font-size: 12px;
   object-fit: contain;
@@ -183,7 +186,7 @@
   }
   
   .month-arrow svg {
-    fill: #ffffff31; /* You can change the SVG color here */ 
+    fill: #ffffffaa; /* You can change the SVG color here */ 
     height: 15px;
     
   }
@@ -193,3 +196,145 @@
     padding-left: 10px;
   }
 
+  .date-selector-container {
+    position: relative;
+  }
+  
+  .calendar-popup {
+    position: relative;
+    z-index: 1000;
+    background-color: transparent;
+    border-radius: 20px;
+  }
+
+  /* Ensure the calendar's entire container has a border-radius */
+.calendar-popup .rdrCalendarWrapper {
+  border-radius: 20px; /* Adjust the value as needed */
+  overflow: hidden; /* Ensures that child elements respect the border-radius */
+  background-color: transparent;
+  box-shadow: none; /* Removes any shadow if you don't want it */
+}
+
+/* Style the selected date range boxes */
+.calendar-popup .rdrInputRanges input {
+  background-color: transparent; /* Make the input field itself transparent */
+  color: #fff; /* Adjust the text color for visibility */
+}
+
+.calendar-popup .rdrDateDisplayWrapper {
+  background-color: transparent;
+}
+
+/* Optional: Make the text and placeholder color more visible on transparent background */
+.calendar-popup .rdrDateDisplayWrapper input::placeholder,
+.calendar-popup .rdrDateDisplayWrapper input {
+  color: #ffffff; /* Set text color to white for better contrast */
+  background-color: transparent;
+  box-shadow: none
+}
+
+.calendar-popup .rdrDateInput{
+  background-color: transparent;
+}
+.calendar-popup .rdrDateDisplayItemActive {
+  border: 1px solid white !important; /* Force border color to white */
+  box-shadow: none
+}
+
+.calendar-popup .rdrDateInput .rdrDateDisplayItem :active{
+  color: #e20000; /* Set text color to white for better contrast */
+  border-color: white;
+  background-color: transparent;
+}
+/* Optional: Style the navigation buttons (left and right arrows) if needed */
+.calendar-popup .rdrNextPrevButton {
+  background-color: transparent;
+  border: none;
+}
+
+/* Adjust the styling of the month and year dropdowns */
+.calendar-popup .rdrMonthAndYearWrapper {
+  background-color: transparent;
+  border: none;
+  color: #fff; /* Make sure the text is readable */
+}
+
+.rdrDay {
+  background: transparent;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+  border: 0;
+  padding: 0;
+  line-height: 3.000em;
+  height: 3.000em;
+  text-align: center;
+  color: #ffffff;
+}
+
+
+.rdrDayInMonth {
+  opacity: 1 !important; /* Ensure the opacity is set to 1 */
+  color: #ffffff; /* Adjust the text color if needed */
+}
+
+/* Optional: Style the out-of-month days if needed */
+.rdrDayOutOfMonth {
+  opacity: 0.5; /* Keep out-of-month days less prominent */
+}
+
+.rdrDayToday {
+  /* If the underline is created using border */
+  border-bottom: 2px solid rgb(119, 0, 255); /* Change 'red' to the color you want */
+
+  /* If the underline is created using a box-shadow */
+  box-shadow: none; /* Remove the shadow if you want to reset it */
+}
+
+
+
+/* Make the header where the date range is displayed transparent */
+.calendar-popup .rdrDefinedRangesWrapper {
+  background-color: transparent; /* Set the header background to transparent */
+  border: none; /* Remove any default border if present */
+}
+
+/* Apply the border-radius specifically to the top section */
+.calendar-popup .rdrMonthAndYearWrapper {
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  background-color: transparent;
+  overflow: hidden;
+}
+/* Make the individual date cells transparent */
+.calendar-popup .rdrDay {
+  background-color: transparent;
+}
+
+/* Make the month and year section transparent */
+.calendar-popup .rdrMonthAndYearWrapper {
+    background-color: transparent;
+    color: white;
+}
+
+/* Make the navigation buttons (left and right arrows) transparent */
+.calendar-popup .rdrNextPrevButton {
+    background-color: transparent;
+}
+
+.calendar-popup .rdrMonthAndYearPickers {
+  font-weight: 600;
+  color: #fff;
+}
+
+/* Make the weekday labels transparent */
+.calendar-popup .rdrWeekDays {
+    background-color: transparent;
+}
+
+/* Optional: Style the text color for better visibility */
+.calendar-popup .rdrMonthAndYearWrapper,
+.calendar-popup .rdrWeekDay,
+.calendar-popup .rdrDayNumber {
+    color: #fff; /* White text color for contrast */
+}
