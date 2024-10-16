@@ -136,6 +136,8 @@ function Dashboard(){
     doWithData('/user/info', writeFirstName)
     refreshLogs()
     refreshNutrientInfo()
+    refreshAverageIntake()
+    refreshDayIntake()
     doWithData('/food/all_foods', addFoodsToLocalStorage, undefined, undefined, false, false)
     doWithData('/food/all_nutrients', addNutrientsToLocalStorage)
     if (logEntryVisible) {
@@ -146,7 +148,8 @@ function Dashboard(){
     return () => {
       document.removeEventListener('mousedown', handleClickOutside); // Cleanup
     };
-  }, [logEntryVisible])
+  }, [logEntryVisible, logs]);
+  
 
   return(
   <StrictMode>
@@ -159,7 +162,7 @@ function Dashboard(){
   </MainSection>
 
   <MainSection>
-    <NutrientDashboard nutrientStats={rowData}/>
+    <NutrientDashboard nutrientStats={rowData} currentDay={currentDay}/>
   </MainSection>
 
   <MainSection>

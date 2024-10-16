@@ -2,19 +2,24 @@ import React, { useState } from 'react';
 import '../assets/css/NutrientStats.css'; // Import your CSS file for styling
 
 
-function NutrientDashboard({nutrientStats} : {nutrientStats : NutrientStatsProps[]}){
+function NutrientDashboard({nutrientStats, currentDay} : {nutrientStats : NutrientStatsProps[], currentDay : Date}){
+
+  const removeTextWithinBrackets = (str : string) => {
+    return str.replace(/\[.*?\]|\(.*?\)|\{.*?\}/g, '').trim();
+  }
+
   return (
     <div className="nutrient-dashboard">
-      <NutrientDashboardTitle/>
+      <NutrientDashboardTitle currentDay = {currentDay}/>
 
       {nutrientStats.length === 0 ? 
       (<div> no requirements </div>) : 
-      (<div>
+      (<div className='nutrient-list-wrapper'>
         {nutrientStats.map((n, index) => 
           {return(
             <NutrientStats
               key={index}  // Using index as a key. Ideally, use a unique id if available.
-              name={n.name}
+              name={removeTextWithinBrackets(n.name)}
               target={n.target}
               dayIntake={n.dayIntake}
               avgIntake={Math.round(n.avgIntake * 10) / 10}
@@ -37,8 +42,14 @@ interface NutrientStatsProps {
 }
 
 function formatDay(day : Date){
-  if (day == new Date()) return "today"
-  else return day.getMonth() + " " + day.getDate()
+  const today = new Date();
+  const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const dayDateOnly = new Date(day.getFullYear(), day.getMonth(), day.getDate());
+  
+  // Check if the date is today
+  if (dayDateOnly.getTime() === todayDateOnly.getTime()) 
+    return "today";
+  else return day.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
 }
 
 function NutrientDashboardTitle({currentDay = new Date()} : {currentDay? : Date}){
@@ -124,7 +135,9 @@ function NutrientStats({ name, target, dayIntake = 0, avgIntake, shouldExceed, u
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)} >
           {hovered ? 
-            (`${goalMessage(target, dayIntake, units, shouldExceed)}`) : 
+            (<div>
+              {goalMessage(target, dayIntake, units, shouldExceed)}
+              </div>) : 
             (
               <div className="daily-intake">
                 <div

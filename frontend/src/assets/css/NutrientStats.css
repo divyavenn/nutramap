@@ -22,10 +22,19 @@
   color: var(--white);
 }
 
+.nutrient-list-wrapper {
+  position: relative;
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  flex-direction: column;
+  justify-content: center;
+}
+
 .nutrient-dashboard-title {
   position: relative;
   width: 100%;
-  font-family: Inconsolata;
+  font-family: Nunito Sans;
   color: hsla(276, 80.00%, 46.67%, 1.00);
   font-size: 18px;
   font-weight: 300;
@@ -89,6 +98,22 @@
   border-color: antiquewhite;
   height: 10px;
   background-color: #12000eb9;
+  border-radius: 100px;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  flex-direction: row;
+  align-self: center;
+  align-items: center;
+  justify-content: start;
+  justify-self: center;
+}
+
+.daily-intake:hover {
+  position: relative;
+  border-color: antiquewhite;
+  height: 10px;
+  background-color: #de00aeb9;
   border-radius: 100px;
   overflow: hidden;
   cursor: pointer;
