@@ -18,7 +18,7 @@
   border-top-right-radius: 14px;
   border-bottom-left-radius: 14px;
   border-bottom-right-radius: 14px;
-  background-color: hsla(272, 100.00%, 4.00%, 0.51);
+  background-color: hsla(0, 0%, 0%, 0.518);
   color: var(--white);
 }
 .dashboard-row {
@@ -52,9 +52,9 @@
 .today-stats-wrapper {
   position: relative;
   width: 50%;
-  font-family: Ubuntu;
-  font-size: 13px;
-  font-style: italic;
+  font-family: Inconsolata;
+  font-size: 15px;
+  align-self: center;
   font-weight: 300;
   text-align: center;
   text-transform: none;
@@ -63,6 +63,7 @@
 .avg-stats-wrapper {
   position: relative;
   width: 25%;
+  align-self: center;
   font-family: Ubuntu;
   font-size: 13px;
   font-style: italic;
@@ -78,15 +79,18 @@
 
 .daily-intake {
   position: relative;
-  height: 24px;
-  background-color: #f0f0f000;
-  border-radius: 12px;
+  border-color: antiquewhite;
+  height: 10px;
+  background-color: #12000eb9;
+  border-radius: 100px;
   overflow: hidden;
   cursor: pointer;
   display: flex;
   flex-direction: row;
+  align-self: center;
   align-items: center;
   justify-content: start;
+  justify-self: center;
 }
 
 
@@ -94,7 +98,7 @@
   height: 100%;
   width: 100%; /* Ensure the progress bar fills the container */
   transition: width 0.3s ease;
-  border-radius: 12px;
+  border-radius: 100px;
 }
 
 .intake-value {
