@@ -10,10 +10,6 @@ interface ParentComponentProps {
   children: React.ReactNode
 }
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  children: React.ReactNode
-}
-
 
 function Background({children} : ParentComponentProps) {
   return (
@@ -47,7 +43,11 @@ function BottomMargin() {
   return(<section className="margin-bottom"></section>)
 }
 
-function Button({children, ...props} : ButtonProps){
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  children: React.ReactNode
+}
+
+function ImageButton({children, ...props} : ButtonProps){
   return (
     <button className="svg-button" {...props}>
      {children}
@@ -76,4 +76,4 @@ function HoverButton({childrenOn, childrenOff, ...props} : HoverButtonProps){
 
 
 
-export {Background, Header, MainSection, Button, HoverButton}
+export {Background, Header, MainSection, ImageButton, HoverButton}

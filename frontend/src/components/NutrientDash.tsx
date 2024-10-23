@@ -1,8 +1,45 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef} from 'react';
+import { calculateColor, formatDayForBackend} from './utlis';
+import { ImageButton } from './Sections';
+import AddLogButton from '../assets/images/plus.svg?react'
 import '../assets/css/NutrientStats.css'; // Import your CSS file for styling
 
 
+interface NutrientStatsProps {
+  name: string;
+  target: number;
+  dayIntake?: number;
+  avgIntake: number;
+  shouldExceed: boolean;
+  units: string;
+}
+
 function NutrientDashboard({nutrientStats, currentDay} : {nutrientStats : NutrientStatsProps[], currentDay : Date}){
+
+
+  /* for add nutrient requirement button */
+  const [newReqFormVisible, setNewReqFormVisible] = useState<boolean>(false)
+  const newReqFormRef = useRef<HTMLDivElement>(null); 
+
+  // Function to close form if clicked outside
+  const handleClickOutside = (event: MouseEvent) => {
+    if (newReqFormRef.current && !newReqFormRef.current.contains(event.target as Node)) {
+      setNewReqFormVisible(false); // Close the form when clicking outside
+    }
+  }
+    
+  useEffect(() => {
+    // start looking for clicks outside if new requirement form is visible
+    if (newReqFormVisible) {
+      document.addEventListener('mousedown', handleClickOutside);
+    } else {
+      document.removeEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside); // Cleanup
+    };  
+  }, [newReqFormVisible])  
+
 
   const removeTextWithinBrackets = (str : string) => {
     return str.replace(/\[.*?\]|\(.*?\)|\{.*?\}/g, '').trim();
@@ -28,29 +65,14 @@ function NutrientDashboard({nutrientStats, currentDay} : {nutrientStats : Nutrie
           })
         }
       </div>)}
+      <ImageButton>
+        <AddLogButton/>
+      </ImageButton>
     </div>
   )
 }
 
-interface NutrientStatsProps {
-  name: string;
-  target: number;
-  dayIntake?: number;
-  avgIntake: number;
-  shouldExceed: boolean;
-  units: string;
-}
 
-function formatDay(day : Date){
-  const today = new Date();
-  const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const dayDateOnly = new Date(day.getFullYear(), day.getMonth(), day.getDate());
-  
-  // Check if the date is today
-  if (dayDateOnly.getTime() === todayDateOnly.getTime()) 
-    return "today";
-  else return day.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
-}
 
 function NutrientDashboardTitle({currentDay = new Date()} : {currentDay? : Date}){
   return <div className='dashboard-row'>
@@ -58,7 +80,7 @@ function NutrientDashboardTitle({currentDay = new Date()} : {currentDay? : Date}
 
     </div>
     <div className = 'today-stats-wrapper'>
-      <div className = 'nutrient-dashboard-title'> {formatDay(currentDay)} </div>
+      <div className = 'nutrient-dashboard-title'> {formatDayForBackend(currentDay)} </div>
     </div>
 
     <div className='avg-stats-wrapper'>
@@ -73,35 +95,6 @@ function NutrientStats({ name, target, dayIntake = 0, avgIntake, shouldExceed, u
 
   // Calculate the progress percentage
   const progressPercentage = Math.min((dayIntake / target) * 100, 100);
-
-  // Function to interpolate between red and blue based on intake vs. target
-  const calculateColor = (percentage: number, shouldExceed: boolean) => {
-    // If shouldExceed is true, red (when less) to blue (when exceeded)
-    // If shouldExceed is false, blue (when less) to red (when exceeded)
-
-    // Define RGB values for the two endpoints
-    const red = [209, 99, 0]; // RGB for red
-    const blue = [60, 181, 57]; // RGB for blue
-
-    // Calculate the ratio (how far along we are towards the target)
-    const ratio = Math.min(percentage / 100, 1);
-
-    // Interpolate between red and blue
-    const [r, g, b] = shouldExceed
-      ? [
-          Math.floor((1 - ratio) * red[0] + ratio * blue[0]),
-          Math.floor((1 - ratio) * red[1] + ratio * blue[1]),
-          Math.floor((1 - ratio) * red[2] + ratio * blue[2]),
-        ]
-      : [
-          Math.floor((1 - ratio) * blue[0] + ratio * red[0]),
-          Math.floor((1 - ratio) * blue[1] + ratio * red[1]),
-          Math.floor((1 - ratio) * blue[2] + ratio * red[2]),
-        ];
-
-    // Return the color as a CSS-compatible string
-    return `rgb(${r}, ${g}, ${b})`;
-  };
 
   const progressColor = calculateColor(progressPercentage, shouldExceed);
 
@@ -140,12 +133,20 @@ function NutrientStats({ name, target, dayIntake = 0, avgIntake, shouldExceed, u
               </div>) : 
             (
               <div className="daily-intake">
-                <div
+                {shouldExceed ?
+                (<div
                   className="progress-bar"
                   style={{
-                  width: `${progressPercentage*.75}%`,
+                  width: `${progressPercentage}%`,
                   backgroundColor: progressColor}}>
-                </div>
+                </div>) :
+                (<div
+                  className="progress-bar"
+                  style={{
+                  width: `${progressPercentage * .75}%`,
+                  backgroundColor: progressColor}}>
+                </div>)
+                }
               </div>
             )}
       </div>

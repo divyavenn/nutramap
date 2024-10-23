@@ -1,32 +1,38 @@
 /// <reference types="vite-plugin-svgr/client" />
 import { StrictMode, useEffect, useState, useRef } from 'react'
-import { DateSelector , LogList, LogProps} from '../components/Logs'
+import { LogList, LogProps} from '../components/Logs'
+import { DateSelector, TimePeriod, RangeType} from '../components/DateSelector'
 
 import {doWithData} from '../components/LoadHtml'
 import {Heading} from '../components/Title'
-import {Header, MainSection, Button} from '../components/Sections'
+import {Header, MainSection} from '../components/Sections'
 import { NewLogForm } from '../components/AddLogForm' 
 import { NutrientDashboard, NutrientStatsProps} from '../components/NutrientDash'
 
-import AddLogButton from '../assets/images/new-log.svg?react'
 
-interface KeyValue {
-  id : number;
-  name : string;
+
+function tolocalDateString (date : Date) {
+  return date.getFullYear() + '-' +
+  String(date.getMonth() + 1).padStart(2, '0') + '-' +
+  String(date.getDate()).padStart(2, '0') + 'T' +
+  String(date.getHours()).padStart(2, '0') + ':' +
+  String(date.getMinutes()).padStart(2, '0') + ':' +
+  String(date.getSeconds()).padStart(2, '0');
 }
-
 function Dashboard(){
   const [name, setName] = useState('user');
-
   /* for log list*/
   const [logs, setLogs] = useState<LogProps[]>([])
-  const [logEntryVisible, setLogEntryVisible] = useState<boolean>(false)
-  const formRef = useRef<HTMLDivElement>(null); 
+
 
   /* for date selector */
-  const now = new Date();
-  const [startDate, setStartDate] = useState<Date>(new Date(now.getFullYear(), now.getMonth(), 1))
-  const [endDate, setEndDate] = useState<Date>(now)
+  let now = new Date()
+  const [dateRangeType, setDateRangeType] = useState<RangeType>(RangeType.custom)
+  const [dateRange, setDateRange] = useState<TimePeriod>(
+    { 
+      start: (new Date(now.getFullYear(), now.getMonth(), 1)), 
+      end: (new Date(now.getFullYear(), now.getMonth() + 1, 0)),
+    })
 
   /* for dashboard */
   const [currentDay, setCurrentDay] = useState<Date>(new Date()) 
@@ -37,29 +43,43 @@ function Dashboard(){
 
   const [rowData, setRowData] = useState<NutrientStatsProps[]>([]);
 
-  // Function to close form if clicked outside
-  const handleClickOutside = (event: MouseEvent) => {
-    if (formRef.current && !formRef.current.contains(event.target as Node)) {
-      setLogEntryVisible(false); // Close the form when clicking outside
-    }
-  };
-  const handleDateChange = ({ startDate, endDate }: { startDate: Date; endDate: Date }) => {
-    setStartDate(startDate);
-    setEndDate(endDate);
-    // Call refreshLogs or any function that updates based on the new dates
-  };
+
   const handleNextMonth = () => {
-    setStartDate(new Date(startDate.getFullYear(), startDate.getMonth() + 1, 1));
-    setEndDate(new Date(startDate.getFullYear(), startDate.getMonth() + 2, 0));
-  };
+    if (dateRangeType === RangeType.default) {
+      // Move to the next entire month
+      setDateRange({
+        start: new Date(dateRange.start.getFullYear(), dateRange.start.getMonth() + 1, 1),
+        end: new Date(dateRange.start.getFullYear(), dateRange.start.getMonth() + 2, 0)
+      });
+    } else if (dateRangeType === RangeType.custom) {
+      // Calculate the difference between the start and end dates in milliseconds
+      const rangeDuration = dateRange.end.getTime() - dateRange.start.getTime();
+      // If the range is less than a year, increment the range by the same duration
+      setDateRange ({
+          start: new Date(dateRange.start.getTime() + rangeDuration),
+          end: new Date(dateRange.end.getTime() + rangeDuration)
+        });
+      }
+    }
+
   const handlePreviousMonth = () => {
-    setStartDate(new Date(startDate.getFullYear(), startDate.getMonth() - 1, 1));
-    setEndDate(new Date(startDate.getFullYear(), startDate.getMonth(), 0));
-  };
-  // Function to toggle the form visibility
-  const toggleFormVisibility = () => {
-    setLogEntryVisible(!logEntryVisible);
-  };
+    if (dateRangeType === RangeType.default) {
+      // Move to the next entire month
+      setDateRange({
+        start: new Date(dateRange.start.getFullYear(), dateRange.start.getMonth(), 0),
+        end: new Date(dateRange.start.getFullYear(), dateRange.start.getMonth() - 1, 1)
+      });
+    } else if (dateRangeType === RangeType.custom) {
+      // Calculate the difference between the start and end dates in milliseconds
+      const rangeDuration = dateRange.end.getTime() - dateRange.start.getTime();
+      // If the range is less than a year, increment the range by the same duration
+      setDateRange ({
+          start: new Date(dateRange.start.getTime() - rangeDuration),
+          end: new Date(dateRange.end.getTime() - rangeDuration)
+        });
+      }
+  }
+    
 
   const writeFirstName = (userData : any) => {
     setName(userData.name.trim().split(' ')[0])
@@ -73,32 +93,33 @@ function Dashboard(){
     localStorage.setItem('nutrients', JSON.stringify(nutrients))
   }
 
-  const refreshLogs = () => {
-    doWithData('/user/logs?startDate=' 
-                + startDate.toISOString() 
+  const refreshLogs = async () => {
+    await doWithData('/logs/get?startDate=' 
+                + tolocalDateString(dateRange.start)
                 + '&endDate=' 
-                + endDate.toISOString() + '', setLogs);
+                + tolocalDateString(dateRange.end) + '', setLogs);
   };
 
+
   const refreshDayIntake = () => {
-    doWithData('/user/day_intake?date=' 
-                + currentDay.toISOString(), setDayIntake);
+    let query = '/logs/day_intake?date=' 
+                + tolocalDateString(currentDay)
+    doWithData(query, setDayIntake);
   }
   
 
   const refreshAverageIntake = () => {
-    doWithData('/user/range_intake?startDate=' 
-                + startDate.toISOString() 
+    doWithData('/logs/range_intake?startDate=' 
+                + tolocalDateString(dateRange.start)
                 + '&endDate=' 
-                + endDate.toISOString() + '', setAverageIntake);
+                + tolocalDateString(dateRange.end) + '', setAverageIntake);
   }
 
   const refreshNutrientInfo = () => {
-    doWithData('/user/requirement_info', setNutrientInfo);
+    doWithData('/requirements/requirement_info', setNutrientInfo);
   }
 
-  // update row data if info, day intake, or averaged intake changes
-  useEffect(() => {
+  const combineData = () => {
     // Check if both pieces of data are available before combining
     if (Object.keys(nutrientInfo).length > 0) {
       const combined = Object.keys(nutrientInfo).map((nutrientId) => {
@@ -115,41 +136,42 @@ function Dashboard(){
           units: info.units,
         };
       });
-  
-      setRowData(combined);
+    setRowData(combined);
     }
-  }, [dayIntake, averageIntake, nutrientInfo]);
+  }
 
-  // if current Day changes, refresh the nutrition dashbarod
-  useEffect(() => {
-    refreshDayIntake();
-  }, [currentDay])
-
-  // if start date or end date changes, refresh logs
-  useEffect(() => {
-    refreshAverageIntake();
-    refreshLogs();
-  }, [startDate, endDate])
 
   useEffect(() => {
-    console.log("executing shit")
+  }, [logs]);
+
+  useEffect(() => {
     doWithData('/user/info', writeFirstName)
     refreshLogs()
     refreshNutrientInfo()
     refreshAverageIntake()
     refreshDayIntake()
-    doWithData('/food/all_foods', addFoodsToLocalStorage, undefined, undefined, false, false)
+    doWithData('/food/all_foods', addFoodsToLocalStorage, undefined, undefined, false)
     doWithData('/food/all_nutrients', addNutrientsToLocalStorage)
-    if (logEntryVisible) {
-      document.addEventListener('mousedown', handleClickOutside);
-    } else {
-      document.removeEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside); // Cleanup
-    };
-  }, [logEntryVisible, logs]);
+    combineData()
+  }, []);
   
+  // update row data if info, day intake, or averaged intake changes
+  useEffect(() => {
+    combineData()
+  }, [dayIntake, averageIntake, nutrientInfo, currentDay, logs]);
+
+  // if current Day changes, refresh the nutrition dashbarod
+  useEffect(() => {
+    refreshDayIntake();
+  }, [currentDay, logs])
+
+  // if start date or end date changes, refresh logs
+  useEffect(() => {
+    refreshAverageIntake();
+    refreshLogs();
+  }, [dateRange.start, dateRange.end])
+  
+
 
   return(
   <StrictMode>
@@ -158,29 +180,28 @@ function Dashboard(){
 
 
   <MainSection>
-  <DateSelector startDate={startDate} endDate={endDate} onNextMonth={handleNextMonth} onPreviousMonth={handlePreviousMonth} onDateChange={handleDateChange}/>
+  <DateSelector startDate={dateRange.start} 
+                endDate={dateRange.end} 
+                rangeType={dateRangeType}
+                onNextMonth={handleNextMonth} 
+                onPreviousMonth={handlePreviousMonth} 
+                onDateChange={setDateRange}/>
   </MainSection>
 
   <MainSection>
-    <NutrientDashboard nutrientStats={rowData} currentDay={currentDay}/>
+    <NutrientDashboard  nutrientStats={rowData} 
+                        currentDay={currentDay}/>
   </MainSection>
 
   <MainSection>
-    {/* Toggle between button and form */}
-    {!logEntryVisible ? (
-          <Button onClick={toggleFormVisibility}>
-            <AddLogButton />
-          </Button>
-        ) : (
-          <div ref={formRef}>
-            <NewLogForm callAfterSubmitting={refreshLogs} />
-          </div>
-        )}
+    <div>
+    <NewLogForm callAfterSubmitting={refreshLogs} />
+   </div>
   </MainSection>
 
-
   <MainSection>
-    <LogList logs = {logs}></LogList>
+    <LogList  logs = {[...logs]} 
+              callAfterSubmitting={refreshLogs}></LogList> 
   </MainSection>
   </StrictMode>) 
 

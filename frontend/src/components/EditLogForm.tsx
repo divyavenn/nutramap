@@ -1,31 +1,43 @@
 import React, { useEffect, useState } from 'react' 
 import {getHeaderWithToken, doWithData } from './LoadHtml';
-import {HoverButton } from './Sections';
+import {HoverButton, ImageButton } from './Sections';
 import Arrow from '../assets/images/arrow.svg?react'
 import Ok from '../assets/images/checkmark.svg?react'
-import '../assets/css/new_log.css'
+import Trashcan from '../assets/images/trashcan.svg?react'
+
+import '../assets/css/edit_log.css'
 import '../assets/css/buttons.css'
-import { getFoodID } from './utlis';
+
+import { formatDayForBackend } from './utlis';
+
+interface KeyValue {
+  id : number;
+  name : string;
+}
 
 
-interface ComponentCallingFunctionProps {
+interface EditLogFormProps {
+  food_name: string;
+  date: Date;
+  amount_in_grams : number;
+  _id : string;
   callAfterSubmitting: () => void;
 }
 
-function NewLogForm({ callAfterSubmitting }: ComponentCallingFunctionProps){
+function EditLogForm({food_name, date, amount_in_grams, _id, callAfterSubmitting} : EditLogFormProps){
 
   // Mock food data for autocomplete
   const foodList : Record<string, string> = JSON.parse(localStorage.getItem('foods') || '{}');
-
+  const [visible, setVisible] = useState(true)
   const [formData, setFormData] = useState({
-    food_name : '',
-    amount_in_grams : '', 
-    date : new Date(),
+    food_name : food_name,
+    amount_in_grams : String(amount_in_grams), 
+    date : date,
   })
 
   const [suggestions, setSuggestions] = useState<string[]>([]); // State for filtered suggestions
   const [showSuggestions, setShowSuggestions] = useState(false); // Control the visibility of suggestions
-
+ 
 
   const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
     const {name, value} = e.target; // get the name and value of the input field
@@ -59,20 +71,42 @@ function NewLogForm({ callAfterSubmitting }: ComponentCallingFunctionProps){
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault() // prevent automatic submission
     try {
-      const response = await fetch('/logs/new', {
+      const response = await fetch('/logs/edit', {
         method: 'POST',
         headers: getHeaderWithToken(),
         body: new URLSearchParams({
-          food_id: getFoodID(formData.food_name),
+          food_id: foodList[formData.food_name],
           amount_in_grams: formData.amount_in_grams,
+          date: formatDayForBackend(formData.date),
+          log_id: _id
         }),
       })
-      if (response.ok){
-        const logData = await response.json(); // Wait for the promise to resolve
-        console.log("new log added ", logData);
+      // used to refresh log list
+      callAfterSubmitting()
+    }
+    catch (error) {
+      console.error('An unexpected error occurred:', error);
+    }
+  }
+  const handleDelete = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault() // prevent automatic submission
+    try{
+      const response = await fetch(`/logs/delete?log_id=${_id}`, {
+        method: 'DELETE',
+        headers: getHeaderWithToken(),
+      });
+
+       // Check if the response was successful
+      if (response.ok) {
+        console.log("Log deleted successfully");
+        setVisible(false)
         // used to refresh log list
-        await callAfterSubmitting()
-        setFormData({ food_name: '', amount_in_grams: '', date : new Date()})
+        callAfterSubmitting()
+        //reset after submitting
+        setFormData({ ...formData, food_name: '', amount_in_grams : ''})
+        // Refresh logs or perform other actions
+      } else {
+        console.error("Error deleting log: ", response.status);
       }
     }
     catch (error) {
@@ -81,8 +115,9 @@ function NewLogForm({ callAfterSubmitting }: ComponentCallingFunctionProps){
   }
 
   return (
+    visible ? (
     <form
-      id="login-form" className = {`form-elements-wrapper ${showSuggestions ? 'active' : ''}`} onSubmit={handleSubmit}>
+      id="login-form" className = {`edit-form-elements-wrapper ${showSuggestions ? 'active' : ''}`} onSubmit={handleSubmit}>
       <div className={`entry-form-bubble ${showSuggestions ? 'active' : ''}`}>
       <div className= 'input-food-name-wrapper'>
         <input
@@ -117,7 +152,16 @@ function NewLogForm({ callAfterSubmitting }: ComponentCallingFunctionProps){
               childrenOn={<Ok/>}
               childrenOff={<Arrow/>}>
       </HoverButton> </div> 
+
       </div>
+
+      <div className = 'delete-log-button-container'>
+      <ImageButton
+              onClick={handleDelete}
+              className="month-arrow"
+              children={<Trashcan/>}>
+      </ImageButton>  </div>
+
       {showSuggestions && (
             <ul className="suggestions-list">
               {suggestions.map(suggestion => (
@@ -129,10 +173,10 @@ function NewLogForm({ callAfterSubmitting }: ComponentCallingFunctionProps){
               ))}
             </ul>
           )}
-    </form>
-    
+    </form>) :
+    <div></div>
   )
 
 }
 
-export  {NewLogForm}
+export  {EditLogForm}

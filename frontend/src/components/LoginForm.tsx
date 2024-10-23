@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PageLink } from './Elems';
 import { useNavigate } from 'react-router-dom';
-import { Button, HoverButton } from './Sections';
+import {HoverButton } from './Sections';
 import SubmitButton from '../assets/images/login.svg?react'
 import SubmitButtonHollow from '../assets/images/login-hollow.svg?react'
 
