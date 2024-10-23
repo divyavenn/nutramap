@@ -31,11 +31,9 @@ input, textarea {
   transition: color 0.3s ease, background-color 0.3s ease; /* Smooth transition */
 }
 
-
+/*--------------------------------------------CONTAINER----------------------------------*/
 .edit-form-elements-wrapper{
   display: flex;
-  width: 530px;
-  margin-left: 30px;
   margin-bottom: 20px;
   background-color: none;
   color: var(--white);
@@ -43,41 +41,17 @@ input, textarea {
   border-radius: 14px;
 }
 
-/* Activate suggestions dropdown */
-.form-elements-wrapper.active .suggestions-list {
-  opacity: .5;
-  transform: translateY(0);
-  pointer-events: all;
-}
-
-/* Autocomplete suggestions styling */
-.input-food-name-wrapper {
-  width: 60%;
-  flex-grow: 1;
-  /* border: 1px solid rgb(47, 156, 114); Add a red border to visually see the amount's boundaries */
-  position: relative; /* This is to ensure the suggestions dropdown aligns with the input */
-}
-
-.input-food-name {
-  padding-top: 15px;
-  padding-bottom: 15px;
-  padding-left: 27px;
-  flex-grow: 1;
-  flex-shrink: 1;
-  background: none;
-  width: 100%;
-  /* border: 1px solid red; Add a red border to visually see the amount's boundaries */
-  position: relative;
-  font-family: Inconsolata;
-  color: inherit;
-  outline: none;
-  transition: background-color 0.3s ease, color 0.3s ease;
-  text-align: left; /* Ensures the text aligns properly */
+.form-dropdown-wrapper{
+  display: flex;
+  background-color: #19050576;
+  color: var(--white);
+  flex-direction: column;
+  border-radius: 14px;
 }
 
 
 
-.entry-form-bubble{
+.edit-entry-form-bubble{
   display: flex;
   border-radius: 14px;
   width: 500px;
@@ -89,34 +63,62 @@ input, textarea {
   justify-content: space-between; /* Ensure space is distributed between elements */
 }
 
-.entry-form-bubble.active{
+.edit-entry-form-bubble.active{
   border-bottom-left-radius: 0px;
   border-bottom-right-radius: 0px;
 }
 
-.entry-form-bubble:hover{
+.edit-entry-form-bubble:hover{
   background-color: #ffffffa1;
   color: #1e002e;
 }
 
+/* Activate suggestions dropdown */
+.form-elements-wrapper.active .suggestions-list {
+  opacity: .5;
+  transform: translateY(0);
+  pointer-events: all;
+}
 
 
+/*--------------------------------------------NAME----------------------------------*/
 
-/* Wrapper for the input and "g" unit */
-.input-food-amt-wrapper {
+
+/* Autocomplete suggestions styling */
+.edit-input-food-name-wrapper {
+  border-radius: 2px;
+  width: 300px;
+  position: relative; /* This is to ensure the suggestions dropdown aligns with the input */
+}
+.edit-input-food-name {
+  padding-top: 15px;
+  padding-bottom: 15px;
+  padding-left: 27px;
+  padding-right: 10px;
+  width: 300px;
+
+
+  background: none;
+  font-family: Inconsolata;
+  color: inherit;
+  outline: none;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  text-align: left; /* Ensures the text aligns properly */
+}
+/* ------------------------------------------AMOUNT-------------------------------------- */
+.edit-input-food-amt-wrapper {
   display: flex;
   justify-self: right;
   align-items: center;
   align-self: center;
-  /* border: 1px solid rgb(0, 89, 255); Add a red border to visually see the amount's boundaries */
   position: relative;
   width: 10%; /* Set width to match your layout */
 }
 
 /* The input for entering food amount */
-.input-food-amt {
+.edit-input-food-amt {
   width: 100%; /* Ensures the input takes full available space in the wrapper */
-  padding-right: 20px; /* Creates space for the "g" */
+  padding-right: 10px; /* Creates space for the "g" */
   background: none;
   border: none; /* Removes the default border */
   font-family: Inconsolata;
@@ -125,13 +127,65 @@ input, textarea {
 }
 
 /* Styling for the "g" unit */
-.unit {
+.edit-unit {
   position: absolute;
-  right: 10px; /* Position the unit at the right side of the input */
+  right: 0px;
   font-family: Inconsolata;
   color: inherit; /* Inherit text color (important for hover) */
   pointer-events: none; /* Ensure the span doesn't interfere with input focus */
 }
+
+
+
+
+
+/* ------------------------------------------DATE-------------------------------------- */
+
+.edit-dateTime-container {
+  /* border: 1px solid red;  */
+  flex-direction: row;
+  display: flex; /* Enables flexbox on the container */
+  width: 25%;
+  justify-content: flex-end; /* Pushes content to the right side */
+  align-items: center; /* Vertically centers the button */
+  padding-right: 20px; /* Optional: padding */
+
+}
+
+.edit-input-date-wrapper {
+  /* border: 1px solid rgb(0, 4, 255); */
+  padding-right: 8px; /* Optional: padding */
+  flex-direction: row;
+  display: flex; /* Enables flexbox on the container */
+}
+
+.calendar-button { 
+  background: none;
+  cursor: pointer;
+  border: none;
+}
+
+.calendar-button svg {
+  fill: #ffffffa8;
+  width: 21px;
+}
+
+.calendar-button:hover svg {
+  fill: #1e002e;
+}
+
+/* ------------------------------------------TIME-------------------------------------- */
+
+.edit-input-time-wrapper {
+  display: block;
+  background: none;
+  border: none;
+  font-family: Inconsolata;
+  text-align: right; /* Align the date to the right */
+  flex-shrink: 0;
+}
+
+
 
 
 /*-----------------------------------SUGGESTIONS------------------------------*/
@@ -159,6 +213,7 @@ input, textarea {
 /* Individual suggestion items */
 .suggestion-item {
   padding-top: 10px;
+  padding-bottom: 10px;
   padding-left: 27px;
   padding-right: 40px;
   font-family: Inconsolata;
@@ -175,32 +230,55 @@ input, textarea {
   color: #1e002e;
 }
 
-.delete-log-button-container {
-  width: 30px;
-  padding: 10px; /* Optional: padding */
+
+
+.edit-log-submit-container {
+  display: flex; /* Enables flexbox on the container */
+  justify-content: flex-end; /* Pushes content to the right side */
+  align-items: center; /* Vertically centers the button */
+
 }
 
-.month-arrow {
+.edit-log-submit {
+  align-items: center; /* Vertically center the SVG within the button */
+  background: none;
+  cursor: pointer;
+  border: none;
+
+  order: 1;
+}
+
+.edit-log-submit svg {
+  fill: #ffffffa8; /* You can change the SVG color here */
+  height: 25px;
+}
+
+.edit-log-submit:hover svg {
+  fill: #ffffff; /* You can change the SVG color here */
+}
+
+
+.delete-log-button-container {
+  display: flex; 
+  width: 30px;
+  margin-right: 5px;
+  align-items: center;
+}
+
+.delete-button {
   display: block;
-  padding-left: 0px;
-  padding-right: 10px;
   clear: none;
   align-self: center;
-  order: 1;
-  flex-grow: 1;
-  flex-shrink: 1;
-  flex-basis: 0%;
   background: none;
   font-size: 10px;
   text-align: center;
 }
 
-.month-arrow:hover svg {
-  fill: #ffffff; /* Change the color on hover */
-}
-
-.month-arrow svg {
+.delete-button svg {
   fill: #ffffff77; /* You can change the SVG color here */ 
   height: 20px;
-  
+}
+
+.delete-button:hover svg {
+  fill: #ffffff; /* Change the color on hover */
 }

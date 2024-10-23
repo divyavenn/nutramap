@@ -35,32 +35,3 @@
 .login-button:hover svg {
   fill: #ffffff; /* Change the color on hover */
 }
-
-.new-log-button-container {
-  display: flex; /* Enables flexbox on the container */
-  width: 25%;
-  justify-content: flex-end; /* Pushes content to the right side */
-  align-items: center; /* Vertically centers the button */
-  padding: 10px; /* Optional: padding */
-}
-
-.new-log-button {
-  align-items: center; /* Vertically center the SVG within the button */
-  background: none;
-  margin-right: 5px;
-  cursor: pointer;
-  border: none;
-  order: 1;
-}
-
-.new-log-button svg {
-  fill: #ffffffa8; /* You can change the SVG color here */
-  width: 15px;
-  height: 15px;
-}
-
-.new-log-button:hover svg {
-  fill: #1e002e;; /* You can change the SVG color here */
-  width: 15px;
-  height: 15px;
-}

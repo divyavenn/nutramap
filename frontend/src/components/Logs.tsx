@@ -64,7 +64,9 @@ interface LogProps {
 function DisplayLog ({ food_name, date, amount_in_grams } : DisplayLogProps) {
    return (<div className = 'log-bubble'> 
     <div className = 'entry-food-name'> {food_name} </div>
-    <div className = 'entry-food-amt'> {amount_in_grams + ' g '}</div>
+    <div className = 'entry-food-amt'> {amount_in_grams}
+    <div className="log-unit"> {'g'} </div>
+    </div>
     <div className = 'entry-date'> {formatTime(date)} </div>
   </div>)
 }

@@ -62,12 +62,6 @@
 }
 
 
-
-  
-  .month-arrow:hover svg {
-    fill: #ffffff; /* Change the color on hover */
-  }
-
   .range-text {
     padding: 10px;
     order: 1;
@@ -95,7 +89,10 @@
   .month-arrow svg {
     fill: #ffffff77; /* You can change the SVG color here */ 
     height: 20px;
-    
+  }
+
+  .month-arrow:hover svg {
+    fill: #ffffff; /* Change the color on hover */
   }
 
   .month-arrow.left {

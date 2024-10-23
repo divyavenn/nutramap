@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react' 
 import {getHeaderWithToken, doWithData } from './LoadHtml';
 import {HoverButton, ImageButton } from './Sections';
-import Arrow from '../assets/images/arrow.svg?react'
-import Ok from '../assets/images/checkmark.svg?react'
+import YesOk from '../assets/images/check_circle.svg?react'
+import IsOk from '../assets/images/checkmark.svg?react'
 import Trashcan from '../assets/images/trashcan.svg?react'
+import Cal from '../assets/images/calendar.svg?react'
+import Calday from '../assets/images/calendar_day.svg?react'
+import { Calendar } from './DateSelector';
+import { formatTime } from './utlis';
 
 import '../assets/css/edit_log.css'
-import '../assets/css/buttons.css'
 
 import { formatDayForBackend } from './utlis';
 
@@ -28,7 +31,7 @@ function EditLogForm({food_name, date, amount_in_grams, _id, callAfterSubmitting
 
   // Mock food data for autocomplete
   const foodList : Record<string, string> = JSON.parse(localStorage.getItem('foods') || '{}');
-  const [visible, setVisible] = useState(true)
+  const [deleted, setDeleted] = useState(false)
   const [formData, setFormData] = useState({
     food_name : food_name,
     amount_in_grams : String(amount_in_grams), 
@@ -38,6 +41,7 @@ function EditLogForm({food_name, date, amount_in_grams, _id, callAfterSubmitting
   const [suggestions, setSuggestions] = useState<string[]>([]); // State for filtered suggestions
   const [showSuggestions, setShowSuggestions] = useState(false); // Control the visibility of suggestions
  
+  const [showCalendar, setShowCalendar] = useState(false)
 
   const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
     const {name, value} = e.target; // get the name and value of the input field
@@ -99,7 +103,7 @@ function EditLogForm({food_name, date, amount_in_grams, _id, callAfterSubmitting
        // Check if the response was successful
       if (response.ok) {
         console.log("Log deleted successfully");
-        setVisible(false)
+        setDeleted(true)
         // used to refresh log list
         callAfterSubmitting()
         //reset after submitting
@@ -115,54 +119,67 @@ function EditLogForm({food_name, date, amount_in_grams, _id, callAfterSubmitting
   }
 
   return (
-    visible ? (
+    !deleted ? (
     <form
       id="login-form" className = {`edit-form-elements-wrapper ${showSuggestions ? 'active' : ''}`} onSubmit={handleSubmit}>
-      <div className={`entry-form-bubble ${showSuggestions ? 'active' : ''}`}>
-      <div className= 'input-food-name-wrapper'>
-        <input
-          name='food_name'
-          className = 'input-food-name'
-          placeholder='food'
-          value = {formData.food_name}
-          onChange={handleTyping}
-          required
-        ></input>
-      </div>
-
-      <div className="input-food-amt-wrapper">
-        <input
-          name='amount_in_grams'
-          className = 'input-food-amt'
-          type = 'number'
-          placeholder='0'
-          value = {formData.amount_in_grams}
-          onChange={handleTyping}
-          required
-        ></input>
-        <span className="unit">g</span>
-      </div>
-
       
-      <div className = 'new-log-button-container'>
-      <HoverButton
-              type="submit"
-              className="new-log-button"
-              disabled={!formData.food_name || !formData.amount_in_grams}
-              childrenOn={<Ok/>}
-              childrenOff={<Arrow/>}>
-      </HoverButton> </div> 
-
+      <div className = 'delete-log-button-container'>
+        <ImageButton
+                onClick={handleDelete}
+                className="delete-button"
+                children={<Trashcan/>}>
+        </ImageButton>  
       </div>
 
-      <div className = 'delete-log-button-container'>
-      <ImageButton
-              onClick={handleDelete}
-              className="month-arrow"
-              children={<Trashcan/>}>
-      </ImageButton>  </div>
 
-      {showSuggestions && (
+        <div className = "form-dropdown-wrapper">
+        
+          <div className={`edit-entry-form-bubble ${showSuggestions ? 'active' : ''}`}>
+            <div className= 'edit-input-food-name-wrapper'>
+              <input
+                name='food_name'
+                className = 'edit-input-food-name'
+                placeholder='food'
+                value = {formData.food_name}
+                onChange={handleTyping}
+                required
+              ></input>
+            </div>
+
+            <div className="edit-input-food-amt-wrapper ">
+              <input
+                name='amount_in_grams'
+                className = 'edit-input-food-amt'
+                type = 'number'
+                placeholder='0'
+                value = {formData.amount_in_grams}
+                onChange={handleTyping}
+                required
+              ></input>
+              <span className="edit-unit">g</span>
+            </div>
+
+
+            <div className='edit-dateTime-container'>
+
+              <div className = 'edit-input-date-wrapper'>
+                <HoverButton
+                      className="calendar-button"
+                      disabled={!formData.food_name || !formData.amount_in_grams}
+                      childrenOn={<Calday/>}
+                      childrenOff={<Cal/>}>
+                </HoverButton> 
+              </div>
+
+              <div className='edit-input-time-wrapper '>
+                {`${formatTime(formData.date)}`}
+            </div>
+
+            </div>
+
+          </div>
+
+          {showSuggestions && (
             <ul className="suggestions-list">
               {suggestions.map(suggestion => (
                 <li key={suggestion}
@@ -173,8 +190,23 @@ function EditLogForm({food_name, date, amount_in_grams, _id, callAfterSubmitting
               ))}
             </ul>
           )}
+            
+        </div>
+
+        <div className = 'edit-log-submit-container'>
+          <HoverButton
+                  type="submit"
+                  className="edit-log-submit"
+                  disabled={!formData.food_name || !formData.amount_in_grams}
+                  childrenOn={<YesOk/>}
+                  childrenOff={<IsOk/>}>
+          </HoverButton> 
+        </div> 
     </form>) :
-    <div></div>
+    <div>
+
+      
+    </div>
   )
 
 }

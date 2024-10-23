@@ -4,28 +4,26 @@ import { DateRange } from 'react-date-range';
 import 'react-date-range/dist/styles.css'; // main style file
 import 'react-date-range/dist/theme/default.css'; 
 
-import {useState, useEffect, useRef} from 'react'
+import React, {useState, useEffect, useRef, forwardRef} from 'react'
 
 import {ImageButton} from '../components/Sections'
 import RightArrow from '../assets/images/caret-right.svg?react'
 import LeftArrow from '../assets/images/caret-left.svg?react'
 
-
 function formatDateRange(startDate: Date, endDate: Date) {
   const startYear = startDate.getFullYear();
   const endYear = endDate.getFullYear();
+  const startMonth = startDate.toLocaleString('en-US', { month: 'short' });
+  const endMonth = endDate.toLocaleString('en-US', { month: 'short' });
+  const startDay = startDate.getDate();
+  const endDay = endDate.getDate();
 
   if (startYear === endYear) {
-    const startMonth = startDate.toLocaleString('en-US', { month: 'long' });
-    const endMonth = endDate.toLocaleString('en-US', { month: 'long' });
-    if (startMonth === endMonth) return `${startMonth}`;
-    else return `${startMonth} to ${endMonth}`;
-  } 
-  // If different years
-  else {
-    const startMonthShort = startDate.toLocaleString('en-US', { month: 'short' });
-    const endMonthShort = endDate.toLocaleString('en-US', { month: 'short' });
-    return `${startMonthShort} ${startYear} to ${endMonthShort} ${endYear}`;
+      // If the same year but different months
+      return `${startMonth} ${startDay} to ${endMonth} ${endDay}`;
+  } else {
+    // If different years
+    return `${startMonth} ${startDay}, ${startYear} to ${endMonth} ${endDay}, ${endYear}`;
   }
 }
 
@@ -53,44 +51,25 @@ class TimePeriod{
   }
 }
 
-interface DateSelectorProps {
-  startDate: Date;
-  endDate: Date;
-  rangeType: RangeType;
-  onDateChange: (range: TimePeriod) => void
-  onNextMonth: () => void;
-  onPreviousMonth: () => void;
+
+interface CalendarProps {
+  range: any;
+  handleSelect: (ranges: any) => void;
+  isOpen : boolean;
+  setIsOpen : (b :  boolean) => void;
+  clickToOpen : React.ReactNode
 }
 
-function DateSelector({startDate, endDate, rangeType, onNextMonth, onPreviousMonth, onDateChange} : DateSelectorProps){
-  const [isOpen, setIsOpen] = useState(false); // To control the visibility of the calendar
-  const [range, setRange] = useState([
-    {
-      startDate: startDate,
-      endDate: endDate,
-      key: 'selection',
-    },
-  ]);
-
-  const toggleCalendar = () => setIsOpen(!isOpen);
-
-  const handleSelect = (ranges: any) => {
-    const { startDate, endDate } = ranges.selection;
-    setRange([ranges.selection]);
-    onDateChange(new TimePeriod(startDate, endDate)); // Pass the selected dates to the parent component
-  };
-
-  const formRef = useRef<HTMLDivElement>(null); 
+const Calendar = forwardRef<HTMLDivElement, CalendarProps>(({ range, handleSelect, isOpen, setIsOpen, clickToOpen }, ref) => {
+  const calendarRef = useRef<HTMLDivElement>(null);
 
   // Function to close form if clicked outside
   const handleClickOutside = (event: MouseEvent) => {
-    if (formRef.current // check if not null
-        && !formRef.current.contains(event.target as Node)) { //  checks if the element that was clicked (event.target) is not a child of or the calendar component itself.
-      setIsOpen(false); // Close the form when clicking outside
+    if (calendarRef.current && !calendarRef.current.contains(event.target as Node)) {
+      setIsOpen(false);
     }
   };
-  
-  
+
   useEffect(() => {
     if (isOpen) {
       // Attach event listener when the calendar opens
@@ -105,26 +84,11 @@ function DateSelector({startDate, endDate, rangeType, onNextMonth, onPreviousMon
     };
   }, [isOpen]);
 
-
   return (
-    <div className="dashboard-menu">
-      <div className = "range-selector">
-
-        {!isOpen && (
-          <div className="date-selector">
-            <ImageButton className="month-arrow left" onClick={onPreviousMonth}> <LeftArrow/> </ImageButton>
-            <div className="range-text" onClick = {toggleCalendar}>{formatDateRange(startDate, endDate)}</div>
-            <ImageButton className="month-arrow" onClick={onNextMonth}> <RightArrow/> </ImageButton>
-          </div>
-        )}
-
-        {!isOpen && rangeType==RangeType.custom && (
-            <div className = "today">today</div>
-        )}
-
-      </div>  
+    <div>
       {isOpen && (
-          <div ref={formRef} className = 'calendar-popup'>
+        // if the parent doesn't pass in a ref, use local ref
+        <div ref={ref || calendarRef} className="calendar-popup">
           <DateRange
             ranges={range}
             onChange={handleSelect}
@@ -132,11 +96,78 @@ function DateSelector({startDate, endDate, rangeType, onNextMonth, onPreviousMon
             editableDateInputs={true}
             rangeColors={['#1e002e8d']}
           />
-          </div>
-        )}
-
+        </div>
+      )}
     </div>
+  );
+});
+
+
+interface DateSelectorProps {
+  startDate: Date;
+  endDate: Date;
+  rangeType: RangeType;
+  setRangeType: (r: RangeType) => void;
+  onDateChange: (range: TimePeriod) => void
+  onNextMonth: () => void;
+  onPreviousMonth: () => void;
+}
+
+const getCurrentPeriod = () => {
+  let now = new Date()
+  return new TimePeriod(
+    (new Date(now.getFullYear(), now.getMonth(), 1)), 
+    (now)
   )
 }
 
-export {DateSelector, TimePeriod, RangeType}
+function DateSelector({ startDate, endDate, rangeType, setRangeType, onNextMonth, onPreviousMonth, onDateChange }: DateSelectorProps) {
+  const [isOpen, setIsOpen] = useState(false)
+  const toggleCalendar = () => setIsOpen(!isOpen);
+
+  const [range, setRange] = useState([
+    {
+      startDate: startDate,
+      endDate: endDate,
+      key: 'selection',
+    },
+  ]);
+
+  const handleSelect = (ranges: any) => {
+    const { startDate, endDate } = ranges.selection;
+    setRange([ranges.selection]);
+    setRangeType(RangeType.custom)
+    onDateChange(new TimePeriod(startDate, endDate)); // Pass the selected dates to the parent component
+  };
+
+  return (
+    <div className="dashboard-menu">
+      <div className="range-selector">
+      {!isOpen && (
+      <div className="date-selector">
+            <ImageButton className="month-arrow left" onClick={onPreviousMonth}> <LeftArrow/> </ImageButton>
+            <div className="range-text"  onClick = {toggleCalendar} >{formatDateRange(startDate, endDate)}</div>
+            <ImageButton className="month-arrow" onClick={onNextMonth}> <RightArrow/> </ImageButton>
+          </div>)}
+        {!isOpen && rangeType === RangeType.custom && (
+          <div className="today" onClick = {() =>
+            {
+              setRangeType(RangeType.default)
+              onDateChange(getCurrentPeriod())
+            }
+          }>today</div>
+        )}
+      </div>
+      <Calendar
+              range={range}
+              handleSelect={handleSelect}
+              isOpen = {isOpen}
+              setIsOpen={setIsOpen}
+              clickToOpen = {<div className="range-text">{formatDateRange(startDate, endDate)}</div>}
+            />
+    </div>
+  );
+}
+
+
+export {DateSelector, TimePeriod, RangeType, Calendar, getCurrentPeriod}

@@ -49,32 +49,6 @@ input, textarea {
   pointer-events: all;
 }
 
-/* Autocomplete suggestions styling */
-.input-food-name-wrapper {
-  width: 60%;
-  flex-grow: 1;
-  /* border: 1px solid rgb(47, 156, 114); Add a red border to visually see the amount's boundaries */
-  position: relative; /* This is to ensure the suggestions dropdown aligns with the input */
-}
-
-.input-food-name {
-  padding-top: 15px;
-  padding-bottom: 15px;
-  padding-left: 27px;
-  flex-grow: 1;
-  flex-shrink: 1;
-  background: none;
-  width: 100%;
-  /* border: 1px solid red; Add a red border to visually see the amount's boundaries */
-  position: relative;
-  font-family: Inconsolata;
-  color: inherit;
-  outline: none;
-  transition: background-color 0.3s ease, color 0.3s ease;
-  text-align: left; /* Ensures the text aligns properly */
-}
-
-
 
 .entry-form-bubble{
   display: flex;
@@ -98,15 +72,44 @@ input, textarea {
 }
 
 
+/*--------------------------------------------NAME----------------------------------*/
 
 
+/* Autocomplete suggestions styling */
+.input-food-name-wrapper {
+  width: 300px;
+  /* border: 1px solid rgb(47, 156, 114); Add a red border to visually see the amount's boundaries */
+  position: relative; /* This is to ensure the suggestions dropdown aligns with the input */
+}
+
+
+.input-food-name {
+  padding-top: 15px;
+  padding-bottom: 15px;
+  padding-left: 27px;
+  padding-right: 10px;
+  width: 300px;
+
+
+  background: none;
+  font-family: Inconsolata;
+  color: inherit;
+  outline: none;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  text-align: left; /* Ensures the text aligns properly */
+}
+
+
+
+
+
+/* ------------------------------------------AMOUNT-------------------------------------- */
 /* Wrapper for the input and "g" unit */
 .input-food-amt-wrapper {
   display: flex;
   justify-self: right;
   align-items: center;
   align-self: center;
-  /* border: 1px solid rgb(0, 89, 255); Add a red border to visually see the amount's boundaries */
   position: relative;
   width: 10%; /* Set width to match your layout */
 }
@@ -114,7 +117,7 @@ input, textarea {
 /* The input for entering food amount */
 .input-food-amt {
   width: 100%; /* Ensures the input takes full available space in the wrapper */
-  padding-right: 20px; /* Creates space for the "g" */
+  padding-right: 10px; /* Creates space for the "g" */
   background: none;
   border: none; /* Removes the default border */
   font-family: Inconsolata;
@@ -125,7 +128,7 @@ input, textarea {
 /* Styling for the "g" unit */
 .unit {
   position: absolute;
-  right: 10px; /* Position the unit at the right side of the input */
+  right: 0px;
   font-family: Inconsolata;
   color: inherit; /* Inherit text color (important for hover) */
   pointer-events: none; /* Ensure the span doesn't interfere with input focus */
@@ -157,6 +160,7 @@ input, textarea {
 /* Individual suggestion items */
 .suggestion-item {
   padding-top: 10px;
+  padding-bottom: 10px;
   padding-left: 27px;
   padding-right: 40px;
   font-family: Inconsolata;
@@ -172,3 +176,36 @@ input, textarea {
   background-color: #ffffffa1;
   color: #1e002e;
 }
+
+
+/* ------------------------------------------DATE-------------------------------------- */
+
+.new-log-button-container {
+  display: flex; /* Enables flexbox on the container */
+  width: 25%;
+  justify-content: flex-end; /* Pushes content to the right side */
+  align-items: center; /* Vertically centers the button */
+  padding: 10px; /* Optional: padding */
+}
+
+.new-log-button {
+  align-items: center; /* Vertically center the SVG within the button */
+  background: none;
+  margin-right: 5px;
+  cursor: pointer;
+  border: none;
+  order: 1;
+}
+
+.new-log-button svg {
+  fill: #ffffffa8; /* You can change the SVG color here */
+  width: 15px;
+  height: 15px;
+}
+
+.new-log-button:hover svg {
+  fill: #1e002e;; /* You can change the SVG color here */
+  width: 15px;
+  height: 15px;
+}
+

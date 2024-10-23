@@ -2,19 +2,73 @@
 @import url('./variables.css');
 @import url('https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&display=swap');
 
+
+/*--------------------------------------------NAME----------------------------------*/
+
 .entry-food-name {
+  border-color: aqua;
+  border-radius: 2px;
+  width: 300px;
+  position: relative; /* This is to ensure the suggestions dropdown aligns with the input */
+
   padding-top: 15px;
   padding-bottom: 15px;
   padding-left: 27px;
-  padding-right: 15px;
-  /* border: 1px solid red; Add a red border to visually see the amount's boundaries */
-  flex-grow: 1;
-  flex-shrink: 1;
+  padding-right: 10px;
+  width: 300px;
+
+
   background: none;
   font-family: Inconsolata;
-  width: 60%; /* Set a consistent width for the food name */
-  text-align: left; /* Ensure the text aligns to the left */
+  color: inherit;
+  outline: none;
 }
+
+/* ------------------------------------------AMOUNT-------------------------------------- */
+.entry-food-amt {
+  display: flex;
+  justify-self: right;
+  align-items: center;
+  align-self: center;
+  position: relative;
+  width: 10%; /* Set width to match your layout */
+
+  padding-right: 10px; /* Creates space for the "g" */
+  background: none;
+  border: none; /* Removes the default border */
+  font-family: Inconsolata;
+  text-align: left; /* Align the input text to the left */
+  color: inherit; /* Inherit the text color (useful for hover) */
+
+}
+
+/* Styling for the "g" unit */
+.log-unit {
+  position: absolute;
+  right: 0px;
+  font-family: Inconsolata;
+  color: inherit; /* Inherit text color (important for hover) */
+  pointer-events: none; /* Ensure the span doesn't interfere with input focus */
+}
+
+
+/* ------------------------------------------DATE-------------------------------------- */
+
+.entry-date {
+  display: flex; /* Enables flexbox on the container */
+  width: 25%;
+  justify-content: flex-end; /* Pushes content to the right side */
+  align-items: center; /* Vertically centers the button */
+  padding-right: 20px; /* Optional: padding */
+  background: none;
+  border: none;
+  font-family: Inconsolata;
+  text-align: right; /* Align the date to the right */
+  flex-shrink: 0;
+}
+
+/* ------------------------------------------DIVIDER-------------------------------------- */
+
 .date-divider {
   width: 650px;
   margin-bottom: 20px;
@@ -31,31 +85,7 @@
   font-weight: 300; 
 }
 
-.entry-food-amt {
-  display: block;
-  background: none;
-  width: 10%;
-  /* border: 1px solid red; Add a red border to visually see the amount's boundaries */
-  /* border: 1px solid red; Add a red border to visually see the amount's boundaries */
-  margin-right: auto; /* This pushes the amount to the right side */
-  padding-right: 15px; /* Optional padding adjustment */
-  font-family: Inconsolata;
-  text-align: left; /* Ensure the amount is right-aligned */
-  flex-shrink: 0; /* Prevent shrinking */
-}
-
-.entry-date {
-  display: block;
-  background: none;
-  border: none;
-  width: 25%;
-  /* border: 1px solid red; Add a red border to visually see the amount's boundaries */
-  padding-right: 27px;
-  padding-left: 10px;
-  font-family: Inconsolata;
-  text-align: right; /* Align the date to the right */
-  flex-shrink: 0;
-}
+/* ------------------------------------------CONTAINERS-------------------------------------- */
 
 .log-bubble {
   display: flex;
@@ -124,3 +154,4 @@
   font-weight: 300; 
   font-style: italic;
 }
+

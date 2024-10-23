@@ -1,7 +1,7 @@
 /// <reference types="vite-plugin-svgr/client" />
 import { StrictMode, useEffect, useState, useRef } from 'react'
 import { LogList, LogProps} from '../components/Logs'
-import { DateSelector, TimePeriod, RangeType} from '../components/DateSelector'
+import { DateSelector, TimePeriod, RangeType, getCurrentPeriod} from '../components/DateSelector'
 
 import {doWithData} from '../components/LoadHtml'
 import {Heading} from '../components/Title'
@@ -27,12 +27,8 @@ function Dashboard(){
 
   /* for date selector */
   let now = new Date()
-  const [dateRangeType, setDateRangeType] = useState<RangeType>(RangeType.custom)
-  const [dateRange, setDateRange] = useState<TimePeriod>(
-    { 
-      start: (new Date(now.getFullYear(), now.getMonth(), 1)), 
-      end: (new Date(now.getFullYear(), now.getMonth() + 1, 0)),
-    })
+  const [dateRangeType, setDateRangeType] = useState<RangeType>(RangeType.default)
+  const [dateRange, setDateRange] = useState<TimePeriod>(getCurrentPeriod())
 
   /* for dashboard */
   const [currentDay, setCurrentDay] = useState<Date>(new Date()) 
@@ -42,7 +38,6 @@ function Dashboard(){
   const [nutrientInfo, setNutrientInfo] = useState<{[key: string]: any}>({});
 
   const [rowData, setRowData] = useState<NutrientStatsProps[]>([]);
-
 
   const handleNextMonth = () => {
     if (dateRangeType === RangeType.default) {
@@ -54,31 +49,31 @@ function Dashboard(){
     } else if (dateRangeType === RangeType.custom) {
       // Calculate the difference between the start and end dates in milliseconds
       const rangeDuration = dateRange.end.getTime() - dateRange.start.getTime();
-      // If the range is less than a year, increment the range by the same duration
-      setDateRange ({
-          start: new Date(dateRange.start.getTime() + rangeDuration),
-          end: new Date(dateRange.end.getTime() + rangeDuration)
-        });
-      }
+      // Move both start and end forward by the duration of the range
+      setDateRange({
+        start: new Date(dateRange.start.getTime() + rangeDuration),
+        end: new Date(dateRange.end.getTime() + rangeDuration)
+      });
     }
-
+  };
+  
   const handlePreviousMonth = () => {
     if (dateRangeType === RangeType.default) {
-      // Move to the next entire month
+      // Move to the previous entire month
       setDateRange({
-        start: new Date(dateRange.start.getFullYear(), dateRange.start.getMonth(), 0),
-        end: new Date(dateRange.start.getFullYear(), dateRange.start.getMonth() - 1, 1)
+        start: new Date(dateRange.start.getFullYear(), dateRange.start.getMonth() - 1, 1),
+        end: new Date(dateRange.start.getFullYear(), dateRange.start.getMonth(), 0)
       });
     } else if (dateRangeType === RangeType.custom) {
       // Calculate the difference between the start and end dates in milliseconds
       const rangeDuration = dateRange.end.getTime() - dateRange.start.getTime();
-      // If the range is less than a year, increment the range by the same duration
-      setDateRange ({
-          start: new Date(dateRange.start.getTime() - rangeDuration),
-          end: new Date(dateRange.end.getTime() - rangeDuration)
-        });
-      }
-  }
+      // Move both start and end backward by the duration of the range
+      setDateRange({
+        start: new Date(dateRange.start.getTime() - rangeDuration),
+        end: new Date(dateRange.end.getTime() - rangeDuration)
+      });
+    }
+  };
     
 
   const writeFirstName = (userData : any) => {
@@ -180,9 +175,10 @@ function Dashboard(){
 
 
   <MainSection>
-  <DateSelector startDate={dateRange.start} 
-                endDate={dateRange.end} 
+  <DateSelector startDate = {dateRange.start}
+                endDate = {dateRange.end} 
                 rangeType={dateRangeType}
+                setRangeType={setDateRangeType}
                 onNextMonth={handleNextMonth} 
                 onPreviousMonth={handlePreviousMonth} 
                 onDateChange={setDateRange}/>
