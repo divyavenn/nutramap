@@ -1,8 +1,11 @@
 
-import '../assets/css/dates.css'
 import { DateRange } from 'react-date-range';
+import DatePicker from 'react-datepicker';
 import 'react-date-range/dist/styles.css'; // main style file
 import 'react-date-range/dist/theme/default.css'; 
+import 'react-datepicker/dist/react-datepicker.css';
+import '../assets/css/date_picker.css'
+import '../assets/css/dates.css'
 
 import React, {useState, useEffect, useRef, forwardRef} from 'react'
 
@@ -46,13 +49,104 @@ class TimePeriod{
     if (start > end) {
       throw new Error("startDate must be before or equal to endDate.");
     }
-    this.start = start;
-    this.end = end;
+    // Set the start date to the beginning of the day (hour 0, minute 0, second 0, millisecond 0)
+    this.start = new Date(start);
+    this.start.setHours(0, 0, 0, 0);
+
+    // Set the end date to the end of the day (hour 23, minute 59, second 59, millisecond 999)
+    this.end = new Date(end);
+    this.end.setHours(23, 59, 59, 999);
   }
 }
 
 
 interface CalendarProps {
+  day: Date;
+  handleSelect: (day: any) => void;
+  isOpen : boolean;
+  setIsOpen : (b :  boolean) => void;
+}
+
+const Calendar = forwardRef<HTMLDivElement, CalendarProps>(({ day, handleSelect, isOpen, setIsOpen }, ref) => {
+  const calendarRef = ref as React.RefObject<HTMLDivElement> || useRef<HTMLDivElement>(null);
+    // Function to close form if clicked outside
+  const handleClickOutside = (event: MouseEvent) => {
+    if (calendarRef.current && !calendarRef.current.contains(event.target as Node)) {
+      setIsOpen(false);
+    }
+  };
+  const [selection, setSelection] = useState([
+    {
+      startDate: day,
+      endDate: day,
+      key: 'selection',
+    }]);
+
+  const handleSelectRanges = (ranges: any) => {
+    // Always set endDate equal to startDate to prevent range selection
+    const { day } = ranges.selection;
+    setSelection([{
+      ...selection[0],
+      startDate : day,
+      endDate: day, // Force the endDate to be the same as startDate
+      key: 'selection',
+    }]);
+  };
+
+  return (
+    <div>
+      {isOpen && (
+        <div ref={ref || calendarRef} className="calendar-popup">
+          <DateRange
+            ranges={selection}
+            onChange={handleSelectRanges}
+            moveRangeOnFirstSelection={false}
+            editableDateInputs={false}
+            showDateDisplay={false}
+            showMonthAndYearPickers={true}
+            rangeColors={['#1e002e8d']}
+          />
+        </div>
+      )}
+    </div>
+  );
+});
+
+const CalendarDay = forwardRef<HTMLDivElement, CalendarProps>(({ day, handleSelect, isOpen, setIsOpen }, ref) => {
+  const calendarRef = ref as React.RefObject<HTMLDivElement> || useRef<HTMLDivElement>(null);
+    // Function to close form if clicked outside
+  const handleClickOutside = (event: MouseEvent) => {
+    if (calendarRef.current && !calendarRef.current.contains(event.target as Node)) {
+      setIsOpen(false);
+    }
+  };
+
+  const [datePicked, setDay] = useState(day);
+
+
+  const handleDateChange = (day : any) => {
+      setDay(day);
+      handleSelect(datePicked); // Call parent function with selected date
+  };
+
+  return (
+    <div>
+      {isOpen && (
+        <div ref={ref || calendarRef} className="date-picker-popup">
+          <DatePicker
+            selected={datePicked} // Pass the selected date
+            onChange={handleDateChange} // Your date change handler
+            inline
+          />
+        </div>
+      )}
+    </div>
+  );
+})
+
+/*---------------------------------------------------------------------------------*/
+
+interface CalendarRangeProps {
   range: any;
   handleSelect: (ranges: any) => void;
   isOpen : boolean;
@@ -60,8 +154,9 @@ interface CalendarProps {
   clickToOpen : React.ReactNode
 }
 
-const Calendar = forwardRef<HTMLDivElement, CalendarProps>(({ range, handleSelect, isOpen, setIsOpen, clickToOpen }, ref) => {
-  const calendarRef = useRef<HTMLDivElement>(null);
+const CalendarRange = forwardRef<HTMLDivElement, CalendarRangeProps>(({ range, handleSelect, isOpen, setIsOpen, clickToOpen }, ref) => {
+  const calendarRef = (ref as React.RefObject<HTMLDivElement>)|| useRef<HTMLDivElement>(null);
+
 
   // Function to close form if clicked outside
   const handleClickOutside = (event: MouseEvent) => {
@@ -117,7 +212,7 @@ const getCurrentPeriod = () => {
   let now = new Date()
   return new TimePeriod(
     (new Date(now.getFullYear(), now.getMonth(), 1)), 
-    (now)
+    (new Date(now.getFullYear(), now.getMonth() + 1, 0))
   )
 }
 
@@ -158,7 +253,7 @@ function DateSelector({ startDate, endDate, rangeType, setRangeType, onNextMonth
           }>today</div>
         )}
       </div>
-      <Calendar
+      <CalendarRange
               range={range}
               handleSelect={handleSelect}
               isOpen = {isOpen}
@@ -170,4 +265,4 @@ function DateSelector({ startDate, endDate, rangeType, setRangeType, onNextMonth
 }
 
 
-export {DateSelector, TimePeriod, RangeType, Calendar, getCurrentPeriod}
+export {DateSelector, TimePeriod, RangeType, CalendarRange, Calendar, CalendarDay, getCurrentPeriod}

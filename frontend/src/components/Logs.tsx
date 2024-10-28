@@ -74,7 +74,7 @@ function DisplayLog ({ food_name, date, amount_in_grams } : DisplayLogProps) {
 function Log({ food_name, date, amount_in_grams, _id, callAfterSubmitting} : LogProps) { 
   const [mouseOn, setMouseOn] = useState(false);
   return (
-    <div
+    <div className = 'log-wrapper'
     onMouseEnter={() => setMouseOn(true)}
     onMouseLeave={() => setMouseOn(false)}
     >

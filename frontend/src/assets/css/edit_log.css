@@ -20,6 +20,41 @@ input[type="number"] {
 }
 
 
+/* For Chrome, Safari, Edge, and Opera */
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    display: none;
+    -webkit-appearance: none;
+}
+
+/* For Firefox */
+input[type="time"],
+input[type="datetime-local"] {
+    -moz-appearance: textfield;
+}
+
+/* This targets the calendar icon in the date input field */
+.edit-input-date::-webkit-calendar-picker-indicator {
+  display: none;
+  -webkit-appearance: none;
+}
+
+/* Additional styling for the input field */
+.edit-input-date {
+  border: none;
+  background-color: transparent;
+  color: inherit;
+  font-family: Inconsolata;
+  border-radius: 5px;
+  outline: none;
+  width: 100%; /* Adjust width as needed */
+}
+
+.edit-input-date:hover {
+  color: white;
+}
+
+
 input, textarea {
   font-family: inherit;  /* Ensures input fields inherit the font-family of the parent */
   font-size: inherit;
@@ -32,9 +67,11 @@ input, textarea {
 }
 
 /*--------------------------------------------CONTAINER----------------------------------*/
+
 .edit-form-elements-wrapper{
   display: flex;
   margin-bottom: 20px;
+  margin-left: 10px;
   background-color: none;
   color: var(--white);
   flex-direction: row;
@@ -47,14 +84,14 @@ input, textarea {
   color: var(--white);
   flex-direction: column;
   border-radius: 14px;
+  width: 600px;
 }
-
 
 
 .edit-entry-form-bubble{
   display: flex;
   border-radius: 14px;
-  width: 500px;
+  width: 600px;
   background-color: #19050584;
   /* border: 1px solid red; */
   flex-direction: row;
@@ -90,6 +127,12 @@ input, textarea {
   width: 300px;
   position: relative; /* This is to ensure the suggestions dropdown aligns with the input */
 }
+
+.edit-input-food-name-wrapper:hover {
+  color: white;
+}
+
+
 .edit-input-food-name {
   padding-top: 15px;
   padding-bottom: 15px;
@@ -105,14 +148,18 @@ input, textarea {
   transition: background-color 0.3s ease, color 0.3s ease;
   text-align: left; /* Ensures the text aligns properly */
 }
+
+
 /* ------------------------------------------AMOUNT-------------------------------------- */
+
 .edit-input-food-amt-wrapper {
   display: flex;
   justify-self: right;
   align-items: center;
   align-self: center;
   position: relative;
-  width: 10%; /* Set width to match your layout */
+  margin-left: -50px;
+  width: 7%; /* Set width to match your layout */
 }
 
 /* The input for entering food amount */
@@ -126,6 +173,10 @@ input, textarea {
   color: inherit; /* Inherit the text color (useful for hover) */
 }
 
+.edit-input-food-amt:hover {
+  color: white;
+}
+
 /* Styling for the "g" unit */
 .edit-unit {
   position: absolute;
@@ -136,10 +187,8 @@ input, textarea {
 }
 
 
-
-
-
 /* ------------------------------------------DATE-------------------------------------- */
+
 
 .edit-dateTime-container {
   /* border: 1px solid red;  */
@@ -154,41 +203,57 @@ input, textarea {
 
 .edit-input-date-wrapper {
   /* border: 1px solid rgb(0, 4, 255); */
-  padding-right: 8px; /* Optional: padding */
+  padding-right: 5px; /* Optional: padding */
   flex-direction: row;
   display: flex; /* Enables flexbox on the container */
+  align-content: center;
+  justify-content: center;
 }
 
 .calendar-button { 
   background: none;
   cursor: pointer;
-  border: none;
+  border: none; 
+  margin-top: 3px;
 }
 
 .calendar-button svg {
   fill: #ffffffa8;
-  width: 21px;
+  width: 15px;
 }
 
 .calendar-button:hover svg {
   fill: #1e002e;
 }
 
+.calendar-dropdown-wrapper {
+  display: flex;
+  flex-direction: row;
+  align-content: center;
+  justify-content: center;
+}
+
+
 /* ------------------------------------------TIME-------------------------------------- */
 
 .edit-input-time-wrapper {
   display: block;
   background: none;
+  color: inherit;
   border: none;
   font-family: Inconsolata;
   text-align: right; /* Align the date to the right */
   flex-shrink: 0;
 }
 
-
+.edit-input-time-wrapper:hover {
+  color: white
+}
 
 
 /*-----------------------------------SUGGESTIONS------------------------------*/
+
+
 .suggestions-list {
   list-style-type: none; 
   padding-left: 0; /* Removes default padding */
@@ -235,12 +300,13 @@ input, textarea {
 .edit-log-submit-container {
   display: flex; /* Enables flexbox on the container */
   justify-content: flex-end; /* Pushes content to the right side */
-  align-items: center; /* Vertically centers the button */
+  padding-top: 10px;
+  padding-left: 5px;
+  align-items: start; /* Vertically centers the button */
 
 }
 
 .edit-log-submit {
-  align-items: center; /* Vertically center the SVG within the button */
   background: none;
   cursor: pointer;
   border: none;
@@ -262,13 +328,13 @@ input, textarea {
   display: flex; 
   width: 30px;
   margin-right: 5px;
-  align-items: center;
+  padding-top: 12px;
+  align-items: start; /* Vertically centers the button */
 }
 
 .delete-button {
   display: block;
   clear: none;
-  align-self: center;
   background: none;
   font-size: 10px;
   text-align: center;

@@ -9,12 +9,14 @@ __package__ = "nutramap.databases"
 class LogCreate(BaseModel):
     food_id: int
     amount_in_grams: float
+    date: datetime
     
     class Config:
         json_schema_extra = {
             'example': {
                 'food_id' : 170903,
-                'amount_in_grams' : 20
+                'amount_in_grams' : 20,
+                'date' : "2024-10-16T10:15:30.000Z"
                 }
         }
     

@@ -1,0 +1,105 @@
+/* Override the main calendar container */
+.date-picker-popup .rdrCalendarWrapper {
+  border-radius: 20px;
+  background-color: transparent;
+  overflow: hidden;
+}
+
+/* Style the header where the month and year are displayed */
+.date-picker-popup .rdrMonthAndYearWrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  background-color: transparent;
+  color: white;
+}
+
+/* Override the days inside the calendar */
+.date-picker-popup .rdrDay {
+  background: transparent;
+  color: white;
+  border-radius: 5px; /* Example: make the day cells rounded */
+}
+
+.date-picker-popup .rdrDayInMonth {
+  color: white;
+}
+
+.date-picker-popup .rdrDayOutOfMonth {
+  color: rgba(255, 255, 255, 0.5); /* Make out-of-month days less prominent */
+}
+
+/* Style the navigation buttons (arrows) */
+.date-picker-popup .rdrNextPrevButton {
+  background: none;
+  border: none;
+  color: white;
+}
+
+.date-picker-popup .rdrNextPrevButton i {
+  color: white; /* Set arrow color */
+}
+
+/* Change color when hovering over the arrows */
+.date-picker-popup .rdrNextPrevButton:hover i {
+  color: #a29bfe;
+}
+
+/* Style the selected day */
+.date-picker-popup .rdrDayToday span {
+  background-color: #1e002e;
+  color: white;
+  border-radius: 50%; /* Make the selected day rounded */
+}
+
+/* Make the weekday labels transparent */
+.date-picker-popup .rdrWeekDays {
+  background-color: transparent;
+  color: white;
+}
+
+/* Ensure the month and year dropdown selectors have your style */
+.date-picker-popup .rdrMonthAndYearPickers select {
+  background-color: #1e002e;
+  color: white;
+}
+
+/* Ensure the calendar wrapper has rounded corners */
+.custom-datepicker .react-datepicker__month-container {
+  border-radius: 20px;
+  background-color: transparent;
+}
+
+/* Style the header where the month and year are displayed */
+.custom-datepicker .react-datepicker__header {
+  background-color: transparent;
+  color: white;
+  text-align: center;
+}
+
+/* Style the day cells */
+.custom-datepicker .react-datepicker__day {
+  background: transparent;
+  color: white;
+  border-radius: 5px;
+}
+
+/* Style the day in the current month */
+.custom-datepicker .react-datepicker__day--in-range {
+  background-color: #1e002e;
+  color: white;
+  border-radius: 50%;
+}
+
+/* Style the navigation buttons */
+.custom-datepicker .react-datepicker__navigation {
+  background: none;
+  color: white;
+}
+
+/* Style the today button */
+.custom-datepicker .react-datepicker__today-button {
+  background-color: transparent;
+  color: white;
+}

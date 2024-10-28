@@ -28,7 +28,7 @@ def get_requirements_for_user(user, user_db):
                                 
     return requirements
         
-@router.get("/requirement_info")
+@router.get("/all")
 def requirement_info(user: user_dependency, user_db : user_db_dependency, food_db : food_db_dependency):
     requirements = list(get_requirements_for_user(user, user_db))
     info = {}
@@ -41,7 +41,7 @@ def requirement_info(user: user_dependency, user_db : user_db_dependency, food_d
     
     return info
     
-@router.post("/add/requirement", response_model=Requirement)
+@router.post("/new", response_model=Requirement)
 def add_requirement(user: user_dependency, requirement: RequirementCreate, food_db : food_db_dependency, user_db : user_db_dependency):
     # Validate that the user exists in MongoDB
     if not user:
@@ -59,6 +59,28 @@ def add_requirement(user: user_dependency, requirement: RequirementCreate, food_
     user_db.requirements.insert_one(req_dict)
     return Requirement(**req_dict)
 
-@router.delete("/remove/requirement")
-def remove_requirement(user: user_dependency, requirement_id: str, user_db : user_db_dependency):
-    return None
+@router.delete("/delete")
+def remove_requirement(requirement_id: str, user: user_dependency, user_db : user_db_dependency):
+        # Validate that the user exists in MongoDB
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    requirement = user_db.reqirements.find_one({"_id": requirement_id, "user_id": str(user["_id"])})
+    
+    if not requirement:
+        raise HTTPException(status_code=404, detail="Log not found.")
+    
+    print(requirement)
+    
+    # Perform the update operation
+    result = user_db.requirements.delete_one({"_id": requirement_id})
+  
+    # Check if the document was deleted
+    if result.deleted_count > 0:
+      print("Requirement deleted successfully.")
+      return None
+    
+    else:
+      print("No document matched the filter criteria.")
+      raise HTTPException(status_code=404, detail="Something went wrong, requirement not deleted.")
+    

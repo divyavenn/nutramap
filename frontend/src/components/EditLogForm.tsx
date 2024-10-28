@@ -6,12 +6,14 @@ import IsOk from '../assets/images/checkmark.svg?react'
 import Trashcan from '../assets/images/trashcan.svg?react'
 import Cal from '../assets/images/calendar.svg?react'
 import Calday from '../assets/images/calendar_day.svg?react'
-import { Calendar } from './DateSelector';
+import { Calendar, CalendarDay} from './DateSelector';
 import { formatTime } from './utlis';
+import { getFoodID } from './utlis';
+import { tolocalDateString } from '../components/utlis'
 
 import '../assets/css/edit_log.css'
 
-import { formatDayForBackend } from './utlis';
+import { formatDayForFrontend } from './utlis';
 
 interface KeyValue {
   id : number;
@@ -38,10 +40,57 @@ function EditLogForm({food_name, date, amount_in_grams, _id, callAfterSubmitting
     date : date,
   })
 
+
   const [suggestions, setSuggestions] = useState<string[]>([]); // State for filtered suggestions
   const [showSuggestions, setShowSuggestions] = useState(false); // Control the visibility of suggestions
- 
   const [showCalendar, setShowCalendar] = useState(false)
+
+
+
+  const toggleCalendar = () => {
+    console.log("toggling calendar")
+    setShowCalendar(!showCalendar);
+  }
+
+  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTime = e.target.value; // e.g., "14:30" (HH:mm format)
+    
+    // Split the new time into hours and minutes
+    const [hours, minutes] = newTime.split(':').map(Number);
+  
+    // Update the date directly using a copy of formData.date
+    const updatedDate = new Date(formData.date);
+    updatedDate.setHours(hours);
+    updatedDate.setMinutes(minutes);
+    updatedDate.setSeconds(0); // Reset seconds to zero
+  
+    // Update the formData state
+    setFormData({
+      ...formData,
+      date: updatedDate, // Convert it back to an ISO string for consistency
+    });
+  };
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newDate = e.target.value; // e.g., "2024-10-24" (YYYY-MM-DD format)
+  
+    // Split the new date into year, month, and day
+    const [year, month, day] = newDate.split('-').map(Number);
+  
+    // Update the date directly using a copy of formData.date
+    const updatedDate = new Date(formData.date);
+  
+    // Set the year, month (note: month is 0-indexed in JavaScript), and day
+    updatedDate.setFullYear(year);
+    updatedDate.setMonth(month - 1); // Subtract 1 because months are 0-indexed
+    updatedDate.setDate(day);
+  
+    // Update the formData state
+    setFormData({
+      ...formData,
+      date: updatedDate,
+    });
+  };
 
   const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
     const {name, value} = e.target; // get the name and value of the input field
@@ -73,17 +122,21 @@ function EditLogForm({food_name, date, amount_in_grams, _id, callAfterSubmitting
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    // setShowCalendar(false)
+    // setShowSuggestions(false)
     e.preventDefault() // prevent automatic submission
     try {
+      let data = new URLSearchParams({
+        food_id: getFoodID(formData.food_name),
+        amount_in_grams: formData.amount_in_grams,
+        date: tolocalDateString(formData.date),
+        log_id: _id
+      })
+      console.log(formData.amount_in_grams)
       const response = await fetch('/logs/edit', {
         method: 'POST',
         headers: getHeaderWithToken(),
-        body: new URLSearchParams({
-          food_id: foodList[formData.food_name],
-          amount_in_grams: formData.amount_in_grams,
-          date: formatDayForBackend(formData.date),
-          log_id: _id
-        }),
+        body: data,
       })
       // used to refresh log list
       callAfterSubmitting()
@@ -118,19 +171,25 @@ function EditLogForm({food_name, date, amount_in_grams, _id, callAfterSubmitting
     }
   }
 
+  const handleSelect = (date: Date) => {
+    setFormData({...formData, date : date});
+  };
+
   return (
     !deleted ? (
     <form
-      id="login-form" className = {`edit-form-elements-wrapper ${showSuggestions ? 'active' : ''}`} onSubmit={handleSubmit}>
+      id="login-form"
+      className = {`edit-form-elements-wrapper ${showSuggestions ? 'active' : ''}`}
+      onSubmit={handleSubmit}>
       
       <div className = 'delete-log-button-container'>
         <ImageButton
-                onClick={handleDelete}
-                className="delete-button"
-                children={<Trashcan/>}>
+                type= "button"
+                onClick= {handleDelete}
+                className= "delete-button"
+                children= {<Trashcan/>}>
         </ImageButton>  
       </div>
-
 
         <div className = "form-dropdown-wrapper">
         
@@ -163,16 +222,37 @@ function EditLogForm({food_name, date, amount_in_grams, _id, callAfterSubmitting
             <div className='edit-dateTime-container'>
 
               <div className = 'edit-input-date-wrapper'>
-                <HoverButton
+              
+              <div className='edit-input-date-wrapper'>
+                <input
+                  className='edit-input-date'
+                  name='date'
+                  type='date'
+                  onChange={handleDateChange}
+                  value={formData.date.toISOString().split('T')[0]} // Format date to 'YYYY-MM-DD'
+                  required
+                />
+              </div>
+
+                {/* <HoverButton
+                      type = "button"
                       className="calendar-button"
                       disabled={!formData.food_name || !formData.amount_in_grams}
                       childrenOn={<Calday/>}
-                      childrenOff={<Cal/>}>
-                </HoverButton> 
+                      childrenOff={<Cal/>}
+                      onClick = {toggleCalendar}>
+                </HoverButton>  */}
+                
               </div>
 
               <div className='edit-input-time-wrapper '>
-                {`${formatTime(formData.date)}`}
+                <input className='edit-input-time-wrapper'
+                name = 'time'
+                type = 'time'
+                onChange={handleTimeChange}
+                value = {`${String(formData.date.getHours()).padStart(2, '0')}:${String(formData.date.getMinutes()).padStart(2, '0')}`}
+                required>
+                </input>
             </div>
 
             </div>
@@ -189,6 +269,16 @@ function EditLogForm({food_name, date, amount_in_grams, _id, callAfterSubmitting
                 </li>
               ))}
             </ul>
+          )}
+
+          {showCalendar && (
+          <div className = 'calendar-dropdown-wrapper'>
+            <CalendarDay
+            day={date}
+            handleSelect={handleSelect}
+            isOpen = {showCalendar}
+            setIsOpen={setShowCalendar}/>
+          </div>
           )}
             
         </div>

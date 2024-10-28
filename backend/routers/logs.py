@@ -1,3 +1,5 @@
+
+
 from fastapi import APIRouter, Depends, HTTPException, Form
 from pymongo.database import Database
 from sqlalchemy.orm import Session
@@ -7,7 +9,7 @@ from bson import ObjectId
 from datetime import timedelta, datetime
 
 
-from ..databases.main_connection import get_user_data, Log, LogCreate, Requirement, RequirementCreate, get_session, Food, Nutrient
+from ..databases.main_connection import get_user_data, Log, LogCreate, get_session, Food
 from .foods import get_food_data, amount_by_weight, get_food_name, get_nutrient_details
 from .auth import get_current_user
 
@@ -84,9 +86,9 @@ def get_logs(endDate : datetime, startDate : datetime, user : user_dependency, u
   
   
 @router.post("/new")
-def handle_login(user : user_dependency, food_db : food_db_dependency, user_db : user_db_dependency, food_id: str = Form(...), amount_in_grams: str = Form(...)):
+def handle_login(user : user_dependency, food_db : food_db_dependency, user_db : user_db_dependency, food_id: str = Form(...), amount_in_grams: str = Form(...), date: str = Form(...)):
     try:
-        log_data = LogCreate(food_id=int(food_id), amount_in_grams=float(amount_in_grams))
+        log_data = LogCreate(food_id=int(food_id), amount_in_grams=float(amount_in_grams), date = date)
         return add_log(
             user=user,
             log=log_data,
@@ -105,7 +107,6 @@ def add_log(user: user_dependency, log: LogCreate, food_db : food_db_dependency,
     # Insert log into MongoDB
     log_dict = log.model_dump()
     
-    log_dict["date"] = datetime.now()
     # set log ID to current logged in user
     log_dict["user_id"] = user["_id"]
     log_dict["_id"] = str(ObjectId())  # Ensure log_id is returned as a string
@@ -141,19 +142,18 @@ def remove_log(user: user_dependency, log_id: str, user_db : user_db_dependency)
 def edit_log(user: user_dependency, user_db : user_db_dependency, log_id: str = Form(...), food_id: str = Form(...), amount_in_grams: str = Form(...), date : str = Form(...)):
     # Check if the log exists and belongs to the user
     print("looking for " + log_id + "for user" + str(user["_id"]) + " name " + user["name"])
-    
+    print(amount_in_grams + "    " + date)
     log = user_db.logs.find_one({"_id": log_id, "user_id": str(user["_id"])})
     
     if not log:
         raise HTTPException(status_code=404, detail="Log not found.")
     
-    print(log)
     
     # Update the fields in the log
     update_data = {
         "food_id": int(food_id),
         "amount_in_grams": float(amount_in_grams),
-        "date": date  # Update the date to the current time
+        "date": datetime.strptime(date, "%Y-%m-%dT%H:%M:%S")  # Update the date to the current time
     }
 
     # Perform the update operation

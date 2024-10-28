@@ -6,6 +6,7 @@ import Ok from '../assets/images/checkmark.svg?react'
 import '../assets/css/new_log.css'
 import '../assets/css/buttons.css'
 import { getFoodID } from './utlis';
+import { tolocalDateString } from '../components/utlis'
 
 
 interface ComponentCallingFunctionProps {
@@ -65,6 +66,7 @@ function NewLogForm({ callAfterSubmitting }: ComponentCallingFunctionProps){
         body: new URLSearchParams({
           food_id: getFoodID(formData.food_name),
           amount_in_grams: formData.amount_in_grams,
+          date: tolocalDateString(new Date())
         }),
       })
       if (response.ok){

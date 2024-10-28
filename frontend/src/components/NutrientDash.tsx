@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef} from 'react';
-import { calculateColor, formatDayForBackend} from './utlis';
+import { calculateColor, formatDayForFrontend} from './utlis';
 import { ImageButton } from './Sections';
 import AddLogButton from '../assets/images/plus.svg?react'
+import { NewNutrientForm } from './addNutrientForm';
 import '../assets/css/NutrientStats.css'; // Import your CSS file for styling
 
 
@@ -14,23 +15,25 @@ interface NutrientStatsProps {
   units: string;
 }
 
-function NutrientDashboard({nutrientStats, currentDay} : {nutrientStats : NutrientStatsProps[], currentDay : Date}){
+function NutrientDashboard({nutrientStats, currentDay, callAfterNewNutrient} : 
+                            {nutrientStats : NutrientStatsProps[], currentDay : Date, callAfterNewNutrient : () => void}){
 
 
   /* for add nutrient requirement button */
-  const [newReqFormVisible, setNewReqFormVisible] = useState<boolean>(false)
-  const newReqFormRef = useRef<HTMLDivElement>(null); 
+  const [editing, setEditing] = useState<boolean>(false)
+  const editFormRef = useRef<HTMLDivElement>(null); 
 
   // Function to close form if clicked outside
   const handleClickOutside = (event: MouseEvent) => {
-    if (newReqFormRef.current && !newReqFormRef.current.contains(event.target as Node)) {
-      setNewReqFormVisible(false); // Close the form when clicking outside
+    if (editFormRef.current && !editFormRef.current.contains(event.target as Node)) {
+      setEditing(false); // Close the form when clicking outside
     }
   }
     
   useEffect(() => {
     // start looking for clicks outside if new requirement form is visible
-    if (newReqFormVisible) {
+    console.log("clicked outside edit form")
+    if (editFormRef) {
       document.addEventListener('mousedown', handleClickOutside);
     } else {
       document.removeEventListener('mousedown', handleClickOutside);
@@ -38,12 +41,14 @@ function NutrientDashboard({nutrientStats, currentDay} : {nutrientStats : Nutrie
     return () => {
       document.removeEventListener('mousedown', handleClickOutside); // Cleanup
     };  
-  }, [newReqFormVisible])  
+  }, [editFormRef])  
 
 
   const removeTextWithinBrackets = (str : string) => {
     return str.replace(/\[.*?\]|\(.*?\)|\{.*?\}/g, '').trim();
   }
+
+  const toggleEditing = () =>  {setEditing(!editing)}
 
   return (
     <div className="nutrient-dashboard">
@@ -51,7 +56,7 @@ function NutrientDashboard({nutrientStats, currentDay} : {nutrientStats : Nutrie
 
       {nutrientStats.length === 0 ? 
       (<div> no requirements </div>) : 
-      (<div className='nutrient-list-wrapper'>
+      (<div className='nutrient-list-wrapper' ref = {editFormRef}>
         {nutrientStats.map((n, index) => 
           {return(
             <NutrientStats
@@ -65,9 +70,13 @@ function NutrientDashboard({nutrientStats, currentDay} : {nutrientStats : Nutrie
           })
         }
       </div>)}
-      <ImageButton>
+      {!editing ? (
+      <ImageButton
+      onClick = {toggleEditing}>
         <AddLogButton/>
       </ImageButton>
+      ) :
+      (<NewNutrientForm callAfterSubmitting={callAfterNewNutrient}/>)}
     </div>
   )
 }
@@ -80,7 +89,7 @@ function NutrientDashboardTitle({currentDay = new Date()} : {currentDay? : Date}
 
     </div>
     <div className = 'today-stats-wrapper'>
-      <div className = 'nutrient-dashboard-title'> {formatDayForBackend(currentDay)} </div>
+      <div className = 'nutrient-dashboard-title'> {formatDayForFrontend(currentDay)} </div>
     </div>
 
     <div className='avg-stats-wrapper'>
@@ -88,6 +97,7 @@ function NutrientDashboardTitle({currentDay = new Date()} : {currentDay? : Date}
     </div>
   </div>
 }
+
 
 function NutrientStats({ name, target, dayIntake = 0, avgIntake, shouldExceed, units }: NutrientStatsProps) {
   const [hovered, setHovered] = useState(false);
@@ -120,7 +130,7 @@ function NutrientStats({ name, target, dayIntake = 0, avgIntake, shouldExceed, u
         onMouseEnter={() => setHoveredName(true)}
         onMouseLeave={() => setHoveredName(false)}>
         <div className="nutrient-name">
-          {hoveredName ? `${target} ${units}` : name}
+          {hoveredName ? `target: ${target} ${units}` : name}
         </div>
       </div>
 

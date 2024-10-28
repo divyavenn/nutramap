@@ -8,17 +8,10 @@ import {Heading} from '../components/Title'
 import {Header, MainSection} from '../components/Sections'
 import { NewLogForm } from '../components/AddLogForm' 
 import { NutrientDashboard, NutrientStatsProps} from '../components/NutrientDash'
+import { tolocalDateString } from '../components/utlis'
 
 
 
-function tolocalDateString (date : Date) {
-  return date.getFullYear() + '-' +
-  String(date.getMonth() + 1).padStart(2, '0') + '-' +
-  String(date.getDate()).padStart(2, '0') + 'T' +
-  String(date.getHours()).padStart(2, '0') + ':' +
-  String(date.getMinutes()).padStart(2, '0') + ':' +
-  String(date.getSeconds()).padStart(2, '0');
-}
 function Dashboard(){
   const [name, setName] = useState('user');
   /* for log list*/
@@ -111,7 +104,7 @@ function Dashboard(){
   }
 
   const refreshNutrientInfo = () => {
-    doWithData('/requirements/requirement_info', setNutrientInfo);
+    doWithData('/requirements/all', setNutrientInfo);
   }
 
   const combineData = () => {
@@ -158,6 +151,7 @@ function Dashboard(){
   // if current Day changes, refresh the nutrition dashbarod
   useEffect(() => {
     refreshDayIntake();
+    refreshAverageIntake();
   }, [currentDay, logs])
 
   // if start date or end date changes, refresh logs
@@ -186,7 +180,8 @@ function Dashboard(){
 
   <MainSection>
     <NutrientDashboard  nutrientStats={rowData} 
-                        currentDay={currentDay}/>
+                        currentDay={currentDay}
+                        callAfterNewNutrient={refreshNutrientInfo}/>
   </MainSection>
 
   <MainSection>

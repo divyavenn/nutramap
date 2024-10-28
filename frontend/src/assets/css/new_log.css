@@ -33,7 +33,7 @@ input, textarea {
 
 
 .form-elements-wrapper{
-  width: 500px;
+  width: 600px;
   display: flex;
   margin-top: 20px;
   background-color: #19050584;
@@ -99,10 +99,6 @@ input, textarea {
   text-align: left; /* Ensures the text aligns properly */
 }
 
-
-
-
-
 /* ------------------------------------------AMOUNT-------------------------------------- */
 /* Wrapper for the input and "g" unit */
 .input-food-amt-wrapper {
@@ -111,7 +107,9 @@ input, textarea {
   align-items: center;
   align-self: center;
   position: relative;
-  width: 10%; /* Set width to match your layout */
+  font-family: Inconsolata;
+  width: 7%; /* Set width to match your layout */
+  margin-left: -50px;
 }
 
 /* The input for entering food amount */
@@ -120,16 +118,16 @@ input, textarea {
   padding-right: 10px; /* Creates space for the "g" */
   background: none;
   border: none; /* Removes the default border */
-  font-family: Inconsolata;
   text-align: left; /* Align the input text to the left */
   color: inherit; /* Inherit the text color (useful for hover) */
 }
 
 /* Styling for the "g" unit */
-.unit {
+.nutrient-unit {
   position: absolute;
   right: 0px;
-  font-family: Inconsolata;
+  font-family: Poppins;
+  font-size: 14px;
   color: inherit; /* Inherit text color (important for hover) */
   pointer-events: none; /* Ensure the span doesn't interfere with input focus */
 }

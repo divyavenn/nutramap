@@ -45,10 +45,10 @@ async def find_nutrient_data_for_food(food_db: food_db_dependency, food_id : int
 # returns data as a list of lists
 @router.get("/all_nutrients")
 async def get_all_nutrients(food_db: food_db_dependency): 
-  data = food_db.query(Nutrient.nutrient_name, Nutrient.nutrient_id).all()
+  data = food_db.query(Nutrient.nutrient_name, Nutrient.nutrient_id, Nutrient.unit).all()
   if not data:
     return JSONResponse(content={"message": "No data found."}, status_code=404)
-  return {nutrient_name: nutrient_id for nutrient_name, nutrient_id in data}
+  return {nutrient_name : {"id" : nutrient_id, "unit" : unit}  for nutrient_name, nutrient_id, unit in data}
  
 # returns data as a list of dictionaries
 @router.get("/all_foods")

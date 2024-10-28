@@ -43,9 +43,10 @@
 }
 
 .today:hover {
-  border-color: hsl(0, 0%, 100%);
+  border-color: hsla(0, 0%, 100%, 0);
   color: hsl(0, 0%, 100%);
 }
+
 .date-selector {
   display: flex;
   width: auto;
@@ -87,7 +88,7 @@
   }
   
   .month-arrow svg {
-    fill: #ffffff77; /* You can change the SVG color here */ 
+    fill: #ffffff; /* You can change the SVG color here */ 
     height: 20px;
   }
 
@@ -162,6 +163,7 @@
   background-color: transparent;
   border: none;
   color: #fff; /* Make sure the text is readable */
+  text-align: center;
 }
 
 .rdrDay {
@@ -185,18 +187,8 @@
 
 /* Optional: Style the out-of-month days if needed */
 .rdrDayOutOfMonth {
-  opacity: 0.5; /* Keep out-of-month days less prominent */
+  opacity: .5; /* Keep out-of-month days less prominent */
 }
-
-.rdrDayToday {
-  /* If the underline is created using border */
-  border-bottom: 2px solid rgb(119, 0, 255); /* Change 'red' to the color you want */
-
-  /* If the underline is created using a box-shadow */
-  box-shadow: none; /* Remove the shadow if you want to reset it */
-}
-
-
 
 /* Make the header where the date range is displayed transparent */
 .calendar-popup .rdrDefinedRangesWrapper {
@@ -227,6 +219,10 @@
     background-color: transparent;
 }
 
+.calendar-popup .rdrDateRangeWrapper{
+  color: #fff;
+}
+
 .calendar-popup .rdrMonthAndYearPickers {
   font-weight: 600;
   color: #fff;
@@ -241,5 +237,64 @@
 .calendar-popup .rdrMonthAndYearWrapper,
 .calendar-popup .rdrWeekDay,
 .calendar-popup .rdrDayNumber {
-    color: #fff; /* White text color for contrast */
+    color: #ffffff; /* White text color for contrast */
+}
+
+/* In-month dates */
+.rdrDayNumber span {
+  color: #ffffff; /* Set the text color of in-month days */
+}
+
+/* Out-of-month dates */
+.rdrDayDisabled span {
+  color: #ffffff9d; /* Set the text color of out-of-month days */
+  opacity: 0.5; /* Adjust opacity if needed */
+}
+
+/* Selected date */
+.rdrDayNumber span.rdrDayToday {
+  background-color: #1e002e; /* Set the background color of the selected date */
+  color: #ffffff; /* Set the text color for the selected date */
+}
+
+/* Range start and end dates */
+.rdrDayStartPreview,
+.rdrDayEndPreview {
+  background-color: #5b2e8d; /* Set background for start and end of the range */
+}
+
+/* Month and Year Text */
+.rdrMonthAndYearPickers select {
+  color: #ffffff; /* Text color for the month and year selectors */
+  background-color: #1e002e; /* Background color */
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  text-align: center;
+  justify-self: center;
+}
+
+/* Arrow Colors */
+.rdrNextPrevButton i {
+  color: #ffffff; /* Color for the arrow icons */
+}
+
+.rdrMonthPicker {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-content: center;
+}
+/* Active Arrow Button */
+.rdrNextPrevButton:hover i {
+  color: #a29bfe; /* Change color on hover */
+}
+
+/* Centering the month and year selectors */
+.rdrMonthAndYearWrapper {
+  display: flex;
+  justify-content: center; /* Center horizontally */
+  align-items: center; /* Center vertically */
+  gap: 10px; /* Optional: Add some space between the month and year */
+  width: 100%; /* Ensure it takes the full width of the container */
 }

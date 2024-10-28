@@ -37,7 +37,20 @@
       console.log("No such food on list")
       throw Error("No such food on list")
     }
+  }
 
+  const getNutrientInfo = (nutrient_name : string, get_units = false) => {
+    // Mock food data for autocomplete
+    const nutrientList : Record<string, string> = JSON.parse(localStorage.getItem('nutrients') || '{}');
+    console.log(nutrientList[nutrient_name])
+    try {
+      if (get_units) return JSON.parse(nutrientList[nutrient_name]).unit
+      else return JSON.parse(nutrientList[nutrient_name]).id
+    }
+    catch {
+      console.log("No such nutrients on list")
+      throw Error("No such nutrients on list")
+    }
   }
 
   function formatTime(date : Date) {
@@ -57,7 +70,7 @@
     return timeString;
   }
 
-  function formatDayForBackend(day : Date){
+  function formatDayForFrontend(day : Date){
     const today = new Date();
     const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const dayDateOnly = new Date(day.getFullYear(), day.getMonth(), day.getDate());
@@ -68,5 +81,13 @@
     else return day.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
   }
   
+  function tolocalDateString (date : Date) {
+    return date.getFullYear() + '-' +
+    String(date.getMonth() + 1).padStart(2, '0') + '-' +
+    String(date.getDate()).padStart(2, '0') + 'T' +
+    String(date.getHours()).padStart(2, '0') + ':' +
+    String(date.getMinutes()).padStart(2, '0') + ':' +
+    String(date.getSeconds()).padStart(2, '0');
+  }
 
-  export {calculateColor, getFoodID, formatTime, formatDayForBackend}
+  export {calculateColor, getFoodID, formatTime, formatDayForFrontend, tolocalDateString, getNutrientInfo}
