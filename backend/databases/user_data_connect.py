@@ -11,6 +11,11 @@ db = cluster[DB]
 
 # Ensure the unique index on email
 db.users.create_index([("email", ASCENDING)], unique=True)
+db.requirements.create_index(
+    [("nutrient_id", ASCENDING), ("user_id", ASCENDING)],
+    unique=True,
+    name="unique_requirement_ndex"
+)
 
 if db.users.count_documents({}) == 0:
     print("empty!")

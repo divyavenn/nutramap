@@ -52,31 +52,48 @@ function NutrientDashboard({nutrientStats, currentDay, callAfterNewNutrient} :
 
   return (
     <div className="nutrient-dashboard">
-      <NutrientDashboardTitle currentDay = {currentDay}/>
+      {!editing && <NutrientDashboardTitle currentDay = {currentDay}/>}
 
-      {nutrientStats.length === 0 ? 
-      (<div> no requirements </div>) : 
-      (<div className='nutrient-list-wrapper' ref = {editFormRef}>
-        {nutrientStats.map((n, index) => 
-          {return(
-            <NutrientStats
-              key={index}  // Using index as a key. Ideally, use a unique id if available.
-              name={removeTextWithinBrackets(n.name)}
-              target={n.target}
-              dayIntake={n.dayIntake}
-              avgIntake={Math.round(n.avgIntake * 10) / 10}
-              shouldExceed={n.shouldExceed}
-              units={n.units}/>);
-          })
-        }
-      </div>)}
-      {!editing ? (
-      <ImageButton
-      onClick = {toggleEditing}>
-        <AddLogButton/>
-      </ImageButton>
-      ) :
-      (<NewNutrientForm callAfterSubmitting={callAfterNewNutrient}/>)}
+        <div className = 'requirement-edit-wrapper' ref = {editFormRef}>
+          {!editing ?
+            nutrientStats.length === 0 ? 
+
+              <div> no requirements </div> :
+
+              <div className='nutrient-list-wrapper'>
+                {nutrientStats.map((n, index) => 
+                  {return(
+                    <NutrientStats
+                      key={index}  // Using index as a key. Ideally, use a unique id if available.
+                      name={removeTextWithinBrackets(n.name)}
+                      target={n.target}
+                      dayIntake={n.dayIntake}
+                      avgIntake={Math.round(n.avgIntake * 10) / 10}
+                      shouldExceed={n.shouldExceed}
+                      units={n.units}/>);
+                  })
+                }
+            </div>  :
+            (<div className='nutrient-edit-list-wrapper'>
+              {nutrientStats.map((n, index) => 
+                {return(
+                  <NewNutrientForm
+                    key={index}  // Using index as a key. Ideally, use a unique id if available.
+                    callAfterSubmitting={callAfterNewNutrient}
+                    original={n}/>);
+                })
+              }
+              <NewNutrientForm callAfterSubmitting={callAfterNewNutrient}/>
+            </div> )}
+        </div>
+
+
+      {!editing && (
+        <ImageButton
+        onClick = {toggleEditing}>
+          <AddLogButton/>
+        </ImageButton>
+      )} 
     </div>
   )
 }

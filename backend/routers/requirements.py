@@ -41,7 +41,7 @@ def requirement_info(user: user_dependency, user_db : user_db_dependency, food_d
     
     return info
     
-@router.post("/new", response_model=Requirement)
+@router.post("/new", response_model=None)
 def add_requirement(user: user_dependency, requirement: RequirementCreate, food_db : food_db_dependency, user_db : user_db_dependency):
     # Validate that the user exists in MongoDB
     if not user:
@@ -52,28 +52,38 @@ def add_requirement(user: user_dependency, requirement: RequirementCreate, food_
     
     if not nutrient:
         raise HTTPException(status_code=404, detail="Nutrient not found")
-
-    # Insert requirement into MongoDB 
-    req_dict = requirement.model_dump()
-    req_dict["user_id"] = user["_id"]
-    user_db.requirements.insert_one(req_dict)
-    return Requirement(**req_dict)
+    
+    # Check for existing entry with the same nutrient_id and user_id
+    existing = user_db.requirements.find_one({
+        "nutrient_id": requirement.nutrient_id,
+        "user_id": user["_id"]
+    })
+    if existing:
+        #update
+        user_db.requirements.update_one(
+        {"user_id": user["_id"], "nutrient_id": requirement.nutrient_id,},
+        {"$set": {"amt" :requirement.amt, "should_exceed" : requirement.should_exceed}})
+        
+    else: 
+        # Insert requirement into MongoDB 
+        req_dict = requirement.model_dump()
+        req_dict["user_id"] = user["_id"]
+        user_db.requirements.insert_one(req_dict)
+        
 
 @router.delete("/delete")
 def remove_requirement(requirement_id: str, user: user_dependency, user_db : user_db_dependency):
-        # Validate that the user exists in MongoDB
+    # Validate that the user exists in MongoDB
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    requirement = user_db.reqirements.find_one({"_id": requirement_id, "user_id": str(user["_id"])})
+    filters = {"nutrient_id": int(requirement_id), "user_id": user["_id"]}
+    requirement = user_db.requirements.find_one(filters)
     
     if not requirement:
-        raise HTTPException(status_code=404, detail="Log not found.")
-    
-    print(requirement)
-    
+        raise HTTPException(status_code=404, detail="Requirement not found.")
     # Perform the update operation
-    result = user_db.requirements.delete_one({"_id": requirement_id})
+    result = user_db.requirements.delete_one(filters)
   
     # Check if the document was deleted
     if result.deleted_count > 0:

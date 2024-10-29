@@ -105,6 +105,9 @@ function Dashboard(){
 
   const refreshNutrientInfo = () => {
     doWithData('/requirements/all', setNutrientInfo);
+    refreshAverageIntake()
+    refreshDayIntake()
+    
   }
 
   const combineData = () => {

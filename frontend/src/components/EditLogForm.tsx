@@ -233,15 +233,6 @@ function EditLogForm({food_name, date, amount_in_grams, _id, callAfterSubmitting
                   required
                 />
               </div>
-
-                {/* <HoverButton
-                      type = "button"
-                      className="calendar-button"
-                      disabled={!formData.food_name || !formData.amount_in_grams}
-                      childrenOn={<Calday/>}
-                      childrenOff={<Cal/>}
-                      onClick = {toggleCalendar}>
-                </HoverButton>  */}
                 
               </div>
 

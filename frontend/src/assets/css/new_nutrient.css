@@ -1,6 +1,7 @@
 
 .new-nutrient-wrapper{
   width: 100%;
+  padding-bottom: 10px;
   display: flex;
   box-sizing: border-box;
   background-color: #19050500;
@@ -43,7 +44,7 @@
 /*-----------------------------------SUGGESTIONS------------------------------*/
 .nutrient-suggestions-list {
   list-style-type: none; 
-  padding-left: 0; /* Removes default padding */
+  padding-left: 0px; /* Removes default padding */
   margin-left: 0; /* Removes default margin */
   margin: 0; /* Optionally set the entire margin to 0 */
 
@@ -61,7 +62,7 @@
 
 .nutrient-suggestions-list::-webkit-scrollbar {
   display: none; /* Hides scrollbar for WebKit browsers */
-  }
+}
 
 /* Individual suggestion items */
 .nutrient-suggestion-item {
@@ -70,7 +71,8 @@
 
   padding-top: 10px;
   padding-bottom: 10px;
-  padding-right: 40px;
+  padding-left: 39px;
+  padding-right: 10px;
   background-color: none;
   color: var(--white);
 

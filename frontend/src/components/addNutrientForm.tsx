@@ -12,9 +12,9 @@ import { tolocalDateString } from '../components/utlis'
 import {ImageButton } from './Sections';
 
 interface Nutrient {
-  nutrient_name: string;
-  requirement: string;
-  should_exceed : true
+  name: string;
+  target: number;
+  shouldExceed : boolean;
 }
 interface NewNutrientFormProps {
   callAfterSubmitting: () => void;
@@ -27,9 +27,9 @@ function NewNutrientForm({callAfterSubmitting, original}: NewNutrientFormProps){
   const nutrientList : Record<string, string> = JSON.parse(localStorage.getItem('nutrients') || '{}');
 
   const [formData, setFormData] = useState({
-    nutrient_name : original ? original.nutrient_name : '',
-    requirement : original ? original.requirement : '',
-    should_exceed : original ? original.should_exceed : true,
+    nutrient_name : original ? original.name : '',
+    requirement : original ? String(original.target) : '',
+    should_exceed : original ? original.shouldExceed : true,
   })
 
   const [suggestions, setSuggestions] = useState<string[]>([]); // State for filtered suggestions
@@ -74,21 +74,28 @@ function NewNutrientForm({callAfterSubmitting, original}: NewNutrientFormProps){
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault() // prevent automatic submission
     try {
+      let requestData = {
+        nutrient_id: parseInt(getNutrientInfo(formData.nutrient_name) as string, 10),
+        amt: parseFloat(formData.requirement),
+        should_exceed: Boolean(formData.should_exceed)
+      }
+      console.log(requestData)
       const response = await fetch('/requirements/new', {
         method: 'POST',
-        headers: getHeaderWithToken(),
-        body: new URLSearchParams({
-          nutrient_id: (getNutrientInfo(formData.nutrient_name) as string),
-          amt: (formData.requirement as string),
-          should_exceed: String(formData.should_exceed)
-        }),
+        headers: getHeaderWithToken('application/json'),
+        body: JSON.stringify(requestData),
       })
       if (response.ok){
         const logData = await response.json(); // Wait for the promise to resolve
         console.log("new nutrient added ", logData);
-        // used to refresh log list
-        await callAfterSubmitting()
+        callAfterSubmitting();
+        if (!original){
         setFormData({ nutrient_name: '', requirement: '', should_exceed : true})
+        }
+        else{
+          setFormData({ nutrient_name: formData.nutrient_name, 
+            requirement: formData.requirement, should_exceed : formData.should_exceed})
+        }
       }
     }
     catch (error) {
@@ -103,7 +110,6 @@ function NewNutrientForm({callAfterSubmitting, original}: NewNutrientFormProps){
         method: 'DELETE',
         headers: getHeaderWithToken(),
       });
-
        // Check if the response was successful
       if (response.ok) {
         console.log("Requirement deleted successfully");
@@ -123,18 +129,19 @@ function NewNutrientForm({callAfterSubmitting, original}: NewNutrientFormProps){
   }
 
   return (
+    !isDeleted && (
     <form
       id="new-nutrient-form" className = {`new-nutrient-wrapper ${showSuggestions ? 'active' : ''}`} onSubmit={handleSubmit}>
       <div className={`nutrient-form-bubble ${showSuggestions ? 'active' : ''}`}>
-      {true && (
       <div className = 'delete-requirement-button-container'>
+      {original && (
         <ImageButton
                 type= "button"
                 onClick= {handleDelete}
                 className= "delete-button"
                 children= {<Trashcan/>}>
-        </ImageButton>  
-      </div>)}
+        </ImageButton> )}
+      </div>
       
       <div className= 'new-nutrient-name-wrapper'>
         <input
@@ -186,17 +193,14 @@ function NewNutrientForm({callAfterSubmitting, original}: NewNutrientFormProps){
             <ul className="nutrient-suggestions-list">
               {suggestions.map(suggestion => (
                 <li key={suggestion}
-                    onClick={() => handleSuggestionClick(suggestion)}
-                    className="nutrient-suggestion-item">
+                    className="nutrient-suggestion-item"
+                    onClick={() => handleSuggestionClick(suggestion)}>
                   {suggestion}
                 </li>
               ))}
             </ul>
           )}
-    </form>
-    
-  )
-
+    </form>))
 }
 
 export  {NewNutrientForm}

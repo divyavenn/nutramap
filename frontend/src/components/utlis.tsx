@@ -39,13 +39,15 @@
     }
   }
 
+
   const getNutrientInfo = (nutrient_name : string, get_units = false) => {
     // Mock food data for autocomplete
-    const nutrientList : Record<string, string> = JSON.parse(localStorage.getItem('nutrients') || '{}');
-    console.log(nutrientList[nutrient_name])
+    const nutrientList : Record<string, { unit: string; id: number;} > = JSON.parse(localStorage.getItem('nutrients') || '{}');
+
     try {
-      if (get_units) return JSON.parse(nutrientList[nutrient_name]).unit
-      else return JSON.parse(nutrientList[nutrient_name]).id
+      const nutrient = nutrientList[nutrient_name]
+      if (get_units) return nutrient.unit
+      else return nutrient.id
     }
     catch {
       console.log("No such nutrients on list")
