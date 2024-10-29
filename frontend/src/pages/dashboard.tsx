@@ -107,7 +107,7 @@ function Dashboard(){
     doWithData('/requirements/all', setNutrientInfo);
     refreshAverageIntake()
     refreshDayIntake()
-    
+
   }
 
   const combineData = () => {
@@ -143,7 +143,6 @@ function Dashboard(){
     refreshDayIntake()
     doWithData('/food/all_foods', addFoodsToLocalStorage, undefined, undefined, false)
     doWithData('/food/all_nutrients', addNutrientsToLocalStorage)
-    combineData()
   }, []);
   
   // update row data if info, day intake, or averaged intake changes

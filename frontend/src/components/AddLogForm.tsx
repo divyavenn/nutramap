@@ -7,6 +7,7 @@ import '../assets/css/new_log.css'
 import '../assets/css/buttons.css'
 import { getFoodID } from './utlis';
 import { tolocalDateString } from '../components/utlis'
+import { isValid } from 'date-fns';
 
 
 interface ComponentCallingFunctionProps {
@@ -26,10 +27,11 @@ function NewLogForm({ callAfterSubmitting }: ComponentCallingFunctionProps){
 
   const [suggestions, setSuggestions] = useState<string[]>([]); // State for filtered suggestions
   const [showSuggestions, setShowSuggestions] = useState(false); // Control the visibility of suggestions
-
+  const [validInput, markValidInput] = useState(true)
 
   const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
     const {name, value} = e.target; // get the name and value of the input field
+    markValidInput(value in foodList)
     setFormData({
       ...formData,
       [name] : value, // this works because the form variables match the names of the input fields
@@ -49,6 +51,7 @@ function NewLogForm({ callAfterSubmitting }: ComponentCallingFunctionProps){
   };
 
   const handleSuggestionClick = (suggestion: string) => {
+    markValidInput(true)
     // Update the formData with the selected suggestion
     setFormData({
       ...formData,
@@ -112,13 +115,15 @@ function NewLogForm({ callAfterSubmitting }: ComponentCallingFunctionProps){
 
       
       <div className = 'new-log-button-container'>
+      {formData.food_name && formData.amount_in_grams && validInput &&
       <HoverButton
               type="submit"
               className="new-log-button"
-              disabled={!formData.food_name || !formData.amount_in_grams}
+              disabled={!formData.food_name || !formData.amount_in_grams || !validInput}
               childrenOn={<Ok/>}
               childrenOff={<Arrow/>}>
-      </HoverButton> </div> 
+      </HoverButton>}
+      </div> 
       </div>
       {showSuggestions && (
             <ul className="suggestions-list">

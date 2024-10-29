@@ -34,11 +34,11 @@ function NewNutrientForm({callAfterSubmitting, original}: NewNutrientFormProps){
 
   const [suggestions, setSuggestions] = useState<string[]>([]); // State for filtered suggestions
   const [showSuggestions, setShowSuggestions] = useState(false); // Control the visibility of suggestions
+  const [validInput, markValidInput] = useState(true)
   const [isDeleted, setIsDeleted] = useState(false)
 
 
   const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log("called"); // Debugging log
 
     const {name, value} = e.target; // get the name and value of the input field
 
@@ -50,7 +50,8 @@ function NewNutrientForm({callAfterSubmitting, original}: NewNutrientFormProps){
     })
 
     //for the food name input
-    if (name === 'nutrient_name') {
+    if (name === 'nutrient_name') { 
+      markValidInput(value in nutrientList)
       // Filter the foodList to match the input value
       const filteredNutrients = Object.keys(nutrientList).filter(n =>
         n.toLowerCase().includes(value.toLowerCase())
@@ -63,6 +64,7 @@ function NewNutrientForm({callAfterSubmitting, original}: NewNutrientFormProps){
   };
 
   const handleSuggestionClick = (suggestion: string) => {
+    markValidInput(true)
     // Update the formData with the selected suggestion
     setFormData({
       ...formData,
@@ -172,13 +174,13 @@ function NewNutrientForm({callAfterSubmitting, original}: NewNutrientFormProps){
           required
         ></input>
         <span className="nutrient-unit">
-          g
+          {formData.nutrient_name && validInput && getNutrientInfo(formData.nutrient_name, true)}
         </span>
       </div>
 
       
       <div className = 'new-nutrient-button-container'>
-      {(formData.nutrient_name || formData.requirement) && (
+      {(formData.nutrient_name && formData.requirement && validInput) && (
       <HoverButton
               type="submit"
               className="new-nutrient-button"
