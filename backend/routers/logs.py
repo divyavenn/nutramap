@@ -47,7 +47,6 @@ def get_logs_for_user(user, startDate : datetime, endDate: datetime, user_db):
     query = {"user_id": str(user["_id"]),
              "date" : { "$gte" : startDate,
                         "$lte" : endDate}}
-    print(query)
     logs = user_db.logs.find(query)
     return logs
 
@@ -179,6 +178,7 @@ def day_intake(date: datetime, user: user_dependency, user_db : user_db_dependen
     
     for r in requirements:
       name, units = get_nutrient_details(food_db, r["nutrient_id"])
+      print(str(r["nutrient_id"]) + ", " + name + ", " + units)
       tally[r["nutrient_id"]] = 0
     
     # Validate that the food exists in SQLite
@@ -186,8 +186,10 @@ def day_intake(date: datetime, user: user_dependency, user_db : user_db_dependen
     for log in logs:
       data = get_food_data(food_db, log["food_id"])
       for d in data:
-          if d.nutrient_id in tally:
-            tally[d.nutrient_id] += amount_by_weight(d.amt, log["amount_in_grams"])
+          print(d)
+          if d["id"] in tally:
+            print("in tally")
+            tally[d["id"]] += amount_by_weight(d["amount"], log["amount_in_grams"])
 
     return tally
     
@@ -202,15 +204,21 @@ def meets(startDate : datetime, endDate: datetime, user: user_dependency, user_d
     
     for r in requirements:
       name, units = get_nutrient_details(food_db, r["nutrient_id"])
+      print(str(r["nutrient_id"]) + ", " + name + ", " + units)
       tally[r["nutrient_id"]] = 0
     
+    print(tally)
     # Validate that the food exists in SQLite
     logs = list(get_logs_for_user(user,startDate, endDate, user_db))
     for log in logs:
       data = get_food_data(food_db, log["food_id"])
       for d in data:
-          if d.nutrient_id in tally:
-            tally[d.nutrient_id] += amount_by_weight(d.amt, log["amount_in_grams"])
+          print(d["id"])
+          if (int(d["id"]) == 2047):
+              print ("here")
+          if d["id"]in tally:
+            print(d)
+            tally[d["id"]] += amount_by_weight(d["amount"], log["amount_in_grams"])
     
     # number of days 
     days = count_unique_days(logs)

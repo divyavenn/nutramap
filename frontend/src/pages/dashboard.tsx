@@ -78,6 +78,7 @@ function Dashboard(){
   }
 
   const addNutrientsToLocalStorage = (nutrients : Record<string, string>) => {
+    console.log("number of nutrients: " + String(Object.keys(nutrients).length))
     localStorage.setItem('nutrients', JSON.stringify(nutrients))
   }
 

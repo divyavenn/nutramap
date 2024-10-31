@@ -44,6 +44,7 @@ function EditLogForm({food_name, date, amount_in_grams, _id, callAfterSubmitting
   const [suggestions, setSuggestions] = useState<string[]>([]); // State for filtered suggestions
   const [showSuggestions, setShowSuggestions] = useState(false); // Control the visibility of suggestions
   const [showCalendar, setShowCalendar] = useState(false)
+  const [validInput, markValidInput] = useState(true)
 
 
 
@@ -94,6 +95,7 @@ function EditLogForm({food_name, date, amount_in_grams, _id, callAfterSubmitting
 
   const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
     const {name, value} = e.target; // get the name and value of the input field
+
     setFormData({
       ...formData,
       [name] : value, // this works because the form variables match the names of the input fields
@@ -101,6 +103,7 @@ function EditLogForm({food_name, date, amount_in_grams, _id, callAfterSubmitting
 
     //for the food name input
     if (name === 'food_name') {
+      markValidInput(value in foodList)
       // Filter the foodList to match the input value
       const filteredFoods = Object.keys(foodList).filter(food =>
         food.toLowerCase().includes(value.toLowerCase())
@@ -113,6 +116,7 @@ function EditLogForm({food_name, date, amount_in_grams, _id, callAfterSubmitting
   };
 
   const handleSuggestionClick = (suggestion: string) => {
+    markValidInput(true)
     // Update the formData with the selected suggestion
     setFormData({
       ...formData,
@@ -278,10 +282,10 @@ function EditLogForm({food_name, date, amount_in_grams, _id, callAfterSubmitting
           <HoverButton
                   type="submit"
                   className="edit-log-submit"
-                  disabled={!formData.food_name || !formData.amount_in_grams}
+                  disabled={!formData.food_name || !formData.amount_in_grams || !validInput}
                   childrenOn={<YesOk/>}
                   childrenOff={<IsOk/>}>
-          </HoverButton> 
+          </HoverButton>
         </div> 
     </form>) :
     <div>

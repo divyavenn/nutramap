@@ -31,7 +31,6 @@ function NewLogForm({ callAfterSubmitting }: ComponentCallingFunctionProps){
 
   const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
     const {name, value} = e.target; // get the name and value of the input field
-    markValidInput(value in foodList)
     setFormData({
       ...formData,
       [name] : value, // this works because the form variables match the names of the input fields
@@ -39,6 +38,7 @@ function NewLogForm({ callAfterSubmitting }: ComponentCallingFunctionProps){
 
     //for the food name input
     if (name === 'food_name') {
+      markValidInput(value in foodList)
       // Filter the foodList to match the input value
       const filteredFoods = Object.keys(foodList).filter(food =>
         food.toLowerCase().includes(value.toLowerCase())

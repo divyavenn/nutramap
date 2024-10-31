@@ -126,6 +126,8 @@ input, textarea {
 .nutrient-unit {
   position: absolute;
   right: 0px;
+  width: 30%;
+  text-align: left;
   font-family: Poppins;
   font-size: 14px;
   color: inherit; /* Inherit text color (important for hover) */
