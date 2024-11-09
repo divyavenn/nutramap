@@ -1,4 +1,5 @@
 import nutramapLogo from '../assets/images/nutramap_logo.png'
+import Account from '../assets/images/account.svg?react'
 import '../assets/css/buttons.css'
 import React, { useState } from 'react';
 
@@ -34,6 +35,22 @@ function Header() {
             loading="lazy" alt=""
             className="nutramap-logo" />
       <div className="nutra header">nutramap</div>
+    </section>
+  </header>
+  )
+}
+
+function DashboardHeader() {
+  return (
+  <header>
+    <section className="nutramap-header" >
+      <img  src={nutramapLogo}
+            loading="lazy" alt=""
+            className="nutramap-logo" />
+      <div className="nutra header">nutramap</div>
+    </section>
+    <section className="links">
+      
     </section>
   </header>
   )

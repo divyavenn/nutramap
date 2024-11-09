@@ -2,20 +2,22 @@ import '../assets/css/logs.css'
 import 'react-date-range/dist/styles.css'; // main style file
 import 'react-date-range/dist/theme/default.css'; 
 
-import {useState} from 'react'
+import {useState, useEffect} from 'react'
 import { EditLogForm } from './EditLogForm';
 import { formatTime } from './utlis';
+import { LogbookProps, LogProps, DisplayLogProps } from './structures';
+import {useRecoilState} from 'recoil'
+import { logsAtom, useRefreshLogs } from './states';
 
 
-interface LogbookProps {
-  logs : LogProps[]
-  callAfterSubmitting: () => void;
-}
+function LogList (){
+  const [logs, setLogs] = useRecoilState(logsAtom)
+  const refreshLogs = useRefreshLogs()
 
-function LogList ({logs, callAfterSubmitting} : LogbookProps){
   if (logs.length == 0) {
     return <div className="log-list">
-      <div className = 'no-logs-message'> no logs in this time.</div> </div>;  // Display this when logs array is empty
+      <div className = 'no-logs-message'> no logs in this time.</div> </div>;
+      // Display this when logs array is empty
   }
 
   const sortedLogs = [...logs].sort((a, b) => (new Date(b.date).getTime()) - (new Date(a.date).getTime()));
@@ -29,7 +31,7 @@ function LogList ({logs, callAfterSubmitting} : LogbookProps){
         return (
           <div key={index} className="logs-wrapper">
             {index > 0 && currentDate.getDate() !== previousDate?.getDate() && (
-              <DateDivider date={currentDate} />
+              <DateDivider date={currentDate} callToChangeDay={Date}/>
             )}
 
             <Log
@@ -38,7 +40,6 @@ function LogList ({logs, callAfterSubmitting} : LogbookProps){
               date={new Date(log.date)}
               amount_in_grams={log.amount_in_grams}
               _id = {log._id}
-              callAfterSubmitting={callAfterSubmitting}
             /> 
           </div>
         );
@@ -47,19 +48,6 @@ function LogList ({logs, callAfterSubmitting} : LogbookProps){
   );
 }
 
-interface DisplayLogProps {
-  food_name: string;
-  date: Date;
-  amount_in_grams : number;
-}
-
-interface LogProps {
-  food_name: string;
-  date: Date;
-  amount_in_grams : number;
-  _id : string;
-  callAfterSubmitting: () => void;
-}
 
 function DisplayLog ({ food_name, date, amount_in_grams } : DisplayLogProps) {
    return (<div className = 'log-bubble'> 
@@ -71,7 +59,7 @@ function DisplayLog ({ food_name, date, amount_in_grams } : DisplayLogProps) {
   </div>)
 }
 
-function Log({ food_name, date, amount_in_grams, _id, callAfterSubmitting} : LogProps) { 
+function Log({ food_name, date, amount_in_grams, _id} : LogProps) { 
   const [mouseOn, setMouseOn] = useState(false);
   return (
     <div className = 'log-wrapper'
@@ -84,7 +72,6 @@ function Log({ food_name, date, amount_in_grams, _id, callAfterSubmitting} : Log
           date={date}
           amount_in_grams={amount_in_grams}
           _id = {_id}
-          callAfterSubmitting={callAfterSubmitting}
 
         />
       ) : (
@@ -98,18 +85,18 @@ function Log({ food_name, date, amount_in_grams, _id, callAfterSubmitting} : Log
   );
 }
 
-function DateDivider({date} : {date : Date}) {
+function DateDivider({date, callToChangeDay} : {date : Date, callToChangeDay: (date : Date) => void}) {
   return (
     <div className = 'date-divider'>
-      <div className = 'day'>
+      <button className = 'day' onClick = {() => callToChangeDay(date)}>
         {date.toLocaleDateString('en-US', 
         { weekday: 'long', 
           month: 'long', 
-          day: 'numeric'} )}</div>
+          day: 'numeric'} )}</button>
     </div>
   )
 }
 
 
 
-export {Log, LogList, LogProps}
+export {Log, LogList}

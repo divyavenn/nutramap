@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef} from 'react';
+import React, { useState, useEffect, useRef, startTransition} from 'react';
 import { calculateColor, formatDayForFrontend} from './utlis';
 import { ImageButton } from './Sections';
 import AddLogButton from '../assets/images/plus.svg?react'
 import { NewNutrientForm } from './addNutrientForm';
 import '../assets/css/NutrientStats.css'; // Import your CSS file for styling
+import {useRecoilValue, useRecoilValueLoadable} from 'recoil'
+import { currentDayAtom, rowData} from './states';
 
 
 interface NutrientStatsProps {
@@ -15,13 +17,21 @@ interface NutrientStatsProps {
   units: string;
 }
 
-function NutrientDashboard({nutrientStats, currentDay, callAfterNewNutrient} : 
-                            {nutrientStats : NutrientStatsProps[], currentDay : Date, callAfterNewNutrient : () => void}){
 
-
+function NutrientDashboard(){
   /* for add nutrient requirement button */
   const [editing, setEditing] = useState<boolean>(false)
   const editFormRef = useRef<HTMLDivElement>(null); 
+  const currentDay = useRecoilValue(currentDayAtom) 
+
+  const [nutrientStats, setNutrientStats] = useState<Array<NutrientStatsProps>>([]);
+  const nutrientStatsData = useRecoilValueLoadable(rowData) 
+
+  useEffect(() => {
+    startTransition(() => {
+    setNutrientStats(nutrientStatsData.contents);
+    });
+  }, [nutrientStatsData]);
 
   // Function to close form if clicked outside
   const handleClickOutside = (event: MouseEvent) => {
@@ -61,8 +71,10 @@ function NutrientDashboard({nutrientStats, currentDay, callAfterNewNutrient} :
               <div> no requirements </div> :
 
               <div className='nutrient-list-wrapper'>
-                {nutrientStats.map((n, index) => 
-                  {return(
+
+                {nutrientStats.length > 0 && 
+                  (nutrientStats.map((n, index) => 
+                  {return (
                     <NutrientStats
                       key={index}  // Using index as a key. Ideally, use a unique id if available.
                       name={removeTextWithinBrackets(n.name)}
@@ -71,19 +83,19 @@ function NutrientDashboard({nutrientStats, currentDay, callAfterNewNutrient} :
                       avgIntake={Math.round(n.avgIntake * 10) / 10}
                       shouldExceed={n.shouldExceed}
                       units={n.units}/>);
-                  })
+                  }))
                 }
             </div>  :
             (<div className='nutrient-edit-list-wrapper'>
-              {nutrientStats.map((n, index) => 
+              {nutrientStats.length > 0 && 
+              nutrientStats.map((n, index) => 
                 {return(
                   <NewNutrientForm
                     key={index}  // Using index as a key. Ideally, use a unique id if available.
-                    callAfterSubmitting={callAfterNewNutrient}
                     original={n}/>);
                 })
               }
-              <NewNutrientForm callAfterSubmitting={callAfterNewNutrient}/>
+              <NewNutrientForm/>
             </div> )}
         </div>
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react' 
-import {getHeaderWithToken, doWithData } from './LoadHtml';
+import {getHeaderWithToken, doWithData } from './endpoints';
 import {HoverButton } from './Sections';
 import Arrow from '../assets/images/arrow.svg?react'
 import Ok from '../assets/images/checkmark.svg?react'

@@ -82,7 +82,6 @@ async function requestWithToken(url : string, method = 'GET', data = null) {
 }
 
 
-
 async function request(url : string, method = 'GET', data = null) {
   return fetch(url, {
       method: method,
@@ -124,6 +123,7 @@ function doWithData (endpoint : string, task : (data: any) => void, method = 'GE
       console.log("there was an error" + error)
   })
 }
+
 
 
 export {HTMLContent, doWithData, requestWithToken, getHeaderWithToken}

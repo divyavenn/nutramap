@@ -84,6 +84,7 @@
   color: hsla(0, 0.00%, 100.00%, 0.53);
   font-size: 14px;
   font-weight: 300; 
+  background-color: transparent;
 }
 
 /* ------------------------------------------CONTAINERS-------------------------------------- */

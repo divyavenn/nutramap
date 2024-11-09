@@ -1,5 +1,6 @@
 
 import { DateRange } from 'react-date-range';
+import {TimePeriod, RangeType} from './structures'
 import DatePicker from 'react-datepicker';
 import 'react-date-range/dist/styles.css'; // main style file
 import 'react-date-range/dist/theme/default.css'; 
@@ -8,10 +9,15 @@ import '../assets/css/date_picker.css'
 import '../assets/css/dates.css'
 
 import React, {useState, useEffect, useRef, forwardRef} from 'react'
+import { DateSelectorProps, getCurrentPeriod } from './structures';
 
 import {ImageButton} from '../components/Sections'
 import RightArrow from '../assets/images/caret-right.svg?react'
 import LeftArrow from '../assets/images/caret-left.svg?react'
+import { dateRangeAtom, rangeTypeAtom } from './states';
+import { useRecoilState } from 'recoil';
+import { useRefreshLogs, useRefreshRequirements } from './states';
+
 
 function formatDateRange(startDate: Date, endDate: Date) {
   const startYear = startDate.getFullYear();
@@ -30,34 +36,6 @@ function formatDateRange(startDate: Date, endDate: Date) {
   }
 }
 
-// the default screen shows the beginning of the month to the current time
-// clicking the arrows takes you to other (entire) months
-enum RangeType {
-  default, //start of period (month) to current time + other entire periods with arrow keys
-  custom 
-  /*any datetime to any datetime, arrows keys increment/decrement by same size as range
-    Sept 2021 to Sept 2022 <- Sept 2022 to Sept 2022 -> Sept 2023 to Sept 2024
-    July 2023 to Dec 2023 <- Jan 2024 to June 2024 -> July 2024 to Dec 2024
-  */
-}
-
-class TimePeriod{
-  public start : Date;
-  public end: Date;
-
-  constructor(start: Date, end: Date) {
-    if (start > end) {
-      throw new Error("startDate must be before or equal to endDate.");
-    }
-    // Set the start date to the beginning of the day (hour 0, minute 0, second 0, millisecond 0)
-    this.start = new Date(start);
-    this.start.setHours(0, 0, 0, 0);
-
-    // Set the end date to the end of the day (hour 23, minute 59, second 59, millisecond 999)
-    this.end = new Date(end);
-    this.end.setHours(23, 59, 59, 999);
-  }
-}
 
 
 interface CalendarProps {
@@ -147,7 +125,7 @@ const CalendarDay = forwardRef<HTMLDivElement, CalendarProps>(({ day, handleSele
 /*---------------------------------------------------------------------------------*/
 
 interface CalendarRangeProps {
-  range: any;
+  range: TimePeriod;
   handleSelect: (ranges: any) => void;
   isOpen : boolean;
   setIsOpen : (b :  boolean) => void;
@@ -164,6 +142,17 @@ const CalendarRange = forwardRef<HTMLDivElement, CalendarRangeProps>(({ range, h
       setIsOpen(false);
     }
   };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (calendarRef.current && !calendarRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+  
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside); // Cleanup on unmount
+  }, [calendarRef, setIsOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -185,7 +174,7 @@ const CalendarRange = forwardRef<HTMLDivElement, CalendarRangeProps>(({ range, h
         // if the parent doesn't pass in a ref, use local ref
         <div ref={ref || calendarRef} className="calendar-popup">
           <DateRange
-            ranges={range}
+            ranges={[{ startDate: range.start, endDate: range.end, key: 'selection' }]}
             onChange={handleSelect}
             moveRangeOnFirstSelection={false}
             editableDateInputs={true}
@@ -198,41 +187,61 @@ const CalendarRange = forwardRef<HTMLDivElement, CalendarRangeProps>(({ range, h
 });
 
 
-interface DateSelectorProps {
-  startDate: Date;
-  endDate: Date;
-  rangeType: RangeType;
-  setRangeType: (r: RangeType) => void;
-  onDateChange: (range: TimePeriod) => void
-  onNextMonth: () => void;
-  onPreviousMonth: () => void;
-}
 
-const getCurrentPeriod = () => {
-  let now = new Date()
-  return new TimePeriod(
-    (new Date(now.getFullYear(), now.getMonth(), 1)), 
-    (new Date(now.getFullYear(), now.getMonth() + 1, 0))
-  )
-}
-
-function DateSelector({ startDate, endDate, rangeType, setRangeType, onNextMonth, onPreviousMonth, onDateChange }: DateSelectorProps) {
+function DateSelector() {
   const [isOpen, setIsOpen] = useState(false)
   const toggleCalendar = () => setIsOpen(!isOpen);
+  const [rangeType, setRangeType] = useRecoilState(rangeTypeAtom)
+  const [dateRange, setDateRange] = useRecoilState(dateRangeAtom)
 
-  const [range, setRange] = useState([
-    {
-      startDate: startDate,
-      endDate: endDate,
-      key: 'selection',
-    },
-  ]);
+  const refreshLogs = useRefreshLogs();
+  const refreshRequirements = useRefreshRequirements()
 
-  const handleSelect = (ranges: any) => {
+  useEffect(() => {
+    refreshRequirements()
+    refreshLogs()
+  }, [dateRange])
+
+  const handleNextMonth = () => {
+    if (rangeType === RangeType.default) {
+      // Move to the next entire month
+      setDateRange(new TimePeriod(
+        new Date(dateRange.start.getFullYear(), dateRange.start.getMonth() + 1, 1),
+        new Date(dateRange.start.getFullYear(), dateRange.start.getMonth() + 2, 0)
+      ));
+    }
+    else if (rangeType === RangeType.custom) {
+      // Calculate the difference between the start and end dates in milliseconds
+      const rangeDuration = dateRange.end.getTime() - dateRange.start.getTime();
+      // Move both start and end forward by the duration of the range
+      setDateRange(new TimePeriod(
+        new Date(dateRange.start.getTime() + rangeDuration),
+        new Date(dateRange.end.getTime() + rangeDuration)
+      ));
+    }
+  };
+  
+  const handlePreviousMonth = () => {
+    if (rangeType === RangeType.default) {
+      // Move to the previous entire month
+      setDateRange({
+        start: new Date(dateRange.start.getFullYear(), dateRange.start.getMonth() - 1, 1),
+        end: new Date(dateRange.start.getFullYear(), dateRange.start.getMonth(), 0)
+      });
+    } else if (rangeType === RangeType.custom) {
+      // Calculate the difference between the start and end dates in milliseconds
+      const rangeDuration = dateRange.end.getTime() - dateRange.start.getTime();
+      // Move both start and end backward by the duration of the range
+      setDateRange(new TimePeriod(
+        new Date(dateRange.start.getTime() - rangeDuration),
+        new Date(dateRange.end.getTime() - rangeDuration)));
+    }
+  };
+
+  const handleSelect = (ranges: { selection: { startDate: Date, endDate: Date } }) => {
     const { startDate, endDate } = ranges.selection;
-    setRange([ranges.selection]);
-    setRangeType(RangeType.custom)
-    onDateChange(new TimePeriod(startDate, endDate)); // Pass the selected dates to the parent component
+    setRangeType(RangeType.custom);
+    setDateRange(new TimePeriod(startDate, endDate));
   };
 
   return (
@@ -240,25 +249,31 @@ function DateSelector({ startDate, endDate, rangeType, setRangeType, onNextMonth
       <div className="range-selector">
       {!isOpen && (
       <div className="date-selector">
-            <ImageButton className="month-arrow left" onClick={onPreviousMonth}> <LeftArrow/> </ImageButton>
-            <div className="range-text"  onClick = {toggleCalendar} >{formatDateRange(startDate, endDate)}</div>
-            <ImageButton className="month-arrow" onClick={onNextMonth}> <RightArrow/> </ImageButton>
+            <ImageButton className="month-arrow left" onClick={handlePreviousMonth}>
+              <LeftArrow/>
+            </ImageButton>
+            <div className="range-text"  onClick = {toggleCalendar}>
+              {formatDateRange(dateRange.start, dateRange.end)}
+            </div>
+            <ImageButton className="month-arrow" onClick={handleNextMonth}>
+              <RightArrow/>
+            </ImageButton>
           </div>)}
         {!isOpen && rangeType === RangeType.custom && (
           <div className="today" onClick = {() =>
             {
               setRangeType(RangeType.default)
-              onDateChange(getCurrentPeriod())
+              setDateRange(getCurrentPeriod())
             }
           }>today</div>
         )}
       </div>
       <CalendarRange
-              range={range}
+              range={dateRange}
               handleSelect={handleSelect}
               isOpen = {isOpen}
               setIsOpen={setIsOpen}
-              clickToOpen = {<div className="range-text">{formatDateRange(startDate, endDate)}</div>}
+              clickToOpen = {<div className="range-text">{formatDateRange(dateRange.start, dateRange.end)}</div>}
             />
     </div>
   );

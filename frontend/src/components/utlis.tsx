@@ -1,3 +1,5 @@
+  import { TimePeriod } from "./structures";
+  
   // Function to interpolate between red and blue based on intake vs. target
   const calculateColor = (percentage: number, shouldExceed: boolean) => {
     // If shouldExceed is true, red (when less) to blue (when exceeded)
@@ -93,4 +95,12 @@
     String(date.getSeconds()).padStart(2, '0');
   }
 
-  export {calculateColor, getFoodID, formatTime, formatDayForFrontend, tolocalDateString, getNutrientInfo}
+  const getCurrentPeriod = () => {
+    let now = new Date()
+    return new TimePeriod(
+      (new Date(now.getFullYear(), now.getMonth(), 1)), 
+      (new Date(now.getFullYear(), now.getMonth() + 1, 0))
+    )
+  }
+
+  export {calculateColor, getFoodID, formatTime, getCurrentPeriod, formatDayForFrontend, tolocalDateString, getNutrientInfo}

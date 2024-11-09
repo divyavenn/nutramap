@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react' 
-import {getHeaderWithToken, doWithData } from './LoadHtml';
+import {getHeaderWithToken, doWithData } from './endpoints';
 import {HoverButton } from './Sections';
 import Arrow from '../assets/images/arrow.svg?react'
 import Ok from '../assets/images/checkmark.svg?react'
@@ -10,19 +10,11 @@ import '../assets/css/buttons.css'
 import { getNutrientInfo } from './utlis';
 import { tolocalDateString } from '../components/utlis'
 import {ImageButton } from './Sections';
+import { Nutrient } from './structures';
+import { useRefreshRequirements } from './states';
 
-interface Nutrient {
-  name: string;
-  target: number;
-  shouldExceed : boolean;
-}
-interface NewNutrientFormProps {
-  callAfterSubmitting: () => void;
-  original? : Nutrient;
 
-}
-
-function NewNutrientForm({callAfterSubmitting, original}: NewNutrientFormProps){
+function NewNutrientForm( {original} : {original? : Nutrient}){
 
   const nutrientList : Record<string, string> = JSON.parse(localStorage.getItem('nutrients') || '{}');
 
@@ -36,6 +28,7 @@ function NewNutrientForm({callAfterSubmitting, original}: NewNutrientFormProps){
   const [showSuggestions, setShowSuggestions] = useState(false); // Control the visibility of suggestions
   const [validInput, markValidInput] = useState(true)
   const [isDeleted, setIsDeleted] = useState(false)
+  const refreshRequirements = useRefreshRequirements()
 
 
   const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -90,7 +83,7 @@ function NewNutrientForm({callAfterSubmitting, original}: NewNutrientFormProps){
       if (response.ok){
         const logData = await response.json(); // Wait for the promise to resolve
         console.log("new nutrient added ", logData);
-        callAfterSubmitting();
+        refreshRequirements;
         if (!original){
         setFormData({ nutrient_name: '', requirement: '', should_exceed : true})
         }
@@ -117,7 +110,7 @@ function NewNutrientForm({callAfterSubmitting, original}: NewNutrientFormProps){
         console.log("Requirement deleted successfully");
         setIsDeleted(true)
         // used to refresh requirement list
-        callAfterSubmitting()
+        refreshRequirements
         //reset after submitting
         setFormData({ ...formData, nutrient_name: '', requirement : ''})
         // Refresh logs or perform other actions

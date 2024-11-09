@@ -4,11 +4,12 @@ import {PageLink} from '../components/Elems'
 import {Title, Subtitle} from '../components/Title'
 import {Header, MainSection } from '../components/Sections'
 import {LottieAnimation} from '../components/Graphics'
+import { RecoilRoot } from 'recoil';
 
 function Home(){
-
   return(
   <StrictMode>
+  <RecoilRoot>
   <Header />
   <MainSection>
     <Title/>
@@ -25,8 +26,8 @@ function Home(){
     url = "/login"
     text = "login"/>
   </MainSection>
+  </RecoilRoot>
 </StrictMode>)
-
 }
 
 export default Home

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react' 
-import {getHeaderWithToken, doWithData } from './LoadHtml';
+import {getHeaderWithToken, doWithData } from './endpoints';
 import {HoverButton, ImageButton } from './Sections';
 import YesOk from '../assets/images/check_circle.svg?react'
 import IsOk from '../assets/images/checkmark.svg?react'
@@ -12,24 +12,13 @@ import { getFoodID } from './utlis';
 import { tolocalDateString } from '../components/utlis'
 
 import '../assets/css/edit_log.css'
-
+import { LogProps } from './structures';
+import { useRefreshLogs } from './states';
 import { formatDayForFrontend } from './utlis';
 
-interface KeyValue {
-  id : number;
-  name : string;
-}
 
 
-interface EditLogFormProps {
-  food_name: string;
-  date: Date;
-  amount_in_grams : number;
-  _id : string;
-  callAfterSubmitting: () => void;
-}
-
-function EditLogForm({food_name, date, amount_in_grams, _id, callAfterSubmitting} : EditLogFormProps){
+function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
 
   // Mock food data for autocomplete
   const foodList : Record<string, string> = JSON.parse(localStorage.getItem('foods') || '{}');
@@ -40,6 +29,7 @@ function EditLogForm({food_name, date, amount_in_grams, _id, callAfterSubmitting
     date : date,
   })
 
+  const refreshLogs = useRefreshLogs();
 
   const [suggestions, setSuggestions] = useState<string[]>([]); // State for filtered suggestions
   const [showSuggestions, setShowSuggestions] = useState(false); // Control the visibility of suggestions
@@ -72,25 +62,47 @@ function EditLogForm({food_name, date, amount_in_grams, _id, callAfterSubmitting
     });
   };
 
+
+  const formatDate = (date : Date) => { 
+    try {
+      return formData.date.toISOString().split('T')[0];
+    }
+    catch {
+      console.log("Error" + date.toString())
+    }
+  }
+
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newDate = e.target.value; // e.g., "2024-10-24" (YYYY-MM-DD format)
-  
-    // Split the new date into year, month, and day
-    const [year, month, day] = newDate.split('-').map(Number);
-  
-    // Update the date directly using a copy of formData.date
-    const updatedDate = new Date(formData.date);
-  
-    // Set the year, month (note: month is 0-indexed in JavaScript), and day
-    updatedDate.setFullYear(year);
-    updatedDate.setMonth(month - 1); // Subtract 1 because months are 0-indexed
-    updatedDate.setDate(day);
-  
-    // Update the formData state
-    setFormData({
-      ...formData,
-      date: updatedDate,
-    });
+    console.log("typing")
+    try{
+      const newDate = e.target.value; // e.g., "2024-10-24" (YYYY-MM-DD format)
+    
+      // Split the new date into year, month, and day
+      const [year, month, day] = newDate.split('-').map(Number);
+
+      if (isNaN(year) || isNaN(month) || isNaN(day) || day < 1 || day > 31 || month < 1 || month > 12) {
+        console.log("Invalid Date");
+        return; // Exit the function if the date is invalid
+      }
+    
+      // Update the date directly using a copy of formData.date
+      const updatedDate = new Date(formData.date);
+    
+      // Set the year, month (note: month is 0-indexed in JavaScript), and day
+      updatedDate.setFullYear(year);
+      updatedDate.setMonth(month - 1); // Subtract 1 because months are 0-indexed
+      updatedDate.setDate(day);
+    
+      // Update the formData state
+      setFormData({
+        ...formData,
+        date: updatedDate,
+      });
+      console.log("Changed data")
+  }
+  catch {
+  }
+    console.log(formData.date)
   };
 
   const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -143,12 +155,13 @@ function EditLogForm({food_name, date, amount_in_grams, _id, callAfterSubmitting
         body: data,
       })
       // used to refresh log list
-      callAfterSubmitting()
+      refreshLogs()
     }
     catch (error) {
       console.error('An unexpected error occurred:', error);
     }
   }
+
   const handleDelete = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault() // prevent automatic submission
     try{
@@ -162,7 +175,7 @@ function EditLogForm({food_name, date, amount_in_grams, _id, callAfterSubmitting
         console.log("Log deleted successfully");
         setDeleted(true)
         // used to refresh log list
-        callAfterSubmitting()
+        refreshLogs()
         //reset after submitting
         setFormData({ ...formData, food_name: '', amount_in_grams : ''})
         // Refresh logs or perform other actions
@@ -233,7 +246,7 @@ function EditLogForm({food_name, date, amount_in_grams, _id, callAfterSubmitting
                   name='date'
                   type='date'
                   onChange={handleDateChange}
-                  value={formData.date.toISOString().split('T')[0]} // Format date to 'YYYY-MM-DD'
+                  value={formatDate(formData.date)} // Format date to 'YYYY-MM-DD'
                   required
                 />
               </div>
