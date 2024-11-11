@@ -2,6 +2,7 @@ import nutramapLogo from '../assets/images/nutramap_logo.png'
 import Account from '../assets/images/account.svg?react'
 import '../assets/css/buttons.css'
 import React, { useState } from 'react';
+import {Link} from 'react-router-dom';
 
 // 3 rules of JSX
 // (1) return a single root elem (wrap in div or React Fragment <>...</>)
@@ -48,9 +49,10 @@ function DashboardHeader() {
             loading="lazy" alt=""
             className="nutramap-logo" />
       <div className="nutra header">nutramap</div>
-    </section>
-    <section className="links">
-      
+
+      <div className="links">
+      <Link to="/account"><Account/></Link>
+      </div>
     </section>
   </header>
   )
@@ -93,4 +95,4 @@ function HoverButton({childrenOn, childrenOff, ...props} : HoverButtonProps){
 
 
 
-export {Background, Header, MainSection, ImageButton, HoverButton}
+export {Background, Header, MainSection, ImageButton, HoverButton, DashboardHeader}

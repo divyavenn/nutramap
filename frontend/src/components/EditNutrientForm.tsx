@@ -8,7 +8,7 @@ import Trashcan from '../assets/images/trashcan.svg?react'
 import '../assets/css/new_nutrient.css'
 import '../assets/css/buttons.css'
 import { getNutrientInfo } from './utlis';
-import { tolocalDateString } from '../components/utlis'
+import { tolocalDateString } from './utlis'
 import {ImageButton } from './Sections';
 import { Nutrient } from './structures';
 import { useRefreshRequirements } from './states';

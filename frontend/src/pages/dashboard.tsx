@@ -1,15 +1,13 @@
 /// <reference types="vite-plugin-svgr/client" />
 import { StrictMode, useEffect, useState, Suspense} from 'react'
 import { LogList} from '../components/Logs'
-import { LogProps } from '../components/structures'
-import { DateSelector, getCurrentPeriod} from '../components/DateSelector'
+import { DateSelector} from '../components/DateSelector'
 
 import {doWithData} from '../components/endpoints'
 import {Heading} from '../components/Title'
-import {Header, MainSection} from '../components/Sections'
+import {Header, MainSection, DashboardHeader} from '../components/Sections'
 import { NewLogForm } from '../components/AddLogForm' 
-import { NutrientDashboard, NutrientStatsProps} from '../components/NutrientDash'
-import { tolocalDateString } from '../components/utlis'
+import { NutrientDashboard} from '../components/NutrientDash'
 import { useRefreshLogs, useRefreshRequirements } from '../components/states'
 
 import {
@@ -87,7 +85,7 @@ function Dashboard(){
 
   return(
   <StrictMode>
-  <Header/>
+  <DashboardHeader/>
   <Heading words = {'Hello, ' + name}/>
 
 

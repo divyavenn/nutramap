@@ -37,12 +37,6 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
   const [validInput, markValidInput] = useState(true)
 
 
-
-  const toggleCalendar = () => {
-    console.log("toggling calendar")
-    setShowCalendar(!showCalendar);
-  }
-
   const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     
     try {
@@ -74,7 +68,7 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
 
   const formatDate = (date : Date) => { 
     try {
-      return formData.date.toISOString().split('T')[0];
+      return date.toISOString().split('T')[0];
     }
     catch {
       console.log("Error" + date.toString())
@@ -82,14 +76,14 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
   }
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log("typing")
+    console.log("typing " + e.target.value)
     try{
       const newDate = e.target.value; // e.g., "2024-10-24" (YYYY-MM-DD format)
-    
+      
       // Split the new date into year, month, and day
       const [year, month, day] = newDate.split('-').map(Number);
 
-      if (isNaN(year) || isNaN(month) || isNaN(day) || day < 1 || day > 31 || month < 1 || month > 12) {
+      if (day < 1 || day > 31 || month < 1 || month > 12) {
         console.log("Invalid Date");
         return; // Exit the function if the date is invalid
       }

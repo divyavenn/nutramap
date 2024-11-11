@@ -29,7 +29,7 @@ function LogList (){
 
         return (
           <div key={index} className="logs-wrapper">
-            {index > 0 && currentDate.getDate() !== previousDate?.getDate() && (
+            {(currentDate.getDate() !== previousDate?.getDate()) && (
               <DateDivider date={currentDate}/>
             )}
 

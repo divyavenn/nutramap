@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, startTransition} from 'react';
 import { calculateColor, formatDayForFrontend} from './utlis';
 import { ImageButton } from './Sections';
 import AddLogButton from '../assets/images/plus.svg?react'
-import { NewNutrientForm } from './addNutrientForm';
+import { NewNutrientForm } from './EditNutrientForm';
 import '../assets/css/NutrientStats.css'; // Import your CSS file for styling
 import {useRecoilValue, useRecoilValueLoadable} from 'recoil'
 import { currentDayAtom, rowData} from './states';
