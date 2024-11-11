@@ -43,10 +43,8 @@
 
 
   const getNutrientInfo = (nutrient_name : string, get_units = false) => {
-    console.log(nutrient_name)
     // Mock food data for autocomplete
     const nutrientList : Record<string, { unit: string; id: number;} > = JSON.parse(localStorage.getItem('nutrients') || '{}');
-    console.log(nutrientList)
     try {
       const nutrient = nutrientList[nutrient_name]
       if (get_units) return nutrient.unit

@@ -44,22 +44,31 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
   }
 
   const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newTime = e.target.value; // e.g., "14:30" (HH:mm format)
     
-    // Split the new time into hours and minutes
-    const [hours, minutes] = newTime.split(':').map(Number);
-  
-    // Update the date directly using a copy of formData.date
-    const updatedDate = new Date(formData.date);
-    updatedDate.setHours(hours);
-    updatedDate.setMinutes(minutes);
-    updatedDate.setSeconds(0); // Reset seconds to zero
-  
-    // Update the formData state
-    setFormData({
-      ...formData,
-      date: updatedDate, // Convert it back to an ISO string for consistency
-    });
+    try {
+      const newTime = e.target.value; // e.g., "14:30" (HH:mm format)
+    
+      // Split the new time into hours and minutes
+      const [hours, minutes] = newTime.split(':').map(Number);
+    
+      if (isNaN(hours) || isNaN(minutes) || hours > 12 || minutes > 59) {
+        console.log("Invalid Time");
+        return; // Exit the function if the date is invalid
+      }
+
+      // Update the date directly using a copy of formData.date
+      const updatedDate = new Date(formData.date);
+      updatedDate.setHours(hours);
+      updatedDate.setMinutes(minutes);
+      updatedDate.setSeconds(0); // Reset seconds to zero
+    
+      // Update the formData state
+      setFormData({
+        ...formData,
+        date: updatedDate, // Convert it back to an ISO string for consistency
+      });
+    }
+    catch{}
   };
 
 
@@ -100,9 +109,7 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
       });
       console.log("Changed data")
   }
-  catch {
-  }
-    console.log(formData.date)
+  catch {}
   };
 
   const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -195,7 +202,7 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
   return (
     !deleted ? (
     <form
-      id="login-form"
+      id="edit-log-form"
       className = {`edit-form-elements-wrapper ${showSuggestions ? 'active' : ''}`}
       onSubmit={handleSubmit}>
       

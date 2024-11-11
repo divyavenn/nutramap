@@ -28,10 +28,11 @@ function NutrientDashboard(){
   const nutrientStatsData = useRecoilValueLoadable(rowData) 
 
   useEffect(() => {
-    startTransition(() => {
-    setNutrientStats(nutrientStatsData.contents);
-    });
-  }, [nutrientStatsData]);
+    console.log("updating rowdata")
+    // startTransition(() => {
+      setNutrientStats(nutrientStatsData.contents);
+    // });
+  }, [nutrientStatsData.contents]);
 
   // Function to close form if clicked outside
   const handleClickOutside = (event: MouseEvent) => {
@@ -115,7 +116,7 @@ function NutrientDashboard(){
 function NutrientDashboardTitle({currentDay = new Date()} : {currentDay? : Date}){
   return <div className='dashboard-row'>
     <div className = 'nutrient-name-wrapper'>
-
+      <div className = 'nutrient-dashboard-title'> target </div>
     </div>
     <div className = 'today-stats-wrapper'>
       <div className = 'nutrient-dashboard-title'> {formatDayForFrontend(currentDay)} </div>
@@ -141,6 +142,7 @@ function NutrientStats({ name, target, dayIntake = 0, avgIntake, shouldExceed, u
   const avgColor = calculateColor((avgIntake / target) * 100, shouldExceed);
 
   const goalMessage = (target : number, intake : number, units : string, shouldExceed : boolean) => {
+    console.log(`${target}, ${intake},${units},${shouldExceed},`)
     const difference = Math.abs(target - dayIntake);
     if (shouldExceed) {
       if (intake < target) return difference.toFixed() + " " + units + " until target";
@@ -159,7 +161,7 @@ function NutrientStats({ name, target, dayIntake = 0, avgIntake, shouldExceed, u
         onMouseEnter={() => setHoveredName(true)}
         onMouseLeave={() => setHoveredName(false)}>
         <div className="nutrient-name">
-          {hoveredName ? `target: ${target} ${units}` : name}
+          {hoveredName ? `${target} ${units}` : name}
         </div>
       </div>
 
@@ -167,7 +169,7 @@ function NutrientStats({ name, target, dayIntake = 0, avgIntake, shouldExceed, u
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)} >
           {hovered ? 
-            (<div>
+            (<div className="nutrient-name">
               {goalMessage(target, dayIntake, units, shouldExceed)}
               </div>) : 
             (

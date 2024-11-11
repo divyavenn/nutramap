@@ -48,7 +48,6 @@ function useRefreshLogs() {
 
 function useRefreshRequirements() {
   let setRequirements = useSetRecoilState(requirementsAtom)
-
   const refreshRequirements = async () => {
     console.log("refreshing requirements")
     let data = await requestWithToken('/requirements/all')
@@ -71,6 +70,7 @@ const dayIntake = selector<{[key: string]: number}>({
   key: 'dayIntake',
   get: async ({get}) => {
     const day = get(currentDayAtom)
+    const logs = get(logsAtom)
     let endpoint = '/logs/day_intake?date=' 
     + tolocalDateString(day)
     return requestWithToken(endpoint);
@@ -94,6 +94,7 @@ const averageIntake = selector<{[key : string] : number}>({
 const rowData = selector<Array<NutrientStatsProps>>({
   key: 'rowData',
   get: ({get}) => {
+    console.log("rowdata refreshing")
     const requirements = get(requirementsAtom)
     const dailyValues = get(dayIntake)
     const avgValues = get(averageIntake)

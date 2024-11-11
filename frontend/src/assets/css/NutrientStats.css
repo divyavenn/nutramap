@@ -54,7 +54,6 @@
   color: hsla(276, 80.00%, 46.67%, 1.00);
   font-size: 16px;
   font-weight: 300;
-  text-align: center;
   text-transform: none;
 }
 
@@ -80,6 +79,7 @@
   display: block;
   width: 25%;
   height: auto;
+  text-align: left;
   align-self: center;
   flex-grow: 0;
   flex-shrink: 0;

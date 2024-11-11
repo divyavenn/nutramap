@@ -6,13 +6,12 @@ import {useState, useEffect} from 'react'
 import { EditLogForm } from './EditLogForm';
 import { formatTime } from './utlis';
 import { LogbookProps, LogProps, DisplayLogProps } from './structures';
-import {useRecoilState} from 'recoil'
-import { logsAtom, useRefreshLogs } from './states';
+import {useRecoilState, useRecoilValue, useSetRecoilState} from 'recoil'
+import { logsAtom, currentDayAtom, useRefreshLogs } from './states';
 
 
 function LogList (){
-  const [logs, setLogs] = useRecoilState(logsAtom)
-  const refreshLogs = useRefreshLogs()
+  const logs = useRecoilValue(logsAtom)
 
   if (logs.length == 0) {
     return <div className="log-list">
@@ -31,7 +30,7 @@ function LogList (){
         return (
           <div key={index} className="logs-wrapper">
             {index > 0 && currentDate.getDate() !== previousDate?.getDate() && (
-              <DateDivider date={currentDate} callToChangeDay={Date}/>
+              <DateDivider date={currentDate}/>
             )}
 
             <Log
@@ -85,10 +84,12 @@ function Log({ food_name, date, amount_in_grams, _id} : LogProps) {
   );
 }
 
-function DateDivider({date, callToChangeDay} : {date : Date, callToChangeDay: (date : Date) => void}) {
+function DateDivider({date} : {date : Date}) {
+  const setCurrentDay = useSetRecoilState(currentDayAtom)
   return (
     <div className = 'date-divider'>
-      <button className = 'day' onClick = {() => callToChangeDay(date)}>
+      <button className = 'day' 
+        onClick = {() => setCurrentDay(date)}>
         {date.toLocaleDateString('en-US', 
         { weekday: 'long', 
           month: 'long', 

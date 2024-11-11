@@ -8,6 +8,7 @@ import '../assets/css/buttons.css'
 import { getFoodID } from './utlis';
 import { tolocalDateString } from '../components/utlis'
 import { isValid } from 'date-fns';
+import { useRefreshLogs } from './states';
 
 
 interface ComponentCallingFunctionProps {
@@ -28,6 +29,8 @@ function NewLogForm({ callAfterSubmitting }: ComponentCallingFunctionProps){
   const [suggestions, setSuggestions] = useState<string[]>([]); // State for filtered suggestions
   const [showSuggestions, setShowSuggestions] = useState(false); // Control the visibility of suggestions
   const [validInput, markValidInput] = useState(true)
+
+  const refreshLogs = useRefreshLogs();
 
   const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
     const {name, value} = e.target; // get the name and value of the input field
@@ -78,6 +81,7 @@ function NewLogForm({ callAfterSubmitting }: ComponentCallingFunctionProps){
         // used to refresh log list
         await callAfterSubmitting()
         setFormData({ food_name: '', amount_in_grams: '', date : new Date()})
+        refreshLogs()
       }
     }
     catch (error) {

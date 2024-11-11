@@ -31,10 +31,7 @@ function Dashboard(){
   const [name, setName] = useState('user');
   const refreshLogs = useRefreshLogs();
   const refreshRequirements = useRefreshRequirements()
-
-  const handleRefresh = () => {
-    refreshLogs();
-  };
+;
 
   const writeFirstName = (userData : any) => {
     setName(userData.name.trim().split(' ')[0])

@@ -31,6 +31,15 @@ function NewNutrientForm( {original} : {original? : Nutrient}){
   const refreshRequirements = useRefreshRequirements()
 
 
+  // Handler for the comparison select element
+  const handleComparisonChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = event.target.value;
+    setFormData((prevFormData) => ({
+      ...prevFormData,
+      should_exceed: value === 'more'
+    }));
+  };
+
   const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
 
     const {name, value} = e.target; // get the name and value of the input field
@@ -67,6 +76,7 @@ function NewNutrientForm( {original} : {original? : Nutrient}){
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    console.log("submitting")
     e.preventDefault() // prevent automatic submission
     try {
       let requestData = {
@@ -82,8 +92,8 @@ function NewNutrientForm( {original} : {original? : Nutrient}){
       })
       if (response.ok){
         const logData = await response.json(); // Wait for the promise to resolve
-        console.log("new nutrient added ", logData);
-        refreshRequirements;
+        console.log(`new nutrient added  ${logData}`);
+        refreshRequirements();
         if (!original){
         setFormData({ nutrient_name: '', requirement: '', should_exceed : true})
         }
@@ -150,7 +160,8 @@ function NewNutrientForm( {original} : {original? : Nutrient}){
       </div>
 
       <div className="nutrient-type-select-wrapper">
-        <select name="comparison" className="custom-select">
+        <select name="comparison" className="custom-select" onChange={handleComparisonChange}
+        value={formData.should_exceed ? 'more' : 'less'}>
           <option value="less">less than</option>
           <option value="more">more than</option>
         </select>
