@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from typing_extensions import Annotated
 
-from ..databases.main_connection import get_user_data, User, Requirement, RequirementCreate, get_session, Food, Nutrient
+from ..databases.main_connection import get_user_data, RequirementCreate, get_session, Food, Nutrient
 from .foods import get_nutrient_details
 from .auth import get_current_user
 

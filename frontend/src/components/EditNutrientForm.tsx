@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react' 
-import {getHeaderWithToken, doWithData } from './endpoints';
+import {request, doWithData } from './endpoints';
 import {HoverButton } from './Sections';
 import Arrow from '../assets/images/arrow.svg?react'
 import Ok from '../assets/images/checkmark.svg?react'
@@ -11,7 +11,7 @@ import { getNutrientInfo } from './utlis';
 import { tolocalDateString } from './utlis'
 import {ImageButton } from './Sections';
 import { Nutrient } from './structures';
-import { useRefreshRequirements } from './states';
+import { useRefreshRequirements } from './dashboard_states';
 
 
 function NewNutrientForm( {original} : {original? : Nutrient}){
@@ -78,59 +78,31 @@ function NewNutrientForm( {original} : {original? : Nutrient}){
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     console.log("submitting")
     e.preventDefault() // prevent automatic submission
-    try {
-      let requestData = {
-        nutrient_id: parseInt(getNutrientInfo(formData.nutrient_name) as string, 10),
-        amt: parseFloat(formData.requirement),
-        should_exceed: Boolean(formData.should_exceed)
-      }
-      console.log(requestData)
-      const response = await fetch('/requirements/new', {
-        method: 'POST',
-        headers: getHeaderWithToken('application/json'),
-        body: JSON.stringify(requestData),
-      })
-      if (response.ok){
-        const logData = await response.json(); // Wait for the promise to resolve
-        console.log(`new nutrient added  ${logData}`);
-        refreshRequirements();
-        if (!original){
-        setFormData({ nutrient_name: '', requirement: '', should_exceed : true})
-        }
-        else{
-          setFormData({ nutrient_name: formData.nutrient_name, 
-            requirement: formData.requirement, should_exceed : formData.should_exceed})
-        }
+    let requestData = {
+      nutrient_id: parseInt(getNutrientInfo(formData.nutrient_name) as string, 10),
+      amt: parseFloat(formData.requirement),
+      should_exceed: Boolean(formData.should_exceed)
+    }
+    let newRequirement = await request('/requirements/new','POST', requestData, 'JSON')
+    console.log(`new requirement added  ${newRequirement}`);
+    refreshRequirements();
+
+    if (!original){
+      setFormData({ nutrient_name: '', requirement: '', should_exceed : true})
+    }
+    else {
+        setFormData({ nutrient_name: formData.nutrient_name, requirement: formData.requirement, should_exceed : formData.should_exceed})
       }
     }
-    catch (error) {
-      console.error('An unexpected error occurred:', error);
-    }
-  }
+
 
   const handleDelete = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault() // prevent automatic submission
-    try{
-      const response = await fetch(`/requirements/delete?requirement_id=${getNutrientInfo(formData.nutrient_name)}`, {
-        method: 'DELETE',
-        headers: getHeaderWithToken(),
-      });
-       // Check if the response was successful
-      if (response.ok) {
-        console.log("Requirement deleted successfully");
-        setIsDeleted(true)
-        // used to refresh requirement list
-        refreshRequirements
-        //reset after submitting
-        setFormData({ ...formData, nutrient_name: '', requirement : ''})
-        // Refresh logs or perform other actions
-      } else {
-        console.error("Error deleting log: ", response.status);
-      }
-    }
-    catch (error) {
-      console.error('An unexpected error occurred:', error);
-    }
+    await request(`/requirements/delete?requirement_id=${getNutrientInfo(formData.nutrient_name)}`, 'DELETE');
+    console.log("Requirement deleted successfully");
+    setIsDeleted(true)
+    refreshRequirements()
+    setFormData({ ...formData, nutrient_name: '', requirement : ''})
   }
 
   return (

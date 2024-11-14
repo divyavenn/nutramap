@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react' 
-import {getHeaderWithToken, doWithData } from './endpoints';
+import {request, doWithData} from './endpoints';
 import {HoverButton, ImageButton } from './Sections';
 import YesOk from '../assets/images/check_circle.svg?react'
 import IsOk from '../assets/images/checkmark.svg?react'
@@ -13,7 +13,7 @@ import { tolocalDateString } from '../components/utlis'
 
 import '../assets/css/edit_log.css'
 import { LogProps } from './structures';
-import { useRefreshLogs } from './states';
+import { useRefreshLogs } from './dashboard_states';
 import { formatDayForFrontend } from './utlis';
 
 
@@ -142,51 +142,23 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
     // setShowCalendar(false)
     // setShowSuggestions(false)
     e.preventDefault() // prevent automatic submission
-    try {
-      let data = new URLSearchParams({
-        food_id: getFoodID(formData.food_name),
-        amount_in_grams: formData.amount_in_grams,
-        date: tolocalDateString(formData.date),
-        log_id: _id
-      })
-      console.log(formData.amount_in_grams)
-      const response = await fetch('/logs/edit', {
-        method: 'POST',
-        headers: getHeaderWithToken(),
-        body: data,
-      })
-      // used to refresh log list
-      refreshLogs()
+    let data = {
+      food_id: getFoodID(formData.food_name),
+      amount_in_grams: Number(formData.amount_in_grams),
+      date: tolocalDateString(formData.date),
+      log_id: _id
     }
-    catch (error) {
-      console.error('An unexpected error occurred:', error);
-    }
+    await request('/logs/edit', 'POST', data, 'JSON')
+    refreshLogs()
   }
 
   const handleDelete = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault() // prevent automatic submission
-    try{
-      const response = await fetch(`/logs/delete?log_id=${_id}`, {
-        method: 'DELETE',
-        headers: getHeaderWithToken(),
-      });
-
-       // Check if the response was successful
-      if (response.ok) {
-        console.log("Log deleted successfully");
-        setDeleted(true)
-        // used to refresh log list
-        refreshLogs()
-        //reset after submitting
-        setFormData({ ...formData, food_name: '', amount_in_grams : ''})
-        // Refresh logs or perform other actions
-      } else {
-        console.error("Error deleting log: ", response.status);
-      }
-    }
-    catch (error) {
-      console.error('An unexpected error occurred:', error);
-    }
+    await request(`/logs/delete?log_id=${_id}`, 'DELETE')
+    console.log("Log deleted successfully");
+    setDeleted(true)
+    refreshLogs()
+    setFormData({ ...formData, food_name: '', amount_in_grams : ''})
   }
 
   const handleSelect = (date: Date) => {

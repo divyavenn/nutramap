@@ -1,5 +1,4 @@
 import nutramapLogo from '../assets/images/nutramap_logo.png'
-import Account from '../assets/images/account.svg?react'
 import '../assets/css/buttons.css'
 import React, { useState } from 'react';
 import {Link} from 'react-router-dom';
@@ -28,7 +27,13 @@ function MainSection({children} : ParentComponentProps) {
   )
 }
 
-function Header() {
+
+type PageLinkIcon = {
+  to: string;
+  img: React.ReactNode;
+};
+
+function Header({linkIcons} : {linkIcons? : PageLinkIcon[]}) {
   return (
   <header>
     <section className="nutramap-header" >
@@ -36,27 +41,21 @@ function Header() {
             loading="lazy" alt=""
             className="nutramap-logo" />
       <div className="nutra header">nutramap</div>
+      <div style = {{width : '80%'}}></div>
+      {linkIcons &&
+        linkIcons.map((link) => { return(
+          <Link key={link.to}
+                to={link.to}
+                className="header-link-button">
+                {link.img}
+          </Link> )
+        })
+      }
     </section>
   </header>
   )
 }
 
-function DashboardHeader() {
-  return (
-  <header>
-    <section className="nutramap-header" >
-      <img  src={nutramapLogo}
-            loading="lazy" alt=""
-            className="nutramap-logo" />
-      <div className="nutra header">nutramap</div>
-
-      <div className="links">
-      <Link to="/account"><Account/></Link>
-      </div>
-    </section>
-  </header>
-  )
-}
 
 function BottomMargin() {
   return(<section className="margin-bottom"></section>)
@@ -77,6 +76,7 @@ function ImageButton({children, ...props} : ButtonProps){
 interface HoverButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   childrenOn: React.ReactNode
   childrenOff: React.ReactNode
+  onClick?: React.MouseEventHandler<HTMLButtonElement>; // Add an optional onClick prop type
 }
 
 
@@ -95,4 +95,4 @@ function HoverButton({childrenOn, childrenOff, ...props} : HoverButtonProps){
 
 
 
-export {Background, Header, MainSection, ImageButton, HoverButton, DashboardHeader}
+export {Background, Header, MainSection, ImageButton, HoverButton}

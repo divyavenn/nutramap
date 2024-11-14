@@ -5,7 +5,8 @@ import AddLogButton from '../assets/images/plus.svg?react'
 import { NewNutrientForm } from './EditNutrientForm';
 import '../assets/css/NutrientStats.css'; // Import your CSS file for styling
 import {useRecoilValue, useRecoilValueLoadable} from 'recoil'
-import { currentDayAtom, rowData} from './states';
+import { currentDayAtom, rowData} from './dashboard_states';
+
 
 
 interface NutrientStatsProps {
@@ -29,9 +30,9 @@ function NutrientDashboard(){
 
   useEffect(() => {
     console.log("updating rowdata")
-    // startTransition(() => {
+    startTransition(() => {
       setNutrientStats(nutrientStatsData.contents);
-    // });
+    });
   }, [nutrientStatsData.contents]);
 
   // Function to close form if clicked outside
@@ -146,7 +147,7 @@ function NutrientStats({ name, target, dayIntake = 0, avgIntake, shouldExceed, u
     const difference = Math.abs(target - dayIntake);
     if (shouldExceed) {
       if (intake < target) return difference.toFixed() + " " + units + " until target";
-      else return "target met: " + intake.toFixed() + " " + units;
+      else return "target met : " + intake.toFixed() + " " + units;
     }
     else {
       if (intake < target) return difference.toFixed() + " within target";

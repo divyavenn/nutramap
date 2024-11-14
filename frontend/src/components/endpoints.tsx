@@ -50,80 +50,67 @@ async function loadContent(url : string) {
   }
 }
 
-function getHeaderWithToken(content_type : string = "application/x-www-form-urlencoded"){
-  const token = localStorage.getItem('access_token');
-  if (!token) {
+function printDictionary(dictionary: Record<string, any>): void {
+  for (const key in dictionary) {
+    if (dictionary.hasOwnProperty(key)) {
+      console.log(`${key} : ${dictionary[key]}`);
+    }
+  }
+}
+
+function getHeader(authorized : boolean = true, hasData : boolean = false, data_type : 'JSON' | 'URLencode' = 'URLencode'){
+  let header : {[key: string]: any} = {}
+  if (authorized) {}
+    const token = localStorage.getItem('access_token');
+    if (!token) {
       throw new Error('Authentication token not found');
+    }
+    header['Authorization'] = `Bearer ${token}`;
+  if (hasData){
+    if (data_type == 'JSON') {
+      header['Content-Type'] = 'application/json'
+    }
+    else {
+      header['Content-Type'] = "application/x-www-form-urlencoded"
+    }
   }
-  return {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': content_type
-  }
+  console.log('with header')
+  printDictionary(header)
+  return header;
 }
 
-async function requestWithToken(url : string, method = 'GET', data = null) {
+async function request(url : string, method : string = 'GET', data : any = null, data_type : 'JSON' | 'URLencode' = 'URLencode', authorized : boolean = true) {
+  console.log(`requesting ${method} ${url} and ${data_type} body: ${data ? ((data_type == 'JSON') ? JSON.stringify(data) : new URLSearchParams(data)) : null}`)
   return fetch(url, {
       method: method,
-      headers: getHeaderWithToken('application/json'),
-      body: data ? JSON.stringify(data) : null
+      headers: getHeader(authorized, (data !== null), data_type),
+      body: data ? ((data_type == 'JSON') ? JSON.stringify(data) : new URLSearchParams(data)) : null
   })
   .then(async response => {
     if (!response.ok) {
       const errorText = await response.text();  // Get the HTML error response for debugging
       console.error('Response Error:', response.status, errorText);
-      throw new Error(`Request failed with status: ${response.status}`);
+      throw Error();
     }
-    return response.json();  // Parse JSON only if response is OK
+    else {
+      return response.json();  // Parse JSON only if response is OK
+    }
   })
   .catch(error => {
     console.error('Request error:', error);
-    throw error;
+    throw Error()
   });
 }
-
-
-async function request(url : string, method = 'GET', data = null) {
-  return fetch(url, {
-      method: method,
-      body: data ? JSON.stringify(data) : null
-  })
-  .then(async response => {
-    if (!response.ok) {
-      const errorText = await response.text();  // Get the HTML error response for debugging
-      console.error('Response Error:', response.status, errorText);
-      throw new Error(`Request failed with status: ${response.status}`);
-    }
-    return response.json();  // Parse JSON only if response is OK
-  })
-  .catch(error => {
-    console.error('Request error:', error);
-    throw error;
-  });
-}
-
-
- function getCorrectRequestMethod(isProtected : boolean){
-  if (isProtected){
-    return requestWithToken
-  }
-  else return request
-}
-
-
-
 
 //browsers do not automatically include custom headers when navigating to new pages or rendering templates.
 //therefore, pages must always be unprotected but you can call protected APIs from the page.
-function doWithData (endpoint : string, task : (data: any) => void, method = 'GET', data = null, isProtected: boolean = true) {
-  (getCorrectRequestMethod(isProtected))(endpoint, method, data)
+function doWithData (endpoint : string, task : (data: any) => void, method = 'GET',  data : any = null, data_type : 'JSON' | 'URLencode' = 'URLencode', authorized : boolean = true) {
+  request(endpoint, method, data, data_type, authorized)
   .then(data => {
       task(data)
-  })
-  .catch(error => {
-      console.log("there was an error" + error)
   })
 }
 
 
 
-export {HTMLContent, doWithData, requestWithToken, getHeaderWithToken}
+export {HTMLContent, doWithData, request}

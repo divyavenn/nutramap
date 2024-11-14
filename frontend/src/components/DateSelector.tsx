@@ -14,9 +14,9 @@ import { DateSelectorProps, getCurrentPeriod } from './structures';
 import {ImageButton} from '../components/Sections'
 import RightArrow from '../assets/images/caret-right.svg?react'
 import LeftArrow from '../assets/images/caret-left.svg?react'
-import { dateRangeAtom, rangeTypeAtom } from './states';
+import { dateRangeAtom, rangeTypeAtom } from './dashboard_states';
 import { useRecoilState } from 'recoil';
-import { useRefreshLogs, useRefreshRequirements } from './states';
+import { useRefreshLogs, useRefreshRequirements } from './dashboard_states';
 
 
 function formatDateRange(startDate: Date, endDate: Date) {

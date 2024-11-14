@@ -7,12 +7,10 @@ import {
 
 import { getCurrentPeriod } from './utlis';
 import { LogProps, RangeType, TimePeriod, NutrientStatsProps} from './structures';
-import { requestWithToken } from './endpoints';
+import { request } from './endpoints';
 import { tolocalDateString } from './utlis';
 
 
-function create_atom({key, val} : {key : string, val : any}) {
-}
 
 const dateRangeAtom= atom<TimePeriod>({
   key: 'currentPeriod', 
@@ -36,7 +34,7 @@ function useRefreshLogs() {
 
   const refreshLogs = async () => {
     console.log("refreshing logs")
-    let data = await requestWithToken('/logs/get?startDate=' 
+    let data = await request('/logs/get?startDate=' 
     + tolocalDateString(dateRange.start)
     + '&endDate=' 
     + tolocalDateString(dateRange.end) + '');
@@ -50,7 +48,7 @@ function useRefreshRequirements() {
   let setRequirements = useSetRecoilState(requirementsAtom)
   const refreshRequirements = async () => {
     console.log("refreshing requirements")
-    let data = await requestWithToken('/requirements/all')
+    let data = await request('/requirements/all')
     setRequirements(data)
   }
   return refreshRequirements
@@ -73,7 +71,7 @@ const dayIntake = selector<{[key: string]: number}>({
     const logs = get(logsAtom)
     let endpoint = '/logs/day_intake?date=' 
     + tolocalDateString(day)
-    return requestWithToken(endpoint);
+    return request(endpoint);
   }
 })
 
@@ -87,7 +85,7 @@ const averageIntake = selector<{[key : string] : number}>({
                 + tolocalDateString(dateRange.start)
                 + '&endDate=' 
                 + tolocalDateString(dateRange.end) + ''
-    return requestWithToken(endpoint);
+    return request(endpoint);
   }
 })
 

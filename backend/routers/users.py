@@ -57,6 +57,7 @@ def get_user(user_db : user_db_dependency):
     #for user in users:
     #   user["user_id"] = str(user.pop("_id"))  # Convert ObjectId to string
     return [User(**user) for user in users]
+    
 
 @router.post("/update-password", response_model = User)
 def update_password(new_password: str, user: user_dependency, user_db : user_db_dependency):
@@ -71,20 +72,32 @@ def update_password(new_password: str, user: user_dependency, user_db : user_db_
     
     return f"Password for {user_to_update['email']} updated!"
 
-@router.post("/update-email", response_model = None)
-def update_email(new_email: str, user: user_dependency, user_db : user_db_dependency):
+
+@router.post("/update-name", response_model = None)
+def update_email(new_name: str, user: user_dependency, user_db : user_db_dependency):
     query_id = {"_id": user["_id"]}
     
-
     user_to_update = user_db.users.find_one(query_id)
     if user_to_update is None:
         raise HTTPException(status_code = 401, detail = "This user does not exist")
     
-    query_email = {"email" : new_email}
-    user_with_email = user_db.users.find_one(query_email)
+    # Update the user's role to admin
+    old_name = user_to_update["name"]
+    if old_name == new_name:
+        return "This is already your current name."
     
-    if user_with_email is not None:
-        raise HTTPException(status_code = 401, detail = "Another user already has this email")
+    update = {"$set": {"name": new_name}}
+    user_db.users.update_one(query_id, update)
+    
+    return f"Email changed from {old_name} to {new_name}"
+
+@router.post("/update-email", response_model = None)
+def update_email(new_email: str, user: user_dependency, user_db : user_db_dependency):
+    query_id = {"_id": user["_id"]}
+    
+    user_to_update = user_db.users.find_one(query_id)
+    if user_to_update is None:
+        raise HTTPException(status_code = 401, detail = "This user does not exist")
     
     # Update the user's role to admin
     old_email = user_to_update["email"]

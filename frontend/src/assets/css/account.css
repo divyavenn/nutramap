@@ -1,0 +1,65 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300&display=swap');
+
+.account-info-list {
+  border : solid 2px red;
+  display: flex;
+  margin-top: 40px;
+  flex-direction: column;
+  justify-content: center;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+}
+
+.account-info {
+  display: flex;
+  width: auto;
+  margin-bottom: 20px;
+  justify-content: center;
+  align-items: center;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 20px;
+  font-weight: 300;
+}
+
+.account-info-tag {
+  width: 150px;
+  align-self: center;
+  font-weight: 300;
+}
+
+.account-info-input {
+  width: auto;
+  text-align: left;
+}
+
+
+/* ------------------------------------------BUTTON-------------------------------------- */
+
+.submit-info-update-button-container {
+  display: flex; /* Enables flexbox on the container */
+  width: 25%;
+  justify-content: flex-end; /* Pushes content to the right side */
+  align-items: center; /* Vertically centers the button */
+  padding: 10px; /* Optional: padding */
+}
+
+.submit-info-update-button {
+  align-items: center; /* Vertically center the SVG within the button */
+  background: none;
+  margin-right: 5px;
+  cursor: pointer;
+  border: none;
+  order: 1;
+}
+
+.submit-info-update-button svg {
+  fill: #ffffffa8; /* You can change the SVG color here */
+  height: 25px;
+}
+
+.submit-info-update-button:hover svg {
+  fill: #ffffffa8;; /* You can change the SVG color here */
+  height: 25px;
+}
+

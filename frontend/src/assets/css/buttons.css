@@ -18,6 +18,24 @@
   fill: #ffffff; /* Change the color on hover */
 }
 
+.header-link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  margin-right: 100px;
+  margin-top: 20px;
+}
+
+.header-link-button svg {
+  fill: #8400ffa8; /* You can change the SVG color here */
+  height: 30px;
+}
+
+.header-link-button:hover svg {
+  fill: #ffffff; /* Change the color on hover */
+}
+
 .login-button {
   display: flex;
   align-items: center; /* Vertically center the SVG within the button */

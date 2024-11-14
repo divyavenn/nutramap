@@ -1,23 +1,19 @@
 /// <reference types="vite-plugin-svgr/client" />
-import { StrictMode, useEffect, useState, Suspense} from 'react'
+import { StrictMode, useEffect, useState} from 'react'
 import { LogList} from '../components/Logs'
 import { DateSelector} from '../components/DateSelector'
 
 import {doWithData} from '../components/endpoints'
 import {Heading} from '../components/Title'
-import {Header, MainSection, DashboardHeader} from '../components/Sections'
+import { MainSection, Header} from '../components/Sections'
 import { NewLogForm } from '../components/AddLogForm' 
 import { NutrientDashboard} from '../components/NutrientDash'
-import { useRefreshLogs, useRefreshRequirements } from '../components/states'
+import { useRefreshLogs, useRefreshRequirements } from '../components/dashboard_states'
+import Account from '../assets/images/account.svg?react'
 
 import {
   RecoilRoot,
-  useRecoilState,
 } from 'recoil';
-import { logsAtom, dateRangeAtom, currentDayAtom, rangeTypeAtom, requirementsAtom} from '../components/states'
-
-import {TimePeriod, RangeType} from '../components/structures'
-
 
 function DashboardRoot(){
   return (<RecoilRoot>
@@ -85,7 +81,7 @@ function Dashboard(){
 
   return(
   <StrictMode>
-  <DashboardHeader/>
+  <Header linkIcons = {[{to : '/account', img : <Account/>}]}/>
   <Heading words = {'Hello, ' + name}/>
 
 
@@ -101,7 +97,7 @@ function Dashboard(){
 
   <MainSection>
     <div>
-    <NewLogForm callAfterSubmitting={refreshLogs} />
+    <NewLogForm />
    </div>
   </MainSection>
 

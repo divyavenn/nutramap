@@ -7,7 +7,7 @@ import { EditLogForm } from './EditLogForm';
 import { formatTime } from './utlis';
 import { LogbookProps, LogProps, DisplayLogProps } from './structures';
 import {useRecoilState, useRecoilValue, useSetRecoilState} from 'recoil'
-import { logsAtom, currentDayAtom, useRefreshLogs } from './states';
+import { logsAtom, currentDayAtom, useRefreshLogs } from './dashboard_states';
 
 
 function LogList (){

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react' 
-import {getHeaderWithToken, doWithData } from './endpoints';
+import {doWithData, request} from './endpoints';
 import {HoverButton } from './Sections';
 import Arrow from '../assets/images/arrow.svg?react'
 import Ok from '../assets/images/checkmark.svg?react'
@@ -8,14 +8,12 @@ import '../assets/css/buttons.css'
 import { getFoodID } from './utlis';
 import { tolocalDateString } from '../components/utlis'
 import { isValid } from 'date-fns';
-import { useRefreshLogs } from './states';
+import { useRefreshLogs } from './dashboard_states';
 
 
-interface ComponentCallingFunctionProps {
-  callAfterSubmitting: () => void;
-}
 
-function NewLogForm({ callAfterSubmitting }: ComponentCallingFunctionProps){
+
+function NewLogForm(){
 
   // Mock food data for autocomplete
   const foodList : Record<string, string> = JSON.parse(localStorage.getItem('foods') || '{}');
@@ -65,28 +63,16 @@ function NewLogForm({ callAfterSubmitting }: ComponentCallingFunctionProps){
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault() // prevent automatic submission
-    try {
-      const response = await fetch('/logs/new', {
-        method: 'POST',
-        headers: getHeaderWithToken(),
-        body: new URLSearchParams({
-          food_id: getFoodID(formData.food_name),
-          amount_in_grams: formData.amount_in_grams,
-          date: tolocalDateString(new Date())
-        }),
+    await request(
+      '/logs/new',
+      'POST', 
+      {
+        food_id: (getFoodID(formData.food_name)),
+        amount_in_grams: (formData.amount_in_grams),
+        date: tolocalDateString(new Date())
       })
-      if (response.ok){
-        const logData = await response.json(); // Wait for the promise to resolve
-        console.log("new log added ", logData);
-        // used to refresh log list
-        await callAfterSubmitting()
-        setFormData({ food_name: '', amount_in_grams: '', date : new Date()})
-        refreshLogs()
-      }
-    }
-    catch (error) {
-      console.error('An unexpected error occurred:', error);
-    }
+    setFormData({ food_name: '', amount_in_grams: '', date : new Date()})
+    refreshLogs()
   }
 
   return (

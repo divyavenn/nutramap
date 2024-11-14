@@ -9,7 +9,7 @@ from bson import ObjectId
 from datetime import timedelta, datetime
 
 
-from ..databases.main_connection import get_user_data, Log, LogCreate, get_session, Food
+from ..databases.main_connection import get_user_data, Log, LogEdit, get_session, Food
 from .foods import get_food_data, amount_by_weight, get_food_name, get_nutrient_details
 from .auth import get_current_user
 
@@ -85,19 +85,18 @@ def get_logs(endDate : datetime, startDate : datetime, user : user_dependency, u
   
   
 @router.post("/new")
-def handle_login(user : user_dependency, food_db : food_db_dependency, user_db : user_db_dependency, food_id: str = Form(...), amount_in_grams: str = Form(...), date: str = Form(...)):
+def new_log(user : user_dependency, food_db : food_db_dependency, user_db : user_db_dependency, food_id: str = Form(...), amount_in_grams: str = Form(...), date: str = Form(...)):
     try:
-        log_data = LogCreate(food_id=int(food_id), amount_in_grams=float(amount_in_grams), date = date)
+        log_data = Log.model_construct(food_id=int(food_id), amount_in_grams=float(amount_in_grams), date = date)
         return add_log(
             user=user,
             log=log_data,
             food_db=food_db,
             user_db=user_db)
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid data format for food_id or amount_in_grams")
+        raise HTTPException(status_code=400)
 
-def add_log(user: user_dependency, log: LogCreate, food_db : food_db_dependency, user_db : user_db_dependency):
-
+def add_log(user: user_dependency, log: Log, food_db : food_db_dependency, user_db : user_db_dependency):
     # Validate that the food exists in SQLite
     food = food_db.query(Food).filter(Food.food_id == log.food_id).first()
     if not food:
@@ -136,35 +135,35 @@ def remove_log(user: user_dependency, log_id: str, user_db : user_db_dependency)
       print("No document matched the filter criteria.")
       raise HTTPException(status_code=404, detail="Something went wrong, log not deleted.")
     
-
-@router.post("/edit")
-def edit_log(user: user_dependency, user_db : user_db_dependency, log_id: str = Form(...), food_id: str = Form(...), amount_in_grams: str = Form(...), date : str = Form(...)):
-    # Check if the log exists and belongs to the user
-    print("looking for " + log_id + "for user" + str(user["_id"]) + " name " + user["name"])
-    print(amount_in_grams + "    " + date)
-    log = user_db.logs.find_one({"_id": log_id, "user_id": str(user["_id"])})
     
-    if not log:
+@router.post("/edit")
+def edit_log(user: user_dependency, user_db : user_db_dependency, update_info: LogEdit):
+    # Check if the log exists and belongs to the user
+    # print("looking for " + log.log_id + "for user" + str(user["_id"]) + " name " + user["name"])
+    # print(log.amount_in_grams + "    " + log.date)
+    target_log = user_db.logs.find_one({"_id": update_info.log_id, "user_id": str(user["_id"])})
+    
+    if not target_log:
         raise HTTPException(status_code=404, detail="Log not found.")
     
     
     # Update the fields in the log
     update_data = {
-        "food_id": int(food_id),
-        "amount_in_grams": float(amount_in_grams),
-        "date": datetime.strptime(date, "%Y-%m-%dT%H:%M:%S")  # Update the date to the current time
+        "food_id" : update_info.food_id,
+        "amount_in_grams" : update_info.amount_in_grams,
+        "date" : update_info.date  # Update the date to the current time
     }
 
     # Perform the update operation
-    result = user_db.logs.update_one({"_id": log_id}, {"$set": update_data})
+    result = user_db.logs.update_one({"_id": target_log["_id"]}, {"$set": update_data})
   
     if result.matched_count == 0:
         raise HTTPException(status_code=500, detail="Something went wrong; log not updated.")
     
-    # Retrieve the updated log
-    updated_log = user_db.logs.find_one({"_id": log_id})
-    if updated_log:
-      return Log(**updated_log)
+    # # Retrieve the updated log
+    # updated_log = user_db.logs.find_one({"_id": target_log["_id"]})
+    # if updated_log:
+    #   return Log(**updated_log)
     return None
    
  
@@ -178,7 +177,6 @@ def day_intake(date: datetime, user: user_dependency, user_db : user_db_dependen
     
     for r in requirements:
       name, units = get_nutrient_details(food_db, r["nutrient_id"])
-      print(str(r["nutrient_id"]) + ", " + name + ", " + units)
       tally[r["nutrient_id"]] = 0
     
     # Validate that the food exists in SQLite
@@ -186,9 +184,7 @@ def day_intake(date: datetime, user: user_dependency, user_db : user_db_dependen
     for log in logs:
       data = get_food_data(food_db, log["food_id"])
       for d in data:
-          print(d)
           if d["id"] in tally:
-            print("in tally")
             tally[d["id"]] += amount_by_weight(d["amount"], log["amount_in_grams"])
 
     return tally
@@ -204,20 +200,14 @@ def meets(startDate : datetime, endDate: datetime, user: user_dependency, user_d
     
     for r in requirements:
       name, units = get_nutrient_details(food_db, r["nutrient_id"])
-      print(str(r["nutrient_id"]) + ", " + name + ", " + units)
       tally[r["nutrient_id"]] = 0
-    
-    print(tally)
+
     # Validate that the food exists in SQLite
     logs = list(get_logs_for_user(user,startDate, endDate, user_db))
     for log in logs:
       data = get_food_data(food_db, log["food_id"])
       for d in data:
-          print(d["id"])
-          if (int(d["id"]) == 2047):
-              print ("here")
           if d["id"]in tally:
-            print(d)
             tally[d["id"]] += amount_by_weight(d["amount"], log["amount_in_grams"])
     
     # number of days 
