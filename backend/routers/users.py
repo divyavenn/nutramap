@@ -66,6 +66,7 @@ def check_password(user : user_dependency, password: str):
 
 @router.get("/all", response_model=List[User])
 def get_user(user_db : user_db_dependency):
+    
     users = list(user_db.users.find({}))
     #for user in users:
     #   user["user_id"] = str(user.pop("_id"))  # Convert ObjectId to string

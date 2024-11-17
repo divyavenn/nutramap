@@ -10,6 +10,8 @@ import { NewLogForm } from '../components/AddLogForm'
 import { NutrientDashboard} from '../components/NutrientDash'
 import { useRefreshLogs, useRefreshRequirements } from '../components/dashboard_states'
 import Account from '../assets/images/account.svg?react'
+import { isLoginExpired } from '../components/utlis'
+import { useNavigate } from 'react-router-dom';
 
 import {
   RecoilRoot,
@@ -24,8 +26,9 @@ function DashboardRoot(){
 function Dashboard(){
   const [name, setName] = useState('user');
   const refreshLogs = useRefreshLogs();
-  const refreshRequirements = useRefreshRequirements()
-;
+  const refreshRequirements = useRefreshRequirements();
+  const navigate = useNavigate(); 
+
 
   const writeFirstName = (userData : any) => {
     setName(userData.name.trim().split(' ')[0])
@@ -53,10 +56,13 @@ function Dashboard(){
   //               + tolocalDateString(dateRange.end) + '', setAverageIntake);
   // }
   useEffect(() => {
+    if (isLoginExpired()){
+      navigate('/login')
+    }
     doWithData('/user/info', writeFirstName)
     refreshLogs()
     refreshRequirements()
-    doWithData('/food/all_foods', addFoodsToLocalStorage, undefined, undefined, false)
+    doWithData('/food/all_foods', addFoodsToLocalStorage, 'GET', undefined, undefined, false)
     doWithData('/food/all_nutrients', addNutrientsToLocalStorage)
   }, []);
   

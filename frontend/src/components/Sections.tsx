@@ -15,7 +15,7 @@ interface ParentComponentProps {
 function Background({children} : ParentComponentProps) {
   return (
   <body className="nutramap-background">
-    {children}tdhjd
+    {children}
   </body>)
 }
 

@@ -80,14 +80,10 @@ def get_current_user(token:Annotated[str, Depends(oauth2_bearer)]):
 
 @router.post("/submit_login")
 def handle_login(username: str = Form(...), password: str = Form(...)):
-  try:
     user = authenticate_user(username, password, get_user_data())
     token = create_access_token(user["email"], user["_id"], user["role"], user["name"], timedelta(minutes=60))
     # Return the token in the response body
     return JSONResponse(content={"access_token": token, "token_type": "bearer"}, status_code=200)
     
-  except HTTPException as e:
-    # Handle invalid credentials or user not found
-    return JSONResponse(content={"error": str(e.detail)}, status_code=400)
 
 

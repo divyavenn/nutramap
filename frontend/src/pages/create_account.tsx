@@ -17,7 +17,7 @@ import OkHover from '../assets/images/checkmark.svg?react'
 import { useNavigate } from 'react-router-dom';
 import { isLoginExpired } from '../components/utlis';
 
-function UpdateInfo({infoType} : {infoType : 'name' | 'email' | 'password'}){
+function AddInfo({infoType} : {infoType : 'name' | 'email' | 'password'}){
   const [accountInfo, setAccountInfo] = useRecoilState(accountInfoAtom)
   const dialogRef = useRef<HTMLFormElement>(null); 
   const setEditingPassword = useSetRecoilState(editingPasswordAtom)
@@ -173,51 +173,21 @@ function ConfirmModal() {
 }
 
 
-function DeleteAccount(){
-  const navigate = useNavigate(); 
-  const handleDelete = async () => {
-    await request('/user/delete', 'POST')
-    cleanLocalStorage()
-    navigate('/')
-  }
-}
 
-function LogoutButton(){
-  const navigate = useNavigate(); 
-  const handleLogout = () =>{
-    cleanLocalStorage();
-    navigate('/')
-  }
 
-  return(
-    <button className = 'change-password-container' onClick = {handleLogout}>
-      <div className = 'account-actions-button'>log out</div>
-    </button>
-  )
-}
-
-function DeleteAccountButton(){
+function CreateAccountButton(){
   const navigate = useNavigate();
+  const handleSubmit = () => {
+
+  }
+
   return (
-    <button className = 'change-password-container' onClick = {() => {navigate('/goodbye')}}>
-      <div className = 'account-actions-button delete'>delete account</div>
+    <button className = 'change-password-container' onClick = {handleSubmit}>
+      <div className = 'account-actions-button'>let's go!</div>
     </button>
     )
 }
 
-function ChangePasswordButton(){
-  const [editingPassword, setEditingPassword] = useRecoilState(editingPasswordAtom)
-
-  return (
-    editingPassword ? <CheckPassword mustAuthenticate = {true}
-                                     protectedComponent = {<UpdateInfo infoType='password'/>}/> :
-    (
-    <button className = 'change-password-container' onClick = {() => {setEditingPassword(true)}}>
-      <div className = 'account-actions-button'>change password</div>
-    </button>
-    )
-  )
-}
 
 function AccountInfo(){
   const [accountInfo, setAccountInfo] = useRecoilState(accountInfoAtom)
@@ -262,14 +232,11 @@ function AccountInfo(){
   return (
     <MainSection>
       <div className = "account-info-list">
-        <UpdateInfo infoType='name'/>
-        <UpdateInfo infoType='email'/>
-        <div className = 'password-container' ref = {editPasswordRef}>
-        <ChangePasswordButton/>
-        </div>
-        <LogoutButton/>
-        <DeleteAccountButton/>
+        <AddInfo infoType='name'/>
+        <AddInfo infoType='email'/>
+        <AddInfo infoType='password'/>
       </div>
+      <CreateAccountButton/>
   </MainSection>
   )
 }
@@ -288,10 +255,17 @@ function Account(){
       refreshAccountInfo()
   },[])
 
+  const getWelcomeMessage = () => {
+    if (firstName.length > 0){
+      return 'Welcome ' + firstName + "!";
+    }
+    else return 'Welcome!'
+  }
+
   return (
   <StrictMode>
   <Header linkIcons = {[{to : "/dashboard", img:  <Dashboard/>}]}/>
-  <Heading words = {'Hello, ' + firstName}/>
+  <Heading words = {getWelcomeMessage()}/>
 
   <AccountInfo/>
   </StrictMode>
@@ -299,10 +273,10 @@ function Account(){
 }
 
 
-function AccountRoot(){
+function NewAccountRoot(){
   return (<RecoilRoot>
     <Account/>
   </RecoilRoot>)
 }
 
-export default AccountRoot
+export default NewAccountRoot

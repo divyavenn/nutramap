@@ -1,4 +1,4 @@
-
+@import './variables.css';
 
 
 .svg-button {
@@ -28,7 +28,7 @@
 }
 
 .header-link-button svg {
-  fill: #8400ffa8; /* You can change the SVG color here */
+  fill: var(--bright); /* You can change the SVG color here */
   height: 30px;
 }
 

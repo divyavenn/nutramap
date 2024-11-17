@@ -51,7 +51,7 @@
   position: relative;
   width: 100%;
   font-family: Inconsolata;
-  color: hsla(276, 80.00%, 46.67%, 1.00);
+  color:var(--purple);
   font-size: 16px;
   font-weight: 300;
   text-transform: none;

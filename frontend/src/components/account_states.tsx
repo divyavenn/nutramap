@@ -23,7 +23,7 @@ const editingPasswordAtom = atom<boolean>({
 
 const accountInfoAtom = atom<AccountInfo>({
   key: 'accountInfo',
-  default: {name : "user lastName",
+  default: {name : "",
             email : "user@domain.com",
             password : ""}
 })

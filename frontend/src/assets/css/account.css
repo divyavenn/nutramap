@@ -1,5 +1,7 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300&display=swap');
+@import './variables.css';
+
 
 .account-info-list {
   display: flex;
@@ -9,7 +11,7 @@
   justify-content: center;
   flex-wrap: nowrap;
   max-width: 100%; /* Prevent overflow */
-  align-items: flex-start;
+  align-items: center;
   flex-grow: 1; /* Allow input to take available space */
   flex-shrink: 0; /* Prevent shrinking */
   flex-wrap: nowrap;
@@ -80,12 +82,12 @@
   color: white;
 }
 
-.change-password-button {
+.account-actions-button {
   width: 200px;
   margin: 15px;
   padding-right: 20px;
   align-self: center;
-  font-family: Open Sans;
+  font-family: 'Open Sans';
   font-size: 18px;
   padding-top: 10px;
   padding-bottom: 10px;
@@ -94,8 +96,12 @@
   border-top-right-radius: 20px;
   border-bottom-left-radius: 20px;
   border-bottom-right-radius: 20px;
-  background-color: hsla(253, 100%, 4%, 0.327);
+  background-color: var(--transparent-bg);
   text-align: center;
+}
+
+.account-actions-button.delete {
+  background-color: var(--red)
 }
 
 /* ------------------------------------------BUTTON-------------------------------------- */

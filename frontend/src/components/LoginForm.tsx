@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {HoverButton } from './Sections';
 import SubmitButton from '../assets/images/login.svg?react'
 import SubmitButtonHollow from '../assets/images/login-hollow.svg?react'
+import {Link} from 'react-router-dom';
 
 function LoginForm() {
   // State to store the email and password
@@ -10,11 +11,17 @@ function LoginForm() {
 
   const [formData, setFormData] = useState({
     email : '',
-    password : '',
-    errorMessage: '',
+    password : '', 
+    errorMessage : '',
     isSubmitting: false,
     isSuccess: false
   });
+
+  const [redirect, setRedirect] = useState({url : '', message : ''})
+
+  const [emailIncorrect, setEmailIncorrect] = useState(false);
+  const [passwordIncorrect, setPasswordIncorrect] = useState(false);
+
   const navigate = useNavigate(); // React Router's navigation hook
 
   // Event object is automatically passed to handler
@@ -57,11 +64,22 @@ function LoginForm() {
         localStorage.setItem('access_token', token);
 
         console.log('Login successful.');
-        //redirect to protected route.
         // window.location.href = '/user/dashboard' // this calls page from backend
         navigate('/dashboard'); // this uses react router (client side routing)
       } else {
-        // Handle error status codes (e.g., 400, 500, etc.)
+        // raise HTTPException(status_code=404, detail="User not found")
+        if (response.status == 404){
+          console.log("hi!")
+          setEmailIncorrect(true)
+          setTimeout(() => setEmailIncorrect(false), 300);
+          setRedirect({url : '/hello', message : 'create account'})
+        }
+        // raise HTTPException(status_code=403, detail="Incorrect password")
+        if (response.status == 403){
+          setPasswordIncorrect(true)
+          setTimeout(() => setEmailIncorrect(false), 300);
+          setRedirect({url : '/oops', message : 'forgot? reset password'})
+        }
         const errorData = await response.json();  // Optionally parse error message from response
         const errorMessage = 'Bad credentials. Try again!'
       
@@ -98,7 +116,7 @@ function LoginForm() {
           <div className="w-layout-vflex">
             <div className="form-field">
               <input
-                className="field"
+                className={`field ${emailIncorrect ? "jiggle" : ""}`}
                 autoFocus
                 maxLength={256}
                 name="email"
@@ -112,7 +130,7 @@ function LoginForm() {
             </div>
             <div className="form-field">
               <input
-                className="field"
+                className={`field ${passwordIncorrect ? "jiggle" : ""}`}
                 autoFocus
                 maxLength={256}
                 name="password"
@@ -134,9 +152,9 @@ function LoginForm() {
               </HoverButton>
         </form>
         <div>
-              {formData.errorMessage && (  
-                <div>
-                <div className="form-field"> {formData.errorMessage} </div> 
+              {redirect && (  
+                <div className = 'form-field'>
+                <Link style = {{textAlign: 'center'}}to={redirect.url}> {redirect.message}</Link>
                 {/* <PageLink url = {"/create-account"} text = {"sign up"} className = {'form-field'} />  */}
                 </div>
               )}

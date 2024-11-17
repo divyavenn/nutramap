@@ -73,6 +73,26 @@
     return timeString;
   }
 
+  function isLoginExpired() {
+    try {
+      let token = localStorage.getItem('access_token')
+      if (!token){
+        return true;
+      }
+      // Split the token to access its payload
+      const [, payloadBase64] = token.split('.');
+      const payload = JSON.parse(atob(payloadBase64));
+  
+      // Get the current time in seconds
+      const currentTime = Math.floor(Date.now() / 1000);
+  
+      // Compare the expiration time (`exp`) to the current time
+      return payload.exp < currentTime;
+    } catch (error) {
+      return true;
+    }
+  }
+
   function formatDayForFrontend(day : Date){
     const today = new Date();
     const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -101,4 +121,4 @@
     )
   }
 
-  export {calculateColor, getFoodID, formatTime, getCurrentPeriod, formatDayForFrontend, tolocalDateString, getNutrientInfo}
+  export {calculateColor, getFoodID, formatTime, getCurrentPeriod, formatDayForFrontend, tolocalDateString, getNutrientInfo, isLoginExpired}
