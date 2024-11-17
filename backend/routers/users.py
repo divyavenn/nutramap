@@ -1,3 +1,4 @@
+from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from pymongo.database import Database
 from pymongo.errors import DuplicateKeyError
@@ -7,7 +8,7 @@ from typing_extensions import Annotated
 from bson import ObjectId
 
 from ..databases.main_connection import get_user_data, User, UserCreate, get_session
-from .auth import hash_password, get_current_user
+from .auth import hash_password, get_current_user, authenticate_user, create_access_token
 from fastapi.responses import JSONResponse
 
 __package__ = "nutramap.routers"
@@ -51,6 +52,18 @@ def create_user(user: UserCreate, user_db : user_db_dependency):
     
     return User(**user_dict)
 
+
+@router.post("/check-password")
+def check_password(user : user_dependency, password: str):
+  try:
+    user = authenticate_user(user["email"], password, get_user_data())
+    return JSONResponse(content="authenticated!", status_code=200)
+    
+  except HTTPException as e:
+    # Handle invalid credentials or user not found
+    return JSONResponse(content={"error": str(e.detail)}, status_code=400)
+
+
 @router.get("/all", response_model=List[User])
 def get_user(user_db : user_db_dependency):
     users = list(user_db.users.find({}))
@@ -59,7 +72,7 @@ def get_user(user_db : user_db_dependency):
     return [User(**user) for user in users]
     
 
-@router.post("/update-password", response_model = User)
+@router.post("/update-password", response_model = None)
 def update_password(new_password: str, user: user_dependency, user_db : user_db_dependency):
     query = {"_id": user["_id"]}
     
@@ -69,12 +82,10 @@ def update_password(new_password: str, user: user_dependency, user_db : user_db_
     
     update = {"$set": {"password_hash": hash_password(new_password)}}
     user_db.users.update_one(query, update)
-    
-    return f"Password for {user_to_update['email']} updated!"
 
 
 @router.post("/update-name", response_model = None)
-def update_email(new_name: str, user: user_dependency, user_db : user_db_dependency):
+def update_name(new_name: str, user: user_dependency, user_db : user_db_dependency):
     query_id = {"_id": user["_id"]}
     
     user_to_update = user_db.users.find_one(query_id)
@@ -84,14 +95,28 @@ def update_email(new_name: str, user: user_dependency, user_db : user_db_depende
     # Update the user's role to admin
     old_name = user_to_update["name"]
     if old_name == new_name:
-        return "This is already your current name."
+        raise HTTPException(status_code = 304, detail = "No change")
     
     update = {"$set": {"name": new_name}}
     user_db.users.update_one(query_id, update)
     
-    return f"Email changed from {old_name} to {new_name}"
+    return create_access_token(user["email"], user["_id"], user["role"], new_name, timedelta(minutes=60))
 
-@router.post("/update-email", response_model = None)
+
+@router.post("/delete")
+def update_email(user: user_dependency, user_db : user_db_dependency):
+    query = {"_id": user["_id"]}
+    
+    user_to_delete = user_db.users.find_one(query)
+    
+    if user_to_delete is None:
+        raise HTTPException(status_code = 401, detail = "This user does not exist")
+    
+    user_db.users.delete_one(query)
+    user_db.logs.delete_many(query)
+    
+
+@router.post("/update-email")
 def update_email(new_email: str, user: user_dependency, user_db : user_db_dependency):
     query_id = {"_id": user["_id"]}
     
@@ -102,12 +127,12 @@ def update_email(new_email: str, user: user_dependency, user_db : user_db_depend
     # Update the user's role to admin
     old_email = user_to_update["email"]
     if old_email == new_email:
-        return "This is already your current email."
+        raise HTTPException(status_code = 304, detail = "No change")
     
     update = {"$set": {"email": new_email}}
     user_db.users.update_one(query_id, update)
     
-    return f"Email changed from {old_email} to {new_email}"
+    return create_access_token(new_email, user["_id"], user["role"], user["name"], timedelta(minutes=60))
 
 @router.post("/make_admin", response_model = User)
 def make_admin(email: str, user : user_dependency, user_db : user_db_dependency):

@@ -37,7 +37,7 @@ def render_login(request: Request):
 @router.get("/register")
 def render_register(request: Request):
   return templates.TemplateResponse("register.html", {"request" : request})
-#--------------------------------------helpers---------------------------------------------------# 
+#--------------------------------------helpers-------------------------------------------------# 
 
 #just for Swagger docs - this is the endpoint where the token in generated
 oauth2_bearer = OAuth2PasswordBearer(tokenUrl='auth/submit_login')
@@ -51,7 +51,8 @@ def authenticate_user(email: str, password: str, user_db : Database) :
   if user["password_hash"] == password_hash:
     return user
   else:
-    raise HTTPException(status_code=404, detail="Incorrect password")
+    raise HTTPException(status_code=403, detail="Incorrect password")
+  
   
 def create_access_token(email : str, user_id: int, role: str, name: str, expires : timedelta):
   encode = {'email': email, '_id': user_id, 'role' : role, 'name' : name}
@@ -68,7 +69,7 @@ def get_current_user(token:Annotated[str, Depends(oauth2_bearer)]):
     user_id = payload.get('_id')
     role = payload.get('role')
     name = payload.get('name')
-    
+    print(email + user_id + role + name)
     if email is None or user_id is None or role is None or name is None:
       raise HTTPException(status_code = 401, detail = "Unauthorized; could not validate credentials.")
     return {'email' : email, '_id' : user_id, "role" : role, "name" : name}

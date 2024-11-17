@@ -83,8 +83,8 @@ function NewNutrientForm( {original} : {original? : Nutrient}){
       amt: parseFloat(formData.requirement),
       should_exceed: Boolean(formData.should_exceed)
     }
-    let newRequirement = await request('/requirements/new','POST', requestData, 'JSON')
-    console.log(`new requirement added  ${newRequirement}`);
+    let response = await request('/requirements/new','POST', requestData, 'JSON')
+    console.log(`new requirement added  ${response.body}`);
     refreshRequirements();
 
     if (!original){

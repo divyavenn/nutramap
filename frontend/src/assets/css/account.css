@@ -2,43 +2,107 @@
 @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300&display=swap');
 
 .account-info-list {
-  border : solid 2px red;
   display: flex;
   margin-top: 40px;
   flex-direction: column;
+  width: fit-content;
   justify-content: center;
   flex-wrap: nowrap;
+  max-width: 100%; /* Prevent overflow */
   align-items: flex-start;
+  flex-grow: 1; /* Allow input to take available space */
+  flex-shrink: 0; /* Prevent shrinking */
+  flex-wrap: nowrap;
+  /* border: 2px solid red; */
 }
+
+
+@keyframes jiggle {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  50% { transform: translateX(5px); }
+  75% { transform: translateX(-5px); }
+}
+
+.jiggle {
+  animation: jiggle 0.3s ease-in-out; /* Adjust duration and easing as needed */
+}
+
 
 .account-info {
   display: flex;
-  width: auto;
+  width: fit-content;
   margin-bottom: 20px;
   justify-content: center;
   align-items: center;
-  font-family: 'Open Sans', sans-serif;
+  font-family: Open Sans;
   font-size: 20px;
   font-weight: 300;
+  flex-grow: 1; /* Allow input to take available space */
+  flex-shrink: 0; /* Prevent shrinking */
+  flex-wrap: nowrap;
 }
 
+
 .account-info-tag {
-  width: 150px;
+  width: 200px;
+  /* border: 2px solid red; */
   align-self: center;
   font-weight: 300;
 }
 
-.account-info-input {
-  width: auto;
+.account-info-input { 
+  flex-grow: 1; /* Allow input to take available space */
+  flex-shrink: 0; /* Prevent shrinking */
+  flex-wrap: nowrap;
+  min-width: 400px;
+  /* border: 2px solid red; */
+  width: fit-content;
   text-align: left;
 }
 
+.password-container {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+  background-color: transparent;
+  color: white;
+}
+
+.change-password-container {
+  display: flex;
+  width: 100%;
+  margin-top: 10px;
+  justify-content: center;
+  align-items: center;
+  background-color: transparent;
+  color: white;
+}
+
+.change-password-button {
+  width: 200px;
+  margin: 15px;
+  padding-right: 20px;
+  align-self: center;
+  font-family: Open Sans;
+  font-size: 18px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  padding-left: 20px;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+  background-color: hsla(253, 100%, 4%, 0.327);
+  text-align: center;
+}
 
 /* ------------------------------------------BUTTON-------------------------------------- */
 
 .submit-info-update-button-container {
   display: flex; /* Enables flexbox on the container */
-  width: 25%;
+  width: fit-content;
   justify-content: flex-end; /* Pushes content to the right side */
   align-items: center; /* Vertically centers the button */
   padding: 10px; /* Optional: padding */

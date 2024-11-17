@@ -39,7 +39,7 @@ function useRefreshLogs() {
     + '&endDate=' 
     + tolocalDateString(dateRange.end) + '');
 
-    setLogs(data)
+    setLogs(await data.body)
   }
   return refreshLogs
 }
@@ -49,7 +49,7 @@ function useRefreshRequirements() {
   const refreshRequirements = async () => {
     console.log("refreshing requirements")
     let data = await request('/requirements/all')
-    setRequirements(data)
+    setRequirements(await data.body)
   }
   return refreshRequirements
 }
@@ -71,7 +71,8 @@ const dayIntake = selector<{[key: string]: number}>({
     const logs = get(logsAtom)
     let endpoint = '/logs/day_intake?date=' 
     + tolocalDateString(day)
-    return request(endpoint);
+    let response = await request(endpoint)
+    return response.body;
   }
 })
 
@@ -85,7 +86,8 @@ const averageIntake = selector<{[key : string] : number}>({
                 + tolocalDateString(dateRange.start)
                 + '&endDate=' 
                 + tolocalDateString(dateRange.end) + ''
-    return request(endpoint);
+    let response = await request(endpoint)
+    return response.body;
   }
 })
 

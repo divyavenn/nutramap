@@ -45,10 +45,8 @@ function NutrientDashboard(){
   useEffect(() => {
     // start looking for clicks outside if new requirement form is visible
     console.log("clicked outside edit form")
-    if (editFormRef) {
+    if (editFormRef.current) {
       document.addEventListener('mousedown', handleClickOutside);
-    } else {
-      document.removeEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside); // Cleanup

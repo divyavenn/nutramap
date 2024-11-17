@@ -1,23 +1,46 @@
 import {
   RecoilRoot,
   useRecoilState,
-  useRecoilValue
+  useRecoilValue,
+  useSetRecoilState
 } from 'recoil';
 import { Header, MainSection} from '../components/Sections';
-import { StrictMode, useEffect, useState} from 'react'
+import { StrictMode, useEffect, useState, useRef} from 'react'
 import {Heading} from '../components/Title'
 import Dashboard from '../assets/images/dashboard.svg?react'
 import {request, doWithData} from '../components/endpoints'
 import '../assets/css/account.css'
-import { accountInfoAtom, firstNameAtom } from '../components/account_states';
+import { accountInfoAtom, firstNameAtom, passwordAtom, useRefreshAccountInfo, editingPasswordAtom} from '../components/account_states';
 import { HoverButton } from '../components/Sections';
 import Ok from '../assets/images/check_circle.svg?react'
 import OkHover from '../assets/images/checkmark.svg?react'
+import { useNavigate } from 'react-router-dom';
+import { useRefreshLogs } from '../components/dashboard_states';
 
 
 
-function UpdateInfo({infoType} : {infoType : 'name' | 'email'}){
+function UpdateInfo({infoType} : {infoType : 'name' | 'email' | 'password'}){
   const [accountInfo, setAccountInfo] = useRecoilState(accountInfoAtom)
+  const dialogRef = useRef<HTMLFormElement>(null); 
+  const setEditingPassword = useSetRecoilState(editingPasswordAtom)
+  const refreshAccountInfo = useRefreshAccountInfo()
+  const navigate = useNavigate(); 
+  
+
+  const handleClickOutside = (event: MouseEvent) => {
+    if (dialogRef.current && !dialogRef.current.contains(event.target as Node)) {
+      console.log("rstarstarwstr")
+      refreshAccountInfo()
+    }
+  }
+
+  useEffect(() => {
+    if (dialogRef.current) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    }}, [dialogRef]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;  // Destructure name and value from event target
@@ -28,21 +51,36 @@ function UpdateInfo({infoType} : {infoType : 'name' | 'email'}){
     });
   }
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault() // prevent automatic submission
-    request(`/user/update-${infoType}?new_${infoType}=${accountInfo[infoType]}`, 'POST');
+    console.log(infoType)
+    console.log(accountInfo)
+    let response = await request(`/user/update-${infoType}?new_${infoType}=${accountInfo[infoType]}`, 'POST');
+    if (response.status == 401) {
+      navigate("/login")
+    }
+    if (response.status !== 304){
+      localStorage.setItem('access_token', await response.body);
+      console.log("token refreshed")
+      refreshAccountInfo()
+    }
+    if (infoType=='password'){
+      console.log("not editng anymore")
+      setEditingPassword(false)
+    }
   }
 
   const inputType = (infoType === 'email' ? 'email' : 'text');
 
   return (
-    <form className = "account-info" onSubmit={handleSubmit}>
+
+    <form className = "account-info" onSubmit={handleSubmit} ref = {dialogRef}>
       <div className = "account-info-tag">{infoType}</div>
       <input  className = "account-info-input"
               placeholder = {infoType}
               name = {infoType}
               type = {inputType}
-              value = {accountInfo[infoType]}
+              value = {accountInfo[infoType] ?? ""}
               onChange={handleInputChange}
               required/>
       <div className = 'submit-info-update-button-container'>
@@ -54,11 +92,117 @@ function UpdateInfo({infoType} : {infoType : 'name' | 'email'}){
         </div>
     </form>
   )
+}
 
+function CheckPassword({mustAuthenticate, protectedComponent} : {mustAuthenticate : boolean, protectedComponent : React.ReactNode}){
+  const [password, setPassword] = useRecoilState(passwordAtom)
+  const [authenticated, setAuthenticated] = useState(!mustAuthenticate)
+  const [isIncorrect, setIsIncorrect] = useState(false);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;  // Destructure name and value from event target
+    // Update the corresponding field in formData
+    setPassword(value);
+  }
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault() // prevent automatic submission
+    try {
+      await request(`/user/check-password?password=${password}`, 'POST')
+      setAuthenticated(true)
+    }
+    catch {
+      setIsIncorrect(true);
+      setTimeout(() => setIsIncorrect(false), 300); // Match animation duration
+    }
+    
+  }
+  return (
+    <div>{
+    !authenticated ? 
+    (<form className = {`account-info ${isIncorrect ? "jiggle" : ""}`} onSubmit={handleSubmit}>
+      <div className = "account-info-tag">current password</div>
+      <input  className = "account-info-input"
+              type = 'password'
+              value = {password}
+              onChange={handleInputChange}
+              required/>
+      <div className = 'submit-info-update-button-container'>
+        <HoverButton
+                type="submit"
+                className="submit-info-update-button "
+                childrenOn={<Ok/>}
+                childrenOff={<OkHover/>}/>
+        </div>
+    </form>) :
+    protectedComponent
+    }</div>
+  )
+}
+
+
+function Deleting(){
+  
+}
+
+function DeleteAccountButton(){
+  const [deletingUser, setDeletingUser] = useRecoilState(editingPasswordAtom)
+
+  return (
+    deletingUser ? <CheckPassword mustAuthenticate = {true}
+                                  protectedComponent = {<UpdateInfo infoType='password'/>} /> :
+    (
+    <button className = 'change-password-container' onClick = {() => {setDeletingUser(true)}}>
+      <div className = 'change-password-button'>delete account</div>
+    </button>
+    )
+  )
+}
+
+function ChangePasswordButton(){
+  const [editingPassword, setEditingPassword] = useRecoilState(editingPasswordAtom)
+
+  return (
+    editingPassword ? <CheckPassword mustAuthenticate = {true}
+                                     protectedComponent = {<UpdateInfo infoType='password'/>}/> :
+    (
+    <button className = 'change-password-container' onClick = {() => {setEditingPassword(true)}}>
+      <div className = 'change-password-button'>change password</div>
+    </button>
+    )
+  )
 }
 
 function AccountInfo(){
   const [accountInfo, setAccountInfo] = useRecoilState(accountInfoAtom)
+  const editPasswordRef = useRef<HTMLDivElement>(null); 
+  const [editingPassword, setEditingPassword] = useRecoilState(editingPasswordAtom)
+
+    // Function to close form if clicked outside
+    const handleClickOutside = (event: MouseEvent) => {
+      // notes: 
+      // .current is a proprety of a ref object that directly references an instance of a component in the DOM. 
+      // before the component mounts, it's called null
+      // event.target refers to the element that triggered the even
+      // even.currentTarget refers to the elment that the event listener was attached to (in this case the whole document)
+
+      // if the component is mounted and the thing you clicked is not the component or a child of the the component
+      if (editPasswordRef.current && !editPasswordRef.current.contains(event.target as Node)) {
+        setEditingPassword(false); // Close the form only if clicking outside
+      }
+    }
+
+    useEffect(() => {
+      // start looking for clicks outside if new requirement form is visible
+      console.log("clicked outside edit form")
+      // only attach the listener if the component is moutned
+      if (editPasswordRef.current) {
+        document.addEventListener('mousedown', handleClickOutside);
+      }
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside); // Cleanup
+      };  
+    }, [editPasswordRef])  
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;  // Destructure name and value from event target
@@ -74,6 +218,10 @@ function AccountInfo(){
       <div className = "account-info-list">
         <UpdateInfo infoType='name'/>
         <UpdateInfo infoType='email'/>
+        <div className = 'password-container' ref = {editPasswordRef}>
+        <ChangePasswordButton/>
+        </div>
+        <DeleteAccountButton/>
       </div>
   </MainSection>
   )
@@ -82,12 +230,12 @@ function AccountInfo(){
 
 function Account(){ 
 
-  const [accountInfo, setAccountInfo] = useRecoilState(accountInfoAtom)
+  const refreshAccountInfo = useRefreshAccountInfo()
   const firstName = useRecoilValue(firstNameAtom)
 
 
   useEffect(() => {
-      doWithData('/user/info', setAccountInfo)
+      refreshAccountInfo()
   },[])
 
   return (

@@ -74,13 +74,13 @@ function getHeader(authorized : boolean = true, hasData : boolean = false, data_
       header['Content-Type'] = "application/x-www-form-urlencoded"
     }
   }
-  console.log('with header')
-  printDictionary(header)
+  // console.log('with header')
+  // printDictionary(header)
   return header;
 }
 
 async function request(url : string, method : string = 'GET', data : any = null, data_type : 'JSON' | 'URLencode' = 'URLencode', authorized : boolean = true) {
-  console.log(`requesting ${method} ${url} and ${data_type} body: ${data ? ((data_type == 'JSON') ? JSON.stringify(data) : new URLSearchParams(data)) : null}`)
+  // console.log(`requesting ${method} ${url} and ${data_type} body: ${data ? ((data_type == 'JSON') ? JSON.stringify(data) : new URLSearchParams(data)) : null}`)
   return fetch(url, {
       method: method,
       headers: getHeader(authorized, (data !== null), data_type),
@@ -93,7 +93,11 @@ async function request(url : string, method : string = 'GET', data : any = null,
       throw Error();
     }
     else {
-      return response.json();  // Parse JSON only if response is OK
+      let data = await response.json()
+      return {
+        status: response.status, // Include the status code
+        body: data,      // Include the parsed response body
+      };
     }
   })
   .catch(error => {
@@ -106,8 +110,8 @@ async function request(url : string, method : string = 'GET', data : any = null,
 //therefore, pages must always be unprotected but you can call protected APIs from the page.
 function doWithData (endpoint : string, task : (data: any) => void, method = 'GET',  data : any = null, data_type : 'JSON' | 'URLencode' = 'URLencode', authorized : boolean = true) {
   request(endpoint, method, data, data_type, authorized)
-  .then(data => {
-      task(data)
+  .then(async response => {
+      task(response.body)
   })
 }
 
