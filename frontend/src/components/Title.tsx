@@ -20,7 +20,7 @@ function Subtitle() {
 
 function Heading({words} : WordsProps) {
   return (
-  <div className="nutra"> {words}
+  <div className="greeting"> {words}
   </div>
   )
 }

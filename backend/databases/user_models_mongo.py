@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field, field_validator
-from typing import List, Optional
+from typing import Optional
 from datetime import datetime
 from bson import ObjectId
 from pydantic import BaseModel, Field
@@ -9,24 +9,34 @@ __package__ = "nutramap.databases"
 class LogCreate(BaseModel):
     food_id: int
     amount_in_grams: float
+    date: datetime
     
     class Config:
         json_schema_extra = {
             'example': {
                 'food_id' : 170903,
-                'amount_in_grams' : 20
+                'amount_in_grams' : 20,
+                'date' : "2024-10-16T10:15:30.000Z"
                 }
         }
-    
-class Log(BaseModel):
-    log_id: Optional[str] = Field(alias="_id")
-    user_id: Optional[str]
+
+class LogEdit(BaseModel):
     food_id: int
-    date: Optional[datetime]
     amount_in_grams: float
+    date: datetime
+    log_id: str 
+           
+class Log(BaseModel):
+    log_id: Optional[str] = Field(alias="_id") 
+    user_id: Optional[str] 
+    food_id: int
+    amount_in_grams: float
+    date: Optional[datetime] 
     
     @field_validator('log_id', 'user_id')
     def validate_objectid(cls, v):
+        if v is None:  # Skip validation if the field is missing
+            return v
         if isinstance(v, ObjectId):
             return str(v)
         return v

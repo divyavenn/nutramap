@@ -1,60 +1,157 @@
 
 @import url('./variables.css');
+@import url('https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&display=swap');
 
-.entry-name {
+
+/*--------------------------------------------NAME----------------------------------*/
+
+.entry-food-name {
+  text-overflow: ellipsis;
+  border-radius: 2px;
+  max-width: 300px;
+  position: relative; /* This is to ensure the suggestions dropdown aligns with the input */
+
   padding-top: 15px;
   padding-bottom: 15px;
   padding-left: 27px;
-  order: -1;
-  flex-grow: 1;
-  flex-shrink: 1;
-  flex-basis: 0%;
+  padding-right: 10px;
+  width: 300px;
+
+
+  background: none;
   font-family: Inconsolata;
+  color: inherit;
+  outline: none;
 }
 
-.entry-date {
-  display: block;
-  padding-right: 27px;
-  padding-left: 60px;
-  justify-content: flex-end;
+/* ------------------------------------------AMOUNT-------------------------------------- */
+.entry-food-amt {
+  display: flex;
+  justify-self: right;
   align-items: center;
-  order: 1;
+  align-self: center;
+  position: relative;
+  width: 7%; /* Set width to match your layout */
+  margin-left: -50px;
+
+  padding-right: 10px; /* Creates space for the "g" */
+  background: none;
+  border: none; /* Removes the default border */
   font-family: Inconsolata;
+  text-align: left; /* Align the input text to the left */
+  color: inherit; /* Inherit the text color (useful for hover) */
+
+}
+
+/* Styling for the "g" unit */
+.log-unit {
+  position: absolute;
+  right: 0px;
+  font-family: Inconsolata;
+  color: inherit; /* Inherit text color (important for hover) */
+  pointer-events: none; /* Ensure the span doesn't interfere with input focus */
+}
+
+
+/* ------------------------------------------DATE-------------------------------------- */
+
+.entry-date {
+  display: flex; /* Enables flexbox on the container */
+  width: 25%;
+  justify-content: flex-end; /* Pushes content to the right side */
+  align-items: center; /* Vertically centers the button */
+  padding-right: 20px; /* Optional: padding */
+  background: none;
+  border: none;
+  font-family: Inconsolata;
+  text-align: right; /* Align the date to the right */
+  flex-shrink: 0;
+}
+
+/* ------------------------------------------DIVIDER-------------------------------------- */
+
+.date-divider {
+  width: 650px;
+  margin-bottom: 20px;
+  border-bottom-style: solid;
+  border-bottom-width: 1px;
+  border-bottom-color: hsla(0, 0.00%, 100.00%, 0.34);
+}
+
+.day {
+  margin-bottom: 0px;
+  font-family: 'Ubuntu';
+  color: hsla(0, 0.00%, 100.00%, 0.53);
+  font-size: 14px;
+  font-weight: 300; 
+  background-color: transparent;
+}
+
+/* ------------------------------------------CONTAINERS-------------------------------------- */
+
+.log-wrapper{ 
+  /* border: 2px solid red; */
+  display: flex;
+  width: 700px;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
 }
 
 .log-bubble {
   display: flex;
-  width: 363px;
-  margin-top: 20px;
+  width: 600px;
+  margin-bottom: 20px;
   flex-direction: row;
-  justify-content: center;
-  flex-wrap: nowrap;
   align-items: center;
-  border-top-left-radius: 14px;
-  border-top-right-radius: 14px;
-  border-bottom-left-radius: 14px;
-  border-bottom-right-radius: 14px;
+  border-radius: 14px;
   background-color: #19050584;
   color: var(--white);
+  justify-content: space-between; /* Ensure space is distributed between elements */
 }
 
 .log-bubble:hover {
-  display: flex;
-  width: 363px;
-  margin-top: 20px;
-  flex-direction: row;
-  justify-content: center;
-  flex-wrap: nowrap;
-  align-items: center;
-  border-top-left-radius: 14px;
-  border-top-right-radius: 14px;
-  border-bottom-left-radius: 14px;
-  border-bottom-right-radius: 14px;
   background-color: #ffffffa1;
   color: #1e002e;
 }
 
+.list-container {
+  position: relative;   /* Ensure the container is positioned relative */        /* Set the fixed height for the container */
+  overflow: hidden;     /* Hide any overflow content */
+}
+
+.logs-wrapper{
+  display: flex;
+  flex-flow: column;
+  justify-items: center;
+  align-items: center;
+}
+
 .log-list{
+  flex-flow: column;
+  justify-items: center;
+  align-items: center;
   list-style-type: none;
+  padding: 0;            /* Removes padding */
+  margin-top: 20px;     
+  height:500px;    /* Removes margin */
+  overflow-y: auto; /* Scrollable if suggestions overflow */
+  /* Hides scrollbar in WebKit browsers (Chrome, Safari, etc.) */
+  -webkit-overflow-scrolling: touch; /* Enables smooth scrolling on mobile */
+  scrollbar-width: none; /* For Firefox */
+  -ms-overflow-style: none;  /* IE/Edge: Hide scrollbar */
+}
+
+.log-list::-webkit-scrollbar {
+  display: none; /* Hides scrollbar for WebKit browsers */
+}
+
+.no-logs-message{
+  margin-bottom: 0px;
+  font-family: 'Ubuntu';
+  color: hsla(0, 0.00%, 100.00%, 0.53);
+  font-size: 14px;
+  font-weight: 300; 
+  font-style: italic;
 }
 

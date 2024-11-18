@@ -1,0 +1,250 @@
+
+.new-nutrient-wrapper{
+  width: 100%;
+  padding-bottom: 10px;
+  display: flex;
+  box-sizing: border-box;
+  background-color: #19050500;
+  color: var(--white);
+  flex-direction: column;
+  border-radius: 14px;
+  font-family: Poppins;
+}
+
+/* Activate suggestions dropdown */
+.new-nutrient-wrapper.active .suggestions-list {
+  opacity: .5;
+  transform: translateY(0);
+  pointer-events: all;
+}
+
+.nutrient-form-bubble{
+  display: flex;
+  border-radius: 14px;
+  width: 100%;
+  /* border: 1px solid red; */
+  flex-direction: row;
+  align-items: center;
+  color: var(--white);
+  justify-content: space-between; /* Ensure space is distributed between elements */
+}
+
+.nutrient-form-bubble.active{
+  border-bottom-left-radius: 0px;
+  border-bottom-right-radius: 0px;
+}
+
+.requirement-nutrient-name {
+  cursor: pointer;
+  font-family: Poppins;
+  font-size: 14px;
+}
+
+
+/*-----------------------------------SUGGESTIONS------------------------------*/
+.nutrient-suggestions-list {
+  list-style-type: none; 
+  padding-left: 0px; /* Removes default padding */
+  margin-left: 0; /* Removes default margin */
+  margin: 0; /* Optionally set the entire margin to 0 */
+
+  width: 100%; /* Ensure the suggestions take up the full width of the input */
+  max-height: 300px; /* Optional: Limit height */
+  overflow-y: auto; /* Scrollable if suggestions overflow */
+  z-index: 999;
+  opacity: 1;
+  transition: opacity 0.3s ease, max-height 0.3s ease;
+  /* Hides scrollbar in WebKit browsers (Chrome, Safari, etc.) */
+  -webkit-overflow-scrolling: touch; /* Enables smooth scrolling on mobile */
+  scrollbar-width: none; /* For Firefox */
+  font-family: Poppins;
+  }
+
+.nutrient-suggestions-list::-webkit-scrollbar {
+  display: none; /* Hides scrollbar for WebKit browsers */
+}
+
+/* Individual suggestion items */
+.nutrient-suggestion-item {
+  font-family: Poppins;
+  font-size: 14px;
+
+  padding-top: 10px;
+  padding-bottom: 10px;
+  padding-left: 39px;
+  padding-right: 10px;
+  background-color: none;
+  color: var(--white);
+
+  cursor: pointer;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Hover effect for suggestions */
+.nutrient-suggestion-item:hover {
+  background-color: #ffffffa1;
+  color: #1e002e;
+}
+
+.new-nutrient-name-wrapper {
+  position: relative;
+  display: block;
+  width: 45%;
+  padding-right: 20px;
+  height: auto;
+  align-self: center;
+  flex-grow: 0;
+  flex-shrink: 0;
+  flex-basis: auto;
+  /* border: 2px solid red */
+}
+
+.new-requirement-nutrient-name {
+  cursor: pointer;
+  font-family: Poppins;
+  font-size: 14px;
+  width: 100%;
+  /* border: 2px solid red */
+}
+
+
+/*--------------------------------------AMOUNT------------------------------------*/
+
+.input-requirement-amt-wrapper {
+  display: flex;
+  justify-self: right;
+  align-items: center;
+  align-self: center;
+  position: relative;
+  width: 40%; /* Set width to match your layout */
+  margin-left: 0px;
+  font-family: Poppins;
+  font-size: 14px;
+}
+
+/* The input for entering food amount */
+.input-requirement-amt {
+  width: 100%; /* Ensures the input takes full available space in the wrapper */
+  padding-right: 10px; /* Creates space for the "g" */
+  background: none;
+  border: none; /* Removes the default border */
+  text-align: left; /* Align the input text to the left */
+  color: inherit; /* Inherit the text color (useful for hover) */
+}
+
+
+/*--------------------------------------SELECT------------------------------------*/
+
+.nutrient-type-select-wrapper {
+  display: flex;
+  justify-self: right;
+  align-items: center;
+  align-self: center;
+  position: relative;
+  font-family: Poppins;
+  font-size: 14px;
+  /* border: 2px solid red */
+}
+
+
+/* General styling for the select input */
+.custom-select {
+  -webkit-appearance: none; /* Remove default arrow */
+  -moz-appearance: none; /* Remove default arrow */
+  appearance: none; /* Remove default arrow */
+  background: none; /* Transparent background */
+  border: none; /* No border */
+  border-radius: 0;
+  font-size: 1rem; /* Adjust to your needs */
+  color: inherit; /* Match the text color */
+  padding: 0 10px; /* Add padding */
+  cursor: pointer;
+  width: auto; /* Auto width to fit content */
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* Wrapper around the select to style the border and other properties */
+.custom-select-wrapper {
+  display: inline-block; /* Inline to fit next to other elements */
+  position: relative; /* Necessary for positioning the pseudo-element */
+  border: 1px solid white; /* Add border */
+  padding: 5px 10px; /* Padding around the select */
+  border-radius: 5px; /* Rounded corners */
+}
+
+/* Optional: Remove the arrow and create a custom arrow if needed */
+.custom-select-wrapper::after {
+  content: ''; /* Empty content */
+  position: absolute;
+  right: 10px; /* Position on the right side */
+  top: 50%;
+  transform: translateY(-50%);
+  border-width: 5px;
+  border-style: solid;
+  border-color: white transparent transparent transparent; /* Custom arrow */
+  pointer-events: none; /* Makes sure it doesn't block click events */
+}
+
+/* Hide the default arrow in certain browsers (like Firefox) */
+.custom-select::-ms-expand {
+  display: none;
+}
+
+/* ------------------------------------------SUBMIT-------------------------------------- */
+
+.new-nutrient-button-container {
+  display: flex; /* Enables flexbox on the container */
+  width: 20%;
+  justify-content: flex-end; /* Pushes content to the right side */
+  align-items: center; /* Vertically centers the button */
+  padding-top: 5px;
+
+}
+
+.new-nutrient-button {
+  align-items: center; /* Vertically center the SVG within the button */
+  background: none;
+  cursor: pointer;
+  border: none;
+  order: 1;
+}
+
+.new-nutrient-button svg {
+  fill: #ffffffa8; /* You can change the SVG color here */
+  width: 18px;
+  height: 18px;
+}
+
+.new-nutrient-button:hover svg {
+  fill: #ffffff; /* You can change the SVG color here */
+  width: 18px;
+  height: 18px;
+}
+
+
+/* ------------------------------------------DELETE-------------------------------------- */
+
+.delete-requirement-button-container {
+  display: flex; 
+  width: 75px;
+  align-items: start; /* Vertically centers the button */
+/*  */
+}
+
+.delete-button {
+  display: block;
+  clear: none;
+  background: none;
+  font-size: 10px;
+  text-align: center;
+}
+
+.delete-button svg {
+  fill: #ffffff77; /* You can change the SVG color here */ 
+  height: 16px;
+}
+
+.delete-button:hover svg {
+  fill: #ffffff; /* Change the color on hover */
+}

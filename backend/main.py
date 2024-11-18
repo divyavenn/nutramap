@@ -1,14 +1,10 @@
 from fastapi import FastAPI, Request
 from contextlib import asynccontextmanager
 from .databases.food_models import Base
-from .routers import auth, food_data, user_data
+from .routers import auth, foods, users, requirements, logs
 from .databases.main_connection import engine, close_mongo_db
 from fastapi.staticfiles import StaticFiles
-from .imports import templates, static_folder
-from starlette.responses import FileResponse\
-  
-  
-from pathlib import Path
+from fastapi.templating import Jinja2Templates
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -24,6 +20,8 @@ async def lifespan(app: FastAPI):
     close_mongo_db()
 
 app = FastAPI(lifespan=lifespan)
+# Define the templates directory
+templates = Jinja2Templates(directory="templates")
 
 app.add_middleware(
     CORSMiddleware,
@@ -44,8 +42,7 @@ def welcome(request: Request):
 
 
 app.include_router(auth.router)
-app.include_router(food_data.router)
-app.include_router(user_data.router)
-
-
-  
+app.include_router(foods.router)
+app.include_router(users.router)
+app.include_router(requirements.router)
+app.include_router(logs.router)

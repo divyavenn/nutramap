@@ -1,14 +1,14 @@
 import { StrictMode } from 'react'
-
-import {PageLink} from '../components/Elems'
+import {Link} from 'react-router-dom';
 import {Title, Subtitle} from '../components/Title'
 import {Header, MainSection } from '../components/Sections'
 import {LottieAnimation} from '../components/Graphics'
+import { RecoilRoot } from 'recoil';
 
 function Home(){
-
   return(
   <StrictMode>
+  <RecoilRoot>
   <Header />
   <MainSection>
     <Title/>
@@ -21,12 +21,12 @@ function Home(){
       height = "300px"/>
   </MainSection>
   <MainSection>
-    <PageLink
-    url = "/login"
-    text = "login"/>
+  <div className="link-text">
+    <Link to="/login">login</Link>
+  </div>
   </MainSection>
+  </RecoilRoot>
 </StrictMode>)
-
 }
 
 export default Home

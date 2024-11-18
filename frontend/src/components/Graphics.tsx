@@ -1,4 +1,6 @@
 import React, { useEffect } from 'react';
+import '../assets/css/buttons.css'
+
 
 
 interface LottieAnimationProps {
@@ -53,4 +55,13 @@ function Graphic({src, width = 'auto', height = "auto", loading = "lazy", classN
     />
   )
 }
-export {LottieAnimation, Graphic};
+
+function ImageButton(props : GraphicsProps){
+  return (
+    <button className="svg-button">
+    <Graphic {...props}></Graphic>
+    </button>
+  )
+}
+
+export {LottieAnimation, Graphic, ImageButton};

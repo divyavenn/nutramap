@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { PageLink } from './Elems';
 import { useNavigate } from 'react-router-dom';
+import {HoverButton } from './Sections';
+import SubmitButton from '../assets/images/login.svg?react'
+import SubmitButtonHollow from '../assets/images/login-hollow.svg?react'
+import {Link} from 'react-router-dom';
 
 function LoginForm() {
   // State to store the email and password
@@ -8,11 +11,17 @@ function LoginForm() {
 
   const [formData, setFormData] = useState({
     email : '',
-    password : '',
-    errorMessage: '',
+    password : '', 
+    errorMessage : '',
     isSubmitting: false,
     isSuccess: false
   });
+
+  const [redirect, setRedirect] = useState({url : '', message : ''})
+
+  const [emailIncorrect, setEmailIncorrect] = useState(false);
+  const [passwordIncorrect, setPasswordIncorrect] = useState(false);
+
   const navigate = useNavigate(); // React Router's navigation hook
 
   // Event object is automatically passed to handler
@@ -55,11 +64,22 @@ function LoginForm() {
         localStorage.setItem('access_token', token);
 
         console.log('Login successful.');
-        //redirect to protected route.
         // window.location.href = '/user/dashboard' // this calls page from backend
         navigate('/dashboard'); // this uses react router (client side routing)
       } else {
-        // Handle error status codes (e.g., 400, 500, etc.)
+        // raise HTTPException(status_code=404, detail="User not found")
+        if (response.status == 404){
+          console.log("hi!")
+          setEmailIncorrect(true)
+          setTimeout(() => setEmailIncorrect(false), 300);
+          setRedirect({url : '/hello', message : 'create account'})
+        }
+        // raise HTTPException(status_code=403, detail="Incorrect password")
+        if (response.status == 403){
+          setPasswordIncorrect(true)
+          setTimeout(() => setEmailIncorrect(false), 300);
+          setRedirect({url : '/oops', message : 'forgot? reset password'})
+        }
         const errorData = await response.json();  // Optionally parse error message from response
         const errorMessage = 'Bad credentials. Try again!'
       
@@ -92,25 +112,25 @@ function LoginForm() {
         </div>
       ) : (
         <div>
-        <form id="login-form" name="email-form" onSubmit={handleSubmit} className="form-2">
+        <form id="login-form" name="email-form" onSubmit={handleSubmit} className="login-form">
           <div className="w-layout-vflex">
             <div className="form-field">
               <input
-                className="field w-input"
+                className={`field ${emailIncorrect ? "jiggle" : ""}`}
                 autoFocus
                 maxLength={256}
-                name="username"
+                name="email"
                 placeholder="email"
                 type="email"
                 id="email"
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })} // automatically passes event object
+                onChange={handleInputChange} // automatically passes event object
                 required
               />
             </div>
             <div className="form-field">
               <input
-                className="field w-input"
+                className={`field ${passwordIncorrect ? "jiggle" : ""}`}
                 autoFocus
                 maxLength={256}
                 name="password"
@@ -118,23 +138,23 @@ function LoginForm() {
                 type="password"
                 id="password"
                 value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                onChange={handleInputChange}
                 required
               /> </div>
           </div>
-          <div className="div-block-13">
-            <input
+            <HoverButton
               type="submit"
-              className="submit-butt w-button"
+              className="login-button"
               value={formData.isSubmitting ? 'Please wait...' : 'Login'}
               disabled={formData.isSubmitting}
-            />
-          </div>
+              childrenOn={<SubmitButton/>}
+              childrenOff={<SubmitButtonHollow/>}>
+              </HoverButton>
         </form>
         <div>
-              {formData.errorMessage && (  
-                <div>
-                <div className="form-field"> {formData.errorMessage} </div> 
+              {redirect && (  
+                <div className = 'form-field'>
+                <Link style = {{textAlign: 'center'}}to={redirect.url}> {redirect.message}</Link>
                 {/* <PageLink url = {"/create-account"} text = {"sign up"} className = {'form-field'} />  */}
                 </div>
               )}

@@ -1,5 +1,18 @@
 @import url('./variables.css');
 
+
+@keyframes jiggle {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  50% { transform: translateX(5px); }
+  75% { transform: translateX(-5px); }
+}
+
+.jiggle {
+  animation: jiggle 0.3s ease-in-out; /* Adjust duration and easing as needed */
+}
+
+
 .w-layout-blockcontainer {
   max-width: 940px;
   margin-left: auto;
@@ -1566,15 +1579,12 @@ label {
 }
 
 .login-form {
-  align-self: center;
-}
-
-.form-2 {
   flex-flow: row;
-  justify-content: center;
-  align-items: flex-start;
+  justify-content: space-between;
+  align-items: center;
   display: flex;
 }
+
 
 .submit-butt {
   filter: saturate(0%) invert();
@@ -1612,9 +1622,25 @@ label {
 
 .field {
   border: 1px solid var(--clear);
-  background-color: #ffffff47;
-  border-radius: 11px;
-  color: rgb(255, 255, 255)
+  background-color: #ffffff24;
+  border-radius: 30px;
+  color: rgb(255, 255, 255);
+  display: block;
+  width: 100%;
+  height: 40px;
+  padding: 25px;
+  font-size: 14px;
+}
+
+@keyframes jiggle {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  50% { transform: translateX(5px); }
+  75% { transform: translateX(-5px); }
+}
+
+.jiggle {
+  animation: jiggle 0.3s ease-in-out; /* Adjust duration and easing as needed */
 }
 
 /* Parent container to center everything */
@@ -1630,9 +1656,9 @@ label {
 .form-field {
   justify-content: center;  /* Centers the input field horizontally */
   align-items: center;      /* Centers the input field vertically */
-  width: 250px;
+  width: auto;
   display: flex;
-  margin-bottom: 10px;      /* Adds some spacing between input fields */
+  margin: 10px;      /* Adds some spacing between input fields */
 }
 
 /* Styling the error message */
@@ -1651,6 +1677,18 @@ label {
   justify-content: center;
   align-items: center;
   display: flex;
+}
+
+.greeting {
+  color: #f8f8f8;
+  text-align: center;
+  align-self: center;
+  margin-top: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  font-family: Georgia, Times, Times New Roman, serif;
+  font-size: 70px;
+  font-weight: 400;
 }
 
 .nutra {
@@ -1751,11 +1789,8 @@ label {
   color: var(--parchment);
 }
 
-.div-block-13 {
-  flex: 0 auto;
+.login-button-container {
   align-self: center;
-  width: 50px;
-  height: 50px;
   margin-top: 0;
   margin-left: 20px;
 }
@@ -1848,6 +1883,15 @@ label {
 
 .nutramap-header {
   justify-content: flex-start;
+  align-items: center;
+  height: 100px;
+  padding-top: 20px;
+  padding-left: 40px;
+  display: flex;
+}
+
+.links {
+  justify-content: flex-end;
   align-items: center;
   height: 100px;
   padding-top: 20px;

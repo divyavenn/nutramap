@@ -1,0 +1,135 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300&display=swap');
+@import './variables.css';
+
+
+.account-info-list {
+  display: flex;
+  margin-top: 40px;
+  flex-direction: column;
+  width: fit-content;
+  justify-content: center;
+  flex-wrap: nowrap;
+  max-width: 100%; /* Prevent overflow */
+  align-items: center;
+  flex-grow: 1; /* Allow input to take available space */
+  flex-shrink: 0; /* Prevent shrinking */
+  flex-wrap: nowrap;
+  /* border: 2px solid red; */
+}
+
+
+@keyframes jiggle {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  50% { transform: translateX(5px); }
+  75% { transform: translateX(-5px); }
+}
+
+.jiggle {
+  animation: jiggle 0.3s ease-in-out; /* Adjust duration and easing as needed */
+}
+
+
+.account-info {
+  display: flex;
+  width: fit-content;
+  margin-bottom: 20px;
+  justify-content: center;
+  align-items: center;
+  font-family: Open Sans;
+  font-size: 20px;
+  font-weight: 300;
+  flex-grow: 1; /* Allow input to take available space */
+  flex-shrink: 0; /* Prevent shrinking */
+  flex-wrap: nowrap;
+}
+
+
+.account-info-tag {
+  width: 200px;
+  /* border: 2px solid red; */
+  align-self: center;
+  font-weight: 300;
+}
+
+.account-info-input { 
+  flex-grow: 1; /* Allow input to take available space */
+  flex-shrink: 0; /* Prevent shrinking */
+  flex-wrap: nowrap;
+  min-width: 400px;
+  /* border: 2px solid red; */
+  width: fit-content;
+  text-align: left;
+}
+
+.password-container {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+  background-color: transparent;
+  color: white;
+}
+
+.change-password-container {
+  display: flex;
+  width: 100%;
+  margin-top: 10px;
+  justify-content: center;
+  align-items: center;
+  background-color: transparent;
+  color: white;
+}
+
+.account-actions-button {
+  width: 200px;
+  margin: 15px;
+  padding-right: 20px;
+  align-self: center;
+  font-family: 'Open Sans';
+  font-size: 18px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  padding-left: 20px;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+  background-color: var(--transparent-bg);
+  text-align: center;
+}
+
+.account-actions-button.delete {
+  background-color: var(--red)
+}
+
+/* ------------------------------------------BUTTON-------------------------------------- */
+
+.submit-info-update-button-container {
+  display: flex; /* Enables flexbox on the container */
+  width: fit-content;
+  justify-content: flex-end; /* Pushes content to the right side */
+  align-items: center; /* Vertically centers the button */
+  padding: 10px; /* Optional: padding */
+}
+
+.submit-info-update-button {
+  align-items: center; /* Vertically center the SVG within the button */
+  background: none;
+  margin-right: 5px;
+  cursor: pointer;
+  border: none;
+  order: 1;
+}
+
+.submit-info-update-button svg {
+  fill: #ffffffa8; /* You can change the SVG color here */
+  height: 25px;
+}
+
+.submit-info-update-button:hover svg {
+  fill: #ffffffa8;; /* You can change the SVG color here */
+  height: 25px;
+}
+

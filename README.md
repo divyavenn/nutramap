@@ -29,7 +29,8 @@ Entry into the database is made simple using autocomplete. You choose which nutr
 Make sure to select your environment-specific interpreter in Visual Studio.
 
 #### Testing
-Run `uvicorn main:app --reload`
+To run backend: `uvicorn backend.main:app --reload`
+To run frontend: `npm run dev`
 
 #### Manual Inspection of Databases
  I recommend DBVisualizer for relational dbs and MongoDB Compass for noSQL
