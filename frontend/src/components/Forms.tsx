@@ -1,15 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { PageLink } from './Elems';
 import { useNavigate } from 'react-router-dom';
+<<<<<<< Updated upstream:frontend/src/components/Forms.tsx
+=======
+import {HoverButton } from './Sections';
+import SubmitButton from '../assets/images/login.svg?react'
+import SubmitButtonHollow from '../assets/images/login-hollow.svg?react'
+import {Link} from 'react-router-dom';
+import { accountInfoAtom } from './account_states';
+import { RecoilRoot, useRecoilValue } from 'recoil';
+>>>>>>> Stashed changes:frontend/src/components/LoginForm.tsx
 
-function LoginForm() {
+function LoginFormContent() {
   // State to store the email and password
   
-
+  const accountInfo = useRecoilValue(accountInfoAtom)
+  console.log(accountInfo);
   const [formData, setFormData] = useState({
+<<<<<<< Updated upstream:frontend/src/components/Forms.tsx
     email : '',
     password : '',
     errorMessage: '',
+=======
+    email: accountInfo['email'] ? accountInfo['email'] : '', // Check if email is not blank, otherwise set to empty
+    password : '', 
+    errorMessage : '',
+>>>>>>> Stashed changes:frontend/src/components/LoginForm.tsx
     isSubmitting: false,
     isSuccess: false
   });
@@ -145,6 +161,9 @@ function LoginForm() {
   );
 };
 
-
+function LoginForm(){
+  return (
+ <LoginFormContent/>)
+}
 export default LoginForm;
 

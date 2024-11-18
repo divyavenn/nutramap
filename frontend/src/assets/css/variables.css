@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;700&display=swap');
+
 :root {
   --white: white;
   --navy: #0056a7;
@@ -13,5 +15,34 @@
   --nutramap-accent: #ebaaff52;
   --nutramap-accent-dark: rgba(25, 5, 5, 0.79)
   --nutramap-main: #2f0053;
+<<<<<<< Updated upstream
 
+=======
+  --bright: hsl(264, 100%, 50%);
+  --transparent-bright: hsla(264, 100%, 50%, 0.828);
+  --transparent-bg: hsla(252, 100%, 4%, 0.484); /* Light green */
+  --red: rgba(62, 12, 12, 0.496); /* Almost black */
+  --purple: hsla(276, 80.00%, 46.67%, 1.00);
+}
+
+/* Custom Toast Styling */
+.custom-toast {
+  background-color: black !important; /* Black background */
+  color: white !important;           /* White text color */
+  border-radius: 12px !important;    /* Rounded corners */
+  font-family: 'Inconsolata', monospace !important; /* Inconsolata font */
+}
+
+.blinking-cursor {
+  display: inline-block;
+  width: 1px;
+  background-color: black;
+  animation: blink 0.7s step-end infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+>>>>>>> Stashed changes
 }
