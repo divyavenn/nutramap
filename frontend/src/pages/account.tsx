@@ -10,12 +10,12 @@ import {Heading} from '../components/Title'
 import Dashboard from '../assets/images/dashboard.svg?react'
 import {request} from '../components/endpoints'
 import '../assets/css/account.css'
-import { accountInfoAtom, firstNameAtom, passwordAtom, useRefreshAccountInfo, editingPasswordAtom} from '../components/account_states';
+import { accountInfoAtom, firstNameAtom, useRefreshAccountInfo, editingPasswordAtom, useResetAccountAtoms} from '../components/account_states';
 import { HoverButton } from '../components/Sections';
 import Ok from '../assets/images/check_circle.svg?react'
 import OkHover from '../assets/images/checkmark.svg?react'
 import { useNavigate } from 'react-router-dom';
-import { isLoginExpired } from '../components/utlis';
+import { isLoginExpired, cleanLocalStorage } from '../components/utlis';
 
 function UpdateInfo({infoType} : {infoType : 'name' | 'email' | 'password'}){
   const [accountInfo, setAccountInfo] = useRecoilState(accountInfoAtom)
@@ -33,6 +33,9 @@ function UpdateInfo({infoType} : {infoType : 'name' | 'email' | 'password'}){
   }
 
   useEffect(() => {
+    if (isLoginExpired()){
+      navigate('/login')
+    }
     if (dialogRef.current) {
       document.addEventListener("mousedown", handleClickOutside);
     }
@@ -93,7 +96,7 @@ function UpdateInfo({infoType} : {infoType : 'name' | 'email' | 'password'}){
 }
 
 function CheckPassword({mustAuthenticate, protectedComponent} : {mustAuthenticate : boolean, protectedComponent : React.ReactNode}){
-  const [password, setPassword] = useRecoilState(passwordAtom)
+  const [password, setPassword] = useState('')
   const [authenticated, setAuthenticated] = useState(!mustAuthenticate)
   const [isIncorrect, setIsIncorrect] = useState(false);
 
@@ -139,13 +142,6 @@ function CheckPassword({mustAuthenticate, protectedComponent} : {mustAuthenticat
 }
 
 
-const cleanLocalStorage = () => {
-  localStorage.removeItem('access_token')
-  localStorage.removeItem('foods')
-  localStorage.removeItem('nutrients')
-}
-
-
 function ConfirmModal() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -172,20 +168,12 @@ function ConfirmModal() {
   );
 }
 
-
-function DeleteAccount(){
-  const navigate = useNavigate(); 
-  const handleDelete = async () => {
-    await request('/user/delete', 'POST')
-    cleanLocalStorage()
-    navigate('/')
-  }
-}
-
 function LogoutButton(){
   const navigate = useNavigate(); 
+  const resetAccountAtoms = useResetAccountAtoms()
   const handleLogout = () =>{
     cleanLocalStorage();
+    resetAccountAtoms();
     navigate('/')
   }
 
@@ -220,9 +208,8 @@ function ChangePasswordButton(){
 }
 
 function AccountInfo(){
-  const [accountInfo, setAccountInfo] = useRecoilState(accountInfoAtom)
   const editPasswordRef = useRef<HTMLDivElement>(null); 
-  const [editingPassword, setEditingPassword] = useRecoilState(editingPasswordAtom)
+  const setEditingPassword = useSetRecoilState(editingPasswordAtom)
 
     // Function to close form if clicked outside
     const handleClickOutside = (event: MouseEvent) => {
@@ -249,15 +236,6 @@ function AccountInfo(){
         document.removeEventListener('mousedown', handleClickOutside); // Cleanup
       };  
     }, [editPasswordRef])  
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;  // Destructure name and value from event target
-    // Update the corresponding field in formData
-    setAccountInfo({
-      ...accountInfo,  // Spread the previous state to retain other fields
-      [name]: value,    // Dynamically update the field based on the input's name
-    });
-  };
 
   return (
     <MainSection>
@@ -300,9 +278,7 @@ function Account(){
 
 
 function AccountRoot(){
-  return (<RecoilRoot>
-    <Account/>
-  </RecoilRoot>)
+  return (<Account/>)
 }
 
 export default AccountRoot

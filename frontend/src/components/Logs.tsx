@@ -93,7 +93,8 @@ function DateDivider({date} : {date : Date}) {
         {date.toLocaleDateString('en-US', 
         { weekday: 'long', 
           month: 'long', 
-          day: 'numeric'} )}</button>
+          day: 'numeric'} )}
+      </button>
     </div>
   )
 }

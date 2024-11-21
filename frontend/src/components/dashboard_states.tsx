@@ -38,8 +38,8 @@ function useRefreshLogs() {
     + tolocalDateString(dateRange.start)
     + '&endDate=' 
     + tolocalDateString(dateRange.end) + '');
-
-    setLogs(await data.body)
+    console.log('logs' + data.body)
+    setLogs(data.body)
   }
   return refreshLogs
 }

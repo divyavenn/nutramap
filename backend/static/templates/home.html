@@ -1,0 +1,26 @@
+{% extends 'layout.html' %}
+
+{% block title %} home{% endblock %}
+
+{% block content %}
+    <section class="main-section">
+      <div class="nutramap-title-staggered">
+        <div class="nutra">nutra</div>
+        <div class="map">map</div>
+      </div>
+      <div class="nutramap-subtitle">effortlessly track what you eat.</div>
+    </section>
+    <section class="main-section">
+      <div class="w-embed w-script">
+        <script src="https://unpkg.com/@dotlottie/player-component@latest/dist/dotlottie-player.mjs" type="module"></script>
+        <dotlottie-player src="https://lottie.host/a6b05235-d19b-48b1-9811-e76c7f90afb4/Y5gjHcPneC.json" background="transparent" speed="1" style="width: 300px; height: 300px;" loop="" autoplay=""></dotlottie-player>
+      </div>
+    </section>
+    <section class="main-section">
+      <div class="login-link">
+        <a href="/auth/login" class="link-to-login">login</a>
+      </div>
+    </section>
+    <section class="margin-bottom"></section>
+
+{% endblock %}

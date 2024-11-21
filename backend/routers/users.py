@@ -29,8 +29,7 @@ food_db_dependency = Annotated[Session, Depends(get_session)]
 @router.get("/info")
 def protected_route(user: dict = Depends(get_current_user)):
     if user:
-      print(user)
-      return user
+      return {"name" : user["name"], 'email' : user["email"], "role" : user["role"]}
     else:
       return JSONResponse(content={"message": "You are not authenticated"}, status_code=401)
 
@@ -40,7 +39,6 @@ def create_user(user: UserCreate, user_db : user_db_dependency):
     user_dict = user.model_dump()
     # this removes the password field and assigns the value to the password_hash field, allowing hashing for security purposes
     user_dict["password_hash"] = hash_password(user_dict.pop("password"))
-    user_dict["_id"] = str(ObjectId())
     user_dict["role"] = "user"
     
     try:
@@ -50,7 +48,7 @@ def create_user(user: UserCreate, user_db : user_db_dependency):
         raise HTTPException(status_code=400, detail="Email already registered")
     
     
-    return User(**user_dict)
+    return user_dict
 
 
 @router.post("/check-password")
@@ -68,8 +66,6 @@ def check_password(user : user_dependency, password: str):
 def get_user(user_db : user_db_dependency):
     
     users = list(user_db.users.find({}))
-    #for user in users:
-    #   user["user_id"] = str(user.pop("_id"))  # Convert ObjectId to string
     return [User(**user) for user in users]
     
 
@@ -105,16 +101,17 @@ def update_name(new_name: str, user: user_dependency, user_db : user_db_dependen
 
 
 @router.post("/delete")
-def update_email(user: user_dependency, user_db : user_db_dependency):
+def delete(user: user_dependency, user_db : user_db_dependency):
     query = {"_id": user["_id"]}
-    
+    itemQuery = {"user_id": user["_id"]}
     user_to_delete = user_db.users.find_one(query)
     
     if user_to_delete is None:
         raise HTTPException(status_code = 401, detail = "This user does not exist")
     
     user_db.users.delete_one(query)
-    user_db.logs.delete_many(query)
+    user_db.logs.delete_many(itemQuery)
+    user_db.requirements.delete_many(itemQuery)
     
 
 @router.post("/update-email")

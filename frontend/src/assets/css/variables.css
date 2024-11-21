@@ -1,0 +1,13 @@
+:root {
+  --clear: #fff0;
+  --nutramap-accent: #ebaaff52;
+  --white: #ffffffda;
+  --transparent-white: #ffffff7e;
+  --nutramap-accent-dark: rgba(25, 5, 5, 0.79)
+  --nutramap-main: #2f0053;
+  --bright: hsl(264, 100%, 50%);
+  --transparent-bright: hsla(264, 100%, 50%, 0.828);
+  --transparent-bg: hsla(252, 100%, 4%, 0.484); /* Light green */
+  --red: rgba(62, 12, 12, 0.496); /* Almost black */
+  --purple: hsla(276, 80.00%, 46.67%, 1.00);
+}

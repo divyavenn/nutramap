@@ -1,20 +1,19 @@
 
-import React, { useEffect, useState } from 'react' 
-import {request, doWithData } from './endpoints';
-import {HoverButton } from './Sections';
-import Arrow from '../assets/images/arrow.svg?react'
-import Ok from '../assets/images/checkmark.svg?react'
-import Trashcan from '../assets/images/trashcan.svg?react'
+import React, {useState } from 'react' 
+import {request } from './endpoints';
 import '../assets/css/new_nutrient.css'
 import '../assets/css/buttons.css'
-import { getNutrientInfo } from './utlis';
-import { tolocalDateString } from './utlis'
-import {ImageButton } from './Sections';
 import { Nutrient } from './structures';
+import { getNutrientInfo } from './utlis';
 import { useRefreshRequirements } from './dashboard_states';
+import { memo } from 'react';
+import { HoverButton} from './Sections';
+import { ImageButton } from './Sections';
+import Trashcan from '../assets/images/trashcan.svg?react'
+import Ok from '../assets/images/check_circle.svg?react'
+import OkOk from '../assets/images/checkmark.svg?react'
 
-
-function NewNutrientForm( {original} : {original? : Nutrient}){
+function NewNutrientForm({ original }: { original?: Nutrient }): React.ReactNode{
 
   const nutrientList : Record<string, string> = JSON.parse(localStorage.getItem('nutrients') || '{}');
 
@@ -84,15 +83,11 @@ function NewNutrientForm( {original} : {original? : Nutrient}){
       should_exceed: Boolean(formData.should_exceed)
     }
     let response = await request('/requirements/new','POST', requestData, 'JSON')
-    console.log(`new requirement added  ${response.body}`);
     refreshRequirements();
 
-    if (!original){
-      setFormData({ nutrient_name: '', requirement: '', should_exceed : true})
-    }
-    else {
-        setFormData({ nutrient_name: formData.nutrient_name, requirement: formData.requirement, should_exceed : formData.should_exceed})
-      }
+      // Reset the form state immediately to avoid showing incorrect data
+    if (!original) setFormData({ nutrient_name: '', requirement: '', should_exceed: true });
+    else setFormData({ nutrient_name: original.name, requirement: String(original.target), should_exceed: original.shouldExceed});
     }
 
 
@@ -161,7 +156,7 @@ function NewNutrientForm( {original} : {original? : Nutrient}){
               type="submit"
               className="new-nutrient-button"
               childrenOn={<Ok/>}
-              childrenOff={<Ok/>}>
+              childrenOff={<OkOk/>}>
       </HoverButton>)}
       </div> 
   

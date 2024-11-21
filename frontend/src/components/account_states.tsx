@@ -2,8 +2,8 @@ import {
   atom,
   selector,
   useSetRecoilState,
-  useRecoilState,
-  useRecoilValue,
+  useResetRecoilState,
+  useRecoilState
 } from 'recoil';
 import { request } from './endpoints';
 import { doWithData } from './endpoints';
@@ -24,29 +24,35 @@ const editingPasswordAtom = atom<boolean>({
 const accountInfoAtom = atom<AccountInfo>({
   key: 'accountInfo',
   default: {name : "",
-            email : "user@domain.com",
+            email : "",
             password : ""}
 })
 
+
+// you can only use hooks inside other hooks or inside components
 function useRefreshAccountInfo() {
-  const setAccountInfo = useSetRecoilState(accountInfoAtom)
+  const [info, setAccountInfo] = useRecoilState(accountInfoAtom)
   const refreshAccountInfo = () => {
+    console.log("refreshing user info")
     doWithData('/user/info', setAccountInfo)
   }
   return refreshAccountInfo;
 
 }
-const firstNameAtom =  selector<string>({
+const firstNameAtom = selector<string>({
   key: 'firstName',
   get: ({get}) => {
-    let name = get(accountInfoAtom).name
-    return name.trim().split(' ')[0]
+    let firstName = get(accountInfoAtom).name.trim().split(' ')[0]
+    return firstName
   }
 })
 
-const passwordAtom = atom<string>({
-  key: 'password',
-  default: ''
-})
+const useResetAccountAtoms = () => { 
+  const resetAtoms = () => {
+    useResetRecoilState(accountInfoAtom)();
+    useResetRecoilState(editingPasswordAtom)();
+  }
+  return resetAtoms
+}
 
-export {accountInfoAtom, firstNameAtom, passwordAtom, useRefreshAccountInfo, editingPasswordAtom}
+export {accountInfoAtom, firstNameAtom, useRefreshAccountInfo, editingPasswordAtom, useResetAccountAtoms}

@@ -68,7 +68,7 @@ function NutrientDashboard(){
           {!editing ?
             nutrientStats.length === 0 ? 
 
-              <div> no requirements </div> :
+              <div className = 'no-req-message'> no requirements </div> :
 
               <div className='nutrient-list-wrapper'>
 
@@ -76,7 +76,7 @@ function NutrientDashboard(){
                   (nutrientStats.map((n, index) => 
                   {return (
                     <NutrientStats
-                      key={index}  // Using index as a key. Ideally, use a unique id if available.
+                      key={n.name}  // Using index as a key. Ideally, use a unique id if available.
                       name={removeTextWithinBrackets(n.name)}
                       target={n.target}
                       dayIntake={n.dayIntake}
@@ -91,7 +91,7 @@ function NutrientDashboard(){
               nutrientStats.map((n, index) => 
                 {return(
                   <NewNutrientForm
-                    key={index}  // Using index as a key. Ideally, use a unique id if available.
+                    key={n.name}  // Using index as a key. Ideally, use a unique id if available.
                     original={n}/>);
                 })
               }
@@ -134,8 +134,8 @@ function NutrientStats({ name, target, dayIntake = 0, avgIntake, shouldExceed, u
 
   // Calculate the progress percentage
   const progressPercentage = Math.min((dayIntake / target) * 100, 100);
-
   const progressColor = calculateColor(progressPercentage, shouldExceed);
+
 
   // Determine the average intake color based on the same rules as above
   const avgColor = calculateColor((avgIntake / target) * 100, shouldExceed);

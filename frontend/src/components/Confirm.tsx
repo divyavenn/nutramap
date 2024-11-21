@@ -5,20 +5,21 @@ import {
   useRecoilValue,
 } from 'recoil';
 
-function Confirm({message} : {message : string}) {
+function Confirm({message, ifYesDo, ifNoDo} : {message : string, ifYesDo : ()=>void, ifNoDo : ()=>void}) {
   const name = useRecoilValue(firstNameAtom)
+
   return (
     <div className = 'confirm-modal'>
       <div className = 'dialog-text'>
         {message}
       </div>
       <div className = 'options-holder'>
-        <div className = 'option left'>
+        <button className = 'option left' onClick={ifYesDo}>
           <div className = 'option-text'> yes </div>
-        </div>
-        <div className = 'option right'>
+        </button>
+        <button className = 'option right' onClick={ifNoDo}>
           <div className = 'option-text'> no </div>
-        </div>
+        </button>
       </div>
     </div>
   )

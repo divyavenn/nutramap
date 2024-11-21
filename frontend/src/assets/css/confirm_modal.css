@@ -15,7 +15,6 @@
   align-items: center;
   grid-column-gap: 0px;
   grid-row-gap: 0px;
-  font-family: Poppins;
 }
 
 .confirm-modal{
@@ -28,9 +27,9 @@
   border-top-right-radius: 30px;
   border-bottom-left-radius: 30px;
   border-bottom-right-radius: 30px;
-  background-color: hsla(0, 0.00%, 0.00%, 0.34);
+  background-color: hsla(254, 100%, 12%, 0.501);
   font-family: Inconsolata;
-  color: var(--white);
+  color: bisque;
   font-size: 20px;
 }
 
@@ -55,7 +54,7 @@
 
 .options-holder {
   display: flex;
-  height: 25%;
+  height: 30%;
   flex-direction: row;
   justify-content: center;
   flex-wrap: nowrap;
@@ -63,15 +62,22 @@
   align-self: stretch;
   border-bottom-left-radius: 30px;
   border-bottom-right-radius: 30px;
-  background-color: hsla(254, 100.00%, 8.67%, 0.58);
+  background-color: hsla(0, 0%, 0%, 0.413);
   font-size: 25px;
 }
 
 
 .option {
   flex-grow: 1;
-  flex-shrink: 1;
+  height: 100%;
+  flex-shrink: 0;
   flex-basis: 0%;
+  background: var(--clear);
+  color: bisque;
+}
+
+.option:hover{
+  background: black;
 }
 
 .option.left {

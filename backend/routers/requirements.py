@@ -21,7 +21,7 @@ user_db_dependency = Annotated[Database, Depends(get_user_data)]
 food_db_dependency = Annotated[Session, Depends(get_session)] 
 
 def get_requirements_for_user(user, user_db):
-    query = {"user_id": str(user["_id"])}
+    query = {"user_id": user["_id"]}
     requirements = user_db.requirements.find(query)
     if requirements is None:
         raise HTTPException(status_code = 401, detail = "This user has no requirements.")

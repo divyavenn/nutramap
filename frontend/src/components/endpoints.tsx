@@ -60,12 +60,13 @@ function printDictionary(dictionary: Record<string, any>): void {
 
 function getHeader(authorized : boolean = true, hasData : boolean = false, data_type : 'JSON' | 'URLencode' = 'URLencode'){
   let header : {[key: string]: any} = {}
-  if (authorized) {}
+  if (authorized) {
     const token = localStorage.getItem('access_token');
     if (!token) {
       throw new Error('Authentication token not found');
     }
     header['Authorization'] = `Bearer ${token}`;
+  }
   if (hasData){
     if (data_type == 'JSON') {
       header['Content-Type'] = 'application/json'
@@ -74,8 +75,6 @@ function getHeader(authorized : boolean = true, hasData : boolean = false, data_
       header['Content-Type'] = "application/x-www-form-urlencoded"
     }
   }
-  // console.log('with header')
-  // printDictionary(header)
   return header;
 }
 
@@ -87,23 +86,12 @@ async function request(url : string, method : string = 'GET', data : any = null,
       body: data ? ((data_type == 'JSON') ? JSON.stringify(data) : new URLSearchParams(data)) : null
   })
   .then(async response => {
-    if (!response.ok) {
-      const errorText = await response.text();  // Get the HTML error response for debugging
-      console.error('Response Error:', response.status, errorText);
-      throw Error();
-    }
-    else {
       let data = await response.json()
       return {
         status: response.status, // Include the status code
         body: data,      // Include the parsed response body
       };
-    }
-  })
-  .catch(error => {
-    console.error('Request error:', error);
-    throw Error()
-  });
+    })
 }
 
 //browsers do not automatically include custom headers when navigating to new pages or rendering templates.
