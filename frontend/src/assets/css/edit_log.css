@@ -1,0 +1,350 @@
+/* External styles.css */
+
+/* Hide number input spinners in WebKit browsers (Chrome, Safari, Edge) */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Hide number input spinners in Firefox */
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* When log-bubble is hovered, change input text and background color */
+.entry-form-bubble:hover input,
+.entry-form-bubble:hover textarea {
+  color: #1e002e; /* Change input text color to dark */
+  background-color: transparent; /* Ensure the background is transparent on hover */
+}
+
+
+/* For Chrome, Safari, Edge, and Opera */
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    display: none;
+    -webkit-appearance: none;
+}
+
+/* For Firefox */
+input[type="time"],
+input[type="datetime-local"] {
+    -moz-appearance: textfield;
+}
+
+/* This targets the calendar icon in the date input field */
+.edit-input-date::-webkit-calendar-picker-indicator {
+  display: none;
+  -webkit-appearance: none;
+}
+
+/* Additional styling for the input field */
+.edit-input-date {
+  border: none;
+  background-color: transparent;
+  color: inherit;
+  font-family: Inconsolata;
+  border-radius: 5px;
+  outline: none;
+  width: 100%; /* Adjust width as needed */
+}
+
+.edit-input-date:hover {
+  color: white;
+}
+
+
+input, textarea {
+  font-family: inherit;  /* Ensures input fields inherit the font-family of the parent */
+  font-size: inherit;
+  font-weight: inherit;
+  color: var(--white); /* Default text color */
+  background-color: transparent; /* Make sure the background is transparent initially */
+  border: none; /* Removes default borders */
+  outline: none; /* Removes outline when focused */
+  transition: color 0.3s ease, background-color 0.3s ease; /* Smooth transition */
+}
+
+/*--------------------------------------------CONTAINER----------------------------------*/
+
+.edit-form-elements-wrapper{
+  display: flex;
+  margin-bottom: 20px;
+  margin-left: 10px;
+  background-color: none;
+  color: var(--white);
+  flex-direction: row;
+  border-radius: 14px;
+}
+
+.form-dropdown-wrapper{
+  display: flex;
+  background-color: #19050576;
+  color: var(--white);
+  flex-direction: column;
+  border-radius: 14px;
+  width: 600px;
+}
+
+
+.edit-entry-form-bubble{
+  display: flex;
+  border-radius: 14px;
+  width: 600px;
+  background-color: #19050584;
+  /* border: 1px solid red; */
+  flex-direction: row;
+  align-items: center;
+  color: var(--white);
+  justify-content: space-between; /* Ensure space is distributed between elements */
+}
+
+.edit-entry-form-bubble.active{
+  border-bottom-left-radius: 0px;
+  border-bottom-right-radius: 0px;
+}
+
+.edit-entry-form-bubble:hover{
+  background-color: #ffffffa1;
+  color: #1e002e;
+}
+
+/* Activate suggestions dropdown */
+.form-elements-wrapper.active .suggestions-list {
+  opacity: .5;
+  transform: translateY(0);
+  pointer-events: all;
+}
+
+
+/*--------------------------------------------NAME----------------------------------*/
+
+
+/* Autocomplete suggestions styling */
+.edit-input-food-name-wrapper {
+  border-radius: 2px;
+  width: 300px;
+  position: relative; /* This is to ensure the suggestions dropdown aligns with the input */
+}
+
+.edit-input-food-name-wrapper:hover {
+  color: white;
+}
+
+
+.edit-input-food-name {
+  padding-top: 15px;
+  padding-bottom: 15px;
+  padding-left: 27px;
+  padding-right: 10px;
+  width: 300px;
+
+
+  background: none;
+  font-family: Inconsolata;
+  color: inherit;
+  outline: none;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  text-align: left; /* Ensures the text aligns properly */
+}
+
+
+/* ------------------------------------------AMOUNT-------------------------------------- */
+
+.edit-input-food-amt-wrapper {
+  display: flex;
+  justify-self: right;
+  align-items: center;
+  align-self: center;
+  position: relative;
+  margin-left: -50px;
+  width: 7%; /* Set width to match your layout */
+}
+
+/* The input for entering food amount */
+.edit-input-food-amt {
+  width: 100%; /* Ensures the input takes full available space in the wrapper */
+  padding-right: 10px; /* Creates space for the "g" */
+  background: none;
+  border: none; /* Removes the default border */
+  font-family: Inconsolata;
+  text-align: left; /* Align the input text to the left */
+  color: inherit; /* Inherit the text color (useful for hover) */
+}
+
+.edit-input-food-amt:hover {
+  color: white;
+}
+
+/* Styling for the "g" unit */
+.edit-unit {
+  position: absolute;
+  right: 0px;
+  font-family: Inconsolata;
+  color: inherit; /* Inherit text color (important for hover) */
+  pointer-events: none; /* Ensure the span doesn't interfere with input focus */
+}
+
+
+/* ------------------------------------------DATE-------------------------------------- */
+
+
+.edit-dateTime-container {
+  /* border: 1px solid red;  */
+  flex-direction: row;
+  display: flex; /* Enables flexbox on the container */
+  width: 25%;
+  justify-content: flex-end; /* Pushes content to the right side */
+  align-items: center; /* Vertically centers the button */
+  padding-right: 20px; /* Optional: padding */
+
+}
+
+.edit-input-date-wrapper {
+  /* border: 1px solid rgb(0, 4, 255); */
+  padding-right: 5px; /* Optional: padding */
+  flex-direction: row;
+  display: flex; /* Enables flexbox on the container */
+  align-content: center;
+  justify-content: center;
+}
+
+.calendar-button { 
+  background: none;
+  cursor: pointer;
+  border: none; 
+  margin-top: 3px;
+}
+
+.calendar-button svg {
+  fill: #ffffffa8;
+  width: 15px;
+}
+
+.calendar-button:hover svg {
+  fill: #1e002e;
+}
+
+.calendar-dropdown-wrapper {
+  display: flex;
+  flex-direction: row;
+  align-content: center;
+  justify-content: center;
+}
+
+
+/* ------------------------------------------TIME-------------------------------------- */
+
+.edit-input-time-wrapper {
+  display: block;
+  background: none;
+  color: inherit;
+  border: none;
+  font-family: Inconsolata;
+  text-align: right; /* Align the date to the right */
+  flex-shrink: 0;
+}
+
+.edit-input-time-wrapper:hover {
+  color: white
+}
+
+
+/*-----------------------------------SUGGESTIONS------------------------------*/
+
+
+.suggestions-list {
+  list-style-type: none; 
+  padding-left: 0; /* Removes default padding */
+  margin-left: 0; /* Removes default margin */
+  margin: 0; /* Optionally set the entire margin to 0 */
+
+  width: 100%; /* Ensure the suggestions take up the full width of the input */
+  max-height: 300px; /* Optional: Limit height */
+  overflow-y: auto; /* Scrollable if suggestions overflow */
+  z-index: 999;
+  opacity: 1;
+  transition: opacity 0.3s ease, max-height 0.3s ease;
+  /* Hides scrollbar in WebKit browsers (Chrome, Safari, etc.) */
+  -webkit-overflow-scrolling: touch; /* Enables smooth scrolling on mobile */
+  scrollbar-width: none; /* For Firefox */
+  }
+
+.suggestions-list::-webkit-scrollbar {
+  display: none; /* Hides scrollbar for WebKit browsers */
+  }
+
+/* Individual suggestion items */
+.suggestion-item {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  padding-left: 27px;
+  padding-right: 40px;
+  font-family: Inconsolata;
+  background-color: none;
+  color: var(--white);
+
+  cursor: pointer;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Hover effect for suggestions */
+.suggestion-item:hover {
+  background-color: #ffffffa1;
+  color: #1e002e;
+}
+
+
+
+.edit-log-submit-container {
+  display: flex; /* Enables flexbox on the container */
+  justify-content: flex-end; /* Pushes content to the right side */
+  padding-top: 10px;
+  padding-left: 5px;
+  align-items: start; /* Vertically centers the button */
+
+}
+
+.edit-log-submit {
+  background: none;
+  cursor: pointer;
+  border: none;
+
+  order: 1;
+}
+
+.edit-log-submit svg {
+  fill: #ffffffa8; /* You can change the SVG color here */
+  height: 25px;
+}
+
+.edit-log-submit:hover svg {
+  fill: #ffffff; /* You can change the SVG color here */
+}
+
+
+.delete-log-button-container {
+  display: flex; 
+  width: 30px;
+  margin-right: 5px;
+  padding-top: 12px;
+  align-items: start; /* Vertically centers the button */
+}
+
+.delete-button {
+  display: block;
+  clear: none;
+  background: none;
+  font-size: 10px;
+  text-align: center;
+}
+
+.delete-button svg {
+  fill: #ffffff77; /* You can change the SVG color here */ 
+  height: 20px;
+}
+
+.delete-button:hover svg {
+  fill: #ffffff; /* Change the color on hover */
+}

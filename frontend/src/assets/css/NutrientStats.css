@@ -1,0 +1,169 @@
+.nutrient-dashboard {
+  display: flex;
+  width: 600px;
+  margin-top: 0px;
+  margin-bottom: 20px; 
+  padding-top: 40px;
+  padding-bottom: 40px;
+  padding-right: 40px;
+  padding-left: 40px;
+
+  flex-direction: column;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  align-items: center;
+  flex-grow: 0;
+  flex-shrink: 0;
+  flex-basis: auto;
+  border-radius: 14px;
+  background-color: hsla(0, 0%, 0%, 0.518);
+  color: var(--white);
+}
+
+
+.requirement-edit-wrapper{
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.nutrient-edit-list-wrapper {
+  position: relative;
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  flex-direction: column;
+  justify-content: center;
+  padding-left: -20px;
+}
+.nutrient-list-wrapper {
+  position: relative;
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  flex-direction: column;
+  justify-content: center;
+  padding-top: 30px;
+  padding-bottom: 20px;
+}
+
+.nutrient-dashboard-title {
+  position: relative;
+  width: 100%;
+  font-family: Inconsolata;
+  color:var(--purple);
+  font-size: 16px;
+  font-weight: 300;
+  text-transform: none;
+}
+
+.dashboard-row {
+  position: relative;
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  margin-bottom: 10px;
+  justify-content: center;
+  align-items: flex-start;
+  align-self: center;
+  order: -1;
+  flex-grow: 0;
+  flex-shrink: 0;
+  flex-basis: auto;
+  aspect-ratio: auto;
+  object-fit: fill;
+}
+
+.nutrient-name-wrapper {
+  position: relative;
+  display: block;
+  width: 25%;
+  height: auto;
+  text-align: left;
+  align-self: center;
+  flex-grow: 0;
+  flex-shrink: 0;
+  flex-basis: auto;
+}
+
+.today-stats-wrapper {
+  position: relative;
+  width: 50%;
+  font-family: Poppins;
+  font-size: 15px;
+  align-self: center;
+  font-weight: 300;
+  text-align: center;
+  text-transform: none;
+}
+
+.avg-stats-wrapper {
+  position: relative;
+  width: 25%;
+  align-self: center;
+  padding-left: 30px;
+  text-align: center;
+
+}
+
+.nutrient-name {
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.daily-intake {
+  position: relative;
+  border-color: antiquewhite;
+  height: 10px;
+  background-color: #12000eb9;
+  border-radius: 100px;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  flex-direction: row;
+  align-self: center;
+  align-items: center;
+  justify-content: start;
+  justify-self: center;
+}
+
+/* .daily-intake:hover {
+  position: relative;
+  border-color: antiquewhite;
+  height: 10px;
+  background-color: #de00aeb9;
+  border-radius: 100px;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  flex-direction: row;
+  align-self: center;
+  align-items: center;
+  justify-content: start;
+  justify-self: center;
+} */
+
+
+.progress-bar {
+  height: 100%;
+  width: 100%; /* Ensure the progress bar fills the container */
+  transition: width 0.3s ease;
+  border-radius: 100px;
+}
+
+.intake-value {
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+  margin: 0 5px;
+}
+
+.avg-intake {
+  font-family: Poppins;
+  font-size: 13px;
+  font-weight: 300;
+  padding-left: 25px;
+  font-weight: bold;
+  cursor: default;
+  text-align: left;
+}
