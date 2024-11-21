@@ -14,16 +14,9 @@ Entry into the database is made simple using autocomplete. You choose which nutr
 ## Developer Setup 
 
 #### Package Management (using conda)
-- `conda create -n nutramapEnv python=3.8`
+- `conda env create -f environment.yml`
 - `conda activate nutramapEnv`
-- `chmod u+x install_reqs.sh`
-- `conda install -c conda-forge fastapi`
-- `conda install -c conda-forge uvicorn`
-- `conda install -c conda-forge sqlalchemy`
-- `conda install -c conda-forge typing-extensions`
-- `conda install -c conda-forge python-multipart`
-- `conda -install -c conda-forge  aiofiles`
-- 
+- `conda env update --file environment.yml`
 - `./install_reqs.sh`
 
 Make sure to select your environment-specific interpreter in Visual Studio.

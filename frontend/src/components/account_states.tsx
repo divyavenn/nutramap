@@ -46,11 +46,15 @@ const firstNameAtom = selector<string>({
 })
 
 const useResetAccountAtoms = () => { 
+  const resetAccountInfo = useResetRecoilState(accountInfoAtom);
+  const resetEditingPassword = useResetRecoilState(editingPasswordAtom);
+
   const resetAtoms = () => {
-    useResetRecoilState(accountInfoAtom)();
-    useResetRecoilState(editingPasswordAtom)();
+    resetAccountInfo();
+    resetEditingPassword();
   }
-  return resetAtoms
-}
+
+  return resetAtoms;
+};
 
 export {accountInfoAtom, firstNameAtom, useRefreshAccountInfo, editingPasswordAtom, useResetAccountAtoms}

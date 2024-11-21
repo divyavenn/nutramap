@@ -27,7 +27,6 @@ function UpdateInfo({infoType} : {infoType : 'name' | 'email' | 'password'}){
 
   const handleClickOutside = (event: MouseEvent) => {
     if (dialogRef.current && !dialogRef.current.contains(event.target as Node)) {
-      console.log("rstarstarwstr")
       refreshAccountInfo()
     }
   }
@@ -142,31 +141,6 @@ function CheckPassword({mustAuthenticate, protectedComponent} : {mustAuthenticat
 }
 
 
-function ConfirmModal() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  const handleDelete = () => {
-    console.log("Item deleted!");
-    setIsModalOpen(false); // Close the modal after deletion
-  };
-
-  return (
-    <div>
-      <button onClick={() => setIsModalOpen(true)}>Delete</button>
-
-      {isModalOpen && (
-        <>
-          <div className="overlay" onClick={() => setIsModalOpen(false)}></div>
-          <div className="modal">
-            <p>Are you sure you want to delete this?</p>
-            <button onClick={handleDelete}>Yes</button>
-            <button onClick={() => setIsModalOpen(false)}>No</button>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
 
 function LogoutButton(){
   const navigate = useNavigate(); 

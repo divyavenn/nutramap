@@ -38,7 +38,8 @@ app.mount("/static", StaticFiles(directory="backend/static"), name="static")
 @app.get("/")
 def welcome(request: Request):
   # request is the data being passed into the template. in this case, empty.
-  return templates.TemplateResponse("home.html", {"request" : request})
+  # return templates.TemplateResponse("home.html", {"request" : request})
+  return "hi!"
 
 
 app.include_router(auth.router)
