@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, startTransition} from 'react';
+import { useState, useEffect, useRef, startTransition} from 'react';
 import { calculateColor, formatDayForFrontend} from './utlis';
 import { ImageButton } from './Sections';
 import AddLogButton from '../assets/images/plus.svg?react'

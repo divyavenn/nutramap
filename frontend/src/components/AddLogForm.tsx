@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react' 
-import {doWithData, request} from './endpoints';
+import React, { useState } from 'react' 
+import {request} from './endpoints';
 import {HoverButton } from './Sections';
 import Arrow from '../assets/images/arrow.svg?react'
 import Ok from '../assets/images/checkmark.svg?react'
@@ -7,7 +7,6 @@ import '../assets/css/new_log.css'
 import '../assets/css/buttons.css'
 import { getFoodID } from './utlis';
 import { tolocalDateString } from '../components/utlis'
-import { isValid } from 'date-fns';
 import { useRefreshLogs } from './dashboard_states';
 
 

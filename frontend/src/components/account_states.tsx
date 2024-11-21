@@ -1,11 +1,9 @@
 import {
   atom,
   selector,
-  useSetRecoilState,
   useResetRecoilState,
   useRecoilState
 } from 'recoil';
-import { request } from './endpoints';
 import { doWithData } from './endpoints';
 
 

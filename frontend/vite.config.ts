@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react(), svgr()],
   build: {
     // Adjust this path to where you want to output your build files
-    outDir: '../dist', // Adjust based on your project structure
+    outDir: 'dist', // Adjust based on your project structure
     emptyOutDir: true, // Cleans the output directory before building
     rollupOptions: {
       external: ['react-toastify'], // Mark it as external

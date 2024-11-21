@@ -1,6 +1,6 @@
 // src/loadHtml.ts
 
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 
 
 interface ContentProps{

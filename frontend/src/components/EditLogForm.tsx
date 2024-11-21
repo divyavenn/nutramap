@@ -1,20 +1,16 @@
-import React, { useEffect, useState } from 'react' 
-import {request, doWithData} from './endpoints';
+import React, { useState } from 'react' 
+import {request} from './endpoints';
 import {HoverButton, ImageButton } from './Sections';
 import YesOk from '../assets/images/check_circle.svg?react'
 import IsOk from '../assets/images/checkmark.svg?react'
 import Trashcan from '../assets/images/trashcan.svg?react'
-import Cal from '../assets/images/calendar.svg?react'
-import Calday from '../assets/images/calendar_day.svg?react'
-import { Calendar, CalendarDay} from './DateSelector';
-import { formatTime } from './utlis';
+import { CalendarDay} from './DateSelector';
 import { getFoodID } from './utlis';
 import { tolocalDateString } from '../components/utlis'
 
 import '../assets/css/edit_log.css'
 import { LogProps } from './structures';
 import { useRefreshLogs } from './dashboard_states';
-import { formatDayForFrontend } from './utlis';
 
 
 

@@ -6,7 +6,6 @@ import '../assets/css/buttons.css'
 import { Nutrient } from './structures';
 import { getNutrientInfo } from './utlis';
 import { useRefreshRequirements } from './dashboard_states';
-import { memo } from 'react';
 import { HoverButton} from './Sections';
 import { ImageButton } from './Sections';
 import Trashcan from '../assets/images/trashcan.svg?react'

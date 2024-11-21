@@ -2,11 +2,11 @@ import '../assets/css/logs.css'
 import 'react-date-range/dist/styles.css'; // main style file
 import 'react-date-range/dist/theme/default.css'; 
 
-import {useState, useEffect} from 'react'
+import {useState} from 'react'
 import { EditLogForm } from './EditLogForm';
 import { formatTime } from './utlis';
-import { LogbookProps, LogProps, DisplayLogProps } from './structures';
-import {useRecoilState, useRecoilValue, useSetRecoilState} from 'recoil'
+import { LogProps, DisplayLogProps } from './structures';
+import {useRecoilValue, useSetRecoilState} from 'recoil'
 import { logsAtom, currentDayAtom, useRefreshLogs } from './dashboard_states';
 
 
