@@ -9,6 +9,7 @@ export default defineConfig({
     outDir: '../dist', // Adjust based on your project structure
     emptyOutDir: true, // Cleans the output directory before building
     rollupOptions: {
+      external: ['react-toastify'], // Mark it as external
       input: {
         main: './index.html',        // Home page
         dashboard: './templates/dashboard.html',       // About page
