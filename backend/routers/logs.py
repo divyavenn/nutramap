@@ -111,6 +111,8 @@ def add_log(user: user, log: Log, db: db):
 
 @router.delete("/delete")
 def remove_log(user: user, log_id: str, db : db):
+    print(log_id)
+    print(user["_id"])
     log = db.logs.find_one({"_id": ObjectId(log_id), "user_id": ObjectId(user["_id"])})
     
     if not log:
@@ -119,7 +121,7 @@ def remove_log(user: user, log_id: str, db : db):
     print(log)
 
     # Perform the update operation
-    result = db.logs.delete_one({"_id": log_id})
+    result = db.logs.delete_one({"_id": ObjectId(log_id), "user_id": ObjectId(user["_id"])})
   
     
     # Check if the document was deleted

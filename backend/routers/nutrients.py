@@ -20,7 +20,7 @@ async def get_all_nutrients(db: db):
     # Query the nutrients collection and exclude specified IDs
     excluded_ids = [1062, 2047, 2048]
     nutrients = list(db.nutrients.find(
-        # {"_id": {"$nin": excluded_ids}},  # Filter to exclude nutrient IDs
+    {"_id": {"$nin": excluded_ids}},  # Filter to exclude nutrient IDs
     ))
     if not nutrients:
         return JSONResponse(content={"message": "No data found."}, status_code=404)

@@ -8,7 +8,7 @@ import {Heading} from '../components/Title'
 import { MainSection, Header} from '../components/Sections'
 import { NewLogForm } from '../components/AddLogForm' 
 import { NutrientDashboard} from '../components/NutrientDash'
-import { useRefreshLogs, useRefreshRequirements } from '../components/dashboard_states'
+import { useRefreshLogs, useRefreshRequirements, useRefreshData } from '../components/dashboard_states'
 import Account from '../assets/images/account.svg?react'
 import { isLoginExpired } from '../components/utlis'
 import { useNavigate } from 'react-router-dom';
@@ -27,6 +27,7 @@ function Dashboard(){
   const refreshLogs = useRefreshLogs();
   const refreshRequirements = useRefreshRequirements();
   const refreshAccountInfo = useRefreshAccountInfo();
+  const refreshData = useRefreshData();
   const navigate = useNavigate(); 
 
 
@@ -52,14 +53,14 @@ function Dashboard(){
   }
 
   useEffect(() => {
-    refreshAccountInfo();
     if (isLoginExpired()){
       navigate('/login')
     }
+    refreshData()
+    localStorage.getItem('foods') ? null : doWithData('/food/all', addFoodsToLocalStorage, 'GET')
+    localStorage.getItem('nutrients') ? null : doWithData('/nutrients/all', addNutrientstoLocalStorage, 'GET')
     refreshLogs()
     refreshRequirements()
-    doWithData('/food/all', addFoodsToLocalStorage, 'GET')
-    doWithData('/nutrients/all', addNutrientstoLocalStorage, 'GET')
   }, []);
   
   return(

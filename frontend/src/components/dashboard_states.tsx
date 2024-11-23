@@ -11,7 +11,6 @@ import { request } from './endpoints';
 import { tolocalDateString } from './utlis';
 
 
-
 const dateRangeAtom= atom<TimePeriod>({
   key: 'currentPeriod', 
   default : getCurrentPeriod()
@@ -28,6 +27,24 @@ const logsAtom = atom<LogProps[]>({
 })
 
 
+function useRefreshData(){
+  let dateRange = useRecoilValue(dateRangeAtom)
+  let setLogs = useSetRecoilState(logsAtom)
+  let setRequirements = useSetRecoilState(requirementsAtom)
+
+  const refreshData = async () => {
+    const [logData, requirementsData] = await Promise.all([
+      request('/logs/get?startDate=' 
+        + tolocalDateString(dateRange.start)
+        + '&endDate=' 
+        + tolocalDateString(dateRange.end) + ''),
+      request('/requirements/all')
+    ]);
+    setLogs(logData.body)
+    setRequirements(requirementsData.body);
+  }
+  return refreshData
+}
 function useRefreshLogs() {
   let dateRange = useRecoilValue(dateRangeAtom)
   let setLogs = useSetRecoilState(logsAtom)
@@ -94,11 +111,34 @@ const averageIntake = selector<{[key : string] : number}>({
 
 
 type NutrientDetails = {
-  id: number;
+  name: string;
   unit: string;
 };
 
+const nutrientDetailsByNameAtom = atom<{[key : string] : {id : number, unit : string}}>({
+  key: 'nutrientDetails',
+  default: await (await request('/food/all', 'GET')).body
+});
 
+const nutrientDetailsByIDAtom = selector<{[key : number] : NutrientDetails}>({
+  key: 'nutrientDetails',
+  get: async ({get}) => {
+    const data = get(nutrientDetailsByNameAtom)
+    const idKeyedMap: Record<number, { name: string; unit: string }> = {};
+    for (const [name, details] of Object.entries(data)) {
+      idKeyedMap[details.id] = { name, unit: details.unit };
+    }
+    return idKeyedMap
+  }
+});
+
+
+const requirementDetailsAtom = selector<{[key : string] : NutrientDetails}>({
+  key: 'requirementsDetails',
+  get: async ({get}) => {
+  return;
+  }
+})
 
 const rowData = selector<Array<NutrientStatsProps>>({
   key: 'rowData',
@@ -108,10 +148,16 @@ const rowData = selector<Array<NutrientStatsProps>>({
     const dailyValues = get(dayIntake);
     const avgValues = get(averageIntake);
 
-    const nutrientDetails: Record<string, { id: number; unit: string; name: string }> = 
-      JSON.parse(localStorage.getItem('nutrients_by_id') || '{}');
+    const nutrientDetails = get(nutrientDetailsAtom);
 
-    console.log(nutrientDetails)
+    if (!requirements || Object.keys(requirements).length === 0) {
+      console.warn("No requirements found");
+      return [];
+    }
+    if (!nutrientDetails) {
+      console.warn("Nutrient details missing");
+      return [];
+    }
 
     if (Object.keys(requirements).length > 0) {
       const combined = Object.keys(requirements).map((nutrientId) => {
@@ -142,4 +188,4 @@ const rowData = selector<Array<NutrientStatsProps>>({
   },
 });
 
-export {dateRangeAtom, currentDayAtom, useRefreshLogs, useRefreshRequirements, logsAtom, rangeTypeAtom, requirementsAtom, rowData, averageIntake, dayIntake}
+export {dateRangeAtom, currentDayAtom, useRefreshLogs, useRefreshData, useRefreshRequirements, logsAtom, rangeTypeAtom, requirementsAtom, rowData, averageIntake, dayIntake}

@@ -17,12 +17,15 @@ db.requirements.create_index(
     name="unique_requirement_ndex"
 )
 
+db.logs.create_index([("log_id",ASCENDING)], unique=True)
+
 if db.users.count_documents({}) == 0:
     print("empty!")
 
 def get_data():
     return db
 
-# Ensure the client is closed when the application shuts down
+# Ensure the client is closed when the app
+# lication shuts down
 def close_mongo_db():
     cluster.close()
