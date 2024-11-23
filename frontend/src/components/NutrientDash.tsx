@@ -29,7 +29,7 @@ function NutrientDashboard(){
   const nutrientStatsData = useRecoilValueLoadable(rowData) 
 
   useEffect(() => {
-    console.log("updating rowdata")
+    // console.log("updating rowdata")
     startTransition(() => {
       setNutrientStats(nutrientStatsData.contents);
     });
@@ -44,7 +44,7 @@ function NutrientDashboard(){
     
   useEffect(() => {
     // start looking for clicks outside if new requirement form is visible
-    console.log("clicked outside edit form")
+    // console.log("clicked outside edit form")
     if (editFormRef.current) {
       document.addEventListener('mousedown', handleClickOutside);
     }
@@ -74,7 +74,8 @@ function NutrientDashboard(){
 
                 {nutrientStats.length > 0 && 
                   (nutrientStats.map((n, index) => 
-                  {return (
+                  {
+                    return (
                     <NutrientStats
                       key={n.name}  // Using index as a key. Ideally, use a unique id if available.
                       name={removeTextWithinBrackets(n.name)}

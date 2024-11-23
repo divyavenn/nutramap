@@ -34,20 +34,32 @@ function Dashboard(){
     localStorage.setItem('foods', JSON.stringify(foods))
   }
 
-  const addNutrientsToLocalStorage = (nutrients : Record<string, string>) => {
-    console.log("number of nutrients: " + String(Object.keys(nutrients).length))
+  const addNutrientsbyName = (nutrients : Record<string, {id : number, unit : string}>) => {
     localStorage.setItem('nutrients', JSON.stringify(nutrients))
   }
+
+  const addNutrientsByID = (nutrients : Record<string, {id : number, unit : string}>) => {
+    const idKeyedMap: Record<number, { name: string; unit: string }> = {};
+    for (const [name, details] of Object.entries(nutrients)) {
+      idKeyedMap[details.id] = { name, unit: details.unit };
+    }
+    localStorage.setItem('nutrients_by_id', JSON.stringify(idKeyedMap))
+  }
+
+  const addNutrientstoLocalStorage = (nutrients : Record<string, {id : number, unit : string}>) => {
+    addNutrientsbyName(nutrients)
+    addNutrientsByID(nutrients)
+  }
+
   useEffect(() => {
-    console.log("arstartsrast")
     refreshAccountInfo();
     if (isLoginExpired()){
       navigate('/login')
     }
     refreshLogs()
     refreshRequirements()
-    doWithData('/food/all_foods', addFoodsToLocalStorage, 'GET', undefined, undefined, false)
-    doWithData('/food/all_nutrients', addNutrientsToLocalStorage)
+    doWithData('/food/all', addFoodsToLocalStorage, 'GET')
+    doWithData('/nutrients/all', addNutrientstoLocalStorage, 'GET')
   }, []);
   
   return(

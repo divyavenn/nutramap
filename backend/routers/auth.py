@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from ..imports import templates
 from bson import ObjectId
 
-from ..databases.main_connection import get_user_data
+from ..databases.main_connection import get_data
 
 __package__ = "nutramap.routers"
 
@@ -79,14 +79,14 @@ def get_current_user(token:Annotated[str, Depends(oauth2_bearer)]):
 
 @router.post("/submit_login")
 def handle_login(username: str = Form(...), password: str = Form(...)):
-    user = authenticate_user(username, password, get_user_data())
+    user = authenticate_user(username, password, get_data())
     token = create_access_token(user["email"], str(user["_id"]), user["role"], user["name"], timedelta(minutes=60))
     # Return the token in the response body
     return JSONResponse(content={"access_token": token, "token_type": "bearer"}, status_code=200)
     
 
 @router.get("/check-user")
-def check_user(username: str, user_db : Database = Depends(get_user_data)):
+def check_user(username: str, user_db : Database = Depends(get_data)):
   user = user_db.users.find_one({"email" : username})
   if not user:
     raise HTTPException(status_code=404, detail="User not found")

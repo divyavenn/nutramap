@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 from contextlib import asynccontextmanager
 from .databases.food_models import Base
-from .routers import auth, foods, users, requirements, logs
+from .routers import auth, foods, users, requirements, logs, nutrients
 from .databases.main_connection import engine, close_mongo_db
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -32,7 +32,7 @@ app.add_middleware(
 )
 
 Base.metadata.create_all(bind = engine) 
-app.mount("/static", StaticFiles(directory="backend/static"), name="static")
+# app.mount("/static", StaticFiles(directory="backend/static"), name="static")
 
 
 @app.get("/")
@@ -47,3 +47,4 @@ app.include_router(foods.router)
 app.include_router(users.router)
 app.include_router(requirements.router)
 app.include_router(logs.router)
+app.include_router(nutrients.router)

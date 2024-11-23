@@ -53,7 +53,6 @@ const getNutrientInfo = (nutrient_name : string, get_units = false) => {
     else return nutrient.id
   }
   catch {
-    console.log("No such nutrients on list")
     throw Error("No such nutrients on list")
   }
 }

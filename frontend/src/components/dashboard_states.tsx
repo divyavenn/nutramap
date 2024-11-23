@@ -33,12 +33,12 @@ function useRefreshLogs() {
   let setLogs = useSetRecoilState(logsAtom)
 
   const refreshLogs = async () => {
-    console.log("refreshing logs")
+    // console.log("refreshing logs")
     let data = await request('/logs/get?startDate=' 
     + tolocalDateString(dateRange.start)
     + '&endDate=' 
     + tolocalDateString(dateRange.end) + '');
-    console.log('logs' + data.body)
+    // console.log('logs' + data.body)
     setLogs(data.body)
   }
   return refreshLogs
@@ -47,8 +47,9 @@ function useRefreshLogs() {
 function useRefreshRequirements() {
   let setRequirements = useSetRecoilState(requirementsAtom)
   const refreshRequirements = async () => {
-    console.log("refreshing requirements")
+    // console.log("refreshing requirements")
     let data = await request('/requirements/all')
+    // console.log(data)
     setRequirements(await data.body)
   }
   return refreshRequirements
@@ -91,33 +92,54 @@ const averageIntake = selector<{[key : string] : number}>({
   }
 })
 
+
+type NutrientDetails = {
+  id: number;
+  unit: string;
+};
+
+
+
 const rowData = selector<Array<NutrientStatsProps>>({
   key: 'rowData',
   get: ({get}) => {
-    console.log("rowdata refreshing")
-    const requirements = get(requirementsAtom)
-    const dailyValues = get(dayIntake)
-    const avgValues = get(averageIntake)
+
+    const requirements = get(requirementsAtom);
+    const dailyValues = get(dayIntake);
+    const avgValues = get(averageIntake);
+
+    const nutrientDetails: Record<string, { id: number; unit: string; name: string }> = 
+      JSON.parse(localStorage.getItem('nutrients_by_id') || '{}');
+
+    console.log(nutrientDetails)
 
     if (Object.keys(requirements).length > 0) {
       const combined = Object.keys(requirements).map((nutrientId) => {
-        const info = requirements[nutrientId]
+        const requirement = requirements[nutrientId];
         const day = dailyValues[nutrientId];
         const average = avgValues[nutrientId];
+
+        const details = nutrientDetails[nutrientId]; // Assuming keys in `nutrientDetails` are strings
+        if (!details) {
+          console.warn(`Missing details for nutrient ID: ${nutrientId}`);
+          return null; // Or skip this nutrient if required
+        }
+
         return {
-          name: info.name,
-          target: info.target,
+          name: details.name, // Correctly use `name`
+          target: requirement.target,
           dayIntake: day,
           avgIntake: average,
-          shouldExceed: info.should_exceed,
-          units: info.units,
+          shouldExceed: requirement.should_exceed,
+          units: details.unit,
         };
-      })
+      }).filter((entry) => entry !== null); // Filter out any null entries
       return combined;
     }
-    return []
-  }
-})
 
+    console.warn("No requirements found");
+    return [];
+  },
+});
 
 export {dateRangeAtom, currentDayAtom, useRefreshLogs, useRefreshRequirements, logsAtom, rangeTypeAtom, requirementsAtom, rowData, averageIntake, dayIntake}

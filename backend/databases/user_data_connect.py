@@ -20,7 +20,7 @@ db.requirements.create_index(
 if db.users.count_documents({}) == 0:
     print("empty!")
 
-def get_user_data():
+def get_data():
     return db
 
 # Ensure the client is closed when the application shuts down

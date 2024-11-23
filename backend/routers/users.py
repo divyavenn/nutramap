@@ -2,12 +2,10 @@ from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from pymongo.database import Database
 from pymongo.errors import DuplicateKeyError
-from sqlalchemy.orm import Session
 from typing import List
 from typing_extensions import Annotated
-from bson import ObjectId
 
-from ..databases.main_connection import get_user_data, User, UserCreate, get_session
+from ..databases.main_connection import get_data, User, UserCreate, get_session
 from .auth import hash_password, get_current_user, authenticate_user, create_access_token
 from fastapi.responses import JSONResponse
 
@@ -20,8 +18,7 @@ router = APIRouter(
 )
 
 user_dependency = Annotated[dict, Depends(get_current_user)]
-user_db_dependency = Annotated[Database, Depends(get_user_data)]
-food_db_dependency = Annotated[Session, Depends(get_session)] 
+user_db_dependency = Annotated[Database, Depends(get_data)]
 
 #--------------------------------------end points------------------------------------------------------# 
 
@@ -54,7 +51,7 @@ def create_user(user: UserCreate, user_db : user_db_dependency):
 @router.post("/check-password")
 def check_password(user : user_dependency, password: str):
   try:
-    user = authenticate_user(user["email"], password, get_user_data())
+    user = authenticate_user(user["email"], password, get_data())
     return JSONResponse(content="authenticated!", status_code=200)
     
   except HTTPException as e:

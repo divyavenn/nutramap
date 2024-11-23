@@ -31,7 +31,7 @@ const accountInfoAtom = atom<AccountInfo>({
 function useRefreshAccountInfo() {
   const [info, setAccountInfo] = useRecoilState(accountInfoAtom)
   const refreshAccountInfo = () => {
-    console.log("refreshing user info")
+    // console.log("refreshing user info")
     doWithData('/user/info', setAccountInfo)
   }
   return refreshAccountInfo;

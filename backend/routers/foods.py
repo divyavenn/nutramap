@@ -3,81 +3,117 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from decimal import Decimal
+from .auth import get_current_user
 
-
-from ..databases.main_connection import get_session, Nutrient, Food, Data
+from ..databases.main_connection import get_data, Nutrient, Food, Data
 
 __package__ = "backend.routers"
 
-food_db_dependency = Annotated[Session, Depends(get_session)]
+db = Annotated[Session, Depends(get_data)]
 
 router = APIRouter(   # groups API endpoints together
     prefix='/food', 
     tags=['food'])
 
 
-def get_food_data(food_db: Session, food_id: int):
-  data = food_db.query(Nutrient.nutrient_id, Nutrient.nutrient_name, Nutrient.unit, Data.amt).join(Data, Nutrient.nutrient_id == Data.nutrient_id).filter(Data.food_id == int(food_id), Data.amt > 0).all()
-  if not data:
-    return []  # Return an empty list if no data found
+def get_nutrient_amount(db, food_id : int):
+    food = db.foods.find_one({"_id": food_id}, {"nutrients": 1, "_id": 0})
+    if not food or "nutrients" not in food:
+        return [] 
+    
+    result = []
+    for nutrient in food["nutrients"]:
+        if nutrient["amt"] > 0:
+            result.append({
+                "id": nutrient["nutrient_id"],
+                "amount": nutrient["amt"]})
 
-  # Convert the results to a list of dictionaries
-  result = [
-    {"id": nutrient_id, "name": nutrient_name, "amount": amt, "unit" : unit} for nutrient_id, nutrient_name, unit, amt in data
-  ]
-  return result
+    return result
+    
+# def get_nutrient_panel(db, food_id: int):
+#     """
+#     Retrieve nutrient data for a specific food from MongoDB.
+#     """
+#     # Find the food with the given `food_id`
+#     food = db.foods.find_one({"_id": food_id}, {"nutrients": 1, "_id": 0})
+#     if not food or "nutrients" not in food:
+#         return []  # Return an empty list if no data found
 
-@router.get("/nutrient_data")
-def foo(food_db: food_db_dependency, food_id : int):
-  return get_food_data(food_db, food_id)
 
-def get_food_name(food_db: Session, food_id: int):
-  name = food_db.query(Food.food_name).filter(Food.food_id == food_id).first()
-  if not name:
-    return "No data found."
-  return name
+#     # Extract the nutrient IDs from the embedded nutrients
+#     nutrient_ids = [nutrient["nutrient_id"] for nutrient in food["nutrients"]]
+    
+#     # Query the nutrients collection for all required nutrient details in a single call
+#     # nutrient_details = db.nutrients.find(
+#     #     {"_id": {"$in": nutrient_ids}}, 
+#     #     {"_id": 1, "nutrient_name": 1, "unit": 1}
+#     # )
+    
+#     # # Create a mapping of nutrient_id to nutrient details for fast lookup
+#     # nutrient_details_map = {
+#     #     nutrient["_id"]: {
+#     #         "name": nutrient["nutrient_name"],
+#     #         "unit": nutrient["unit"]
+#     #     }
+#     #     for nutrient in nutrient_details
+#     # }
 
-def get_nutrient_details(food_db: Session, nutrient_id: int):
-  details = food_db.query(Nutrient.nutrient_name, Nutrient.unit).filter(Nutrient.nutrient_id == nutrient_id).first()
-  if not details:
-    return "No data found."
-  return details
+#     # Convert the embedded nutrients to the desired format
+#     result = []
+#     for nutrient in food["nutrients"]:
+#         if nutrient["amt"] > 0:
+#             # nutrient_detail = nutrient_details_map.get(nutrient["nutrient_id"], {})
+#             result.append({
+#                 "id": nutrient["nutrient_id"],
+#                 "name": "name", #nutrient_detail.get("name"),
+#                 "amount": nutrient["amt"],
+#                 "unit": "unit" #nutrient_detail.get("unit")  
+#             })
 
+#     return result
+    
+
+def get_nutrient_details(db, nutrient_id: int):
+    """
+    Retrieve nutrient details (name and unit) from MongoDB.
+    """
+    # Query the nutrients collection for the given nutrient ID
+    nutrient = db.nutrients.find_one({"_id": nutrient_id}, {"nutrient_name": 1, "unit": 1, "_id": 1})
+    
+    if not nutrient:
+        raise LookupError("no nutrients of that id")
+    
+    return {
+        "name": nutrient["nutrient_name"],
+        "unit": nutrient["unit"]
+    }
+    
+
+def get_food_name(db, food_id: int):
+    """
+    Retrieve the name of a specific food from MongoDB.
+    """
+    # Query for the food name based on the food ID
+    food = db.foods.find_one({"_id": food_id}, {"food_name": 1, "_id": 0})
+    
+    if not food:
+        return "No data found."
+    
+    return food["food_name"]
 
 def amount_by_weight(amt: float, grams: float):
-  return amt * Decimal(grams/100.0)
+  return Decimal(amt) * Decimal(grams/100.0)
 
-@router.get("/nutrients")
-async def find_nutrient_data_for_food(food_db: food_db_dependency, food_id : int): 
-  return get_food_data(food_db, food_id)
 
-# returns data as a list of lists
-@router.get("/all_nutrients")
-async def get_all_nutrients(food_db: food_db_dependency): 
-  data = food_db.query(Nutrient.nutrient_name, Nutrient.nutrient_id, Nutrient.unit).all()
-  
-  filtered_data = [
-    (nutrient_name, nutrient_id, unit)
-    for nutrient_name, nutrient_id, unit in data
-    if nutrient_id not in {1062, 2047, 2048}
-  ]
-      
-  if not filtered_data:
-    return JSONResponse(content={"message": "No data found."}, status_code=404)
-  return {nutrient_name : {"id" : nutrient_id, "unit" : unit}  for nutrient_name, nutrient_id, unit in filtered_data}
- 
 # returns data as a list of dictionaries
-@router.get("/all_foods")
-async def get_all_food(food_db: food_db_dependency): 
-  data = food_db.query(Food.food_id, Food.food_name).all()
-  if not data:
-    return JSONResponse(content={"message": "No data found."}, status_code=404)
-  return {food_name: food_id for food_id, food_name in data}
+@router.get("/all")
+async def get_all_foods(db: db, user: dict = Depends(get_current_user)): 
+  foods = list(db.foods.find(
+        {"$or": [{"source": "USDA"}, {"source": user["_id"]}]},  # Match source "USDA" or user ID
+        {"_id": 1, "food_name": 1}  # Retrieve only `_id` and `food_name`
+    ))
+  if not foods:
+      return JSONResponse(content={"message": "No data found."}, status_code=404)
 
-
-@router.get("/{food}")
-async def find_food(food_db: food_db_dependency, food : str): 
-  data = food_db.query(Food).filter(Food.food_name.like(f'{food}%')).all()
-  if not data:
-    return "No data found."
-  return data
+  # Format the result as a dictionary
+  return {food["food_name"]: food["_id"] for food in foods}
