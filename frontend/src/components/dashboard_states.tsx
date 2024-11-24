@@ -5,7 +5,6 @@ import {
   useRecoilValue,
 } from 'recoil';
 
-import { useEffect } from 'react';
 import { getCurrentPeriod } from './utlis';
 import { LogProps, RangeType, TimePeriod, NutrientStatsProps} from './structures';
 import { request } from './endpoints';
@@ -81,7 +80,7 @@ const rangeTypeAtom = atom<RangeType>({
 
 const requirementsAtom = atom<{[key: string]: any}>({
   key: 'requirements',
-  default: []
+  default: request('/requirements/all', 'GET')
 })
 
 const dayIntake = selector<{[key: string]: number}>({
@@ -112,19 +111,48 @@ const averageIntake = selector<{[key : string] : number}>({
 })
 
 
+type RequirementData = {
+  id: string;
+  name: string;
+  target: number;
+  shouldExceed: boolean;
+  units: string;
+};
 
-function useFetchData() {
-  let setRequirements = useSetRecoilState(requirementsAtom)
-  let setLogs = useSetRecoilState(logsAtom)
+const requirementsDataAtom = selector<RequirementData[]>({
+  key: 'requirementsData',
+  get: ({ get }) => {
+    const requirements = get(requirementsAtom);
+    const nutrientDetails = get(nutrientDetailsByIDAtom);
 
-  const fetchData = async () => {
-    const [nutrients, foods, requirements] = await Promise.all([
-      request('/logs/day_intake'),
-      request('/logs/range_intake'),
-      request('/requirements/all'),
-    ]);
-  }
-}
+    if (!requirements || Object.keys(requirements).length === 0) {
+      console.warn("No requirements found");
+      return [];
+    }
+    if (!nutrientDetails) {
+      console.warn("Nutrient details missing");
+      return [];
+    }
+
+    return Object.keys(requirements).map((nutrientId) => {
+      const requirement = requirements[nutrientId];
+      const details = nutrientDetails[parseInt(nutrientId)];
+
+      if (!details) {
+        console.warn(`Missing details for nutrient ID: ${nutrientId}`);
+        return null;
+      }
+
+      return {
+        id: nutrientId,
+        name: details.name,
+        target: requirement.target,
+        shouldExceed: requirement.should_exceed,
+        units: details.unit,
+      };
+    }).filter((entry) => entry !== null);
+  },
+});
 
 
 const rowData = selector<Array<NutrientStatsProps>>({
@@ -152,7 +180,9 @@ const rowData = selector<Array<NutrientStatsProps>>({
         const day = dailyValues[nutrientId];
         const average = avgValues[nutrientId];
 
-        const details = nutrientDetails[parseInt(nutrientId)]; // Assuming keys in `nutrientDetails` are strings
+        const details = nutrientDetails[parseInt(nutrientId)];
+        // Assuming keys in `nutrientDetails` are strings
+
         if (!details) {
           console.warn(`Missing details for nutrient ID: ${nutrientId}`);
           return null; // Or skip this nutrient if required
@@ -176,9 +206,15 @@ const rowData = selector<Array<NutrientStatsProps>>({
 });
 
 export {dateRangeAtom, 
-  useFetchData, 
   currentDayAtom, 
   useRefreshLogs, 
   useRefreshData, 
   useRefreshRequirements, 
-  logsAtom, rangeTypeAtom, requirementsAtom, rowData, averageIntake, dayIntake}
+  logsAtom,
+  rangeTypeAtom,
+  RequirementData,
+  requirementsDataAtom,
+  requirementsAtom,
+  rowData,
+  averageIntake,
+  dayIntake}

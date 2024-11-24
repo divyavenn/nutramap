@@ -9,17 +9,17 @@ import { LogProps, DisplayLogProps } from './structures';
 import {useRecoilValue, useSetRecoilState} from 'recoil'
 import { logsAtom, currentDayAtom, useRefreshLogs } from './dashboard_states';
 
-
 function LogList (){
-  const logs = useRecoilValue(logsAtom)
-  
+  const logs = useRecoilValue(logsAtom) 
+
   if (logs.length == 0) {
     return <div className="log-list">
       <div className = 'no-logs-message'> no logs in this time.</div> </div>;
       // Display this when logs array is empty
   }
 
-  const sortedLogs = [...logs].sort((a, b) => (new Date(b.date).getTime()) - (new Date(a.date).getTime()));
+  const sortedLogs = [...logs].sort((a, b) => 
+    (new Date(b.date).getTime()) - (new Date(a.date).getTime()));
 
   return (
     <div className="log-list">
@@ -34,7 +34,8 @@ function LogList (){
             )}
 
             <Log
-              key={log._id}  // Using index as a key. Ideally, use a unique id if available.
+              key={log._id}  
+              // Using index as a key. Ideally, use a unique id if available.
               food_name={log.food_name}
               date={new Date(log.date)}
               amount_in_grams={log.amount_in_grams}
@@ -86,6 +87,7 @@ function Log({ food_name, date, amount_in_grams, _id} : LogProps) {
 
 function DateDivider({date} : {date : Date}) {
   const setCurrentDay = useSetRecoilState(currentDayAtom)
+  console.log(date)
   return (
     <div className = 'date-divider'>
       <button className = 'day' 

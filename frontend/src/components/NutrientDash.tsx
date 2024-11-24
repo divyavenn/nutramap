@@ -6,7 +6,7 @@ import { NewNutrientForm } from './EditNutrientForm';
 import '../assets/css/NutrientStats.css'; // Import your CSS file for styling
 import {useRecoilValue, useRecoilValueLoadable} from 'recoil'
 import { currentDayAtom, rowData} from './dashboard_states';
-import { requirementsAtom, dayIntake, averageIntake } from './dashboard_states';
+import { requirementsAtom, RequirementData, requirementsDataAtom, dayIntake, averageIntake } from './dashboard_states';
 import { nutrientDetailsByIDAtom } from './account_states';
 
 
@@ -25,24 +25,19 @@ function NutrientDashboard(){
   const [editing, setEditing] = useState<boolean>(false)
   const editFormRef = useRef<HTMLDivElement>(null); 
   const currentDay = useRecoilValue(currentDayAtom) 
-
-  const nutrientStatsData = useRecoilValueLoadable(rowData) 
-  const [nutrientStats, setNutrientStats] = useState<Array<NutrientStatsProps>>([]);
-
-  useEffect(() => {
-    // console.log("updating rowdata")
-    startTransition(() => {
-      setNutrientStats(nutrientStatsData.contents);
-    });
-  }, [nutrientStatsData.contents]);
-
-  // Function to close form if clicked outside
-  const handleClickOutside = (event: MouseEvent) => {
-    if (editFormRef.current && !editFormRef.current.contains(event.target as Node)) {
-      setEditing(false); // Close the form when clicking outside
-    }
-  }
+  const requirementsData = useRecoilValueLoadable(requirementsDataAtom);
+  const [requirements, setRequirements] = useState<RequirementData[]>([]);
     
+  useEffect(() => {
+    if (requirementsData.state === 'hasValue') {
+      startTransition(() => {
+        setRequirements(requirementsData.contents); // Update state with loaded data
+      });
+    } else if (requirementsData.state === 'hasError') {
+      console.error('Error loading requirements data:', requirementsData.contents);
+    }
+  }, [requirementsData]);
+
   useEffect(() => {
     // start looking for clicks outside if new requirement form is visible
     // console.log("clicked outside edit form")
@@ -55,8 +50,11 @@ function NutrientDashboard(){
   }, [editFormRef])  
 
 
-  const removeTextWithinBrackets = (str : string) => {
-    return str.replace(/\[.*?\]|\(.*?\)|\{.*?\}/g, '').trim();
+  // Function to close form if clicked outside
+  const handleClickOutside = (event: MouseEvent) => {
+    if (editFormRef.current && !editFormRef.current.contains(event.target as Node)) {
+      setEditing(false); // Close the form when clicking outside
+    }
   }
 
   const toggleEditing = () =>  {setEditing(!editing)}
@@ -64,33 +62,16 @@ function NutrientDashboard(){
   return (
     <div className="nutrient-dashboard">
       {!editing && <NutrientDashboardTitle currentDay = {currentDay}/>}
-
         <div className = 'requirement-edit-wrapper' ref = {editFormRef}>
           {!editing ?
-            nutrientStats.length === 0 ? 
-
+            requirements.length === 0 ? 
               <div className = 'no-req-message'> no requirements </div> :
-
               <div className='nutrient-list-wrapper'>
-
-                {nutrientStats.length > 0 && 
-                  (nutrientStats.map((n, index) => 
-                  {
-                    return (
-                    <NutrientStats
-                      key={n.name}  // Using index as a key. Ideally, use a unique id if available.
-                      name={removeTextWithinBrackets(n.name)}
-                      target={n.target}
-                      dayIntake={n.dayIntake}
-                      avgIntake={Math.round(n.avgIntake * 10) / 10}
-                      shouldExceed={n.shouldExceed}
-                      units={n.units}/>);
-                  }))
-                }
+                <NutrientStats requirements={requirements}/>
             </div>  :
             (<div className='nutrient-edit-list-wrapper'>
-              {nutrientStats.length > 0 && 
-              nutrientStats.map((n, index) => 
+              {requirements.length > 0 && 
+              requirements.map((n, index) => 
                 {return(
                   <NewNutrientForm
                     key={n.name}  // Using index as a key. Ideally, use a unique id if available.
@@ -113,7 +94,6 @@ function NutrientDashboard(){
 }
 
 
-
 function NutrientDashboardTitle({currentDay = new Date()} : {currentDay? : Date}){
   return <div className='dashboard-row'>
     <div className = 'nutrient-name-wrapper'>
@@ -130,7 +110,67 @@ function NutrientDashboardTitle({currentDay = new Date()} : {currentDay? : Date}
 }
 
 
-function NutrientStats({ name, target, dayIntake = 0, avgIntake, shouldExceed, units }: NutrientStatsProps) {
+
+const NutrientStats = ({requirements} : {requirements : RequirementData[]}) => {
+
+  function initialize(): { [key: string]: number } {
+    return requirements.reduce((acc, requirement) => {
+      acc[requirement.id] = 0; // Initialize each requirement ID with 0
+      return acc;
+    }, {} as { [key: string]: number });
+  }
+
+  const day = useRecoilValueLoadable(dayIntake);
+  const [dailyValues, setDailyValues] = useState<{[key: string]: number}>(
+    () => initialize() // Initialize dailyValues
+  );
+
+  const average = useRecoilValueLoadable(averageIntake);
+  const [avgValues, setAvgValues] = useState<{[key: string]: number}>((
+    () => initialize() // Initialize dailyValues
+  ));
+
+  useEffect(() => {
+    if (day.state === 'hasValue') {
+      startTransition(() => {
+        setDailyValues(day.contents); // Update state with loaded data
+      });
+    } else if (day.state === 'hasError') {
+      console.error('Error loading daily values data:', day.contents);
+    }
+  }, [day]);
+
+  useEffect(() => {
+    if (average.state === 'hasValue') {
+      startTransition(() => {
+        setAvgValues(day.contents); // Update state with loaded data
+      });
+    } else if (average.state === 'hasError') {
+      console.error('Error loading daily values data:', average.contents);
+    }
+  }, [average]);
+
+  const removeTextWithinBrackets = (str : string) => {
+    return str.replace(/\[.*?\]|\(.*?\)|\{.*?\}/g, '').trim();
+  }
+
+  return (
+    <div >
+      {requirements.length > 0 && requirements.map((nutrient) => (
+        <NutrientStatRow
+          key = {nutrient.id}
+          name = {removeTextWithinBrackets(nutrient.name)}
+          target = {nutrient.target} 
+          dayIntake = {dailyValues[nutrient.id]}
+          avgIntake={avgValues[nutrient.id]}
+          shouldExceed={nutrient.shouldExceed}
+          units={nutrient.units}/>))}
+    </div>
+  );
+};
+
+
+function NutrientStatRow({ name, target, dayIntake = 0, avgIntake, shouldExceed, units }: NutrientStatsProps) {
   const [hovered, setHovered] = useState(false);
   const [hoveredName, setHoveredName] = useState(false);
 

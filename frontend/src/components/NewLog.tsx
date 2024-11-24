@@ -158,7 +158,7 @@ function NewLogForm(){
       {showSuggestions && (
             <ul className="suggestions-list">
               {suggestions.map(suggestion => (
-                <li key={`${suggestion}-${Math.random()}`}
+                <li key={suggestion}
                     onClick={() => handleSuggestionClick(suggestion)}
                     className="suggestion-item">
                   {suggestion}
