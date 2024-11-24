@@ -233,7 +233,7 @@ function NutrientStatRow({ name, target, dayIntake = 0, avgIntake, shouldExceed,
       </div>
       <div className="avg-stats-wrapper">
         <div className="avg-intake" style={{ color: avgColor }}>
-          {avgIntake} {units}
+           {Math.round(avgIntake * 100) / 100} {units}
         </div>
       </div>
      </div>

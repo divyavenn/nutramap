@@ -76,6 +76,8 @@ def update_password(new_password: str, user: user_dependency, user_db : user_db_
     
     update = {"$set": {"password_hash": hash_password(new_password)}}
     user_db.users.update_one(query, update)
+    
+    return create_access_token(user["email"], user["_id"], user["role"], user["name"], timedelta(minutes=60))
 
 
 @router.post("/update-name", response_model = None)

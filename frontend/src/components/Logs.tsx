@@ -87,7 +87,6 @@ function Log({ food_name, date, amount_in_grams, _id} : LogProps) {
 
 function DateDivider({date} : {date : Date}) {
   const setCurrentDay = useSetRecoilState(currentDayAtom)
-  console.log(date)
   return (
     <div className = 'date-divider'>
       <button className = 'day' 

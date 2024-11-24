@@ -5,6 +5,7 @@ import {
   useRecoilState,
   useSetRecoilState,
 } from 'recoil';
+import { requirementsAtom } from './dashboard_states';
 import { doWithData, request } from './endpoints';
 
 interface AccountInfo{
@@ -73,6 +74,32 @@ const useResetAccountAtoms = () => {
 const nutrientDetailsByNameAtom = atom<{[key : string] : {id : number, unit : string}}>({
   key: 'nutrientDetailsbyName',
   default: {}
+});
+
+export const availableNutrientsSelector = selector({
+  key: 'availableNutrients', // Unique key for this selector
+  get: ({ get }) => {
+    const requirements = get(requirementsAtom); // Get all existing requirements
+    const nutrientDetails = get(nutrientDetailsByIDAtom); // Get all nutrients with their details
+
+    if (!nutrientDetails || Object.keys(nutrientDetails).length === 0) {
+      console.warn("Nutrient details are missing or empty.");
+      return [];
+    }
+
+    const requirementIds = Object.keys(requirements); // Extract IDs of nutrients already in requirements
+
+    // Filter nutrients not in the requirements list
+    const availableNutrients = Object.entries(nutrientDetails)
+      .filter(([id]) => !requirementIds.includes(id)) // Exclude nutrients in requirements
+      .map(([id, details]) => ({
+        id,
+        name: details.name,
+        unit: details.unit,
+      }));
+
+    return availableNutrients;
+  },
 });
 
 const foodsAtom = atom<{[key : string] : number}>({

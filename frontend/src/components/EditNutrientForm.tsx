@@ -44,7 +44,7 @@ function NewNutrientForm({ original }: { original?: Nutrient }): React.ReactNode
 
     const {name, value} = e.target; // get the name and value of the input field
 
-    console.log(`Updating ${name} with value: ${value}`); // Debugging log
+    // console.log(`Updating ${name} with value: ${value}`); // Debugging log
 
     setFormData({
       ...formData,

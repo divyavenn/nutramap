@@ -27,6 +27,7 @@ function UpdateInfo({infoType} : {infoType : 'name' | 'email' | 'password'}){
 
   const handleClickOutside = (event: MouseEvent) => {
     if (dialogRef.current && !dialogRef.current.contains(event.target as Node)) {
+      console.log("Refreshing Account Info")
       refreshAccountInfo()
     }
   }
@@ -57,6 +58,7 @@ function UpdateInfo({infoType} : {infoType : 'name' | 'email' | 'password'}){
     console.log(accountInfo)
     let response = await request(`/user/update-${infoType}?new_${infoType}=${accountInfo[infoType]}`, 'POST');
     if (response.status == 401) {
+      console.log("Logged out")
       navigate("/login")
     }
     if (response.status !== 304){
@@ -65,7 +67,6 @@ function UpdateInfo({infoType} : {infoType : 'name' | 'email' | 'password'}){
       refreshAccountInfo()
     }
     if (infoType=='password'){
-      console.log("not editng anymore")
       setEditingPassword(false)
     }
   }
@@ -107,11 +108,13 @@ function CheckPassword({mustAuthenticate, protectedComponent} : {mustAuthenticat
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault() // prevent automatic submission
-    try {
-      await request(`/user/check-password?password=${password}`, 'POST')
+    const response = await request(`/user/check-password?password=${password}`, 'POST')
+    console.log(response.status)
+    if (response.status == 200){
+      console.log("arstarst")
       setAuthenticated(true)
     }
-    catch {
+    else {
       setIsIncorrect(true);
       setTimeout(() => setIsIncorrect(false), 300); // Match animation duration
     }
@@ -152,8 +155,8 @@ function LogoutButton(){
   }
 
   return(
-    <button className = 'change-password-container' onClick = {handleLogout}>
-      <div className = 'account-actions-button'>log out</div>
+    <button className = 'change-password-container'>
+      <div className = 'account-actions-button' onClick = {handleLogout} >log out</div>
     </button>
   )
 }
@@ -161,8 +164,8 @@ function LogoutButton(){
 function DeleteAccountButton(){
   const navigate = useNavigate();
   return (
-    <button className = 'change-password-container' onClick = {() => {navigate('/goodbye')}}>
-      <div className = 'account-actions-button delete'>delete account</div>
+    <button className = 'change-password-container'>
+      <div className = 'account-actions-button delete' onClick = {() => {navigate('/goodbye')}}>delete account</div>
     </button>
     )
 }
@@ -174,8 +177,8 @@ function ChangePasswordButton(){
     editingPassword ? <CheckPassword mustAuthenticate = {true}
                                      protectedComponent = {<UpdateInfo infoType='password'/>}/> :
     (
-    <button className = 'change-password-container' onClick = {() => {setEditingPassword(true)}}>
-      <div className = 'account-actions-button'>change password</div>
+    <button className = 'change-password-container'>
+      <div className = 'account-actions-button' onClick = {() => {setEditingPassword(true)}}>change password</div>
     </button>
     )
   )
@@ -201,7 +204,6 @@ function AccountInfo(){
 
     useEffect(() => {
       // start looking for clicks outside if new requirement form is visible
-      console.log("clicked outside edit form")
       // only attach the listener if the component is moutned
       if (editPasswordRef.current) {
         document.addEventListener('mousedown', handleClickOutside);

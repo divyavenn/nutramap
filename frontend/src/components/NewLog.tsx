@@ -28,37 +28,6 @@ function NewLogForm(){
   const [showSuggestions, setShowSuggestions] = useState(false); // Control the visibility of suggestions
   const [validInput, markValidInput] = useState(true)
 
-  // const [activeIndex, setActiveIndex] = useState(-1); // Track the currently highlighted suggestion
-
-
-  // const handleKeyDown = (e: React.KeyboardEvent) => {
-  //   if (e.key === 'ArrowDown') {
-  //     // Navigate down through the suggestions list
-  //     e.preventDefault(); // Prevent default behavior (e.g., scrolling)
-  //     setActiveIndex((prevIndex) =>
-  //       prevIndex < suggestions.length - 1 ? prevIndex + 1 : 0
-  //     );
-  //   } else if (e.key === 'ArrowUp') {
-  //     // Navigate up through the suggestions list
-  //     e.preventDefault(); // Prevent default behavior
-  //     setActiveIndex((prevIndex) =>
-  //       prevIndex > 0 ? prevIndex - 1 : suggestions.length - 1
-  //     );
-  //   } else if (e.key === 'Enter' && activeIndex >= 0) {
-  //     // Select the currently highlighted suggestion
-  //     e.preventDefault(); // Prevent form submission
-  //     handleSuggestionClick(suggestions[activeIndex]);
-  //   } else if (e.key === 'Enter' && suggestions.length > 0 && activeIndex === -1) {
-  //     // If no suggestion is active, select the first one
-  //     e.preventDefault();
-  //     handleSuggestionClick(suggestions[0]);
-  //   } else if (e.key === 'Escape') {
-  //     // Close the suggestions list
-  //     setShowSuggestions(false);
-  //     setActiveIndex(-1);
-  //   }
-  // };
-
 
   const filteredFoods = useMemo(() => {
     return Object.keys(foodList).filter(food =>

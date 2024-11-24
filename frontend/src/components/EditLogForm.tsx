@@ -72,7 +72,7 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
   };
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log("typing " + e.target.value)
+    // console.log("typing " + e.target.value)
     try{
       const newDate = e.target.value; // e.g., "2024-10-24" (YYYY-MM-DD format)
       
@@ -97,7 +97,7 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
         ...formData,
         date: updatedDate,
       });
-      console.log("Changed data")
+      // console.log("Changed data")
   }
   catch {}
   };

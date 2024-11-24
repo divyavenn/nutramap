@@ -29,6 +29,25 @@ def get_nutrient_amount(db, food_id : int):
                 "amount": nutrient["amt"]})
 
     return result
+
+@router.get("/panel", response_model = None)
+def get_nutrient_panel(food_id : int, db : db):
+    food = db.foods.find_one({"_id": food_id}, {"nutrients": 1, "_id": 0})
+    if not food or "nutrients" not in food:
+        return [] 
+    
+    result = []
+    for nutrient in food["nutrients"]:
+        if nutrient["amt"] > 0:
+            details = get_nutrient_details(db, nutrient["nutrient_id"])
+            result.append({
+                "id": nutrient["nutrient_id"],
+                "amount": nutrient["amt"],
+                "name" : details["name"],
+                "unit" : details["unit"]
+            })
+
+    return result
     
 # def get_nutrient_panel(db, food_id: int):
 #     """
