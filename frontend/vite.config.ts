@@ -12,7 +12,6 @@ export default defineConfig({
       external: ['react-toastify'], // Mark it as external
       input: {
         main: './index.html',        // Home page
-        dashboard: './templates/dashboard.html',       // About page
       },
     },
   },
