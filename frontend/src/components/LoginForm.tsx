@@ -8,6 +8,8 @@ import { useRefreshAccountInfo } from './account_states';
 import { request } from './endpoints';
 import { accountInfoAtom } from './account_states';
 import { useRecoilState } from 'recoil';
+import { debounce } from 'lodash';
+import { useFetchAutoFillData } from './account_states';
 
 function LoginForm() {
   // State to store the email and password
@@ -56,15 +58,18 @@ function LoginForm() {
 
   const handleEnter = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      e.preventDefault()
-      if (isEmail()){
-        const response = await request(`/auth/check_user?user=${formData.email}`, 'GET', null, 'URLencode', false)
-        if (response.status == 404){
-          setEmailIncorrect(true)
-          setAccountInfo({...accountInfo, email: formData.email})
-          setTimeout(() => setEmailIncorrect(false), 300);
-          setRedirect({url : '/hello', message : 'not registered! create account?'})
-        }
+      e.preventDefault();
+      e.stopPropagation();
+      if (isEmail()) {
+        debounce(async () => {
+          const response = await request(`/auth/check_user?user=${formData.email}`, 'GET');
+          if (response.status === 404) {
+            setEmailIncorrect(true);
+            setAccountInfo({ ...accountInfo, email: formData.email });
+            setTimeout(() => setEmailIncorrect(false), 300);
+            setRedirect({ url: '/hello', message: 'not registered! create account?' });
+          }
+        }, 300)();
       }
     }
   };
@@ -74,34 +79,34 @@ function LoginForm() {
 
     try {
       if (isEmail()){
-        const response = await 
-        request('/auth/submit_login', 
-                'POST', 
-                { username : formData.email, password : formData.password}, 
-                'URLencode',
-                false)
+        const response = await request('/auth/submit_login', 'POST', { username : formData.email, password : formData.password}, 'URLencode',false)
         if (response.status == 200) {
           const token = response.body.access_token;
           // Store the token in localStorage (or sessionStorage if desired)
           localStorage.setItem('access_token', token);
+          localStorage.setItem('foods', JSON.stringify(await (await request('/food/all', 'GET')).body))
+          localStorage.setItem('nutrients', JSON.stringify(await (await request('/nutrients/all', 'GET')).body))
           console.log('Login successful.');
           refreshAccountInfo();
           // window.location.href = '/user/dashboard' // this calls page from backend
+
           navigate('/dashboard'); // this uses react router (client side routing)
-        } else {
-          // raise HTTPException(status_code=404, detail="User not found")
-          if (response.status == 404){
-            console.log("hi!")
-            setEmailIncorrect(true)
-            setTimeout(() => setEmailIncorrect(false), 300);
-            setRedirect({url : '/hello', message : 'create account'})
-          }
-          // raise HTTPException(status_code=403, detail="Incorrect password")
-          if (response.status == 403){
-            setPasswordIncorrect(true)
-            setTimeout(() => setPasswordIncorrect(false), 300);
-            setRedirect({url : '/oops', message : 'forgot? reset password'})
-          }
+        }
+        // raise HTTPException(status_code=404, detail="User not found")
+        else if (response.status == 404){
+          console.log("hi!")
+          setEmailIncorrect(true)
+          setTimeout(() => setEmailIncorrect(false), 300);
+          setRedirect({url : '/hello', message : 'create account'})
+        }
+        // raise HTTPException(status_code=403, detail="Incorrect password")
+        else if (response.status == 403){
+          setPasswordIncorrect(true)
+          setTimeout(() => setPasswordIncorrect(false), 300);
+          setRedirect({url : '/oops', message : 'forgot? reset password'})
+        }
+        else {
+          console.error('Unexpected error:', response);
         }
       }
     } catch (error) {

@@ -25,10 +25,10 @@ class LogEdit(BaseModel):
     food_id: int
     amount_in_grams: float
     date: datetime
-    log_id: str 
+    log_id: str
            
 class Log(BaseModel):
-    log_id: Optional[str] = Field(alias="_id") 
+    log_id: str = Field(alias="_id") 
     user_id: Optional[str] 
     food_id: int
     amount_in_grams: float

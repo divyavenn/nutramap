@@ -11,10 +11,12 @@ import { ImageButton } from './Sections';
 import Trashcan from '../assets/images/trashcan.svg?react'
 import Ok from '../assets/images/check_circle.svg?react'
 import OkOk from '../assets/images/checkmark.svg?react'
+import { nutrientDetailsByNameAtom } from './account_states';
+import { useRecoilValue } from 'recoil';
 
 function NewNutrientForm({ original }: { original?: Nutrient }): React.ReactNode{
 
-  const nutrientList : Record<string, string> = JSON.parse(localStorage.getItem('nutrients') || '{}');
+  const nutrientList = useRecoilValue(nutrientDetailsByNameAtom)
 
   const [formData, setFormData] = useState({
     nutrient_name : original ? original.name : '',
@@ -77,7 +79,7 @@ function NewNutrientForm({ original }: { original?: Nutrient }): React.ReactNode
     console.log("submitting")
     e.preventDefault() // prevent automatic submission
     let requestData = {
-      nutrient_id: parseInt(getNutrientInfo(formData.nutrient_name) as string, 10),
+      nutrient_id: getNutrientInfo(formData.nutrient_name, false, nutrientList),
       amt: parseFloat(formData.requirement),
       should_exceed: Boolean(formData.should_exceed)
     }
@@ -92,7 +94,7 @@ function NewNutrientForm({ original }: { original?: Nutrient }): React.ReactNode
 
   const handleDelete = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault() // prevent automatic submission
-    await request(`/requirements/delete?requirement_id=${getNutrientInfo(formData.nutrient_name)}`, 'DELETE');
+    await request(`/requirements/delete?requirement_id=${ getNutrientInfo(formData.nutrient_name, false, nutrientList)}`, 'DELETE');
     console.log("Requirement deleted successfully");
     setIsDeleted(true)
     refreshRequirements()
@@ -144,7 +146,7 @@ function NewNutrientForm({ original }: { original?: Nutrient }): React.ReactNode
           required
         ></input>
         <span className="nutrient-unit">
-          {formData.nutrient_name && validInput && getNutrientInfo(formData.nutrient_name, true)}
+          {formData.nutrient_name && validInput && getNutrientInfo(formData.nutrient_name, true, nutrientList)}
         </span>
       </div>
 

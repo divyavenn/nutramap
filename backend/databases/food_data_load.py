@@ -1,6 +1,6 @@
 import csv
 from sqlalchemy.orm import Session
-from .food_data_connect import SessionLocal, engine, Base
+from .sqlite_data_connect import SessionLocal, engine, Base
 from .food_models import Nutrient, Food, Data
 import os
 

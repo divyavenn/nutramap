@@ -106,13 +106,13 @@ def add_log(user: user, log: Log, db: db):
     log_dict = log.model_dump()
     # set log ID to current logged in user
     log_dict["user_id"] = user["_id"]
+    log_dict["_id"] = ObjectId()  # Ensure it is unique
+    
     db.logs.insert_one(log_dict)
     
 
 @router.delete("/delete")
 def remove_log(user: user, log_id: str, db : db):
-    print(log_id)
-    print(user["_id"])
     log = db.logs.find_one({"_id": ObjectId(log_id), "user_id": ObjectId(user["_id"])})
     
     if not log:
@@ -136,7 +136,7 @@ def remove_log(user: user, log_id: str, db : db):
 @router.post("/edit")
 def edit_log(user: user, db : db, update_info: LogEdit):
     # Check if the log exists and belongs to the user
-    # print("looking for " + log.log_id + "for user" + str(user["_id"]) + " name " + user["name"])
+    print("looking for " + update_info.log_id + " for user " + str(user["_id"]) + " name " + user["name"])
     # print(log.amount_in_grams + "    " + log.date)
     target_log = db.logs.find_one({"_id": ObjectId(update_info.log_id), "user_id": ObjectId(user["_id"])})
     

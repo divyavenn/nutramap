@@ -26,6 +26,7 @@ declare module '*.svg?react' {
   const src: string;
   export default src;
 }
+declare module 'lodash'
 
 declare module '*.svg' {
   const value: string;

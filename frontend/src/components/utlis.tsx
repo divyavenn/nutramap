@@ -1,7 +1,8 @@
 import { TimePeriod } from "./structures";
 import { useState, useEffect } from "react";
 import '../assets/css/variables.css'
-
+import { foodsAtom, nutrientDetailsByNameAtom} from "./account_states";
+import { useRecoilValue } from "recoil";
 // Function to interpolate between red and blue based on intake vs. target
 const calculateColor = (percentage: number, shouldExceed: boolean) => {
   // If shouldExceed is true, red (when less) to blue (when exceeded)
@@ -31,9 +32,8 @@ const calculateColor = (percentage: number, shouldExceed: boolean) => {
   return `rgb(${r}, ${g}, ${b})`;
 };
 
-const getFoodID = (food_name : string) => {
+const getFoodID = (food_name : string, foodList : Record<string, number>) => {
   // Mock food data for autocomplete
-  const foodList : Record<string, string> = JSON.parse(localStorage.getItem('foods') || '{}');
   try {
     return foodList[food_name]
   }
@@ -44,9 +44,8 @@ const getFoodID = (food_name : string) => {
 }
 
 
-const getNutrientInfo = (nutrient_name : string, get_units = false) => {
+const getNutrientInfo = (nutrient_name : string, get_units = false, nutrientList : Record<string, { unit: string, id: number}>) => {
   // Mock food data for autocomplete
-  const nutrientList : Record<string, { unit: string; id: number;} > = JSON.parse(localStorage.getItem('nutrients') || '{}');
   try {
     const nutrient = nutrientList[nutrient_name]
     if (get_units) return nutrient.unit

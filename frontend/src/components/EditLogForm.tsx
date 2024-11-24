@@ -7,17 +7,18 @@ import Trashcan from '../assets/images/trashcan.svg?react'
 import { CalendarDay} from './DateSelector';
 import { getFoodID } from './utlis';
 import { tolocalDateString } from '../components/utlis'
+import { useRecoilValue } from 'recoil';
 
 import '../assets/css/edit_log.css'
 import { LogProps } from './structures';
 import { useRefreshLogs } from './dashboard_states';
-
+import { foodsAtom } from './account_states';
 
 
 function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
 
   // Mock food data for autocomplete
-  const foodList : Record<string, string> = JSON.parse(localStorage.getItem('foods') || '{}');
+  const foodList = useRecoilValue(foodsAtom)
   const [deleted, setDeleted] = useState(false)
   const [formData, setFormData] = useState({
     food_name : food_name,
@@ -139,7 +140,7 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
     // setShowSuggestions(false)
     e.preventDefault() // prevent automatic submission
     let data = {
-      food_id: getFoodID(formData.food_name),
+      food_id: getFoodID(formData.food_name, foodList),
       amount_in_grams: Number(formData.amount_in_grams),
       date: tolocalDateString(formData.date),
       log_id: _id

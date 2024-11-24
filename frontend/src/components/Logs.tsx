@@ -12,7 +12,7 @@ import { logsAtom, currentDayAtom, useRefreshLogs } from './dashboard_states';
 
 function LogList (){
   const logs = useRecoilValue(logsAtom)
-
+  
   if (logs.length == 0) {
     return <div className="log-list">
       <div className = 'no-logs-message'> no logs in this time.</div> </div>;

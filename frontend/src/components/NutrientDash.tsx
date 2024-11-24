@@ -6,7 +6,8 @@ import { NewNutrientForm } from './EditNutrientForm';
 import '../assets/css/NutrientStats.css'; // Import your CSS file for styling
 import {useRecoilValue, useRecoilValueLoadable} from 'recoil'
 import { currentDayAtom, rowData} from './dashboard_states';
-
+import { requirementsAtom, dayIntake, averageIntake } from './dashboard_states';
+import { nutrientDetailsByIDAtom } from './account_states';
 
 
 interface NutrientStatsProps {
@@ -25,8 +26,8 @@ function NutrientDashboard(){
   const editFormRef = useRef<HTMLDivElement>(null); 
   const currentDay = useRecoilValue(currentDayAtom) 
 
-  const [nutrientStats, setNutrientStats] = useState<Array<NutrientStatsProps>>([]);
   const nutrientStatsData = useRecoilValueLoadable(rowData) 
+  const [nutrientStats, setNutrientStats] = useState<Array<NutrientStatsProps>>([]);
 
   useEffect(() => {
     // console.log("updating rowdata")
@@ -142,15 +143,14 @@ function NutrientStats({ name, target, dayIntake = 0, avgIntake, shouldExceed, u
   const avgColor = calculateColor((avgIntake / target) * 100, shouldExceed);
 
   const goalMessage = (target : number, intake : number, units : string, shouldExceed : boolean) => {
-    console.log(`${target}, ${intake},${units},${shouldExceed},`)
     const difference = Math.abs(target - dayIntake);
     if (shouldExceed) {
-      if (intake < target) return difference.toFixed() + " " + units + " until target";
-      else return "target met : " + intake.toFixed() + " " + units;
+      if (intake < target) return difference.toFixed(2) + " " + units + " until target";
+      else return "target met : " + intake.toFixed(2) + " " + units;
     }
     else {
-      if (intake < target) return difference.toFixed() + " within target";
-      else return "exceeded target by " + difference.toFixed() + " " + units
+      if (intake < target) return difference.toFixed(2) + " within target";
+      else return "exceeded target by " + difference.toFixed(2) + " " + units
     }
   }
 
