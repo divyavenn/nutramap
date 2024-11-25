@@ -10,30 +10,33 @@ WORKDIR /usr/src/app
 
 ################################################################################
 # Dependencies stage: Install production dependencies.
-FROM base AS deps
+# FROM base AS deps
 
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+# RUN npm ci
 
-################################################################################
-# Build stage: Build the application.
-FROM deps AS build
+# ################################################################################
+# # Build stage: Build the application.
+# FROM deps AS build
 
+RUN npm install
+RUN npm i -g serve
 COPY . .
 RUN npm run build
 
-################################################################################
-# Final stage: Minimal runtime environment.
-FROM node:${NODE_VERSION}-alpine AS final
+# ################################################################################
+# # Final stage: Minimal runtime environment.
+# FROM node:${NODE_VERSION}-alpine AS final
 
-WORKDIR /usr/src/app
-ENV NODE_ENV=production
+# WORKDIR /usr/src/app
+# ENV NODE_ENV=production
 
-USER node
+# USER node
 
-COPY --from=deps /usr/src/app/node_modules ./node_modules
-COPY --from=build /usr/src/app/dist ./dist
-COPY package.json .
+# COPY --from=deps /usr/src/app/node_modules ./node_modules
+# COPY --from=build /usr/src/app/dist ./dist
+# COPY package.json .
 
-EXPOSE 4173
-CMD ["vite", "preview", "--port", "4173"]
+EXPOSE 5173
+CMD ["serve", "-s", "dist", "-l", "5173"]
+# CMD ["npx", "vite", "preview", "--port", "5173"]

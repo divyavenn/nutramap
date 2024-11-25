@@ -9,42 +9,44 @@ export default defineConfig({
     outDir: 'dist', // Adjust based on your project structure
     emptyOutDir: true, // Cleans the output directory before building
     rollupOptions: {
-      external: ['react-toastify'], // Mark it as external
       input: {
         main: './index.html',        // Home page
       },
     },
   },
   server: {
+    port: 5173, // Explicitly set the server port
+    strictPort: true,
+    host: '0.0.0.0', // Allows external access (useful for Docker)
     proxy: {
       // Proxy API requests to the backend (FastAPI in this case)
       '/api': {
-        target: 'http://127.0.0.1:8000/', // The backend server address
+        target: process.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000/', // The backend server address
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''), // Remove '/api' prefix from the request
       },
       '/auth': {
-        target: 'http://127.0.0.1:8000/', // Proxy auth-related routes
+        target: process.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000/', // The backend server address
         changeOrigin: true,
       },
       '/user': {
-        target: 'http://127.0.0.1:8000/', // Proxy auth-related routes
+        target: process.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000/', // The backend server address
         changeOrigin: true,
       },
       '/food': {
-        target: 'http://127.0.0.1:8000/', // Proxy auth-related routes
+        target: process.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000/', // The backend server address
         changeOrigin: true,
       },
       '/logs': {
-        target: 'http://127.0.0.1:8000/', // Proxy auth-related routes
+        target: process.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000/', // The backend server address
         changeOrigin: true,
       },
       '/requirements': {
-        target: 'http://127.0.0.1:8000/', // Proxy auth-related routes
+        target: process.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000/', // The backend server address
         changeOrigin: true,
       },
       '/nutrients': {
-        target: 'http://127.0.0.1:8000/', // Proxy auth-related routes
+        target: process.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000/', // The backend server address
         changeOrigin: true,
       },
     },
