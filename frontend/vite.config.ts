@@ -21,32 +21,32 @@ export default defineConfig({
     proxy: {
       // Proxy API requests to the backend (FastAPI in this case)
       '/api': {
-        target: process.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000/', // The backend server address
+        target: import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000/', // The backend server address
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''), // Remove '/api' prefix from the request
       },
       '/auth': {
-        target: process.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000/', // The backend server address
+        target: import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000/', // The backend server address
         changeOrigin: true,
       },
       '/user': {
-        target: process.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000/', // The backend server address
+        target: import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000/', // The backend server address
         changeOrigin: true,
       },
       '/food': {
-        target: process.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000/', // The backend server address
+        target: import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000/', // The backend server address
         changeOrigin: true,
       },
       '/logs': {
-        target: process.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000/', // The backend server address
+        target: import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000/', // The backend server address
         changeOrigin: true,
       },
       '/requirements': {
-        target: process.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000/', // The backend server address
+        target: import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000/', // The backend server address
         changeOrigin: true,
       },
       '/nutrients': {
-        target: process.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000/', // The backend server address
+        target: import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000/', // The backend server address
         changeOrigin: true,
       },
     },
