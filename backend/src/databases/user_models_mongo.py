@@ -2,7 +2,6 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional
 from datetime import datetime
 from bson import ObjectId
-from pydantic import BaseModel, Field
 
 
 __package__ = "nutramap.databases"

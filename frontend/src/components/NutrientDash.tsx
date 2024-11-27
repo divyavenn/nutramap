@@ -143,7 +143,7 @@ const NutrientStats = ({requirements} : {requirements : RequirementData[]}) => {
   useEffect(() => {
     if (average.state === 'hasValue') {
       startTransition(() => {
-        setAvgValues(day.contents); // Update state with loaded data
+        setAvgValues(average.contents); // Update state with loaded data
       });
     } else if (average.state === 'hasError') {
       console.error('Error loading daily values data:', average.contents);

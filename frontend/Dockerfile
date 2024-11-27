@@ -22,6 +22,7 @@ COPY package.json package-lock.json ./
 RUN npm install
 RUN npm i -g serve
 COPY . .
+# COPY .env .
 RUN npm run build
 
 # ################################################################################

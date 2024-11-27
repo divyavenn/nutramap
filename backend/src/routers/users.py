@@ -5,8 +5,8 @@ from pymongo.errors import DuplicateKeyError
 from typing import List
 from typing_extensions import Annotated
 
-from ..databases.main_connection import get_data, User, UserCreate, get_session
-from .auth import hash_password, get_current_user, authenticate_user, create_access_token
+from src.databases.main_connection import get_data, User, UserCreate
+from src.routers.auth import hash_password, get_current_user, authenticate_user, create_access_token
 from fastapi.responses import JSONResponse
 
 __package__ = "nutramap.routers"

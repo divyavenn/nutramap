@@ -1,12 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pymongo.database import Database
-from sqlalchemy.orm import Session
-from typing import List
 from typing_extensions import Annotated
 
-from ..databases.main_connection import get_data, RequirementCreate, Food, Nutrient
-from .foods import get_nutrient_details
-from .auth import get_current_user
+from src.databases.main_connection import get_data, RequirementCreate
+from src.routers.auth import get_current_user
 
 __package__ = "nutramap.routers"
 

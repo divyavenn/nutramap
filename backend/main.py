@@ -1,11 +1,9 @@
 from fastapi import FastAPI, Request
 from contextlib import asynccontextmanager
-from .databases.food_models import Base
-from .routers import auth, foods, users, requirements, logs, nutrients
-from .databases.main_connection import engine, close_mongo_db
-from fastapi.staticfiles import StaticFiles
+from src.databases.food_models import Base
+from src.routers import auth, foods, users, requirements, logs, nutrients
+from src.databases.main_connection import engine, close_mongo_db
 from fastapi.templating import Jinja2Templates
-
 from fastapi.middleware.cors import CORSMiddleware
 
 
@@ -33,8 +31,6 @@ app.add_middleware(
 
 Base.metadata.create_all(bind = engine) 
 # app.mount("/static", StaticFiles(directory="backend/static"), name="static")
-
-
 @app.get("/")
 def welcome(request: Request):
   # request is the data being passed into the template. in this case, empty.

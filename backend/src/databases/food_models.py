@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, DECIMAL, Float, Date, PrimaryKeyConstraint
 from sqlalchemy.orm import relationship
-from .sqlite_data_connect import Base
+from src.databases.sqlite_data_connect import Base
 
 __package__ = "nutramap.backend.databases"
 

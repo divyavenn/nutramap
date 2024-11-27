@@ -9,9 +9,9 @@ from bson import ObjectId
 from datetime import timedelta, datetime
 
 
-from ..databases.main_connection import get_data, Log, LogEdit, Food
-from .foods import get_nutrient_amount, amount_by_weight, get_food_name
-from .auth import get_current_user
+from src.databases.main_connection import get_data, Log, LogEdit
+from src.routers.foods import get_nutrient_amount, amount_by_weight, get_food_name
+from src.routers.auth import get_current_user
 
 __package__ = "nutramap.routers"
 

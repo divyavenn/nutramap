@@ -1,7 +1,7 @@
 import csv
 from sqlalchemy.orm import Session
-from .sqlite_data_connect import SessionLocal, engine, Base
-from .food_models import Nutrient, Food, Data
+from src.databases.sqlite_data_connect import SessionLocal, engine, Base
+from src.databases.food_models import Nutrient, Food, Data
 import os
 
 __package__ = "nutramap.databases"

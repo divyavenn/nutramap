@@ -1,0 +1,22 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: .  # Build context is the root folder
+      dockerfile: backend/Dockerfile  # Dockerfile location
+    volumes:
+      - ./backend:/app  # Mount the backend folder for live code updates
+    ports:
+      - "8000:8000"  # Map the backend service to localhost:8000
+    environment:
+      - PYTHONUNBUFFERED=1  # Ensure logs are shown immediately
+
+  frontend:
+    build:
+      context: ./frontend  # Build context is the frontend folder
+      dockerfile: Dockerfile  # Use the Dockerfile in the frontend folder
+    volumes:
+      - ./frontend:/usr/src/app  # Mount the frontend folder for live updates
+    ports:
+      - "5173:5173"  # Map the frontend service to localhost:5173

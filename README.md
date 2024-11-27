@@ -17,13 +17,16 @@ Entry into the database is made simple using autocomplete. You choose which nutr
 - `conda env create -f environment.yml`
 - `conda activate nutramapEnv`
 - `conda env update --file environment.yml`
-- `./install_reqs.sh`
 
 Make sure to select your environment-specific interpreter in Visual Studio.
 
 #### Testing
 To run backend: `uvicorn backend.main:app --reload`
-To run frontend: `npm run dev`
+To run frontend, navigate to frontend folder: `npm run dev`
+
+#### Making docker image
+`docker build -t nutramap-front .`
+`docker run -p 5173:5173 nutramap-front`
 
 #### Manual Inspection of Databases
  I recommend DBVisualizer for relational dbs and MongoDB Compass for noSQL

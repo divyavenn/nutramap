@@ -3,9 +3,9 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from decimal import Decimal
-from .auth import get_current_user
+from src.routers.auth import get_current_user
 
-from ..databases.main_connection import get_data, Nutrient, Food, Data
+from src.databases.main_connection import get_data
 
 __package__ = "backend.routers"
 

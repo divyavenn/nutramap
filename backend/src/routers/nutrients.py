@@ -1,11 +1,10 @@
 from typing_extensions import Annotated
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
-from decimal import Decimal
 from pymongo.database import Database
 
 
-from ..databases.main_connection import get_data, Nutrient, Food, Data
+from src.databases.main_connection import get_data
 
 __package__ = "nutramap.routers"
 

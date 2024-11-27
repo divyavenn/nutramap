@@ -6,10 +6,9 @@ import hashlib
 from jose import jwt, JWTError
 from datetime import timedelta, timezone, datetime 
 from fastapi.responses import JSONResponse
-from ..imports import templates
 from bson import ObjectId
 
-from ..databases.main_connection import get_data
+from src.databases.main_connection import get_data
 
 __package__ = "nutramap.routers"
 
@@ -29,15 +28,15 @@ def hash_password(password: str) :
   return hashlib.sha256(password.encode()).hexdigest()
 
 
-#------------------------------------------pages-------------------------------------------------# 
-@router.get("/login")
-def render_login(request: Request):
-  return templates.TemplateResponse("login.html", {"request" : request})
+# #------------------------------------------pages-------------------------------------------------# 
+# @router.get("/login")
+# def render_login(request: Request):
+#   return templates.TemplateResponse("login.html", {"request" : request})
   
-@router.get("/register")
-def render_register(request: Request):
-  return templates.TemplateResponse("register.html", {"request" : request})
-#--------------------------------------helpers-------------------------------------------------# 
+# @router.get("/register")
+# def render_register(request: Request):
+#   return templates.TemplateResponse("register.html", {"request" : request})
+# #--------------------------------------helpers-------------------------------------------------# 
 
 #just for Swagger docs - this is the endpoint where the token in generated
 oauth2_bearer = OAuth2PasswordBearer(tokenUrl='auth/submit_login')

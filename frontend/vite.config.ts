@@ -2,6 +2,11 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react-swc'
 import svgr from 'vite-plugin-svgr';
 
+
+const localHost = 'http://127.0.0.1:8000/'
+const backendServer = ''
+const backendURL = localHost
+
 export default defineConfig({
   plugins: [react(), svgr()],
   build: {
@@ -20,33 +25,28 @@ export default defineConfig({
     host: '0.0.0.0', // Allows external access (useful for Docker)
     proxy: {
       // Proxy API requests to the backend (FastAPI in this case)
-      '/api': {
-        target: import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000/', // The backend server address
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''), // Remove '/api' prefix from the request
-      },
       '/auth': {
-        target: import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000/', // The backend server address
+        target: backendURL, // The backend server address
         changeOrigin: true,
       },
       '/user': {
-        target: import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000/', // The backend server address
+        target: backendURL, // The backend server address
         changeOrigin: true,
       },
       '/food': {
-        target: import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000/', // The backend server address
+        target: backendURL, // The backend server address
         changeOrigin: true,
       },
       '/logs': {
-        target: import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000/', // The backend server address
+        target: backendURL, // The backend server address
         changeOrigin: true,
       },
       '/requirements': {
-        target: import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000/', // The backend server address
+        target: backendURL, // The backend server address
         changeOrigin: true,
       },
       '/nutrients': {
-        target: import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000/', // The backend server address
+        target: backendURL, // The backend server address
         changeOrigin: true,
       },
     },
