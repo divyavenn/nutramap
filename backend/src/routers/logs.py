@@ -2,7 +2,6 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Form
 from pymongo.database import Database
-from sqlalchemy.orm import Session
 from typing import List
 from typing_extensions import Annotated
 from bson import ObjectId

@@ -1,8 +1,7 @@
 from fastapi import FastAPI, Request
 from contextlib import asynccontextmanager
-from src.databases.food_models import Base
 from src.routers import auth, foods, users, requirements, logs, nutrients
-from src.databases.main_connection import engine, close_mongo_db
+from src.databases.main_connection import close_mongo_db
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -29,7 +28,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-Base.metadata.create_all(bind = engine) 
+# Base.metadata.create_all(bind = engine) 
 # app.mount("/static", StaticFiles(directory="backend/static"), name="static")
 @app.get("/")
 def welcome(request: Request):

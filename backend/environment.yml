@@ -4,11 +4,7 @@ channels:
 dependencies:
   - python=3.8
   - fastapi
-  - sqlalchemy
   - pymongo
-  - python-jose
-  - psycopg2
-  - alembic
-  - pytest
-  - aiofiles
+  - jose
+  - uvicorn
 prefix: /Users/divyavenn/miniforge3/envs/nutramapEnv

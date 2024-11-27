@@ -1,7 +1,7 @@
 from typing_extensions import Annotated
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
+from pymongo.database import Database
 from decimal import Decimal
 from src.routers.auth import get_current_user
 
@@ -9,7 +9,7 @@ from src.databases.main_connection import get_data
 
 __package__ = "backend.routers"
 
-db = Annotated[Session, Depends(get_data)]
+db = Annotated[Database, Depends(get_data)]
 
 router = APIRouter(   # groups API endpoints together
     prefix='/food', 

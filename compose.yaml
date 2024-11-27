@@ -1,22 +1,28 @@
-version: "3.9"
+version: "3.8"
 
 services:
   backend:
     build:
-      context: .  # Build context is the root folder
-      dockerfile: backend/Dockerfile  # Dockerfile location
-    volumes:
-      - ./backend:/app  # Mount the backend folder for live code updates
+      context: ./backend  # Path to your backend directory
+      dockerfile: Dockerfile  # Dockerfile in the backend directory
     ports:
-      - "8000:8000"  # Map the backend service to localhost:8000
-    environment:
-      - PYTHONUNBUFFERED=1  # Ensure logs are shown immediately
+      - "8000:8000"  # Expose backend on localhost:8000
+    depends_on:
+      - db  # Ensure backend waits for MongoDB
+    volumes:
+      - ./backend:/app  # Mount backend code for development
 
-  frontend:
-    build:
-      context: ./frontend  # Build context is the frontend folder
-      dockerfile: Dockerfile  # Use the Dockerfile in the frontend folder
-    volumes:
-      - ./frontend:/usr/src/app  # Mount the frontend folder for live updates
+  db:
+    image: mongo:5.0
+    container_name: mongo
+    restart: always
     ports:
-      - "5173:5173"  # Map the frontend service to localhost:5173
+      - "27017:27017"  # Expose MongoDB on localhost
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+    volumes:
+      - mongo_data:/data/db  # Persistent volume for MongoDB data
+
+volumes:
+  mongo_data:

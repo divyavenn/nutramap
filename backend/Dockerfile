@@ -21,5 +21,5 @@ RUN ls -la
 # Expose the port
 EXPOSE 8000
 
-# Run the backend application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Activate the environment and run the backend application
+CMD ["bash", "-c", "source activate nutramapEnv && uvicorn main:app --host 0.0.0.0 --port 8000"]
