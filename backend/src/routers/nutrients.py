@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from pymongo.database import Database
 
 
-from src.databases.main_connection import get_data
+from src.databases.mongo import get_data
 
 __package__ = "nutramap.routers"
 

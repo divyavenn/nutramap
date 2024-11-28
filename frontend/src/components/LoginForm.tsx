@@ -10,6 +10,7 @@ import { accountInfoAtom } from './account_states';
 import { useRecoilState } from 'recoil';
 import { debounce } from 'lodash';
 import { useFetchAutoFillData } from './account_states';
+import { useRef, useEffect } from 'react';
 
 function LoginForm() {
   // State to store the email and password
@@ -26,7 +27,10 @@ function LoginForm() {
   const [passwordIncorrect, setPasswordIncorrect] = useState(false);
   const refreshAccountInfo = useRefreshAccountInfo()
 
+  const nextInputRef = useRef<HTMLInputElement>(null);
+
   const navigate = useNavigate(); // React Router's navigation hook
+
 
   // Event object is automatically passed to handler
   // e.target: The DOM element that triggered the event (e.g., an input field).
@@ -70,6 +74,7 @@ function LoginForm() {
             setRedirect({ url: '/hello', message: 'not registered! create account?' });
           }
           else {
+            nextInputRef.current?.focus();
             setRedirect({url : '', message : ''})
           }
         }, 300)();
@@ -139,8 +144,8 @@ function LoginForm() {
             </div>
             <div className="form-field">
               <input
+                ref = {nextInputRef}
                 className={`field ${passwordIncorrect ? "jiggle" : ""}`}
-                autoFocus
                 maxLength={256}
                 name="password"
                 placeholder="password"

@@ -8,7 +8,7 @@ from datetime import timedelta, timezone, datetime
 from fastapi.responses import JSONResponse
 from bson import ObjectId
 
-from src.databases.main_connection import get_data
+from src.databases.mongo import get_data
 
 __package__ = "nutramap.routers"
 

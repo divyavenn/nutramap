@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pymongo.database import Database
 from typing_extensions import Annotated
 
-from src.databases.main_connection import get_data, RequirementCreate
+from src.databases.mongo import get_data
+from src.databases.mongo_models import RequirementCreate
 from src.routers.auth import get_current_user
 
 __package__ = "nutramap.routers"

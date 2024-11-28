@@ -5,7 +5,8 @@ from pymongo.errors import DuplicateKeyError
 from typing import List
 from typing_extensions import Annotated
 
-from src.databases.main_connection import get_data, User, UserCreate
+from src.databases.mongo import get_data
+from src.databases.mongo_models import User, UserCreate
 from src.routers.auth import hash_password, get_current_user, authenticate_user, create_access_token
 from fastapi.responses import JSONResponse
 

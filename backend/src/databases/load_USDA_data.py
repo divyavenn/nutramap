@@ -1,7 +1,7 @@
 import csv
 from pymongo import MongoClient, UpdateOne
 import os
-from src.databases.mongo_data_connect import URL, DB
+from backend.src.databases.mongo import URL, DB
 
 # Connect to the MongoDB server
 cluster = MongoClient(URL)

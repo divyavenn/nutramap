@@ -5,7 +5,7 @@ from pymongo.database import Database
 from decimal import Decimal
 from src.routers.auth import get_current_user
 
-from src.databases.main_connection import get_data
+from src.databases.mongo import get_data
 
 __package__ = "backend.routers"
 

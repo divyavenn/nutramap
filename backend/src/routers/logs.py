@@ -8,7 +8,8 @@ from bson import ObjectId
 from datetime import timedelta, datetime
 
 
-from src.databases.main_connection import get_data, Log, LogEdit
+from src.databases.mongo import get_data
+from src.databases.mongo_models import Log, LogEdit
 from src.routers.foods import get_nutrient_amount, amount_by_weight, get_food_name
 from src.routers.auth import get_current_user
 

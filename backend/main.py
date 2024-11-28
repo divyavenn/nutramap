@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 from contextlib import asynccontextmanager
 from src.routers import auth, foods, users, requirements, logs, nutrients
-from src.databases.main_connection import close_mongo_db
+from src.databases.mongo import close_mongo_db
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 
