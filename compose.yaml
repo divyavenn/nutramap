@@ -1,6 +1,14 @@
 version: "3.8"
 
 services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173" # Expose port 5173 on the host to port 5173 in the container
+
+
   backend:
     build:
       context: ./backend  # Path to your backend directory
@@ -11,6 +19,7 @@ services:
       - db  # Ensure backend waits for MongoDB
     volumes:
       - ./backend:/app  # Mount backend code for development
+
 
   db:
     image: mongo:5.0

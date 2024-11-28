@@ -4,10 +4,11 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "dev" : "vite --mode development",
+    "build" : "vite build --mode production",
+    "lint" : "eslint .",
+    "preview" : "vite preview",
+    "serve" : "vite preview"
   },
   "dependencies": {
     "date-fns": "^4.1.0",

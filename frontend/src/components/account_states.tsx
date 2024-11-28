@@ -42,7 +42,7 @@ function useRefreshAccountInfo() {
   const fetchAutoFillData = useFetchAutoFillData();
 
   const refreshAccountInfo = async () => {
-    // console.log("refreshing user info")
+    console.log(info)
     fetchAutoFillData();
     doWithData('/user/info', setAccountInfo)
   }
@@ -52,7 +52,8 @@ function useRefreshAccountInfo() {
 const firstNameAtom = selector<string>({
   key: 'firstName',
   get: ({get}) => {
-    let firstName = get(accountInfoAtom).name.trim().split(' ')[0]
+    let name = get(accountInfoAtom).name
+    let firstName = name ? name.trim().split(' ')[0] : "";
     return firstName
   }
 })

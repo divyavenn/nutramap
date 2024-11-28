@@ -62,12 +62,15 @@ function LoginForm() {
       e.stopPropagation();
       if (isEmail()) {
         debounce(async () => {
-          const response = await request(`/auth/check_user?user=${formData.email}`, 'GET');
+          const response = await request(`/auth/check-user?username=${encodeURIComponent(formData.email)}`, 'GET', "", 'URLencode', false);
           if (response.status === 404) {
             setEmailIncorrect(true);
             setAccountInfo({ ...accountInfo, email: formData.email });
             setTimeout(() => setEmailIncorrect(false), 300);
             setRedirect({ url: '/hello', message: 'not registered! create account?' });
+          }
+          else {
+            setRedirect({url : '', message : ''})
           }
         }, 300)();
       }

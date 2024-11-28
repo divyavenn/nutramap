@@ -35,8 +35,7 @@ def welcome(request: Request):
   # request is the data being passed into the template. in this case, empty.
   # return templates.TemplateResponse("home.html", {"request" : request})
   return "hi!"
-
-
+  
 app.include_router(auth.router)
 app.include_router(foods.router)
 app.include_router(users.router)

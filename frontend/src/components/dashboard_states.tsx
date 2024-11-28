@@ -80,7 +80,7 @@ const rangeTypeAtom = atom<RangeType>({
 
 const requirementsAtom = atom<{[key: string]: any}>({
   key: 'requirements',
-  default: request('/requirements/all', 'GET')
+  default: {}
 })
 
 const dayIntake = selector<{[key: string]: number}>({

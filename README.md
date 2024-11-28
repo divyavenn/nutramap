@@ -21,12 +21,11 @@ Entry into the database is made simple using autocomplete. You choose which nutr
 Make sure to select your environment-specific interpreter in Visual Studio.
 
 #### Testing
-To run backend: `uvicorn backend.main:app --reload`
+To run backend, navigate to backend folder: `uvicorn main:app --reload`
 To run frontend, navigate to frontend folder: `npm run dev`
 
 #### Making docker image
-`docker build -t nutramap-front .`
-`docker run -p 5173:5173 nutramap-front`
+`docker-compose up --build`
 
 #### Manual Inspection of Databases
  I recommend DBVisualizer for relational dbs and MongoDB Compass for noSQL

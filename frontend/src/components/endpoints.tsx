@@ -78,9 +78,14 @@ function getHeader(authorized : boolean = true, hasData : boolean = false, data_
   return header;
 }
 
+function proxy(endpoint : string ) {
+  console.log((import.meta.env.VITE_API_URL) + endpoint)
+  return (import.meta.env.VITE_API_URL) + endpoint
+}
+
 async function request(url : string, method : string = 'GET', data : any = null, data_type : 'JSON' | 'URLencode' = 'URLencode', authorized : boolean = true) {
   // console.log(`requesting ${method} ${url} and ${data_type} body: ${data ? ((data_type == 'JSON') ? JSON.stringify(data) : new URLSearchParams(data)) : null}`)
-  return fetch(url, {
+  return fetch(proxy(url), {
       method: method,
       headers: getHeader(authorized, (data !== null), data_type),
       body: data ? ((data_type == 'JSON') ? JSON.stringify(data) : new URLSearchParams(data)) : null

@@ -86,6 +86,7 @@ def handle_login(username: str = Form(...), password: str = Form(...)):
 
 @router.get("/check-user")
 def check_user(username: str, user_db : Database = Depends(get_data)):
+  print("arstarstarst")
   user = user_db.users.find_one({"email" : username})
   if not user:
     raise HTTPException(status_code=404, detail="User not found")
