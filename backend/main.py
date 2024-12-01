@@ -4,6 +4,7 @@ from src.routers import auth, foods, users, requirements, logs, nutrients
 from src.databases.mongo import close_mongo_db
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
+import os
 
 
 #__package__ = 'nutramap'
@@ -27,6 +28,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # Base.metadata.create_all(bind = engine) 
 # app.mount("/static", StaticFiles(directory="backend/static"), name="static")

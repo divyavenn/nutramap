@@ -6,7 +6,9 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "5173:5173" # Expose port 5173 on the host to port 5173 in the container
+      - "${FRONTEND_PORT}:${FRONTEND_PORT}" # Expose port 5173 on the host to port 5173 in the container
+    environment:
+      - PORT=${FRONTEND_PORT}  
 
 
   backend:
@@ -14,12 +16,13 @@ services:
       context: ./backend  # Path to your backend directory
       dockerfile: Dockerfile  # Dockerfile in the backend directory
     ports:
-      - "8000:8000"  # Expose backend on localhost:8000
+      - "${BACKEND_PORT}:${BACKEND_PORT}"  # Expose backend on localhost:8000
     depends_on:
       - db  # Ensure backend waits for MongoDB
     volumes:
       - ./backend:/app  # Mount backend code for development
-
+    environment:
+      - PORT=${BACKEND_PORT}  
 
   db:
     image: mongo:5.0
