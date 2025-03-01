@@ -7,6 +7,8 @@ import { ImportMeta } from './vite-env';
 export default defineConfig(({ mode }) => {
   // Load .env files based on the mode (e.g., .env.development or .env.production)
   let env = loadEnv(mode, process.cwd());
+  console.log('Current mode:', mode);
+  console.log('API URL:', env.VITE_API_URL);
 
   return {
     plugins: [react(), svgr()],
@@ -25,7 +27,8 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
       proxy: {
         '/auth': {
-          target: env.VITE_API_URL, // Use the loaded environment variable
+          // target: env.VITE_API_URL, // Use the loaded environment variable
+          target: 'http://localhost:8000',
           changeOrigin: true,
         },
         '/user': {
