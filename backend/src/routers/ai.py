@@ -22,9 +22,23 @@ def parse_meal_description(meal_description: str) -> Tuple[List[Dict], Dict[str,
     try:
         current_time = datetime.now()
         
-        prompt = f"""You are a nutrition assistant that helps parse meal descriptions into the separate foods, quantities, and timestamps.
-The database has cooking ingredients in many versions , for example: boiled, fried, cooked, raw, drained, baked, steamed, low-fat, added Vitamin D, with or without seeds, with or without salt) as well as many common branded foods.
-Be as specific as possible in stating the version of the ingredient and how it would likely be prepared. The database is extensive, so err on the side of specificity. Look up recipes if needed.
+        prompt = f"""You are an expert chef who has spent his life working in kitchens of every cuisine imaginable. 
+        
+        You are also an expert nutritionist who helps develop recipes for restaurants and big companies. 
+        
+        You are working for a celebrity whose appearance is vital to their career. 
+        
+        Your job is to parse  their meal descriptions into the separate foods, quantities, and timestamps **as preciesly as possible**,
+        to be used in conjunction with a massive database of foods to estimate their nutrient intake.
+        
+        
+        They reguarly weigh themselves and get blood work to monitor their health and nutrient levels. If the results differ from your estimations, you get 
+        fired and lose everything, including the love of the woman you cherish most in the world.
+        
+      
+The database has cooking ingredients in many versions, for example: boiled, fried, cooked, raw, drained, baked, steamed, low-fat, added Vitamin D, with or without seeds, with or without salt) as well as many common branded foods.
+Be as specific as possible in stating the version of the ingredient and how it would likely be prepared. The database is extensive, so err on the side of specificity.
+
 - legumes: (yellow lentils cooked) (black beans dried) (chickpeas)
 - grains: brown rice (cooked), steel cut oats (raw), bread (whole grain, fortified with Iron), (Wheat flour, white, all-purpose, enriched, bleached)
 - fats: coconut oil, olive oil, butter
@@ -33,12 +47,23 @@ Be as specific as possible in stating the version of the ingredient and how it w
 - meat: (Beef, ground, 70% lean meat / 30% fat, patty cooked, pan-broiled) (Beef, round, top round, separable lean and fat)
 - branded and prepared items: (Candies, MARS SNACKFOOD US, SKITTLES Wild Berry Bite Size Candies) Cheese puffs and twists, corn based, baked, low fat)
 
-Return a JSON array of objects with the following structure:
-[{{
+Always break down each meal into all its implied or explicit ingredients. If specific ingredients are listed, include them but assume that other ingredients were probably used.
+Even if the ingredient is not mentioned, include it if it is a common ingredient in the meal. Even you are told what the recipe was made with, assume other ingredients were probably used.
+If a known dish name is used (e.g., “dal chawal”, “smoothie”, “spaghetti”), infer and list all typical ingredients, even if they are not mentioned in the user input. 
+You may look up or reason about common recipes to fill in missing components.
+
+For example, a "strawberry smoothie" generally has milk, strawberries, and sugar, even if the milk and sugar are not listed.
+
+Respond with a JSON object that uses the key "ingredients" with the a value a JSON array, with one object for each ingredient.
+Use this structure for each ingredient:
+[
+  {{
     "food_name": "string",
     "amount_in_grams": float,
-    "timestamp": string 
-}}]
+    "timestamp": "YYYY-MM-DDTHH:MM:SS"
+  }},
+  ...
+]
 
 Convert common measurements to grams. Examples:
 - 1 slice of bread ≈ 30g
@@ -63,11 +88,10 @@ For timestamps:
         
         # Parse the response
         content = response.choices[0].message.content
-        print("Raw API response content:", content)
+        print(content)
         
         try:
-            parsed_response = json.loads(content)
-            print("Parsed JSON:", parsed_response)
+            parsed_response = json.loads(content)["ingredients"]
             
             # Check if parsed_response is a list as expected
             if not isinstance(parsed_response, list):
@@ -119,3 +143,7 @@ For timestamps:
             raise ValueError("Invalid OpenAI API key. Please check your configuration.")
         else:
             raise ValueError(f"Error parsing meal description: {str(e)}")
+          
+          
+if __name__ == "__main__":
+    parse_meal_description("Mango lassi")
