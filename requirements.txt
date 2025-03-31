@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+pymongo
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+openai>=1.0.0
+python-dotenv

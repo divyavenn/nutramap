@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Form
+from fastapi import APIRouter, Depends, HTTPException, Form
 from fastapi.security import OAuth2PasswordBearer
 from pymongo.database import Database
 from typing_extensions import Annotated
@@ -7,10 +7,15 @@ from jose import jwt, JWTError
 from datetime import timedelta, timezone, datetime 
 from fastapi.responses import JSONResponse
 from bson import ObjectId
+import os
+from dotenv import load_dotenv
 
 from src.databases.mongo import get_data
 
 __package__ = "nutramap.routers"
+
+# Load environment variables
+load_dotenv()
 
 router = APIRouter(
   # groups API endpoints together
@@ -18,11 +23,11 @@ router = APIRouter(
   tags=['auth']
 )
 
-# generated randomly using openssl rand -hex 32 
-SECRET_KEY = "477314e10396029985ce1f3ceca306576019414187572f61126b4da128e2adaf"
-# 
-ALGORITHM = "HS256" 
-
+# Get JWT settings from environment variables
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+ALGORITHM = os.getenv("JWT_ALGORITHM")
+if not SECRET_KEY and not ALGORITHM:
+    raise ValueError("authentication environment variable is not set")
 
 def hash_password(password: str) :
   return hashlib.sha256(password.encode()).hexdigest()
@@ -91,4 +96,3 @@ def check_user(username: str, user_db : Database = Depends(get_data)):
   if not user:
     raise HTTPException(status_code=404, detail="User not found")
   return JSONResponse(content={"msg" : ""}, status_code=200)
-

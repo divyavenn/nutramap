@@ -1,13 +1,22 @@
 from pymongo import MongoClient, ASCENDING
+import os
+from dotenv import load_dotenv
 
 __package__ = "nutramap.databases"
-URL = "mongodb+srv://venndivya:qZ6BE54Q5DDVGW4H@users.akqcvfu.mongodb.net/"
-DB = "nutramapper"
+
+# Load environment variables
+load_dotenv()
+
+# Get MongoDB connection details from environment variables
+MONGO_URI = os.getenv("MONGO_URI")
+DB_NAME = os.getenv("DB_NAME")
+if not MONGO_URI and not DB_NAME:
+    raise ValueError("MongoDB environment variables are not set")
 
 # Connect to the MongoDB server
-cluster = MongoClient(URL)
+cluster = MongoClient(MONGO_URI)
 # Access the database
-db = cluster[DB]
+db = cluster[DB_NAME]
 
 # Ensure the unique index on email
 db.users.create_index([("email", ASCENDING)], unique=True)
@@ -24,7 +33,6 @@ if db.users.count_documents({}) == 0:
 def get_data():
     return db
 
-# Ensure the client is closed when the app
-# lication shuts down
+# Ensure the client is closed when the application shuts down
 def close_mongo_db():
     cluster.close()

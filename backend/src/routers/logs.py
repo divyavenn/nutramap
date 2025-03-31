@@ -1,5 +1,3 @@
-
-
 from fastapi import APIRouter, Depends, HTTPException, Form
 from pymongo.database import Database
 from typing import List
@@ -7,11 +5,11 @@ from typing_extensions import Annotated
 from bson import ObjectId
 from datetime import timedelta, datetime
 
-
 from src.databases.mongo import get_data
 from src.databases.mongo_models import Log, LogEdit
-from src.routers.foods import get_nutrient_amount, amount_by_weight, get_food_name
+from src.routers.foods import get_nutrient_amount, amount_by_weight, get_food_name, get_all_foods
 from src.routers.auth import get_current_user
+from src.routers.ai import parse_meal_description
 
 __package__ = "nutramap.routers"
 
@@ -24,6 +22,8 @@ router = APIRouter(
 user = Annotated[dict, Depends(get_current_user)]
 db = Annotated[Database, Depends(get_data)]
 
+# Load environment variables
+# load_dotenv()
 
 def serialize_document(doc):
     """Convert ObjectId fields to strings in a MongoDB document."""
@@ -155,7 +155,7 @@ def edit_log(user: user, db : db, update_info: LogEdit):
     result = db.logs.update_one({"_id": target_log["_id"]}, {"$set": update_data})
   
     if result.matched_count == 0:
-        raise HTTPException(status_code=500, detaily="Something went wrong; log not updated.")
+        raise HTTPException(status_code=500, detail="Something went wrong; log not updated.")
     
     # # Retrieve the updated log
     # updated_log = user_db.logs.find_one({"_id": target_log["_id"]})
@@ -215,3 +215,34 @@ def meets(startDate : datetime, endDate: datetime, user: user, db : db):
             tally[nutrient] = avg
     
     return tally
+
+@router.post("/parse-meal")
+async def parse_meal(user: user, db: db, meal_description: str = Form(...)):
+    """
+    Parse a natural language meal description and create food logs.
+    Example: "I had 2 slices of whole wheat bread with 1 tablespoon of peanut butter for breakfast at 8am"
+    """
+    try:
+        
+        # Parse the meal using OpenAI
+        parsed_foods, timestamps = parse_meal_description(meal_description)
+        
+        # Create logs for each food
+        logs = []
+        current_time = datetime.now()
+        
+        for food in parsed_foods:
+            food_id = food["food_id"]
+            log = {
+                "food_id": ObjectId(food_id),
+                "amount_in_grams": float(food["amount_in_grams"]),
+                "date": timestamps.get(food_id, current_time),  # Use mentioned time or current time
+                "user_id": user["_id"]
+            }
+            result = await add_log(user, log, db)
+            logs.append(result)
+            
+        return {"status": "success", "logs": logs}
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))

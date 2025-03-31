@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from pymongo.database import Database
 from decimal import Decimal
+from typing import Dict, List, Union
 from src.routers.auth import get_current_user
 
 from src.databases.mongo import get_data
@@ -136,3 +137,28 @@ async def get_all_foods(db: db, user: dict = Depends(get_current_user)):
 
   # Format the result as a dictionary
   return {food["food_name"]: food["_id"] for food in foods}
+
+@router.post("/add")
+async def add_food(
+    food_name: str,
+    nutrients: List[Dict[str, Union[int, float]]],
+    user: dict = Depends(get_current_user),
+    db: Database = Depends(get_data)
+):
+    # Validate nutrients
+    for nutrient in nutrients:
+        if not db.nutrients.find_one({"_id": nutrient["nutrient_id"]}):
+            return JSONResponse(content={"message": f"Invalid nutrient ID: {nutrient['nutrient_id']}"}, status_code=400)
+
+    new_food = {
+        "food_name": food_name,
+        "source": user["_id"],
+        "nutrients": nutrients
+    }
+    
+    result = db.foods.insert_one(new_food)
+    
+    if result.inserted_id:
+        return JSONResponse(content={"message": "Food added successfully", "food_id": str(result.inserted_id)}, status_code=201)
+    else:
+        return JSONResponse(content={"message": "Failed to add food"}, status_code=500)
