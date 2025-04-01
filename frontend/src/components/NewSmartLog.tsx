@@ -41,7 +41,8 @@ function NewSmartLog() {
         'POST',
         {
           meal_description: mealDescription,
-        }
+        },
+        'JSON'
       );
       
       setMealDescription('');

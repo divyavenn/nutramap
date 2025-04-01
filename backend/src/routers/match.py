@@ -11,7 +11,7 @@
 #	Experiment with distilled vector models for compactness
 #Try compressed sparse vector fusion
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Body
 from typing import Dict
 import asyncio
 from .parse import parse_meal_description
@@ -29,6 +29,7 @@ router = APIRouter(
     tags=['match']
 )
 
+user = Annotated[dict, Depends(get_current_user)]
 db = Annotated[Database, Depends(get_data)]
 
 async def get_matches(ingredient: Dict, db: Database, user: Dict, request: Request = None):
@@ -65,15 +66,16 @@ def rrf_fusion(sparse_results: Dict, dense_results: Dict, k: int = 60) -> str:
     return max(combined_scores, key=combined_scores.get)
 
 @router.post("/log-meal")
-async def log_meal(
-    meal_description: str,
-    user: Annotated[Dict, Depends(get_current_user)],
-    db: Annotated[Database, Depends(get_data)],
-    request: Request
+async def log_meal(  
+    user: user,
+    db: db,
+    request: Request,
+    request_data: dict = Body(...),
 ):
-    parsed_foods, timestamps = parse_meal_description(meal_description)
-    
+    meal_description = request_data.get("meal_description", "")
     print(meal_description)
+    
+    parsed_foods, timestamps = parse_meal_description(meal_description)
     
     async def process_ingredient(ingredient):
         sparse_results, dense_results = await get_matches(ingredient, db, user, request)
