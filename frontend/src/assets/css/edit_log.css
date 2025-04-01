@@ -100,7 +100,6 @@ input, textarea {
   color: var(--white);
   justify-content: space-between;
   transition: all 0.1s ease;
-  min-height: 50px;
 }
 
 .edit-entry-form-bubble.active{
