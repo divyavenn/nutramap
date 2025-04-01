@@ -62,7 +62,7 @@ function NewSmartLog() {
         <div className="entry-form-bubble">
             <textarea
               className="input-journal"
-              placeholder="Example: I had a bowl of oatmeal with blueberries and a coffee with milk for breakfast"
+              placeholder="a bowl of steel-cut oats with blueberries and a cup of coffee with whole milk for breakfast"
               value={mealDescription}
               onChange={handleTyping}
               disabled={isSubmitting}

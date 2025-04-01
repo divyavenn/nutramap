@@ -25,6 +25,7 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
     amount_in_grams : String(amount_in_grams), 
     date : date,
   })
+  const [isSubmitting, setIsSubmitting] = useState(false); // Track submission animation state
 
   const refreshLogs = useRefreshLogs();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -216,15 +217,27 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault() // prevent automatic submission
     e.stopPropagation(); // prevent event from bubbling up
+
     
-    let data = {
-      food_id: getFoodID(formData.food_name, foodList),
-      amount_in_grams: Number(formData.amount_in_grams),
-      date: tolocalDateString(formData.date),
-      log_id: _id
-    }
-    await request('/logs/edit', 'POST', data, 'JSON')
-    refreshLogs()
+    // Start the submission animation
+    setIsSubmitting(true);
+    
+    // Add a delay to show the animation before submitting
+    setTimeout(async () => {
+      const data = {
+        food_id: getFoodID(formData.food_name, foodList),
+        amount_in_grams: Number(formData.amount_in_grams),
+        date: tolocalDateString(formData.date),
+        log_id: _id
+      }
+      await request('/logs/edit', 'POST', data, 'JSON')
+      refreshLogs()
+      
+      // Reset the submission state after a short delay to show the animation
+      setTimeout(() => {
+        setIsSubmitting(false);
+      }, 500);
+    }, 800); // Delay before actual submission
   }
 
   const handleDelete = async (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -246,7 +259,7 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
     !deleted ? (
       <form
         id="edit-log-form"
-        className={`edit-form-container ${showSuggestions ? 'active' : ''}`}
+        className={`edit-form-container ${showSuggestions ? 'active' : ''} ${isSubmitting ? 'submitting' : ''}`}
         onSubmit={handleSubmit}
         onMouseEnter={handleMouseEvent}
         onMouseLeave={handleMouseEvent}
@@ -255,7 +268,7 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
         onClick={handleMouseEvent}
       >
         
-        <div className='delete-log-button-container'>
+        <div className={`delete-log-button-container ${isSubmitting ? 'hide' : ''}`}>
           <ImageButton
                   type="button"
                   onClick={handleDelete}
@@ -359,8 +372,8 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
         <div className='edit-log-submit-container'>
           <HoverButton
                   type="submit"
-                  className="edit-log-submit"
-                  disabled={!formData.food_name || !formData.amount_in_grams || !validInput}
+                  className={`edit-log-submit ${isSubmitting ? 'confirming' : ''}`}
+                  disabled={!formData.food_name || !formData.amount_in_grams || !validInput || isSubmitting}
                   childrenOn={<YesOk/>}
                   childrenOff={<IsOk/>}>
           </HoverButton>

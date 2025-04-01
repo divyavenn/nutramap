@@ -80,6 +80,11 @@ input, textarea {
   padding: 18px;
 }
 
+.edit-form-container.submitting {
+  pointer-events: none; /* Prevent interactions during animation */
+}
+
+/*--------------------------------------------FORM----------------------------------*/
 
 .form-dropdown-wrapper {
   display: flex;
@@ -337,6 +342,31 @@ input, textarea {
   order: 1;
 }
 
+.edit-log-submit.confirming {
+  animation: confirm-animation 1.2s ease-in-out;
+}
+
+@keyframes confirm-animation {
+  0% {
+    transform: scale(1);
+  }
+  20% {
+    transform: scale(1.2);
+  }
+  40% {
+    transform: scale(0.9);
+  }
+  60% {
+    transform: scale(1.1);
+  }
+  80% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 .edit-log-submit svg {
   fill: #ffffffa8; /* You can change the SVG color here */
   height: 25px;
@@ -353,6 +383,12 @@ input, textarea {
   margin-right: 5px;
   padding-top: 12px;
   align-items: start; /* Vertically centers the button */
+}
+
+.delete-log-button-container.hide {
+  opacity: 0;
+  transform: scale(0);
+  transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 .delete-button {
