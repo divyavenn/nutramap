@@ -91,11 +91,12 @@
 .log-wrapper{ 
   display: flex;
   width: 700px;
-  flex-direction: row;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   position: relative;
   transition: all 0.1s ease; 
+  
 }
 
 /* Add a buffer zone around the log wrapper to prevent flickering */
@@ -114,7 +115,6 @@
   width: 100%;
   position: relative;
   transition: all 0.1s ease;
-  border: 1px solid red;
 }
 
 .log-content.edit-mode {
@@ -126,7 +126,7 @@
   width: 600px;
   margin-bottom: 20px;
   flex-direction: row;
-  align-items: center;
+  align-self: center;
   border-radius: 14px;
   background-color: #19050584;
   color: var(--white);

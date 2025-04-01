@@ -59,7 +59,6 @@ function LogList (){
               onMouseEnter={() => handleLogMouseEnter(log._id)}
               onMouseLeave={handleLogMouseLeave}
             >
-              <div className={`log-content ${hoveredLogId === log._id ? 'edit-mode' : ''}`}>
                 {hoveredLogId === log._id ? (
                     <EditLogForm
                       food_name={log.food_name}
@@ -74,7 +73,6 @@ function LogList (){
                       amount_in_grams={log.amount_in_grams}
                     />
                 )}
-              </div>
             </div>
           </div>
         );
@@ -84,7 +82,7 @@ function LogList (){
 }
 
 function DisplayLog ({ food_name, date, amount_in_grams } : DisplayLogProps) {
-   return (<div className = 'log-wrapper'> 
+   return (<div className = 'log-bubble'> 
     <div className = 'entry-food-name'> {food_name} </div>
     <div className = 'entry-food-amt'> {amount_in_grams}
     <div className="log-unit"> {'g'} </div>
@@ -109,4 +107,4 @@ function DateDivider({date} : {date : Date}) {
   )
 }
 
-export {Log, LogList}
+export {LogList}
