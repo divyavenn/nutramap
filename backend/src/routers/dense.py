@@ -9,6 +9,7 @@ from pymongo.database import Database
 import asyncio
 import numpy as np
 import faiss
+import math
 
 # When running as a module within the application, use relative imports
 try:
@@ -47,15 +48,15 @@ async def update_faiss_index(db=None, user=None, request: Request = None):
     print("Updating FAISS index...")
     
     if db is None or user is None:
-        # Get database and user from environment when running as a module
         from pymongo import MongoClient
         mongo_uri = os.getenv("MONGO_URI")
         db_name = os.getenv("DB_NAME", "nutramapper")
         mongo_client = MongoClient(mongo_uri)
         db = mongo_client[db_name]
-        user = {"_id": "system"}  # Use a system user for initialization
+        user = {"_id": "system"}
     
     try:
+        pq = False
         embedding_id_map = await get_food_embeddings(db, user)
         
         if not embedding_id_map:
@@ -83,21 +84,32 @@ async def update_faiss_index(db=None, user=None, request: Request = None):
         
         # Normalize vectors to use cosine similarity
         faiss.normalize_L2(embedding_matrix)
-        
         dim = embedding_matrix.shape[1]
-        # use IndexFlatL2 for euclidean distance, IndexFlatIP for cosine similarity
-        index = faiss.IndexFlatIP(dim) 
+        
+        # product quantizers have to be trained our data. we're not using it bc our data is too small, leading to suboptimal results
+        if pq:
+            nlist = min(int(4 * math.sqrt(len(embeddings))), 100)  # number of clusters
+            m = 4  # number of subquantizers
+            bits = 8  # bits per subquantizer
+            
+            # use IndexFlatL2 for euclidean distance, IndexFlatIP for cosine similarity
+            quantizer = faiss.IndexFlatIP(dim)
+            index = faiss.IndexIVFPQ(quantizer, dim, nlist, m, bits)
+            
+            # Train the index
+            index.train(embedding_matrix)
+        else:
+            index = faiss.IndexFlatIP(dim)
 
-        # Add embeddings to the index
+
+        # Add vectors to the index
         index.add(embedding_matrix)
         
-        # Store in app.state if running as part of the FastAPI app
         if request is not None:
             request.app.state.faiss_index = index
             request.app.state.id_list = id_list
             print(f"FAISS index stored in app.state with {len(id_list)} items")
         else:
-            # For standalone execution, use global variables
             global faiss_index, id_list_global
             faiss_index = index
             id_list_global = id_list
