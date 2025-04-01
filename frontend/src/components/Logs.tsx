@@ -2,7 +2,7 @@ import '../assets/css/logs.css'
 import 'react-date-range/dist/styles.css'; // main style file
 import 'react-date-range/dist/theme/default.css'; 
 
-import {useState} from 'react'
+import {useState, useRef, useEffect} from 'react'
 import { EditLogForm } from './EditLogForm';
 import { formatTime } from './utlis';
 import { LogProps, DisplayLogProps } from './structures';
@@ -11,7 +11,11 @@ import { logsAtom, currentDayAtom, useRefreshLogs } from './dashboard_states';
 
 function LogList (){
   const logs = useRecoilValue(logsAtom) 
-
+  // Track which log is being hovered
+  const [hoveredLogId, setHoveredLogId] = useState<string | null>(null);
+  // Refs to store dimensions of display logs
+  const logDimensionsRef = useRef<{[key: string]: DOMRect | null}>({});
+  
   if (logs.length == 0) {
     return <div className="log-list">
       <div className = 'no-logs-message'> no logs in this time.</div> </div>;
@@ -20,6 +24,23 @@ function LogList (){
 
   const sortedLogs = [...logs].sort((a, b) => 
     (new Date(b.date).getTime()) - (new Date(a.date).getTime()));
+
+  // Handle mouse enter for a specific log - immediate response
+  const handleLogMouseEnter = (logId: string) => {
+    setHoveredLogId(logId);
+  };
+
+  // Handle mouse leave for a specific log - immediate response
+  const handleLogMouseLeave = () => {
+    setHoveredLogId(null);
+  };
+
+  // Function to store the dimensions of a display log
+  const storeLogDimensions = (logId: string, element: HTMLDivElement | null) => {
+    if (element) {
+      logDimensionsRef.current[logId] = element.getBoundingClientRect();
+    }
+  };
 
   return (
     <div className="log-list">
@@ -33,14 +54,28 @@ function LogList (){
               <DateDivider date={currentDate}/>
             )}
 
-            <Log
-              key={log._id}  
-              // Using index as a key. Ideally, use a unique id if available.
-              food_name={log.food_name}
-              date={new Date(log.date)}
-              amount_in_grams={log.amount_in_grams}
-              _id = {log._id}
-            /> 
+            <div 
+              className="log-wrapper"
+              onMouseEnter={() => handleLogMouseEnter(log._id)}
+              onMouseLeave={handleLogMouseLeave}
+            >
+              <div className={`log-content ${hoveredLogId === log._id ? 'edit-mode' : ''}`}>
+                {hoveredLogId === log._id ? (
+                    <EditLogForm
+                      food_name={log.food_name}
+                      date={new Date(log.date)}
+                      amount_in_grams={log.amount_in_grams}
+                      _id={log._id}
+                    />
+                ) : (
+                    <DisplayLog
+                      food_name={log.food_name}
+                      date={new Date(log.date)}
+                      amount_in_grams={log.amount_in_grams}
+                    />
+                )}
+              </div>
+            </div>
           </div>
         );
       })}
@@ -48,9 +83,8 @@ function LogList (){
   );
 }
 
-
 function DisplayLog ({ food_name, date, amount_in_grams } : DisplayLogProps) {
-   return (<div className = 'log-bubble'> 
+   return (<div className = 'log-wrapper'> 
     <div className = 'entry-food-name'> {food_name} </div>
     <div className = 'entry-food-amt'> {amount_in_grams}
     <div className="log-unit"> {'g'} </div>
@@ -59,43 +93,6 @@ function DisplayLog ({ food_name, date, amount_in_grams } : DisplayLogProps) {
   </div>)
 }
 
-function Log({ food_name, date, amount_in_grams, _id} : LogProps) { 
-  const [mouseOn, setMouseOn] = useState(false);
-  
-  // Simple direct handlers with no timeouts or extra complexity
-  const handleMouseEnter = () => {
-    setMouseOn(true);
-  };
-  
-  const handleMouseLeave = () => {
-    setMouseOn(false);
-  };
-
-  return (
-    <div 
-      className="log-wrapper"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      onMouseOver={handleMouseEnter}
-      onMouseOut={handleMouseLeave}
-    >
-      {mouseOn ? (
-        <EditLogForm
-          food_name={food_name}
-          date={date}
-          amount_in_grams={amount_in_grams}
-          _id={_id}
-        />
-      ) : (
-        <DisplayLog
-          food_name={food_name}
-          date={date}
-          amount_in_grams={amount_in_grams}
-        />
-      )}
-    </div>
-  );
-}
 
 function DateDivider({date} : {date : Date}) {
   const setCurrentDay = useSetRecoilState(currentDayAtom)
@@ -111,7 +108,5 @@ function DateDivider({date} : {date : Date}) {
     </div>
   )
 }
-
-
 
 export {Log, LogList}

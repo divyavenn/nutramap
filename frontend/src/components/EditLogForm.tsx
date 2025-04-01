@@ -1,4 +1,4 @@
-import React, { useState } from 'react' 
+import React, { useState, useEffect, useRef } from 'react' 
 import {request} from './endpoints';
 import {HoverButton, ImageButton } from './Sections';
 import YesOk from '../assets/images/check_circle.svg?react'
@@ -27,12 +27,25 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
   })
 
   const refreshLogs = useRefreshLogs();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [suggestions, setSuggestions] = useState<string[]>([]); // State for filtered suggestions
   const [showSuggestions, setShowSuggestions] = useState(false); // Control the visibility of suggestions
   const [showCalendar, setShowCalendar] = useState(false)
   const [validInput, markValidInput] = useState(true)
 
+  // Auto-adjust textarea height based on content
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [formData.food_name]);
+
+  // Prevent events from bubbling up to parent
+  const handleMouseEvent = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
 
   const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     
@@ -72,7 +85,6 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
   };
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // console.log("typing " + e.target.value)
     try{
       const newDate = e.target.value; // e.g., "2024-10-24" (YYYY-MM-DD format)
       
@@ -97,12 +109,11 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
         ...formData,
         date: updatedDate,
       });
-      // console.log("Changed data")
-  }
-  catch {}
+    }
+    catch {}
   };
 
-  const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTyping = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const {name, value} = e.target; // get the name and value of the input field
 
     setFormData({
@@ -135,9 +146,9 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    // setShowCalendar(false)
-    // setShowSuggestions(false)
     e.preventDefault() // prevent automatic submission
+    e.stopPropagation(); // prevent event from bubbling up
+    
     let data = {
       food_id: getFoodID(formData.food_name, foodList),
       amount_in_grams: Number(formData.amount_in_grams),
@@ -150,6 +161,8 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
 
   const handleDelete = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault() // prevent automatic submission
+    e.stopPropagation(); // prevent event from bubbling up
+    
     await request(`/logs/delete?log_id=${_id}`, 'DELETE')
     console.log("Log deleted successfully");
     setDeleted(true)
@@ -163,52 +176,55 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
 
   return (
     !deleted ? (
-    <form
-      id="edit-log-form"
-      className = {`edit-form-elements-wrapper ${showSuggestions ? 'active' : ''}`}
-      onSubmit={handleSubmit}>
-      
-      <div className = 'delete-log-button-container'>
-        <ImageButton
-                type= "button"
-                onClick= {handleDelete}
-                className= "delete-button"
-                children= {<Trashcan/>}>
-        </ImageButton>  
-      </div>
-
-        <div className = "form-dropdown-wrapper">
+    <div className="edit-form-container">
+      <form
+        id="edit-log-form"
+        className={`edit-form-container ${showSuggestions ? 'active' : ''}`}
+        onSubmit={handleSubmit}
+        onMouseEnter={handleMouseEvent}
+        onMouseLeave={handleMouseEvent}
+        onMouseOver={handleMouseEvent}
+        onMouseMove={handleMouseEvent}
+        onClick={handleMouseEvent}
+      >
         
+        <div className='delete-log-button-container'>
+          <ImageButton
+                  type="button"
+                  onClick={handleDelete}
+                  className="delete-button"
+                  children={<Trashcan/>}>
+          </ImageButton>  
+        </div>
+
+        <div className="form-dropdown-wrapper">
           <div className={`edit-entry-form-bubble ${showSuggestions ? 'active' : ''}`}>
-            <div className= 'edit-input-food-name-wrapper'>
-              <input
+            <div className='edit-input-food-name-wrapper'>
+              <textarea
+                ref={textareaRef}
                 name='food_name'
-                className = 'edit-input-food-name'
+                className='edit-input-food-name textarea-auto-height'
                 placeholder='food'
-                value = {formData.food_name}
+                value={formData.food_name}
                 onChange={handleTyping}
                 required
-              ></input>
+              ></textarea>
             </div>
 
-            <div className="edit-input-food-amt-wrapper ">
+            <div className="edit-input-food-amt-wrapper">
               <input
                 name='amount_in_grams'
-                className = 'edit-input-food-amt'
-                type = 'number'
+                className='edit-input-food-amt'
+                type='number'
                 placeholder='0'
-                value = {formData.amount_in_grams}
+                value={formData.amount_in_grams}
                 onChange={handleTyping}
                 required
               ></input>
               <span className="edit-unit">g</span>
             </div>
 
-
             <div className='edit-dateTime-container'>
-
-              <div className = 'edit-input-date-wrapper'>
-              
               <div className='edit-input-date-wrapper'>
                 <input
                   className='edit-input-date'
@@ -219,25 +235,27 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
                   required
                 />
               </div>
-                
-              </div>
 
-              <div className='edit-input-time-wrapper '>
+              <div className='edit-input-time-wrapper'>
                 <input className='edit-input-time-wrapper'
-                name = 'time'
-                type = 'time'
+                name='time'
+                type='time'
                 onChange={handleTimeChange}
-                value = {`${String(formData.date.getHours()).padStart(2, '0')}:${String(formData.date.getMinutes()).padStart(2, '0')}`}
+                value={`${String(formData.date.getHours()).padStart(2, '0')}:${String(formData.date.getMinutes()).padStart(2, '0')}`}
                 required>
                 </input>
+              </div>
             </div>
-
-            </div>
-
           </div>
 
           {showSuggestions && (
-            <ul className="suggestions-list">
+            <ul 
+              className="suggestions-list" 
+              onMouseEnter={handleMouseEvent}
+              onMouseLeave={handleMouseEvent}
+              onMouseOver={handleMouseEvent}
+              onMouseMove={handleMouseEvent}
+            >
               {suggestions.map(suggestion => (
                 <li key={suggestion}
                     onClick={() => handleSuggestionClick(suggestion)}
@@ -249,18 +267,23 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
           )}
 
           {showCalendar && (
-          <div className = 'calendar-dropdown-wrapper'>
+          <div 
+            className='calendar-dropdown-wrapper' 
+            onMouseEnter={handleMouseEvent}
+            onMouseLeave={handleMouseEvent}
+            onMouseOver={handleMouseEvent}
+            onMouseMove={handleMouseEvent}
+          >
             <CalendarDay
             day={date}
             handleSelect={handleSelect}
-            isOpen = {showCalendar}
+            isOpen={showCalendar}
             setIsOpen={setShowCalendar}/>
           </div>
           )}
-            
         </div>
 
-        <div className = 'edit-log-submit-container'>
+        <div className='edit-log-submit-container'>
           <HoverButton
                   type="submit"
                   className="edit-log-submit"
@@ -269,7 +292,8 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
                   childrenOff={<IsOk/>}>
           </HoverButton>
         </div> 
-    </form>) :
+      </form>
+    </div>) :
     <div>
 
       
@@ -278,4 +302,4 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
 
 }
 
-export  {EditLogForm}
+export {EditLogForm}

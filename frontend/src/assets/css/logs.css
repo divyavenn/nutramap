@@ -89,34 +89,36 @@
 /* ------------------------------------------CONTAINERS-------------------------------------- */
 
 .log-wrapper{ 
-  /* border: 2px solid red; */
   display: flex;
   width: 700px;
   flex-direction: row;
   justify-content: center;
   align-items: center;
   position: relative;
+  transition: all 0.1s ease; 
 }
 
-.log-display {
-  display: block;
-  width: 100%;
-}
-
-.log-edit {
-  display: none;
+/* Add a buffer zone around the log wrapper to prevent flickering */
+.log-wrapper::before {
+  content: '';
   position: absolute;
-  top: 0;
-  left: 0;
+  top: -10px;
+  left: -10px;
+  right: -10px;
+  bottom: -10px;
+  z-index: -1;
+}
+
+/* Style for the log content container */
+.log-content {
   width: 100%;
+  position: relative;
+  transition: all 0.1s ease;
+  border: 1px solid red;
 }
 
-.log-wrapper:hover .log-display {
-  display: none;
-}
-
-.log-wrapper:hover .log-edit {
-  display: block;
+.log-content.edit-mode {
+  z-index: 10;
 }
 
 .log-bubble {
@@ -129,6 +131,7 @@
   background-color: #19050584;
   color: var(--white);
   justify-content: space-between; /* Ensure space is distributed between elements */
+  transition: all 0.1s ease; 
 }
 
 .log-bubble:hover {

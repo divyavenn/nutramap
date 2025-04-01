@@ -4,12 +4,14 @@
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
+  appearance: none;
   margin: 0;
 }
 
 /* Hide number input spinners in Firefox */
 input[type="number"] {
   -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 /* When log-bubble is hovered, change input text and background color */
@@ -25,18 +27,21 @@ input[type="time"]::-webkit-calendar-picker-indicator,
 input[type="datetime-local"]::-webkit-calendar-picker-indicator {
     display: none;
     -webkit-appearance: none;
+    appearance: none;
 }
 
 /* For Firefox */
 input[type="time"],
 input[type="datetime-local"] {
     -moz-appearance: textfield;
+    appearance: textfield;
 }
 
 /* This targets the calendar icon in the date input field */
 .edit-input-date::-webkit-calendar-picker-indicator {
   display: none;
   -webkit-appearance: none;
+  appearance: none;
 }
 
 /* Additional styling for the input field */
@@ -63,41 +68,39 @@ input, textarea {
   background-color: transparent; /* Make sure the background is transparent initially */
   border: none; /* Removes default borders */
   outline: none; /* Removes outline when focused */
-  transition: color 0.3s ease, background-color 0.3s ease; /* Smooth transition */
+  transition: color 0.1s ease, background-color 0.1s ease; /* Faster transition */
 }
 
 /*--------------------------------------------CONTAINER----------------------------------*/
 
-.edit-form-elements-wrapper{
+.edit-form-container {
   display: flex;
+  width: 100%;
   margin-bottom: 20px;
-  margin-left: 10px;
-  background-color: none;
-  color: var(--white);
-  flex-direction: row;
-  border-radius: 14px;
 }
 
-.form-dropdown-wrapper{
+
+.form-dropdown-wrapper {
   display: flex;
   background-color: #19050576;
   color: var(--white);
   flex-direction: column;
   border-radius: 14px;
   width: 600px;
+  transition: all 0.1s ease;
 }
 
-
-.edit-entry-form-bubble{
+.edit-entry-form-bubble {
   display: flex;
   border-radius: 14px;
   width: 600px;
   background-color: #19050584;
-  /* border: 1px solid red; */
   flex-direction: row;
   align-items: center;
   color: var(--white);
-  justify-content: space-between; /* Ensure space is distributed between elements */
+  justify-content: space-between;
+  transition: all 0.1s ease;
+  min-height: 50px;
 }
 
 .edit-entry-form-bubble.active{
@@ -126,6 +129,11 @@ input, textarea {
   border-radius: 2px;
   width: 300px;
   position: relative; /* This is to ensure the suggestions dropdown aligns with the input */
+  flex-grow: 0;
+  flex-shrink: 0;
+  min-height: 50px;
+  display: flex; /* Use flexbox for alignment */
+  align-items: center; /* Center vertically */
 }
 
 .edit-input-food-name-wrapper:hover {
@@ -139,14 +147,20 @@ input, textarea {
   padding-left: 27px;
   padding-right: 10px;
   width: 300px;
-
-
   background: none;
   font-family: Inconsolata;
   color: inherit;
   outline: none;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background-color 0.1s ease, color 0.1s ease; /* Faster transition */
   text-align: left; /* Ensures the text aligns properly */
+  min-height: 20px; /* Minimum height */
+  height: auto; /* Allow height to adjust to content */
+  word-wrap: break-word; /* Allow text to wrap */
+  white-space: normal; /* Allow text to wrap */
+  line-height: 1.2; /* Ensure consistent line height with display log */
+  resize: none;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 
@@ -191,18 +205,16 @@ input, textarea {
 
 
 .edit-dateTime-container {
-  /* border: 1px solid red;  */
   flex-direction: row;
   display: flex; /* Enables flexbox on the container */
   width: 25%;
   justify-content: flex-end; /* Pushes content to the right side */
   align-items: center; /* Vertically centers the button */
   padding-right: 20px; /* Optional: padding */
-
+  flex-shrink: 0; /* Prevent shrinking */
 }
 
 .edit-input-date-wrapper {
-  /* border: 1px solid rgb(0, 4, 255); */
   padding-right: 5px; /* Optional: padding */
   flex-direction: row;
   display: flex; /* Enables flexbox on the container */
@@ -231,6 +243,7 @@ input, textarea {
   flex-direction: row;
   align-content: center;
   justify-content: center;
+  z-index: 20; /* Ensure it stays on top */
 }
 
 
@@ -265,7 +278,7 @@ input, textarea {
   overflow-y: auto; /* Scrollable if suggestions overflow */
   z-index: 999;
   opacity: 1;
-  transition: opacity 0.3s ease, max-height 0.3s ease;
+  transition: opacity 0.1s ease, max-height 0.1s ease; /* Faster transition */
   /* Hides scrollbar in WebKit browsers (Chrome, Safari, etc.) */
   -webkit-overflow-scrolling: touch; /* Enables smooth scrolling on mobile */
   scrollbar-width: none; /* For Firefox */
@@ -286,7 +299,7 @@ input, textarea {
   color: var(--white);
 
   cursor: pointer;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background-color 0.1s ease, color 0.1s ease; /* Faster transition */
 }
 
 /* Hover effect for suggestions */
