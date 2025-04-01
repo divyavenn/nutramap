@@ -16,6 +16,7 @@
   padding-right: 10px;
   width: 300px;
 
+  line-height: 1.2;
 
   background: none;
   font-family: Inconsolata;
@@ -28,10 +29,11 @@
   display: flex;
   justify-self: right;
   align-items: center;
-  align-self: center;
+  padding-top: 10px;
+  
   position: relative;
-  width: 7%; /* Set width to match your layout */
-  margin-left: -50px;
+  width: 10%; /* Set width to match your layout */
+  margin-left: -70px;
 
   padding-right: 10px; /* Creates space for the "g" */
   background: none;
@@ -127,6 +129,7 @@
   margin-bottom: 20px;
   flex-direction: row;
   align-self: center;
+  align-items: start;
   border-radius: 14px;
   background-color: #19050584;
   color: var(--white);

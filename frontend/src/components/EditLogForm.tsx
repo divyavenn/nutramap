@@ -176,7 +176,6 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
 
   return (
     !deleted ? (
-    <div className="edit-form-container">
       <form
         id="edit-log-form"
         className={`edit-form-container ${showSuggestions ? 'active' : ''}`}
@@ -199,7 +198,7 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
 
         <div className="form-dropdown-wrapper">
           <div className={`edit-entry-form-bubble ${showSuggestions ? 'active' : ''}`}>
-            <div className='edit-input-food-name-wrapper'>
+            <div className='edit-food-name'>
               <textarea
                 ref={textareaRef}
                 name='food_name'
@@ -221,7 +220,7 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
                 onChange={handleTyping}
                 required
               ></input>
-              <span className="edit-unit">g</span>
+              <div className="edit-unit">g</div>
             </div>
 
             <div className='edit-dateTime-container'>
@@ -293,7 +292,7 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
           </HoverButton>
         </div> 
       </form>
-    </div>) :
+    ) :
     <div>
 
       
