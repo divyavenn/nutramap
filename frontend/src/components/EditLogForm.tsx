@@ -42,9 +42,12 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
     }
   }, [formData.food_name]);
 
-  // Prevent events from bubbling up to parent
+  // Prevent events from bubbling up to parent, except for mouseLeave
   const handleMouseEvent = (e: React.MouseEvent) => {
-    e.stopPropagation();
+    // Don't stop propagation for mouseLeave events
+    if (e.type !== 'mouseleave') {
+      e.stopPropagation();
+    }
   };
 
   const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
