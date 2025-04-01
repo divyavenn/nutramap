@@ -9,7 +9,7 @@ load_dotenv()
 
 # Get MongoDB connection details from environment variables
 MONGO_URI = os.getenv("MONGO_URI")
-DB_NAME = os.getenv("DB_NAME")
+DB_NAME = os.getenv("DB_NAME", "nutramapper")
 if not MONGO_URI and not DB_NAME:
     raise ValueError("MongoDB environment variables are not set")
 

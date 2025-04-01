@@ -1,163 +1,91 @@
-import os
-from openai import OpenAI
-from dotenv import load_dotenv
-from typing import List, Dict
-from typing_extensions import Annotated
-from scipy.spatial.distance import cosine
-from fastapi import Depends
-from pymongo.database import Database
+# use openAI to parse user inputted food descripiont
+# make sure all the ingredients are processed in batches/parallel if possible 
+# sparse index already stored in Typesense CLoud, store FAISS index in RAM
+# use sparse index + dense index + Reciprocal Rank Fusion (RRF) to find matches
+# add to log
+# accuracy is good so no need for cross-recoder ranking using BERT model
+# implement optimized product quantization with rotation matrix 
+# cache queries
+# For twitter trawl: 
+# Add GPU acceleration with FAISS-GPU
+#	Experiment with distilled vector models for compactness
+#Try compressed sparse vector fusion
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from typing import Dict
 import asyncio
+from .parse import parse_meal_description
+from .sparse import get_sparse_index
+from .dense import find_dense_matches
+from .logs import add_log
+from .auth import get_current_user
+from pymongo.database import Database
+from typing_extensions import Annotated
+from src.databases.mongo import get_data
 
-# When running as a module within the application, use relative imports
-try:
-    from ..databases.mongo import get_data
-    from ..routers.foods import get_all_foods
-    from ..routers.auth import get_current_user
-# When running this file directly, use absolute imports
-except ImportError:
-    import sys
-    import os
-    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-    from src.databases.mongo import get_data
-    from src.routers.foods import get_all_foods
-    from src.routers.auth import get_current_user
-
+router = APIRouter(
+      # groups API endpoints together
+    prefix='/match',
+    tags=['match']
+)
 
 db = Annotated[Database, Depends(get_data)]
-user = Annotated[dict, Depends(get_current_user)]
 
-# Load environment variables
-load_dotenv()
+async def get_matches(ingredient: Dict, db: Database, user: Dict, request: Request = None):
+    sparse_results, dense_results = await asyncio.gather(
+        get_sparse_index(ingredient['food_name'], db, user, 60, 50),
+        find_dense_matches(ingredient['food_name'], db, user, request, 40, 50)
+    )
+    return sparse_results, dense_results
 
-# Initialize OpenAI client
-api_key = os.getenv("OPENAI_API_KEY")
-if not api_key:
-    raise ValueError("OPENAI_API_KEY environment variable is not set")
-
-client = OpenAI(api_key=api_key)
-
-# Define the structured output response format
-response_format = { "type": "json_object" }
-
-
-async def match_foods_to_database(parsed_foods: List[Dict], db, user):
+def rrf_fusion(sparse_results: Dict, dense_results: Dict, k: int = 60) -> str:
     """
-    Match free-text food names to database entries using semantic similarity via embeddings.
-    
-    Args:
-        parsed_foods: List of dictionaries with food_name and amount_in_grams
-        db: Database connection
-        user: User dictionary
-    
-    Returns:
-        List of dictionaries with food_id and amount_in_grams
+    Perform Reciprocal Rank Fusion on two dictionaries of food_id -> score
+    Returns the food_id with the highest combined score
     """
-    # Get all foods from the database
-    foods = await get_all_foods(db, user)
+    combined_scores = {}
     
-    # Create a list of food names from the database
-    names = list(foods.keys())
+    # Convert sparse results dictionary to sorted list for ranking
+    sparse_ranked = sorted(sparse_results.items(), key=lambda x: x[1], reverse=True)
     
-    # Generate embeddings for all database food names
-    db_embeddings = {}
-    for i in range(0, len(names), 20):  # Process in batches of 20
-        batch = names[i:i+20]
-        response = client.embeddings.create(
-            model="text-embedding-3-small",
-            input=batch
-        )
-        for j, food_name in enumerate(batch):
-            db_embeddings[food_name] = response.data[j].embedding
+    # Convert dense results dictionary to sorted list for ranking
+    dense_ranked = sorted(dense_results.items(), key=lambda x: x[1], reverse=True)
     
-    # Match each parsed food to a database food
-    matched_foods = []
+    # Process sparse results
+    for i, (food_id, _) in enumerate(sparse_ranked):
+        combined_scores[food_id] = 1 / (k + i + 1)
     
-    for food in parsed_foods:
-        food_name = food["food_name"]
-        
-        # Generate embedding for the parsed food name
-        response = client.embeddings.create(
-            model="text-embedding-3-small",
-            input=[food_name]
-        )
-        food_embedding = response.data[0].embedding
-        
-        # Find the most similar food in the database
-        best_match = None
-        best_similarity = 0
-        
-        for db_food_name, embedding in db_embeddings.items():
-            # Calculate cosine similarity (1 - cosine distance)
-            similarity = 1 - cosine(food_embedding, embedding)
-            
-            if similarity > best_similarity:
-                best_similarity = similarity
-                best_match = db_food_name
-        
-        # If similarity is high enough, consider it a match
-        if best_similarity >= 0.85 and best_match:
-            matched_foods.append({
-                "food_id": str(foods[best_match]),
-                "amount_in_grams": food["amount_in_grams"]
-            })
-        else:
-            print(f"No match found for {food_name}. Best match was {best_match} with similarity {best_similarity}")
+    # Process dense results
+    for i, (food_id, _) in enumerate(dense_ranked):
+        combined_scores[food_id] = combined_scores.get(food_id, 0) + 1 / (k + i + 1)
     
-    return matched_foods
-  
-if __name__ == "__main__":
-  
-  import os
-  import asyncio
-  from pymongo import MongoClient
-  from dotenv import load_dotenv
+    # Return the food_id with the highest combined score
+    if not combined_scores:
+        return None
+    return max(combined_scores, key=combined_scores.get)
+
+@router.post("/log-meal")
+async def log_meal(
+    meal_description: str,
+    user: Annotated[Dict, Depends(get_current_user)],
+    db: Annotated[Database, Depends(get_data)],
+    request: Request
+):
+    parsed_foods, timestamps = parse_meal_description(meal_description)
     
-  # Load environment variables
-  load_dotenv()
+    async def process_ingredient(ingredient):
+        sparse_results, dense_results = await get_matches(ingredient, db, user, request)
+        best_match_id = rrf_fusion(sparse_results, dense_results)
+        print("food_id" + str(best_match_id))
+        return {
+            "food_id": int(best_match_id),
+            "amount_in_grams": ingredient['amount_in_grams'],
+            "date": timestamps.get(ingredient['food_name']),
+            "user_id": user["_id"]
+        }
+
+    log_entries = await asyncio.gather(*[process_ingredient(ingredient) for ingredient in parsed_foods])
     
-  # Connect to MongoDB
-  mongo_uri = os.getenv("MONGO_URI")
-  db_name = os.getenv("DB_NAME")
-  
-  mongo_client = MongoClient(mongo_uri)
-  mongo_db = mongo_client[db_name]
-    
-  # Mock user for testing
-  mock_user = {"_id": "test_user_id"}
-  # Test data
-  foods = [
-    {
-      "food_name": "Greek yogurt made from skim milk",
-      "amount_in_grams": 120,
-      "timestamp": "2025-03-31T06:38:43"
-    },
-    {
-      "food_name": "mango, fresh, peeled and chopped",
-      "amount_in_grams": 150,
-      "timestamp": "2025-03-31T06:38:43"
-    },
-    {
-      "food_name": "milk 3.25% with added Vitamin D",
-      "amount_in_grams": 100,
-      "timestamp": "2025-03-31T06:38:43"
-    },
-    {
-      "food_name": "sugar, granulated",
-      "amount_in_grams": 20,
-      "timestamp": "2025-03-31T06:38:43"
-    },
-    {
-      "food_name": "cardamom, ground",
-      "amount_in_grams": 2,
-      "timestamp": "2025-03-31T06:38:43"
-    },
-    {
-      "food_name": "ice cubes",
-      "amount_in_grams": 30,
-      "timestamp": "2025-03-31T06:38:43"
-    }
-  ]
-    
-  result = asyncio.run(match_foods_to_database(foods, mongo_db, mock_user))
-  print(result)
-    
+    await asyncio.gather(*[add_log(user, log_entry, db) for log_entry in log_entries])
+
+    return {"status": "success", "message": f"Logged {len(log_entries)} items"}

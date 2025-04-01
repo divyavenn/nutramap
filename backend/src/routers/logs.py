@@ -9,7 +9,7 @@ from src.databases.mongo import get_data
 from src.databases.mongo_models import Log, LogEdit
 from src.routers.foods import get_nutrient_amount, amount_by_weight, get_food_name, get_all_foods
 from src.routers.auth import get_current_user
-from src.routers.ai import parse_meal_description
+from src.routers.parse import parse_meal_description
 
 __package__ = "nutramap.routers"
 
@@ -85,10 +85,10 @@ def get_logs(endDate : datetime, startDate : datetime, user : user, db: db):
   
   
 @router.post("/new")
-def new_log(user : user, db: db, food_id: str = Form(...), amount_in_grams: str = Form(...), date: str = Form(...)):
+async def new_log(user : user, db: db, food_id: str = Form(...), amount_in_grams: str = Form(...), date: str = Form(...)):
     try:
         log_data = Log.model_construct(food_id=int(food_id), amount_in_grams=float(amount_in_grams), date = datetime.fromisoformat(date))
-        return add_log(
+        return await add_log(
             user=user,
             log=log_data,
             db=db)
@@ -96,17 +96,28 @@ def new_log(user : user, db: db, food_id: str = Form(...), amount_in_grams: str 
     except ValueError:
         raise HTTPException(status_code=400)
 
-def add_log(user: user, log: Log, db: db):
-    # Validate that the food exists in SQLite
-    food = db.foods.find_one({"_id" : log.food_id})
+async def add_log(user: user, log, db: db):
+    # Check if log is a dictionary or a Log object
+    print(log)
+    if isinstance(log, dict):
+        log_dict = log
+        food_id = log_dict.get("food_id")
+    else:
+        # It's a Log object
+        food_id = log.food_id
+        log_dict = log.model_dump()
+    
+    # Validate that the food exists in MongoDB
+    food = db.foods.find_one({"_id": food_id})
     if not food:
         raise HTTPException(status_code=404, detail="Food not found")
 
     # Insert log into MongoDB
-    log_dict = log.model_dump()
-    # set log ID to current logged in user
-    log_dict["user_id"] = user["_id"]
-    log_dict["_id"] = ObjectId()  # Ensure it is unique
+    # If it's already a dict, use it directly
+    if not isinstance(log, dict):
+        # set log ID to current logged in user
+        log_dict["user_id"] = user["_id"]
+        log_dict["_id"] = ObjectId()  # Ensure it is unique
     
     db.logs.insert_one(log_dict)
     

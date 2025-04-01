@@ -48,11 +48,19 @@ def parse_meal_description(meal_description: str) -> Tuple[List[Dict], Dict[str,
         - branded and prepared items: (Candies, MARS SNACKFOOD US, SKITTLES Wild Berry Bite Size Candies) Cheese puffs and twists, corn based, baked, low fat)
 
         Always break down each meal into all its implied or explicit ingredients. If specific ingredients are listed, include them but assume that other ingredients were probably used.
-        Even if the ingredient is not mentioned, include it if it is a common ingredient in the meal. Even you are told what the recipe was made with, assume other ingredients were probably used.
-        If a known dish name is used (e.g., “dal chawal”, “smoothie”, “spaghetti”), infer and list all typical ingredients, even if they are not mentioned in the user input. 
-        You may look up or reason about common recipes to fill in missing components.
+        If a known dish name is used (e.g., “dal chawal”, “smoothie”, “spaghetti”), infer and list all common and typical ingredients, even if they are not mentioned in the user input. 
+        Even you are told what the recipe was made with, assume other ingredients were probably used. You may look up or reason about common recipes to fill in missing components.
 
         For example, a "strawberry smoothie" generally has milk, strawberries, and sugar, even if the milk and sugar are not listed.
+        
+        Estimate the weight in grams of each ingredient by reasoning through density and food type. 
+        
+        If a volumetric measurement is given, use precise conversions based on density and standard conversions, not generic rules.
+        
+        If no measurement is given, estimate the amount using how much would usually be added in common recipes.
+        Refer to USDA or standard kitchen measures where appropriate. Use accurate food-specific conversions instead. 
+        
+        For example, seeds and powders are lighter than oils or syrups. Any dry ingredients will be lighter than wet ingredients.
 
         Respond with a JSON object that uses the key "ingredients" with the a value a JSON array, with one object for each ingredient.
         Use this structure for each ingredient:
@@ -64,11 +72,6 @@ def parse_meal_description(meal_description: str) -> Tuple[List[Dict], Dict[str,
           }},
           ...
         ]
-
-        Convert common measurements to grams. Examples:
-        - 1 slice of bread ≈ 30g
-        - 1 tablespoon ≈ 15g
-        - 1 cup ≈ 240g
 
         For timestamps:
         - If a specific time is mentioned (e.g., "breakfast at 8am", "yesterday at 2pm"), include it
@@ -88,7 +91,6 @@ def parse_meal_description(meal_description: str) -> Tuple[List[Dict], Dict[str,
         
         # Parse the response
         content = response.choices[0].message.content
-        print(content)
         
         try:
             parsed_response = json.loads(content)["ingredients"]
@@ -115,7 +117,6 @@ def parse_meal_description(meal_description: str) -> Tuple[List[Dict], Dict[str,
             timestamps = {}
             
             for item in parsed_response:
-                print("Processing item:", item)
                 food_entry = {
                     "food_name": item.get("food_name", "Unknown food"),
                     "amount_in_grams": float(item.get("amount_in_grams", 0))
@@ -147,4 +148,4 @@ def parse_meal_description(meal_description: str) -> Tuple[List[Dict], Dict[str,
 
           
 if __name__ == "__main__":
-    parse_meal_description("Mango lassi")
+    parse_meal_description("half cup cooked multigrain rice, ½ cup plain yogurt, 1 package natto, 1 egg, tadka made with 1 tablespoon coconut oil 1 tablespoon mustard seeds 1 tablespoon urad dal")

@@ -138,6 +138,31 @@ async def get_all_foods(db: db, user: dict = Depends(get_current_user)):
   # Format the result as a dictionary
   return {food["food_name"]: food["_id"] for food in foods}
 
+
+
+async def get_id_name_map(db: db, user: dict = Depends(get_current_user)): 
+  foods = list(db.foods.find(
+        {"$or": [{"source": "USDA"}, {"source": user["_id"]}]},  # Match source "USDA" or user ID
+        {"_id": 1, "food_name": 1}  # Retrieve only `_id` and `food_name`
+    ))
+  if not foods:
+      return JSONResponse(content={"message": "No data found."}, status_code=404)
+
+  # Format the result as a dictionary
+  return {food["_id"]: food["food_name"] for food in foods}
+
+async def get_food_embeddings(db: db, user: dict = Depends(get_current_user)): 
+  foods = list(db.foods.find(
+        {"$or": [{"source": "USDA"}, {"source": user["_id"]}]},  # Match source "USDA" or user ID
+        {"_id": 1, "embedding": 1}  # Retrieve only `_id` and `embedding`
+    ))
+  if not foods:
+      return JSONResponse(content={"message": "No data found."}, status_code=404)
+
+   # Format the result as a dictionary
+  return {food["_id"]: food["embedding"] for food in foods}
+
+
 @router.post("/add")
 async def add_food(
     food_name: str,
