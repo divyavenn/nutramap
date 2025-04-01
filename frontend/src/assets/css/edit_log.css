@@ -84,6 +84,55 @@ input, textarea {
   pointer-events: none; /* Prevent interactions during animation */
 }
 
+.edit-form-container.deleting {
+  animation: pixelate-out 0.8s ease-in forwards;
+  pointer-events: none; /* Prevent interactions during animation */
+}
+
+@keyframes pixelate-out {
+  0% {
+    opacity: 1;
+    filter: none;
+    transform: scale(1) translateY(0);
+  }
+  20% {
+    opacity: 0.9;
+    filter: blur(1px);
+    transform: scale(1) translateY(0);
+  }
+  40% {
+    opacity: 0.8;
+    filter: blur(2px) contrast(1.2);
+    transform: scale(0.98) translateY(0);
+  }
+  60% {
+    opacity: 0.6;
+    filter: blur(3px) contrast(1.4);
+    transform: scale(0.95) translateY(2px);
+  }
+  80% {
+    opacity: 0.4;
+    filter: blur(4px) contrast(1.6);
+    transform: scale(0.9) translateY(4px);
+  }
+  /* Pop effect at the end */
+  90% {
+    opacity: 0.2;
+    filter: blur(1px) contrast(2);
+    transform: scale(1.05) translateY(-2px);
+  }
+  95% {
+    opacity: 0.1;
+    filter: blur(0) brightness(1.5);
+    transform: scale(1.02) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(0);
+    transform: scale(0);
+  }
+}
+
 /*--------------------------------------------FORM----------------------------------*/
 
 .form-dropdown-wrapper {

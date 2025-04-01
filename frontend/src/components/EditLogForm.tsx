@@ -26,6 +26,7 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
     date : date,
   })
   const [isSubmitting, setIsSubmitting] = useState(false); // Track submission animation state
+  const [isDeleting, setIsDeleting] = useState(false); // Track deletion animation state
 
   const refreshLogs = useRefreshLogs();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -244,11 +245,20 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
     e.preventDefault() // prevent automatic submission
     e.stopPropagation(); // prevent event from bubbling up
     
-    await request(`/logs/delete?log_id=${_id}`, 'DELETE')
-    console.log("Log deleted successfully");
-    setDeleted(true)
-    refreshLogs()
-    setFormData({ ...formData, food_name: '', amount_in_grams : ''})
+    // Start the deletion animation
+    setIsDeleting(true);
+    
+    // Add a delay to show the animation before actually deleting
+    setTimeout(async () => {
+      await request(`/logs/delete?log_id=${_id}`, 'DELETE')
+      console.log("Log deleted successfully");
+      setDeleted(true)
+      refreshLogs()
+      setFormData({ ...formData, food_name: '', amount_in_grams : ''})
+      
+      // Reset the deletion state (though it won't be visible anymore)
+      setIsDeleting(false);
+    }, 800); // Delay before actual deletion
   }
 
   const handleSelect = (date: Date) => {
@@ -259,7 +269,7 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
     !deleted ? (
       <form
         id="edit-log-form"
-        className={`edit-form-container ${showSuggestions ? 'active' : ''} ${isSubmitting ? 'submitting' : ''}`}
+        className={`edit-form-container ${showSuggestions ? 'active' : ''} ${isSubmitting ? 'submitting' : ''} ${isDeleting ? 'deleting' : ''}`}
         onSubmit={handleSubmit}
         onMouseEnter={handleMouseEvent}
         onMouseLeave={handleMouseEvent}
