@@ -13,6 +13,8 @@ function LogList (){
   const logs = useRecoilValue(logsAtom) 
   // Track which log is being hovered
   const [hoveredLogId, setHoveredLogId] = useState<string | null>(null);
+  // Track if an animation is currently playing
+  const [animationLock, setAnimationLock] = useState(false);
   // Refs to store dimensions of display logs
   const logDimensionsRef = useRef<{[key: string]: DOMRect | null}>({});
   
@@ -27,12 +29,28 @@ function LogList (){
 
   // Handle mouse enter for a specific log - immediate response
   const handleLogMouseEnter = (logId: string) => {
-    setHoveredLogId(logId);
+    // Only change the hovered log if no animation is playing
+    if (!animationLock) {
+      setHoveredLogId(logId);
+    }
   };
 
   // Handle mouse leave for a specific log - immediate response
   const handleLogMouseLeave = () => {
-    setHoveredLogId(null);
+    // Only change the hovered log if no animation is playing
+    if (!animationLock) {
+      setHoveredLogId(null);
+    }
+  };
+
+  // Function to handle animation start
+  const handleAnimationStart = () => {
+    setAnimationLock(true);
+  };
+
+  // Function to handle animation end
+  const handleAnimationEnd = () => {
+    setAnimationLock(false);
   };
 
   // Function to store the dimensions of a display log
@@ -65,6 +83,8 @@ function LogList (){
                       date={new Date(log.date)}
                       amount_in_grams={log.amount_in_grams}
                       _id={log._id}
+                      onAnimationStart={handleAnimationStart}
+                      onAnimationEnd={handleAnimationEnd}
                     />
                 ) : (
                     <DisplayLog

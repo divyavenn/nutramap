@@ -10,12 +10,19 @@ import { tolocalDateString } from '../components/utlis'
 import { useRecoilValue } from 'recoil';
 
 import '../assets/css/edit_log.css'
-import { LogProps } from './structures';
 import { useRefreshLogs } from './dashboard_states';
 import { foodsAtom } from './account_states';
 
+interface LogProps {
+  food_name: string;
+  date: Date;
+  amount_in_grams: number;
+  _id: string;
+  onAnimationStart?: () => void;  
+  onAnimationEnd?: () => void;    
+}
 
-function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
+function EditLogForm({food_name, date, amount_in_grams, _id, onAnimationStart, onAnimationEnd} : LogProps){
 
   // Mock food data for autocomplete
   const foodList = useRecoilValue(foodsAtom)
@@ -218,10 +225,14 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault() // prevent automatic submission
     e.stopPropagation(); // prevent event from bubbling up
-
     
     // Start the submission animation
     setIsSubmitting(true);
+    
+    // Notify parent component that animation has started
+    if (onAnimationStart) {
+      onAnimationStart();
+    }
     
     // Add a delay to show the animation before submitting
     setTimeout(async () => {
@@ -237,6 +248,11 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
       // Reset the submission state after a short delay to show the animation
       setTimeout(() => {
         setIsSubmitting(false);
+        
+        // Notify parent component that animation has ended
+        if (onAnimationEnd) {
+          onAnimationEnd();
+        }
       }, 500);
     }, 800); // Delay before actual submission
   }
@@ -248,6 +264,11 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
     // Start the deletion animation
     setIsDeleting(true);
     
+    // Notify parent component that animation has started
+    if (onAnimationStart) {
+      onAnimationStart();
+    }
+    
     // Add a delay to show the animation before actually deleting
     setTimeout(async () => {
       await request(`/logs/delete?log_id=${_id}`, 'DELETE')
@@ -258,6 +279,11 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
       
       // Reset the deletion state (though it won't be visible anymore)
       setIsDeleting(false);
+      
+      // Notify parent component that animation has ended
+      if (onAnimationEnd) {
+        onAnimationEnd();
+      }
     }, 800); // Delay before actual deletion
   }
 

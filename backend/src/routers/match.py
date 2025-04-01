@@ -73,6 +73,8 @@ async def log_meal(
 ):
     parsed_foods, timestamps = parse_meal_description(meal_description)
     
+    print(meal_description)
+    
     async def process_ingredient(ingredient):
         sparse_results, dense_results = await get_matches(ingredient, db, user, request)
         best_match_id = rrf_fusion(sparse_results, dense_results)
