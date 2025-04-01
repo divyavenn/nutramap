@@ -61,21 +61,33 @@ function DisplayLog ({ food_name, date, amount_in_grams } : DisplayLogProps) {
 
 function Log({ food_name, date, amount_in_grams, _id} : LogProps) { 
   const [mouseOn, setMouseOn] = useState(false);
+  
+  // Simple direct handlers with no timeouts or extra complexity
+  const handleMouseEnter = () => {
+    setMouseOn(true);
+  };
+  
+  const handleMouseLeave = () => {
+    setMouseOn(false);
+  };
+
   return (
-    <div className = 'log-wrapper'
-    onMouseEnter={() => setMouseOn(true)}
-    onMouseLeave={() => setMouseOn(false)}
+    <div 
+      className="log-wrapper"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onMouseOver={handleMouseEnter}
+      onMouseOut={handleMouseLeave}
     >
       {mouseOn ? (
-          <EditLogForm
+        <EditLogForm
           food_name={food_name}
           date={date}
           amount_in_grams={amount_in_grams}
-          _id = {_id}
-
+          _id={_id}
         />
       ) : (
-          <DisplayLog
+        <DisplayLog
           food_name={food_name}
           date={date}
           amount_in_grams={amount_in_grams}

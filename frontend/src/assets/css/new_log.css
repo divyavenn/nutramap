@@ -226,7 +226,7 @@ input, textarea {
   padding-left: 27px;
   padding-right: 10px;
   resize: vertical;
-  min-height: 60px;
+  min-height: 50px;
   font-family: Inconsolata;
   color: inherit;
   background: none;
