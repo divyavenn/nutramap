@@ -312,6 +312,12 @@ input, textarea {
   color: #1e002e;
 }
 
+/* Selected suggestion item for keyboard navigation */
+.suggestion-item.selected {
+  background-color: #ffffffa1;
+  color: #1e002e;
+}
+
 
 
 .edit-log-submit-container {

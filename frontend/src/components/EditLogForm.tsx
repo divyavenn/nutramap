@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react' 
+import React, { useState, useEffect, useRef, KeyboardEvent } from 'react' 
 import {request} from './endpoints';
 import {HoverButton, ImageButton } from './Sections';
 import YesOk from '../assets/images/check_circle.svg?react'
@@ -33,6 +33,7 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
   const [showSuggestions, setShowSuggestions] = useState(false); // Control the visibility of suggestions
   const [showCalendar, setShowCalendar] = useState(false)
   const [validInput, markValidInput] = useState(true)
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState<number>(-1); // Track selected suggestion
 
   // Auto-adjust textarea height based on content
   useEffect(() => {
@@ -42,11 +43,75 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
     }
   }, [formData.food_name]);
 
+  // Reset selected suggestion index when suggestions change
+  useEffect(() => {
+    setSelectedSuggestionIndex(suggestions.length > 0 ? 0 : -1);
+  }, [suggestions]);
+
   // Prevent events from bubbling up to parent, except for mouseLeave
   const handleMouseEvent = (e: React.MouseEvent) => {
     // Don't stop propagation for mouseLeave events
     if (e.type !== 'mouseleave') {
       e.stopPropagation();
+    }
+  };
+
+  // Handle keyboard navigation for suggestions
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement | HTMLInputElement>) => {
+    if (!showSuggestions) return;
+    
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setSelectedSuggestionIndex(prev => 
+          prev < suggestions.length - 1 ? prev + 1 : prev
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setSelectedSuggestionIndex(prev => 
+          prev > 0 ? prev - 1 : prev
+        );
+        break;
+      case 'Tab':
+        e.preventDefault();
+        if (selectedSuggestionIndex >= 0) {
+          handleSuggestionClick(suggestions[selectedSuggestionIndex]);
+        }
+        break;
+      case 'Enter':
+        // If suggestions are shown and one is selected, select it
+        if (showSuggestions && selectedSuggestionIndex >= 0) {
+          e.preventDefault();
+          handleSuggestionClick(suggestions[selectedSuggestionIndex]);
+        }
+        // Otherwise, let the form submit normally
+        break;
+      case 'Escape':
+        e.preventDefault();
+        setShowSuggestions(false);
+        break;
+      case 'ArrowLeft':
+      case 'ArrowRight':
+        // Allow these to work normally for cursor movement
+        break;
+    }
+  };
+
+  // Prevent Enter key from creating new lines in textarea
+  const handleTextareaKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    // Call the general key handler first
+    handleKeyDown(e);
+    
+    // Prevent Enter from creating a new line
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      
+      // If no suggestions are shown or none selected, submit the form
+      if (!showSuggestions || selectedSuggestionIndex < 0) {
+        const form = document.getElementById('edit-log-form') as HTMLFormElement;
+        if (form) form.requestSubmit();
+      }
     }
   };
 
@@ -209,6 +274,7 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
                 placeholder='food'
                 value={formData.food_name}
                 onChange={handleTyping}
+                onKeyDown={handleTextareaKeyDown}
                 required
               ></textarea>
             </div>
@@ -221,6 +287,7 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
                 placeholder='0'
                 value={formData.amount_in_grams}
                 onChange={handleTyping}
+                onKeyDown={handleKeyDown}
                 required
               ></input>
               <div className="edit-unit">g</div>
@@ -233,6 +300,7 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
                   name='date'
                   type='date'
                   onChange={handleDateChange}
+                  onKeyDown={handleKeyDown}
                   value={formatDate(formData.date)} // Format date to 'YYYY-MM-DD'
                   required
                 />
@@ -243,6 +311,7 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
                 name='time'
                 type='time'
                 onChange={handleTimeChange}
+                onKeyDown={handleKeyDown}
                 value={`${String(formData.date.getHours()).padStart(2, '0')}:${String(formData.date.getMinutes()).padStart(2, '0')}`}
                 required>
                 </input>
@@ -258,10 +327,12 @@ function EditLogForm({food_name, date, amount_in_grams, _id} : LogProps){
               onMouseOver={handleMouseEvent}
               onMouseMove={handleMouseEvent}
             >
-              {suggestions.map(suggestion => (
+              {suggestions.map((suggestion, index) => (
                 <li key={suggestion}
                     onClick={() => handleSuggestionClick(suggestion)}
-                    className="suggestion-item">
+                    className={`suggestion-item ${index === selectedSuggestionIndex ? 'selected' : ''}`}
+                    onMouseEnter={() => setSelectedSuggestionIndex(index)}
+                >
                   {suggestion}
                 </li>
               ))}
