@@ -6,7 +6,7 @@ import { DateSelector} from '../components/DateSelector'
 import {doWithData} from '../components/endpoints'
 import {Heading} from '../components/Title'
 import { MainSection, Header} from '../components/Sections'
-import { NewLogForm } from '../components/NewLog' 
+import NewSmartLog from '../components/NewSmartLog'
 import { NutrientDashboard} from '../components/NutrientDash'
 import { useRefreshLogs, useRefreshRequirements, useRefreshData } from '../components/dashboard_states'
 import Account from '../assets/images/account.svg?react'
@@ -63,7 +63,7 @@ function Dashboard(){
 
   <MainSection>
     <div>
-    <NewLogForm />
+    <NewSmartLog />
    </div>
   </MainSection>
 

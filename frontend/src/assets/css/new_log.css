@@ -54,7 +54,6 @@ input, textarea {
   display: flex;
   border-radius: 14px;
   width: 100%;
-  /* border: 1px solid red; */
   flex-direction: row;
   align-items: center;
   color: var(--white);
@@ -188,6 +187,15 @@ input, textarea {
   padding: 10px; /* Optional: padding */
 }
 
+.new-smart-log-button-container {
+  display: flex; /* Enables flexbox on the container */
+  width: 3.2%;
+  justify-content: flex-end; /* Pushes content to the right side */
+  align-items: center; /* Vertically centers the button */
+  padding: 10px; /* Optional: padding */
+}
+
+
 .new-log-button {
   align-items: center; /* Vertically center the SVG within the button */
   background: none;
@@ -209,3 +217,40 @@ input, textarea {
   height: 15px;
 }
 
+/* Journal input styling */
+.input-journal {
+  flex: 1;
+  width: 100%;
+  padding-top: 15px;
+  padding-bottom: 15px;
+  padding-left: 27px;
+  padding-right: 10px;
+  resize: vertical;
+  min-height: 60px;
+  font-family: Inconsolata;
+  color: inherit;
+  background: none;
+  border: none;
+  outline: none;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  text-align: left;
+}
+
+.smart-entry-form-bubble{
+  display: flex;
+  border-radius: 14px;
+  width: 600px;
+  padding-top: 15px;
+  padding-bottom: 15px;
+  background-color: #19050584;
+  /* border: 1px solid red; */
+  flex-direction: row;
+  align-items: center;
+  color: var(--white);
+  justify-content: space-between; /* Ensure space is distributed between elements */
+}
+
+.smart-entry-form-bubble:hover{
+  background-color: #ffffffa1;
+  color: #1e002e;
+}
