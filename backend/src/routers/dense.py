@@ -135,7 +135,7 @@ async def embed_query(text: str):
 
 async def find_and_print_matches(text: str, db, user):
     try:
-        top_matches = await find_dense_matches(text, db, user)
+        top_matches = await find_dense_matches(text, db, user, None, 40, 20)
         
         food_names = await get_id_name_map(db, user)
         print("Top matches:")
@@ -156,12 +156,12 @@ async def find_dense_matches(text: str, db, user, request: Request = None, thres
             # Running as part of FastAPI app
             if hasattr(request.app.state, 'faiss_index') and request.app.state.faiss_index is not None:
                 # Index already exists in app state, use it
-                print("Using existing FAISS index from app.state")
+                # print("Using existing FAISS index from app.state")
                 faiss_index = request.app.state.faiss_index
                 id_list = request.app.state.id_list
             else:
                 # Index not initialized, create it
-                print("FAISS index not initialized in app.state, updating now...")
+                # print("FAISS index not initialized in app.state, updating now...")
                 await update_faiss_index(db, user, request)
                 
                 # If still not initialized, return empty results
@@ -195,9 +195,6 @@ async def find_dense_matches(text: str, db, user, request: Request = None, thres
             return {}
             
         D, I = faiss_index.search(query_embedding, k)
-        
-        # Print debug info about search results
-        print(f"Search results - D: {D}, I: {I}")
         
         # Get matching IDs and scores - I[0] contains indices into our embeddings list
         results_dict = {}
