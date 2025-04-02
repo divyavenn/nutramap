@@ -148,4 +148,4 @@ def parse_meal_description(meal_description: str) -> Tuple[List[Dict], Dict[str,
 
           
 if __name__ == "__main__":
-    parse_meal_description("half cup cooked multigrain rice, ½ cup plain yogurt, 1 package natto, 1 egg, tadka made with 1 tablespoon coconut oil 1 tablespoon mustard seeds 1 tablespoon urad dal")
+    print(parse_meal_description("1 tablespoon butter"))

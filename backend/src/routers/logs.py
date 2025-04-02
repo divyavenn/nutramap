@@ -222,7 +222,8 @@ def meets(startDate : datetime, endDate: datetime, user: user, db : db):
     if (days > 0):
         for nutrient in tally:
             total = tally[nutrient]
-            avg = total / days
+            # Return 0 if total is 0 to avoid NaN
+            avg = total / days if total != 0 else 0
             tally[nutrient] = avg
     
     return tally

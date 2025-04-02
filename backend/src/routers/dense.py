@@ -144,7 +144,7 @@ async def update_faiss_index(db=None, user=None, request: Request = None):
             if hasattr(request.app.state, 'faiss_index'):
                 print(f"Verification - faiss_index is None: {request.app.state.faiss_index is None}")
             
-            return index, id_name_map.keys()
+        return index, id_name_map.keys()
         
     except Exception as e:
         print(f"Error updating FAISS index: {e}")
@@ -254,7 +254,6 @@ if __name__ == "__main__":
   # Mock user for testing
   mock_user = {"_id": "test_user_id"}
   # Test data
-  food = "Greek yogurt made with skim milk"
+  food = "butter"
 
-  asyncio.run(update_faiss_index(mongo_db, mock_user))
   asyncio.run(find_and_print_matches(food, mongo_db, mock_user))

@@ -57,6 +57,7 @@
 /* ------------------------------------------DATE-------------------------------------- */
 
 .entry-date {
+  padding-top: 10px;
   display: flex; /* Enables flexbox on the container */
   width: 25%;
   justify-content: flex-end; /* Pushes content to the right side */

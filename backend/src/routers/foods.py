@@ -114,7 +114,7 @@ def get_nutrient_details(db, nutrient_id: int):
 
 def get_food_name(food_id: int, db = db, request: Request = None):
     # Check app state first
-    if hasattr(request.app.state, 'id_name_map') and food_id in request.app.state.id_name_map:
+    if request is not None and hasattr(request.app.state, 'id_name_map') and food_id in request.app.state.id_name_map:
         return request.app.state.id_name_map[food_id]
     
     # Then check pickle
@@ -142,7 +142,7 @@ def amount_by_weight(amt: float, grams: float):
 
 async def retrieve_id_food_map(request: Request, db: db, user: dict = Depends(get_current_user)):
     # Check app state first
-    if hasattr(request.app.state, 'id_name_map'):
+    if request is not None and hasattr(request.app.state, 'id_name_map'):
         return request.app.state.id_name_map
 
     # Then check pickle

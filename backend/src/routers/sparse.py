@@ -221,9 +221,28 @@ async def get_sparse_index(
     
     return filtered_matches
 
-def print_matches(matches):
+def pretty_print_matches(matches):
+    # Simplified version of get_food_name that works in standalone scripts
+    import pickle
+    import os
+    from dotenv import load_dotenv
+    
+    # Load environment variables
+    load_dotenv()
+    
+    # Get food names from pickle cache
+    try:
+        with open(os.getenv("FOOD_ID_CACHE"), 'rb') as f:
+            food_names = pickle.load(f)
+    except (FileNotFoundError, pickle.UnpicklingError) as e:
+        print(f"Error loading food names: {e}")
+        return
+    
+    # Print matches with food names
     for food_id, score in matches.items():
-      print(f"{food_id} - {score}")
+        food_id_int = int(food_id)
+        food_name = food_names.get(food_id_int, f"Unknown food ({food_id_int})")
+        print(f"{food_name} - {score:.4f}")
 
 if __name__ == "__main__":
     import asyncio
@@ -242,8 +261,8 @@ if __name__ == "__main__":
     
     #asyncio.run(update_sparse_index(mongo_db, mock_user))
     
-    food = "Greek yogurt made with skim milk"
+    food = "butter"
     
     result = asyncio.run(get_sparse_index(food, mongo_db, mock_user))
     print("Here are the filtered matches!")
-    print_matches(result)
+    pretty_print_matches(result)

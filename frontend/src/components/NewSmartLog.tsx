@@ -28,6 +28,16 @@ function NewSmartLog() {
     setFeedback('');
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Submit form on Enter without Shift key
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault(); // Prevent newline
+      if (mealDescription.trim()) {
+        handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>);
+      }
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!mealDescription.trim()) return;
@@ -66,6 +76,7 @@ function NewSmartLog() {
               placeholder="a bowl of steel-cut oats with blueberries and a cup of coffee with whole milk for breakfast"
               value={mealDescription}
               onChange={handleTyping}
+              onKeyDown={handleKeyDown}
               disabled={isSubmitting}
               required
             />
