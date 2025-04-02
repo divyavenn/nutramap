@@ -15,6 +15,7 @@ try:
     from ..databases.mongo import get_data
     from ..routers.foods import get_food_embeddings, get_id_name_map
     from ..routers.auth import get_current_user
+    from ..routers.parallel import parallel_process
 
 # When running this file directly, use absolute imports
 except ImportError:
@@ -24,6 +25,7 @@ except ImportError:
     from src.databases.mongo import get_data
     from src.routers.foods import get_food_embeddings, get_id_name_map
     from src.routers.auth import get_current_user
+    from src.routers.parallel import parallel_process
 
 
 db = Annotated[Database, Depends(get_data)]
@@ -215,17 +217,31 @@ async def find_dense_matches(text: str, db, user, request: Request = None, thres
         return {}
         
     D, I = faiss_index.search(query_embedding, k)
-        
-    # Get matching IDs and scores - I[0] contains indices into our embeddings list
-    results_dict = {}
-    for idx, i in enumerate(I[0]):
+    
+    # Process search results in parallel
+    async def process_result(idx):
+        i = I[0][idx]
         if 0 <= i < len(id_list):  # Make sure index is valid
             food_id = id_list[i]
             similarity_score = float(D[0][idx])
             # Convert to 0-100 scale for consistency with sparse search
             normalized_score = round(max(0, min(100, similarity_score * 100)))
             if normalized_score >= threshold:
-                results_dict[food_id] = normalized_score
+                return (food_id, normalized_score)
+        return None
+    
+    # Create a list of indices to process
+    indices = list(range(len(I[0])))
+    
+    # Process all results in parallel
+    results = await parallel_process(indices, process_result)
+    
+    # Filter out None results and convert to dictionary
+    results_dict = {}
+    for result in results:
+        if result is not None:
+            food_id, score = result
+            results_dict[food_id] = score
         
     return results_dict
 

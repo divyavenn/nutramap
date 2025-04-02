@@ -5,12 +5,15 @@ from pymongo.database import Database
 import typesense
 from dotenv import load_dotenv
 import os
+import json
+import asyncio
 
 # When running as a module within the application, use relative imports
 try:
     from ..databases.mongo import get_data
     from ..routers.auth import get_current_user
     from ..routers.foods import get_all_foods 
+    from ..routers.parallel import parallel_process
 # When running this file directly, use absolute imports
 except ImportError:
     import sys
@@ -19,6 +22,7 @@ except ImportError:
     from src.databases.mongo import get_data
     from src.routers.auth import get_current_user
     from src.routers.foods import get_all_foods 
+    from src.routers.parallel import parallel_process
     
 
 # Load environment variables
@@ -198,27 +202,36 @@ async def get_sparse_index(
     user=None,
     threshold: float = 40,
     limit: int = 50
-) -> Dict:
-    # When running directly, create DB connection if not provided
-    if db is None or user is None:
-        # Get database and user from environment when running as a module
-        from pymongo import MongoClient
-        load_dotenv()
-        mongo_uri = os.getenv("MONGO_URI")
-        db_name = os.getenv("DB_NAME", "nutramapper")
-        mongo_client = MongoClient(mongo_uri)
-        db = mongo_client[db_name]
-        user = {"_id": "system"}  # Use a system user for initialization
+):
+    """
+    Search for foods using the sparse index (Typesense)
+    Returns a dictionary of food_id -> score
+    """
+    print(f"Searching for: '{query}'")
     
-    #all_foods = await get_all_foods(db, user)
-    #await index_foods_with_typesense(all_foods)
-    matches = await search_foods(query, limit)
+    # Search for foods
+    search_results = await search_foods(query, limit)
     
-    # Convert limit to integer to ensure it's a valid slice index
-    int_limit = int(limit)
+    # Process search results in parallel
+    async def process_hit(hit):
+        food_id = hit['document']['id']
+        # Convert score to 0-100 scale for consistency with dense search
+        score = round(hit['text_match'] * 100)
+        if score >= threshold:
+            return (food_id, score)
+        return None
     
-    filtered_matches = {food_id: score for food_id, score in matches.items() if score >= threshold}
+    # Process all hits in parallel
+    results = await parallel_process(search_results['hits'], process_hit)
     
+    # Filter out None results and convert to dictionary
+    filtered_matches = {}
+    for result in results:
+        if result is not None:
+            food_id, score = result
+            filtered_matches[food_id] = score
+    
+    print(f"Found {len(filtered_matches)} results")
     return filtered_matches
 
 def pretty_print_matches(matches):

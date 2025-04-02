@@ -24,6 +24,7 @@ try:
     from .auth import get_current_user
     from src.databases.mongo import get_data
     from .foods import get_food_name
+    from .parallel import parallel_process
 
 # When running this file directly, use absolute imports
 except ImportError:
@@ -37,6 +38,7 @@ except ImportError:
     from src.routers.auth import get_current_user
     from src.databases.mongo import get_data
     from src.routers.foods import get_food_name
+    from src.routers.parallel import parallel_process
 
 from pymongo.database import Database
 from typing_extensions import Annotated
@@ -78,12 +80,11 @@ async def rrf_fusion(sparse_results: Dict, dense_results: Dict, k: int = 60) -> 
     
     # Sort scores in descending order
     sorted_sparse_scores = sorted(sparse_score_groups.keys(), reverse=True)
-    # Assign ranks to items, with ties getting the same rank
-    current_rank = 0
     
-        
-    async def process_score(score, food_ids):
+    # Define the process function for sparse scores
+    async def process_sparse_score(score):
         nonlocal current_rank
+        food_ids = sparse_score_groups[score]
         # All items with the same score get the same rank
         norm_score = score / 100.0 if score > 0 else 0
         rank_score = 1 / (k + current_rank + 1)
@@ -94,10 +95,14 @@ async def rrf_fusion(sparse_results: Dict, dense_results: Dict, k: int = 60) -> 
         current_rank += len(food_ids)
         return score_results
     
-    tasks = [process_score(score, sparse_score_groups[score]) for score in sorted_sparse_scores]
-    results = await asyncio.gather(*tasks)
+    # Initialize current_rank for sparse processing
+    current_rank = 0
     
-    for result in results:
+    # Process sparse scores in parallel
+    sparse_results_list = await parallel_process(sorted_sparse_scores, process_sparse_score)
+    
+    # Combine sparse results
+    for result in sparse_results_list:
         combined_scores.update(result)
     
     # Process dense results with proper tie handling
@@ -111,11 +116,10 @@ async def rrf_fusion(sparse_results: Dict, dense_results: Dict, k: int = 60) -> 
     # Sort scores in descending order
     sorted_dense_scores = sorted(dense_score_groups.keys(), reverse=True)
     
-    # Assign ranks to items, with ties getting the same rank
-    current_rank = 0
-    
-    async def process_dense_score(score, food_ids):
+    # Define the process function for dense scores
+    async def process_dense_score(score):
         nonlocal current_rank
+        food_ids = dense_score_groups[score]
         norm_score = score / 100.0 if score > 0 else 0
         rank_score = 1 / (k + current_rank + 1)
         score_results = {
@@ -125,20 +129,23 @@ async def rrf_fusion(sparse_results: Dict, dense_results: Dict, k: int = 60) -> 
         current_rank += len(food_ids)
         return score_results
     
-    dense_tasks = [process_dense_score(score, dense_score_groups[score]) for score in sorted_dense_scores]
-    dense_results = await asyncio.gather(*dense_tasks)
+    # Reset current_rank for dense processing
+    current_rank = 0
     
-    for result in dense_results:
+    # Process dense scores in parallel
+    dense_results_list = await parallel_process(sorted_dense_scores, process_dense_score)
+    
+    # Combine dense results with existing scores
+    for result in dense_results_list:
         for food_id, score in result.items():
             combined_scores[food_id] = combined_scores.get(food_id, 0) + score
     
     # Debug: Print top 5 combined results
     top_combined = sorted(combined_scores.items(), key=lambda x: x[1], reverse=True)[:5]
     print("\nTop 5 combined results:")
-    
     for food_id, score in top_combined:
         food_id_int = int(food_id)
-        food_name = get_food_name(food_id_int, db, None)
+        food_name = get_food_name(food_id_int, None, None)
         print(f"{food_name}: {score:.4f}")
     
     # Return the food_id with the highest combined score

@@ -9,7 +9,18 @@ import pickle
 import os
 import asyncio
 
-from src.databases.mongo import get_data
+# When running as a module within the application, use relative imports
+try:
+    from src.databases.mongo import get_data
+
+
+# When running this file directly, use absolute imports
+except ImportError:
+    import sys
+    import os
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+    from src.databases.mongo import get_data
+
 
 __package__ = "backend.routers"
 

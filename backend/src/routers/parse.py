@@ -4,6 +4,18 @@ from dotenv import load_dotenv
 from typing import List, Dict, Tuple
 from datetime import datetime
 import json
+import asyncio
+
+# When running as a module within the application, use relative imports
+try:
+    from .parallel import parallel_process
+
+# When running this file directly, use absolute imports
+except ImportError:
+    import sys
+    import os
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+    from src.routers.parallel import parallel_process
 
 # Load environment variables
 load_dotenv()
@@ -18,7 +30,7 @@ client = OpenAI(api_key=api_key)
 # Define the structured output response format
 response_format = { "type": "json_object" }
 
-def parse_meal_description(meal_description: str) -> Tuple[List[Dict], Dict[str, datetime]]:
+async def parse_meal_description(meal_description: str) -> Tuple[List[Dict], Dict[str, datetime]]:
     try:
         current_time = datetime.now()
         
@@ -59,7 +71,7 @@ def parse_meal_description(meal_description: str) -> Tuple[List[Dict], Dict[str,
         
         If no measurement is given, estimate the amount using how much would usually be added in common recipes.
         Refer to USDA or standard kitchen measures where appropriate. Use accurate food-specific conversions instead. 
-        
+
         For example, seeds and powders are lighter than oils or syrups. Any dry ingredients will be lighter than wet ingredients.
 
         Respond with a JSON object that uses the key "ingredients" with the a value a JSON array, with one object for each ingredient.
@@ -85,26 +97,27 @@ def parse_meal_description(meal_description: str) -> Tuple[List[Dict], Dict[str,
             model="gpt-4o-mini",
             messages=[{ "role": "system","content": prompt},
                       {"role": "user", "content": meal_description}
-            ],
-            response_format=response_format
-        )
-        
-        # Parse the response
-        content = response.choices[0].message.content
-        
-        try:
-            parsed_response = json.loads(content)["ingredients"]
+                ],
+                response_format=response_format
+            )
             
-            # Check if parsed_response is a list as expected
-            if not isinstance(parsed_response, list):
-                print("Warning: Response is not a list, structure:", type(parsed_response))
-                # If it's a dict with a key that contains the list, try to extract it
-                if isinstance(parsed_response, dict):
-                    for key, value in parsed_response.items():
-                        if isinstance(value, list):
-                            parsed_response = value
-                            print(f"Found list under key '{key}'")
-                            break
+            # Extract the response content
+        response_content = response.choices[0].message.content
+            
+        try:
+            parsed_response = json.loads(response_content)
+                
+            # Handle various response formats
+            if isinstance(parsed_response, list):
+                print(f"Received list with {len(parsed_response)} items")
+                    
+            # If it's a dict with a key that contains the list, try to extract it
+            if isinstance(parsed_response, dict):
+                for key, value in parsed_response.items():
+                    if isinstance(value, list):
+                        parsed_response = value
+                        print(f"Found list under key '{key}'")
+                        break
                     else:
                         # If we didn't find a list, create a single-item list
                         parsed_response = [parsed_response]
@@ -112,40 +125,55 @@ def parse_meal_description(meal_description: str) -> Tuple[List[Dict], Dict[str,
                 else:
                     raise ValueError(f"Unexpected response format: {type(parsed_response)}")
             
-            # Separate foods and timestamps
-            foods = []
-            timestamps = {}
-            
-            for item in parsed_response:
-                food_entry = {
-                    "food_name": item.get("food_name", "Unknown food"),
-                    "amount_in_grams": float(item.get("amount_in_grams", 0))
-                }
-                foods.append(food_entry)
+                # Process food items in parallel
+                async def process_food_item(item):
+                    food_entry = {
+                        "food_name": item.get("food_name", "Unknown food"),
+                        "amount_in_grams": float(item.get("amount_in_grams", 0))
+                    }
+                    
+                    timestamp = item.get("timestamp")
+                    if timestamp:
+                        try:
+                            timestamp_dt = datetime.fromisoformat(timestamp)
+                        except (ValueError, TypeError) as e:
+                            print(f"Error parsing timestamp '{timestamp}': {e}")
+                            # Use current time as fallback
+                            timestamp_dt = current_time
+                    else:
+                        timestamp_dt = current_time
+                        
+                    return (food_entry, timestamp_dt)
                 
-                timestamp = item.get("timestamp")
-                if timestamp:
-                    try:
-                        timestamps[food_entry["food_name"]] = datetime.fromisoformat(timestamp)
-                    except (ValueError, TypeError) as e:
-                        print(f"Error parsing timestamp '{timestamp}': {e}")
-                        # Use current time as fallback
-                        timestamps[food_entry["food_name"]] = current_time
-            
-            return foods, timestamps
-            
+                # Process all food items in parallel
+                results = await parallel_process(parsed_response, process_food_item)
+                
+                # Separate foods and timestamps
+                foods = []
+                timestamps = {}
+                
+                for food_entry, timestamp_dt in results:
+                    foods.append(food_entry)
+                    timestamps[food_entry["food_name"]] = timestamp_dt
+                
+                return foods, timestamps
+                
         except json.JSONDecodeError as e:
-            print(f"JSON decode error: {e}")
-            raise ValueError(f"Failed to parse OpenAI response as JSON: {e}")
+                print(f"JSON decode error: {e}")
+                raise ValueError(f"Failed to parse OpenAI response as JSON: {e}")
+        except Exception as e:
+            if "insufficient_quota" in str(e):
+                raise ValueError("OpenAI API quota exceeded. Please try again later or contact support.")
+            elif "invalid_api_key" in str(e):
+                raise ValueError("Invalid OpenAI API key. Please check your configuration.")
+            else:
+                raise ValueError(f"Error parsing meal description: {str(e)}")
     except Exception as e:
-        if "insufficient_quota" in str(e):
-            raise ValueError("OpenAI API quota exceeded. Please try again later or contact support.")
-        elif "invalid_api_key" in str(e):
-            raise ValueError("Invalid OpenAI API key. Please check your configuration.")
-        else:
-            raise ValueError(f"Error parsing meal description: {str(e)}")
-          
-
+        print(f"Error in parse_meal_description: {e}")
+        # Return empty results as fallback
+        return [], {}
           
 if __name__ == "__main__":
-    print(parse_meal_description("1 tablespoon butter"))
+    # Run the async function
+    import asyncio
+    print(asyncio.run(parse_meal_description("1 tablespoon butter")))

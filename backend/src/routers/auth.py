@@ -13,7 +13,18 @@ import faiss
 import asyncio
 import pickle
 
-from src.databases.mongo import get_data
+# When running as a module within the application, use relative imports
+try:
+    from src.databases.mongo import get_data
+    from .parallel import parallel_process
+
+# When running this file directly, use absolute imports
+except ImportError:
+    import sys
+    import os
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+    from src.databases.mongo import get_data
+    from src.routers.parallel import parallel_process
 
 __package__ = "nutramap.routers"
 
@@ -107,29 +118,40 @@ async def handle_login(request: Request, background_tasks: BackgroundTasks, user
             db = get_data()
             print(f"Starting index initialization for user {user['email']}")
             try:
-                # update sparse index 
-                background_tasks.add_task(update_sparse_index, db=db, user=user, request=request)
-                db = get_data()
+                # Process index initialization tasks in parallel
+                async def check_and_update_indexes():
+                    tasks = []
+                    
+                    # Add sparse index update task
+                    tasks.append(update_sparse_index(db=db, user=user, request=request))
+                    
+                    # Check FAISS index
+                    faiss_path = os.getenv("FAISS_BIN")
+                    if not (os.path.exists(faiss_path) and os.path.getsize(faiss_path) > 0):
+                        print("No index found — generating FAISS index...")
+                        tasks.append(update_faiss_index(db=db, user=user, request=request))
+                    else:
+                        print("Loading FAISS index from disk...")
+                        index = faiss.read_index(faiss_path)
+                        request.app.state.faiss_index = index
+                    
+                    # Check ID list
+                    id_list_path = os.getenv("FOOD_ID_CACHE")
+                    if not (os.path.exists(id_list_path) and os.path.getsize(id_list_path) > 0):
+                        print("No id list found — generating id list...")
+                        tasks.append(update_id_list(db=db, user=user, request=request))
+                    else:
+                        with open(id_list_path, "rb") as f:
+                            id_name_map = pickle.load(f)
+                        request.app.state.id_name_map = id_name_map
+                    
+                    # Run all tasks in parallel if there are any
+                    if tasks:
+                        await asyncio.gather(*tasks)
                 
-                # check bin for faiss index, add to app state
-                faiss_path = os.getenv("FAISS_BIN")
-                if os.path.exists(faiss_path) and os.path.getsize(faiss_path) > 0:
-                    print("Loading FAISS index from disk...")
-                    index = faiss.read_index(faiss_path)
-                    request.app.state.faiss_index = index
-                else:
-                    print("No index found — generating FAISS index...")
-                    background_tasks.add_task(update_faiss_index, db=db, user=user, request=request)
+                # Add the parallel processing task to background tasks
+                background_tasks.add_task(check_and_update_indexes)
                 
-                # check bin for id list, add to app state
-                id_list_path = os.getenv("FOOD_ID_CACHE")
-                if os.path.exists(id_list_path) and os.path.getsize(id_list_path) > 0:
-                    with open(id_list_path, "rb") as f:
-                        id_name_map = pickle.load(f)
-                    request.app.state.id_name_map = id_name_map
-                else:
-                    print("No id list found — generating id list...")
-                    background_tasks.add_task(update_id_list, db=db, user=user, request=request)
             except Exception as e:
                 print(f"Error in background index initialization: {e}")
                 import traceback
