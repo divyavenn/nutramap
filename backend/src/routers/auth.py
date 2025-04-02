@@ -134,6 +134,9 @@ async def handle_login(request: Request, background_tasks: BackgroundTasks, user
                 print(f"Error in background index initialization: {e}")
                 import traceback
                 traceback.print_exc()
+                
+        background_tasks.add_task(init_indexes)
+        
     except Exception as e:
       print(f"Error in background index initialization: {e}")
       import traceback

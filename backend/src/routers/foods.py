@@ -7,6 +7,7 @@ from typing import Dict, List, Union
 from src.routers.auth import get_current_user
 import pickle
 import os
+import asyncio
 
 from src.databases.mongo import get_data
 
@@ -171,13 +172,10 @@ async def retrieve_id_food_map(request: Request, db: db, user: dict = Depends(ge
 # returns data as a list of dictionaries
 @router.get("/all")
 async def get_all_foods(request: Request, db: db, user: dict = Depends(get_current_user)):
-    foods = await retrieve_id_food_map(request, db, user)
-    result = {food["food_name"]: food["_id"] for food in foods}
-
-    # Update app state and pickle for future use
-    request.app.state.all_foods = result
-    with open(os.getenv("ALL_FOODS_CACHE"), 'wb') as f:
-        pickle.dump(result, f)
+    id_name_map = await retrieve_id_food_map(request, db, user)
+    
+    # Swap keys and values: from {id: name} to {name: id}
+    result = {food_name: food_id for food_id, food_name in id_name_map.items()}
 
     return result
 
@@ -230,17 +228,16 @@ async def add_food(
 
     async def update_indexes(db, user, request):
         try:
-            # Update food_id_name map
-            from .dense import update_id_list
-            await update_id_list(db, user, request)
-        
-            # Update embeddings and FAISS index
-            from .dense import update_faiss_index
-            await update_faiss_index(db, user, request)
-        
-            # Update sparse index
+            # Import functions
+            from .dense import update_id_list, update_faiss_index
             from .sparse import update_sparse_index
-            await update_sparse_index(db, user)
+        
+            # Run tasks in parallel
+            await asyncio.gather(
+                update_id_list(db, user, request),
+                update_faiss_index(db, user, request),
+                update_sparse_index(db, user)
+            )
         except Exception as e:
             print(f"Error updating indexes: {e}")
     # Add index updates to background tasks

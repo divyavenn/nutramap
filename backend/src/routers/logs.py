@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Form
+from fastapi import APIRouter, Depends, HTTPException, Form, Request
 from pymongo.database import Database
 from typing import List
 from typing_extensions import Annotated
@@ -60,11 +60,11 @@ def get_logs_in_range(user, startDate : datetime, endDate: datetime, user_db):
 # food_name: string
 # date: Optional[datetime]
 # amount_in_grams: float
-def make_log_readable(logs, db):
+def make_log_readable(logs, db, request: Request = None):
     for log in logs:
         # Replace food_id with food_name
         log = serialize_document(log) 
-        log["food_name"] = str(get_food_name(db, log["food_id"])).strip("(')',")    
+        log["food_name"] = str(get_food_name(log["food_id"], db, request)).strip("(')',")    
         log.pop("food_id")  # Remove the food_id key
         log.pop("user_id")
     return logs 
@@ -79,9 +79,9 @@ def count_unique_days(logs: List[Log]) -> int:
 #--------------------------------------end points------------------------------------------------------# 
 
 @router.get("/get", response_model = None)
-def get_logs(endDate : datetime, startDate : datetime, user : user, db: db):
+def get_logs(endDate : datetime, startDate : datetime, user : user, db: db, request: Request = None):
     logs = list(get_logs_in_range(user, startDate, endDate, db))
-    return make_log_readable(logs, db)
+    return make_log_readable(logs, db, request)
   
   
 @router.post("/new")
