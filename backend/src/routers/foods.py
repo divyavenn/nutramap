@@ -1,5 +1,5 @@
 from typing_extensions import Annotated
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, BackgroundTasks
 from fastapi.responses import JSONResponse
 from pymongo.database import Database
 from decimal import Decimal
@@ -208,6 +208,8 @@ async def get_food_embeddings(db: db, user: dict = Depends(get_current_user)):
 
 @router.post("/add")
 async def add_food(
+    background_tasks: BackgroundTasks,
+    request: Request,
     food_name: str,
     nutrients: List[Dict[str, Union[int, float]]],
     user: dict = Depends(get_current_user),
@@ -225,6 +227,24 @@ async def add_food(
     }
     
     result = db.foods.insert_one(new_food)
+
+    async def update_indexes(db, user, request):
+        try:
+            # Update food_id_name map
+            from .dense import update_id_list
+            await update_id_list(db, user, request)
+        
+            # Update embeddings and FAISS index
+            from .dense import update_faiss_index
+            await update_faiss_index(db, user, request)
+        
+            # Update sparse index
+            from .sparse import update_sparse_index
+            await update_sparse_index(db, user)
+        except Exception as e:
+            print(f"Error updating indexes: {e}")
+    # Add index updates to background tasks
+    background_tasks.add_task(update_indexes, db, user, request)
     
     if result.inserted_id:
         return JSONResponse(content={"message": "Food added successfully", "food_id": str(result.inserted_id)}, status_code=201)
