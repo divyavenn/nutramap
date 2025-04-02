@@ -212,24 +212,11 @@ async def get_sparse_index(
     # Search for foods
     search_results = await search_foods(query, limit)
     
-    # Process search results in parallel
-    async def process_hit(hit):
-        food_id = hit['document']['id']
-        # Convert score to 0-100 scale for consistency with dense search
-        score = round(hit['text_match'] * 100)
-        if score >= threshold:
-            return (food_id, score)
-        return None
+    # The search_results is now a dictionary of food_id -> score
+    # No need for parallel processing since the results are already in the right format
     
-    # Process all hits in parallel
-    results = await parallel_process(search_results['hits'], process_hit)
-    
-    # Filter out None results and convert to dictionary
-    filtered_matches = {}
-    for result in results:
-        if result is not None:
-            food_id, score = result
-            filtered_matches[food_id] = score
+    # Filter results by threshold
+    filtered_matches = {food_id: score for food_id, score in search_results.items() if score >= threshold}
     
     print(f"Found {len(filtered_matches)} results")
     return filtered_matches
