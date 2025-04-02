@@ -165,18 +165,15 @@ async def retrieve_id_food_map(request: Request, db: db, user: dict = Depends(ge
     except (FileNotFoundError, pickle.UnpicklingError):
         pass
 
-    # Finally, default to MongoDB query
-    foods = list(db.foods.find(
-        {"$or": [{"source": "USDA"}, {"source": user["_id"]}]},
-        {"_id": 1, "food_name": 1}
-    ).sort("_id", 1))
-    if not foods:
-        return JSONResponse(content={"message": "No data found."}, status_code=404)
+    # Finally, default to MongoDB query using the parallel processing function
+    id_name_map = await get_id_name_map(db, user)
     
-    id_name_map = {food["_id"]: food["food_name"] for food in foods}
-    request.app.state.id_name_map = id_name_map
-    with open(os.getenv("FOOD_ID_CACHE"), 'wb') as f:
-        pickle.dump(id_name_map, f)
+    # Store in app state and cache
+    if not isinstance(id_name_map, JSONResponse):  # Make sure it's not an error response
+        request.app.state.id_name_map = id_name_map
+        with open(os.getenv("FOOD_ID_CACHE"), 'wb') as f:
+            pickle.dump(id_name_map, f)
+    
     return id_name_map
 
 

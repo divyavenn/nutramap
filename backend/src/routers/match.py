@@ -11,7 +11,7 @@
 #	Experiment with distilled vector models for compactness
 #Try compressed sparse vector fusion
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Body
+from fastapi import APIRouter, Depends, Request, Body
 from typing import Dict
 import asyncio
 
@@ -163,7 +163,7 @@ async def log_meal(
     meal_description = request_data.get("meal_description", "")
     print(meal_description)
     
-    parsed_foods, timestamps = parse_meal_description(meal_description)
+    parsed_foods, timestamps = await parse_meal_description(meal_description)
     
     async def process_ingredient(ingredient):
         sparse_results, dense_results = await get_matches(ingredient, db, user, request)

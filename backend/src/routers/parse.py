@@ -105,58 +105,40 @@ async def parse_meal_description(meal_description: str) -> Tuple[List[Dict], Dic
         response_content = response.choices[0].message.content
             
         try:
-            parsed_response = json.loads(response_content)
-                
-            # Handle various response formats
-            if isinstance(parsed_response, list):
-                print(f"Received list with {len(parsed_response)} items")
-                    
-            # If it's a dict with a key that contains the list, try to extract it
-            if isinstance(parsed_response, dict):
-                for key, value in parsed_response.items():
-                    if isinstance(value, list):
-                        parsed_response = value
-                        print(f"Found list under key '{key}'")
-                        break
-                    else:
-                        # If we didn't find a list, create a single-item list
-                        parsed_response = [parsed_response]
-                        print("Wrapped response in a list")
-                else:
-                    raise ValueError(f"Unexpected response format: {type(parsed_response)}")
+            parsed_response = json.loads(response_content)["ingredients"]
             
-                # Process food items in parallel
-                async def process_food_item(item):
-                    food_entry = {
-                        "food_name": item.get("food_name", "Unknown food"),
-                        "amount_in_grams": float(item.get("amount_in_grams", 0))
-                    }
+            # Process food items in parallel
+            async def process_food_item(item):
+                food_entry = {
+                "food_name": item.get("food_name", "Unknown food"),
+                "amount_in_grams": float(item.get("amount_in_grams", 0))
+                }
                     
-                    timestamp = item.get("timestamp")
-                    if timestamp:
-                        try:
-                            timestamp_dt = datetime.fromisoformat(timestamp)
-                        except (ValueError, TypeError) as e:
-                            print(f"Error parsing timestamp '{timestamp}': {e}")
-                            # Use current time as fallback
-                            timestamp_dt = current_time
-                    else:
+                timestamp = item.get("timestamp")
+                if timestamp:
+                    try:
+                        timestamp_dt = datetime.fromisoformat(timestamp)
+                    except (ValueError, TypeError) as e:
+                        print(f"Error parsing timestamp '{timestamp}': {e}")
+                        # Use current time as fallback
                         timestamp_dt = current_time
+                else:
+                    timestamp_dt = current_time
                         
-                    return (food_entry, timestamp_dt)
+                return (food_entry, timestamp_dt)
                 
-                # Process all food items in parallel
-                results = await parallel_process(parsed_response, process_food_item)
+            # Process all food items in parallel
+            results = await parallel_process(parsed_response, process_food_item)
                 
-                # Separate foods and timestamps
-                foods = []
-                timestamps = {}
+            # Separate foods and timestamps
+            foods = []
+            timestamps = {}
                 
-                for food_entry, timestamp_dt in results:
-                    foods.append(food_entry)
-                    timestamps[food_entry["food_name"]] = timestamp_dt
+            for food_entry, timestamp_dt in results:
+                foods.append(food_entry)
+                timestamps[food_entry["food_name"]] = timestamp_dt
                 
-                return foods, timestamps
+            return foods, timestamps
                 
         except json.JSONDecodeError as e:
                 print(f"JSON decode error: {e}")
