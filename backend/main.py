@@ -49,11 +49,12 @@ async def load_index():
     # Create a system user for initialization
     system_user = {"_id": "system_init"}
     
-    # Initialize indexes with proper parameters
-    await update_faiss_index(db=db, user=system_user, request=request)
-    await update_sparse_index(db=db, user=system_user, request=request)
+    # Initialize app state to hold indexes
+    app.state.faiss_index = None
+    app.state.id_list = None
+    app.state.sparse_index = None
     
-    print("Indexes initialized successfully at startup")
+    print("App state initialized successfully at startup")
 
 app.add_middleware(
     CORSMiddleware,

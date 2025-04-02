@@ -7,7 +7,7 @@ from datetime import timedelta, datetime
 
 from src.databases.mongo import get_data
 from src.databases.mongo_models import Log, LogEdit
-from src.routers.foods import get_nutrient_amount, amount_by_weight, get_food_name, get_all_foods
+from src.routers.foods import get_nutrient_amount, amount_by_weight, get_food_name
 from src.routers.auth import get_current_user
 from src.routers.parse import parse_meal_description
 

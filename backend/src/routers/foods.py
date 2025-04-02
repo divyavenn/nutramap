@@ -1,10 +1,12 @@
 from typing_extensions import Annotated
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from pymongo.database import Database
 from decimal import Decimal
 from typing import Dict, List, Union
 from src.routers.auth import get_current_user
+import pickle
+import os
 
 from src.databases.mongo import get_data
 
@@ -109,11 +111,21 @@ def get_nutrient_details(db, nutrient_id: int):
     }
     
 
-def get_food_name(db, food_id: int):
-    """
-    Retrieve the name of a specific food from MongoDB.
-    """
-    # Query for the food name based on the food ID
+def get_food_name(food_id: int, db = db, request: Request = None):
+    # Check app state first
+    if hasattr(request.app.state, 'id_name_map') and food_id in request.app.state.id_name_map:
+        return request.app.state.id_name_map[food_id]
+    
+    # Then check pickle
+    try:
+        with open(os.getenv("FOOD_ID_CACHE"), 'rb') as f:
+            food_names = pickle.load(f)
+            if food_id in food_names:
+                return food_names[food_id]
+    except (FileNotFoundError, pickle.UnpicklingError):
+        pass
+    
+    # Finally, default to MongoDB query
     food = db.foods.find_one({"_id": food_id}, {"food_name": 1, "_id": 0})
     
     if not food:
@@ -121,22 +133,53 @@ def get_food_name(db, food_id: int):
     
     return food["food_name"]
 
+
 def amount_by_weight(amt: float, grams: float):
   return Decimal(amt) * Decimal(grams/100.0)
 
 
+
+async def retrieve_id_food_map(request: Request, db: db, user: dict = Depends(get_current_user)):
+    # Check app state first
+    if hasattr(request.app.state, 'id_name_map'):
+        return request.app.state.id_name_map
+
+    # Then check pickle
+    try:
+        with open(os.getenv("FOOD_ID_CACHE"), 'rb') as f:
+            foods = pickle.load(f)
+            request.app.state.id_name_map = foods
+            return foods
+    except (FileNotFoundError, pickle.UnpicklingError):
+        pass
+
+    # Finally, default to MongoDB query
+    foods = list(db.foods.find(
+        {"$or": [{"source": "USDA"}, {"source": user["_id"]}]},
+        {"_id": 1, "food_name": 1}
+    ).sort("_id", 1))
+    if not foods:
+        return JSONResponse(content={"message": "No data found."}, status_code=404)
+    
+    id_name_map = {food["_id"]: food["food_name"] for food in foods}
+    request.app.state.id_name_map = id_name_map
+    with open(os.getenv("FOOD_ID_CACHE"), 'wb') as f:
+        pickle.dump(id_name_map, f)
+    return id_name_map
+
+
 # returns data as a list of dictionaries
 @router.get("/all")
-async def get_all_foods(db: db, user: dict = Depends(get_current_user)): 
-  foods = list(db.foods.find(
-        {"$or": [{"source": "USDA"}, {"source": user["_id"]}]},  # Match source "USDA" or user ID
-        {"_id": 1, "food_name": 1}  # Retrieve only `_id` and `food_name`
-    ))
-  if not foods:
-      return JSONResponse(content={"message": "No data found."}, status_code=404)
+async def get_all_foods(request: Request, db: db, user: dict = Depends(get_current_user)):
+    foods = await retrieve_id_food_map(request, db, user)
+    result = {food["food_name"]: food["_id"] for food in foods}
 
-  # Format the result as a dictionary
-  return {food["food_name"]: food["_id"] for food in foods}
+    # Update app state and pickle for future use
+    request.app.state.all_foods = result
+    with open(os.getenv("ALL_FOODS_CACHE"), 'wb') as f:
+        pickle.dump(result, f)
+
+    return result
 
 
 
@@ -144,7 +187,7 @@ async def get_id_name_map(db: db, user: dict = Depends(get_current_user)):
   foods = list(db.foods.find(
         {"$or": [{"source": "USDA"}, {"source": user["_id"]}]},  # Match source "USDA" or user ID
         {"_id": 1, "food_name": 1}  # Retrieve only `_id` and `food_name`
-    ))
+    ).sort("_id", 1))
   if not foods:
       return JSONResponse(content={"message": "No data found."}, status_code=404)
 
@@ -155,7 +198,7 @@ async def get_food_embeddings(db: db, user: dict = Depends(get_current_user)):
   foods = list(db.foods.find(
         {"$or": [{"source": "USDA"}, {"source": user["_id"]}]},  # Match source "USDA" or user ID
         {"_id": 1, "embedding": 1}  # Retrieve only `_id` and `embedding`
-    ))
+    ).sort("_id", 1))
   if not foods:
       return JSONResponse(content={"message": "No data found."}, status_code=404)
 

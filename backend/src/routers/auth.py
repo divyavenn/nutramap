@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Form
+from fastapi import APIRouter, Depends, HTTPException, Form, Request, BackgroundTasks
 from fastapi.security import OAuth2PasswordBearer
 from pymongo.database import Database
 from typing_extensions import Annotated
@@ -9,6 +9,9 @@ from fastapi.responses import JSONResponse
 from bson import ObjectId
 import os
 from dotenv import load_dotenv
+import faiss
+import asyncio
+import pickle
 
 from src.databases.mongo import get_data
 
@@ -81,11 +84,63 @@ def get_current_user(token:Annotated[str, Depends(oauth2_bearer)]):
 
 #--------------------------------------end points------------------------------------------------------# 
 
+
+def update_sparse_index(db: Database, user: dict, request: Request, background_tasks: BackgroundTasks):
+    background_tasks.add_task(update_sparse_index, db=db, user=user, request=request)
+
+
+
 @router.post("/submit_login")
-def handle_login(username: str = Form(...), password: str = Form(...)):
+async def handle_login(request: Request, background_tasks: BackgroundTasks, username: str = Form(...), password: str = Form(...)):
     user = authenticate_user(username, password, get_data())
     token = create_access_token(user["email"], str(user["_id"]), user["role"], user["name"], timedelta(minutes=60))
-    # Return the token in the response body
+    
+    # Initialize indexes with the current user's information
+    try:
+        # Import here to avoid circular imports
+        from src.routers.dense_og import update_faiss_index, update_id_list
+        from src.routers.sparse import update_sparse_index
+        
+        # Define the initialization function as a standalone function
+        # This ensures it runs completely independently of the request
+        async def init_indexes():
+            db = get_data()
+            print(f"Starting index initialization for user {user['email']}")
+            try:
+                # update sparse index 
+                background_tasks.add_task(update_sparse_index, db=db, user=user, request=request)
+                db = get_data()
+                
+                # check bin for faiss index, add to app state
+                faiss_path = os.getenv("FAISS_BIN")
+                if os.path.exists(faiss_path) and os.path.getsize(faiss_path) > 0:
+                    print("Loading FAISS index from disk...")
+                    index = faiss.read_index(faiss_path)
+                    request.app.state.faiss_index = index
+                else:
+                    print("No index found — generating FAISS index...")
+                    background_tasks.add_task(update_faiss_index, db=db, user=user, request=request)
+                
+                # check bin for id list, add to app state
+                id_list_path = os.getenv("FOOD_ID_CACHE")
+                if os.path.exists(id_list_path) and os.path.getsize(id_list_path) > 0:
+                    with open(id_list_path, "rb") as f:
+                        id_name_map = pickle.load(f)
+                    request.app.state.id_name_map = id_name_map
+                else:
+                    print("No id list found — generating id list...")
+                    background_tasks.add_task(update_id_list, db=db, user=user, request=request)
+            except Exception as e:
+                print(f"Error in background index initialization: {e}")
+                import traceback
+                traceback.print_exc()
+    except Exception as e:
+      print(f"Error in background index initialization: {e}")
+      import traceback
+      traceback.print_exc()
+    
+    # Return the token in the response body immediately
+    # This allows the user to proceed to the dashboard while indexes initialize
     return JSONResponse(content={"access_token": token, "token_type": "bearer"}, status_code=200)
     
 
