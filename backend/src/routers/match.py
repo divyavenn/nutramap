@@ -81,6 +81,7 @@ async def rrf_fusion(sparse_results: Dict, dense_results: Dict, k: int = 60) -> 
     # Assign ranks to items, with ties getting the same rank
     current_rank = 0
     
+        
     async def process_score(score, food_ids):
         nonlocal current_rank
         # All items with the same score get the same rank
@@ -112,21 +113,29 @@ async def rrf_fusion(sparse_results: Dict, dense_results: Dict, k: int = 60) -> 
     
     # Assign ranks to items, with ties getting the same rank
     current_rank = 0
-    for score in sorted_dense_scores:
-        food_ids = dense_score_groups[score]
-        # All items with the same score get the same rank
-        for food_id in food_ids:
-            # Normalize score to 0-1 range
-            norm_score = score / 100.0 if score > 0 else 0
-            # Use the same rank for all items with the same score
-            rank_score = 1 / (k + current_rank + 1)
-            combined_scores[food_id] = combined_scores.get(food_id, 0) + dense_weight * (0.5 * rank_score + 0.5 * norm_score)
-        # Increment rank by the number of items at this score level
+    
+    async def process_dense_score(score, food_ids):
+        nonlocal current_rank
+        norm_score = score / 100.0 if score > 0 else 0
+        rank_score = 1 / (k + current_rank + 1)
+        score_results = {
+            food_id: dense_weight * (0.5 * rank_score + 0.5 * norm_score)
+            for food_id in food_ids
+        }
         current_rank += len(food_ids)
+        return score_results
+    
+    dense_tasks = [process_dense_score(score, dense_score_groups[score]) for score in sorted_dense_scores]
+    dense_results = await asyncio.gather(*dense_tasks)
+    
+    for result in dense_results:
+        for food_id, score in result.items():
+            combined_scores[food_id] = combined_scores.get(food_id, 0) + score
     
     # Debug: Print top 5 combined results
     top_combined = sorted(combined_scores.items(), key=lambda x: x[1], reverse=True)[:5]
     print("\nTop 5 combined results:")
+    
     for food_id, score in top_combined:
         food_id_int = int(food_id)
         food_name = get_food_name(food_id_int, db, None)
@@ -151,7 +160,7 @@ async def log_meal(
     
     async def process_ingredient(ingredient):
         sparse_results, dense_results = await get_matches(ingredient, db, user, request)
-        best_match_id = rrf_fusion(sparse_results, dense_results)
+        best_match_id = await rrf_fusion(sparse_results, dense_results)
         return {
             "food_id": int(best_match_id),
             "amount_in_grams": ingredient['amount_in_grams'],
@@ -174,40 +183,44 @@ if __name__ == "__main__":
     # Load environment variables
     load_dotenv()
     
-    print("Testing RRF fusion algorithm...")
-    
-    # Create mock user for testing
-    mock_user = {"_id": "system"}
-    
-    # Sample prompt for testing
-    sample_prompt = "butter"
-    
-    # Connect to MongoDB
-    from pymongo import MongoClient
-    mongo_uri = os.getenv("MONGO_URI")
-    db_name = os.getenv("DB_NAME", "nutramapper")
-    mongo_client = MongoClient(mongo_uri)
-    mongo_db = mongo_client[db_name]
-    
-    print(f"Connected to MongoDB, testing with real data for '{sample_prompt}'...")
-    
-    # Get matches for the sample prompt using real data
-    sparse_results, dense_results = asyncio.run(get_matches({"food_name": sample_prompt}, mongo_db, mock_user, None))
+    async def main():
+        print("Testing RRF fusion algorithm...")
+        
+        # Create mock user for testing
+        mock_user = {"_id": "system"}
+        
+        # Sample prompt for testing
+        sample_prompt = "butter"
+        
+        # Connect to MongoDB
+        from pymongo import MongoClient
+        mongo_uri = os.getenv("MONGO_URI")
+        db_name = os.getenv("DB_NAME", "nutramapper")
+        mongo_client = MongoClient(mongo_uri)
+        mongo_db = mongo_client[db_name]
+        
+        print(f"Connected to MongoDB, testing with real data for '{sample_prompt}'...")
+        
+        # Get matches for the sample prompt using real data
+        sparse_results, dense_results = await get_matches({"food_name": sample_prompt}, mongo_db, mock_user, None)
 
-    # Test rrf_fusion function
-    best_match_id = rrf_fusion(sparse_results, dense_results)
-    
-    # Load food names for better output
-    try:
-        food_id_cache = os.getenv("FOOD_ID_CACHE")
-        if food_id_cache and os.path.exists(food_id_cache):
-            with open(food_id_cache, 'rb') as f:
-                food_names = pickle.load(f)
-            food_name = food_names.get(int(best_match_id), f"Unknown food ({best_match_id})")
-            print(f"\nBest match: {food_name} (ID: {best_match_id})")
-        else:
+        # Test rrf_fusion function
+        best_match_id = await rrf_fusion(sparse_results, dense_results)
+        
+        # Load food names for better output
+        try:
+            food_id_cache = os.getenv("FOOD_ID_CACHE")
+            if food_id_cache and os.path.exists(food_id_cache):
+                with open(food_id_cache, 'rb') as f:
+                    food_names = pickle.load(f)
+                food_name = food_names.get(int(best_match_id), f"Unknown food ({best_match_id})")
+                print(f"\nBest match: {food_name} (ID: {best_match_id})")
+            else:
+                print(f"\nBest match ID: {best_match_id}")
+                print(f"Food ID cache not found at {food_id_cache}")
+        except Exception as e:
             print(f"\nBest match ID: {best_match_id}")
-            print(f"Food ID cache not found at {food_id_cache}")
-    except Exception as e:
-        print(f"\nBest match ID: {best_match_id}")
-        print(f"Error displaying food name: {e}")
+            print(f"Error displaying food name: {e}")
+    
+    # Run the async main function
+    asyncio.run(main())
