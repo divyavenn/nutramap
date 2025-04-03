@@ -372,5 +372,6 @@ input, textarea {
 }
 
 .jiggle-text {
-  animation: jiggle .3s ease, fadeOut .5s ease forwards;
+  animation: jiggle .3s ease 3.33, fadeOut 1s ease forwards;
+  will-change: opacity, transform;
 }

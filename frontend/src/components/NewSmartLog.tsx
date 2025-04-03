@@ -115,7 +115,7 @@ function NewSmartLog() {
             required
           />
           <div className='new-smart-log-button-container'>
-            {mealDescription && (
+            {!isSubmitting && mealDescription && (
               <HoverButton
                 type="submit"
                 className="new-log-button"
