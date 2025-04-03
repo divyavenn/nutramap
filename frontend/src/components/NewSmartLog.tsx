@@ -21,8 +21,7 @@ import { useSetRecoilState, useRecoilValue } from 'recoil';
 function NewSmartLog() {
   const [mealDescription, setMealDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showPixelation, setShowPixelation] = useState(false);
-  const [pixelSize, setPixelSize] = useState(1);
+  const [isJiggling, setIsJiggling] = useState(false);
   // Use the global state for pending foods
   const setPendingFoods = useSetRecoilState(pendingFoodsAtom);
   const pendingFoods = useRecoilValue(pendingFoodsAtom);
@@ -48,26 +47,9 @@ function NewSmartLog() {
     if (!mealDescription.trim()) return;
     
     setIsSubmitting(true);
+    setIsJiggling(true);
     
-    // Start pixelation animation immediately
-    setShowPixelation(true);
-    
-    // Animate pixel size from 1 to 20 over 800ms
-    const startTime = Date.now();
-    const duration = 800;
-    const animatePixels = () => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const newPixelSize = 1 + Math.floor(progress * 19); // 1 to 20
-      setPixelSize(newPixelSize);
-      
-      if (progress < 1 && showPixelation) {
-        requestAnimationFrame(animatePixels);
-      }
-    };
-    
-    requestAnimationFrame(animatePixels);
-    
+    // Start the API request immediately
     try {
       const response = await request(
         '/match/log-meal',
@@ -78,10 +60,10 @@ function NewSmartLog() {
         'JSON'
       );
       
-      // Stop pixelation animation immediately when response is received
-      setShowPixelation(false);
-      setPixelSize(1);
-      
+      setMealDescription('');
+      setIsJiggling(false);
+      setIsSubmitting(false);
+
       // If we get the early response with food count
       if (response && 
           response.body && 
@@ -99,9 +81,6 @@ function NewSmartLog() {
         // Set the global state for pending foods
         setPendingFoods(foodsWithTimestamps);
         
-        // Clear the input field
-        setMealDescription('');
-        
         // Refresh logs after a delay to allow background processing to complete
         setTimeout(() => {
           refreshLogs();
@@ -109,26 +88,13 @@ function NewSmartLog() {
         }, 3000);
       } else {
         // Handle the old response format if needed
-        setMealDescription('');
         refreshLogs();
       }
     } catch (error) {
       console.error('Error logging meal:', error);
-      // Stop pixelation animation on error
-      setShowPixelation(false);
-      setPixelSize(1);
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
-  // CSS for quivering effect
-  const quiverStyle = showPixelation ? {
-    transform: `translate(${Math.sin(Date.now() / 30) * 3}px, ${Math.cos(Date.now() / 30) * 2}px)`,
-  } : {
-    transform: 'translate(0, 0)',
-    opacity: 1
-  };
 
   return (
     <>
@@ -138,25 +104,9 @@ function NewSmartLog() {
         className="form-elements-wrapper" 
         onSubmit={handleSubmit}
       >
-        <motion.div 
-          className="entry-form-bubble"
-          style={quiverStyle}
-          animate={showPixelation ? {
-            x: [0, 3, -3, 2, -2, 1, -1, 0],
-            y: [0, 2, -1, -2, 1, -1, 1, 0],
-          } : {
-            x: 0,
-            y: 0,
-            opacity: 1
-          }}
-          transition={{ 
-            duration: 0.5,
-            x: { repeat: showPixelation ? Infinity : 0, duration: 0.4 },
-            y: { repeat: showPixelation ? Infinity : 0, duration: 0.4 }
-          }}
-        >
+         <div className = "entry-form-bubble">
           <textarea
-            className="input-journal"
+            className={`input-journal ${isJiggling ? 'jiggle-text' : ''}`}
             placeholder="a bowl of steel-cut oats with blueberries and a cup of coffee with whole milk for breakfast"
             value={mealDescription}
             onChange={handleTyping}
@@ -171,11 +121,12 @@ function NewSmartLog() {
                 className="new-log-button"
                 childrenOn={<IsOk/>}
                 childrenOff={<Arrow/>}
+                disabled={isSubmitting}
               >
               </HoverButton>
             )}
           </div>
-        </motion.div>
+          </div>
       </form>
     </>
   );

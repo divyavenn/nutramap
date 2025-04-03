@@ -54,22 +54,22 @@ input, textarea {
 /* Quivering animation styles */
 @keyframes quiver {
   0% {
-    transform: translate(0, 0);
+    transform: translateX(0);
   }
   20% {
-    transform: translate(3px, 2px);
+    transform: translateX(2px);
   }
   40% {
-    transform: translate(-3px, -1px);
+    transform: translateX(-2px);
   }
   60% {
-    transform: translate(2px, -2px);
+    transform: translateX(1px);
   }
   80% {
-    transform: translate(-2px, 1px);
+    transform: translateX(-1px);
   }
   100% {
-    transform: translate(1px, -1px);
+    transform: translateX(0);
   }
 }
 
@@ -105,7 +105,7 @@ input, textarea {
 }
 
 .pixelating {
-  animation: quiver 0.4s infinite alternate;
+  animation: quiver 0.25s infinite alternate;
 }
 
 /*--------------------------------------------NAME----------------------------------*/
@@ -254,6 +254,20 @@ input, textarea {
   height: 15px;
 }
 
+.submit-button-animation {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.submit-button-animation svg {
+  width: 24px;
+  height: 24px;
+  color: var(--white);
+}
+
 /* Journal input styling */
 .input-journal {
   flex: 1;
@@ -340,4 +354,23 @@ input, textarea {
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
-} 
+}
+
+/* Jiggle animation for text input when submitting */
+@keyframes jiggle {
+  0% { transform: translateX(0); opacity: 1; }
+  25% { transform: translateX(-1px); opacity: 0.75; }
+  50% { transform: translateX(3px); opacity: 0.5; }
+  75% { transform: translateX(-1px); opacity: 0.25; }
+  100% { transform: translateX(0); opacity: 0; }
+}
+
+/* Separate fade animation for more control */
+@keyframes fadeOut {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.jiggle-text {
+  animation: jiggle .3s ease, fadeOut .5s ease forwards;
+}
