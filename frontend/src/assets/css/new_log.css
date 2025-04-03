@@ -40,6 +40,8 @@ input, textarea {
   color: var(--white);
   flex-direction: column;
   border-radius: 14px;
+  position: relative;
+  overflow: hidden;
 }
 
 /* Activate suggestions dropdown */
@@ -49,15 +51,47 @@ input, textarea {
   pointer-events: all;
 }
 
+/* Quivering animation styles */
+@keyframes quiver {
+  0% {
+    transform: translate(0, 0);
+  }
+  20% {
+    transform: translate(3px, 2px);
+  }
+  40% {
+    transform: translate(-3px, -1px);
+  }
+  60% {
+    transform: translate(2px, -2px);
+  }
+  80% {
+    transform: translate(-2px, 1px);
+  }
+  100% {
+    transform: translate(1px, -1px);
+  }
+}
 
 .entry-form-bubble{
   display: flex;
+  padding: 10px 15px;
   border-radius: 14px;
-  width: 100%;
-  flex-direction: row;
   align-items: center;
   color: var(--white);
   justify-content: space-between; /* Ensure space is distributed between elements */
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  border-radius: 14px;
+  transition: all 0.3s ease;
+  width: 100%;
+  box-sizing: border-box;
+  will-change: transform;
+  opacity: 1; /* Ensure full opacity by default */
+  background-color: rgba(25, 5, 5, 0.52); /* Restore the background color */
 }
 
 .entry-form-bubble.active{
@@ -70,6 +104,9 @@ input, textarea {
   color: #1e002e;
 }
 
+.pixelating {
+  animation: quiver 0.4s infinite alternate;
+}
 
 /*--------------------------------------------NAME----------------------------------*/
 
@@ -273,22 +310,22 @@ input, textarea {
 /* Pending foods animation styles */
 .pending-foods-container {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  flex-direction: column;
+  width: 100%;
+  align-items: center;
   margin: 10px 0;
-  justify-content: center;
 }
 
 .pending-food-item {
-  background-color: var(--color-primary-light);
-  color: var(--color-text-dark);
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 14px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  margin-bottom: 10px;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.pending-food-item .entry-food-name,
+.pending-food-item .entry-food-amt,
+.pending-food-item .entry-date {
+  color: rgba(255, 255, 255, 0.8);
 }
 
 /* Feedback message styling */
@@ -303,4 +340,4 @@ input, textarea {
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
-}
+} 

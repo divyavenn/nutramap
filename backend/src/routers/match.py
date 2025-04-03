@@ -168,13 +168,19 @@ async def log_meal(
     
     parsed_foods, timestamps = await parse_meal_description(meal_description)
     
+    # Convert datetime objects to ISO format strings for JSON serialization
+    serializable_timestamps = {
+        food_name: timestamp.isoformat() 
+        for food_name, timestamp in timestamps.items()
+    }
+    
     # Return early with the number of logs that will be processed
     # This allows the frontend to start showing animations while processing continues
     response = JSONResponse(
         content={
             "status": "processing", 
             "log_count": len(parsed_foods),
-            "foods": [item["food_name"] for item in parsed_foods]
+            "foods": [{item["food_name"] : serializable_timestamps[item["food_name"]]} for item in parsed_foods]
         }
     )
     background.add_task(process_logs, user, db, request, parsed_foods, timestamps)

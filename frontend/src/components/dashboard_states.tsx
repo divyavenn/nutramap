@@ -11,6 +11,12 @@ import { request } from './endpoints';
 import { tolocalDateString } from './utlis';
 import { nutrientDetailsByIDAtom } from './account_states';
 
+// Define a type for pending foods with timestamps
+export interface PendingFood {
+  name: string;
+  timestamp: string;
+}
+
 const dateRangeAtom= atom<TimePeriod>({
   key: 'currentPeriod', 
   default : getCurrentPeriod()
@@ -26,6 +32,11 @@ const logsAtom = atom<LogProps[]>({
   default : []
 })
 
+// Atom to store pending foods that are being processed
+const pendingFoodsAtom = atom<PendingFood[]>({
+  key: 'pendingFoods',
+  default: []
+})
 
 function useRefreshData(){
   let dateRange = useRecoilValue(dateRangeAtom)
@@ -217,4 +228,6 @@ export {dateRangeAtom,
   requirementsAtom,
   rowData,
   averageIntake,
-  dayIntake}
+  dayIntake,
+  pendingFoodsAtom,
+}
