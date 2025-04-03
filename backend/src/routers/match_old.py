@@ -12,8 +12,6 @@
 #Try compressed sparse vector fusion
 
 from fastapi import APIRouter, Depends, Request, Body
-from fastapi.responses import JSONResponse
-from fastapi import BackgroundTasks
 from typing import Dict
 import asyncio
 
@@ -160,7 +158,6 @@ async def log_meal(
     user: user,
     db: db,
     request: Request,
-    background: BackgroundTasks, 
     request_data: dict = Body(...),
 ):
     meal_description = request_data.get("meal_description", "")
@@ -168,41 +165,21 @@ async def log_meal(
     
     parsed_foods, timestamps = await parse_meal_description(meal_description)
     
-    # Return early with the number of logs that will be processed
-    # This allows the frontend to start showing animations while processing continues
-    response = JSONResponse(
-        content={
-            "status": "processing", 
-            "log_count": len(parsed_foods),
-            "foods": [item["food_name"] for item in parsed_foods]
+    async def process_ingredient(ingredient):
+        sparse_results, dense_results = await get_matches(ingredient, db, user, request)
+        best_match_id = await rrf_fusion(sparse_results, dense_results)
+        return {
+            "food_id": int(best_match_id),
+            "amount_in_grams": ingredient['amount_in_grams'],
+            "date": timestamps.get(ingredient['food_name']),
+            "user_id": user["_id"]
         }
-    )
-    background.add_task(process_logs, user, db, request, parsed_foods, timestamps)
+
+    log_entries = await asyncio.gather(*[process_ingredient(ingredient) for ingredient in parsed_foods])
     
-    return response
+    await asyncio.gather(*[add_log(user, log_entry, db) for log_entry in log_entries])
 
-async def process_logs(user, db, request, parsed_foods, timestamps):
-    """Process logs in the background after initial response is sent"""
-    try:
-        async def process_ingredient(ingredient):
-            sparse_results, dense_results = await get_matches(ingredient, db, user, request)
-            best_match_id = await rrf_fusion(sparse_results, dense_results)
-            return {
-                "food_id": int(best_match_id),
-                "amount_in_grams": ingredient['amount_in_grams'],
-                "date": timestamps.get(ingredient['food_name']),
-                "user_id": user["_id"]
-            }
-
-        log_entries = await asyncio.gather(*[process_ingredient(ingredient) for ingredient in parsed_foods])
-        
-        await asyncio.gather(*[add_log(user, log_entry, db) for log_entry in log_entries])
-        
-        print(f"Successfully processed {len(log_entries)} log entries in the background")
-    except Exception as e:
-        print(f"Error in background log processing: {e}")
-        import traceback
-        traceback.print_exc()
+    return {"status": "success", "message": f"Logged {len(log_entries)} items"}
 
 if __name__ == "__main__":
     # Import needed modules for standalone testing
