@@ -85,7 +85,7 @@ input, textarea {
 }
 
 .edit-form-container.deleting {
-  animation: pixelate-out 0.8s ease-in forwards;
+  animation: pixelate-out 0.4s ease-in forwards;
   pointer-events: none; /* Prevent interactions during animation */
 }
 

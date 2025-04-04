@@ -284,7 +284,7 @@ function EditLogForm({food_name, date, amount_in_grams, _id, onAnimationStart, o
       if (onAnimationEnd) {
         onAnimationEnd();
       }
-    }, 800); // Delay before actual deletion
+    }, 500); // Delay before actual deletion
   }
 
   const handleSelect = (date: Date) => {
