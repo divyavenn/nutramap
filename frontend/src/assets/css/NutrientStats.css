@@ -16,8 +16,8 @@
   flex-shrink: 0;
   flex-basis: auto;
   border-radius: 14px;
-  background-color: hsla(0, 0%, 0%, 0.518);
-  color: var(--white);
+  background-color: #231b228e;
+  color: white;
   transition: background-color 0.3s ease, transform 0.3s ease;
 }
 
@@ -65,7 +65,7 @@
   position: relative;
   width: 100%;
   font-family: Inconsolata;
-  color:var(--purple);
+  color:var(--white);
   font-size: 16px;
   font-weight: 300;
   text-transform: none;
@@ -120,9 +120,23 @@
 .avg-stats-wrapper {
   position: relative;
   width: 20%;
-  align-self: center;
+  align-self:center;
   text-align: center;
+}
 
+.avg-intake {
+  font-family: Poppins;
+  font-size: 14px;
+  font-weight: 300;
+  padding-left: 25px;
+  cursor: default;
+  text-align: left;
+  color: white; /* Default color is white */
+  transition: color 0.3s ease; /* Smooth transition for hover effect */
+}
+
+.avg-stats-wrapper:hover .avg-intake {
+  color: var(--avg-color);
 }
 
 .hover-transition-container {
@@ -160,7 +174,7 @@
   height: 10px;
   width: 250px;
   
-  background-color: #12000eb9;
+  background-color: #12000e42;
   border-radius: 100px;
   cursor: pointer;
   display: flex;
@@ -172,11 +186,22 @@
   transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
+.progress-bar-container {
+  height: 100%;
+  width: 100%;
+  border-radius: 100px;
+  overflow: hidden; /* This ensures the child progress bar respects the container's rounded corners */
+  position: relative;
+}
+
 .progress-bar {
   height: 100%;
   width: 100%; /* Ensure the progress bar fills the container */
   transition: width 0.3s ease, background-color 0.3s ease;
-  border-radius: 100px;
+  border-radius: 100px; /* This will be clipped by the parent container */
+  position: absolute;
+  left: 0;
+  top: 0;
 }
 
 .intake-value {
@@ -184,14 +209,4 @@
   font-size: 14px;
   font-weight: bold;
   margin: 0 5px;
-}
-
-.avg-intake {
-  font-family: Poppins;
-  font-size: 13px;
-  font-weight: 300;
-  padding-left: 25px;
-  font-weight: bold;
-  cursor: default;
-  text-align: left;
 }

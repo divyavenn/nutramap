@@ -17,8 +17,7 @@ function LogList (){
   const [hoveredLogId, setHoveredLogId] = useState<string | null>(null);
   // Track if an animation is currently playing
   const [animationLock, setAnimationLock] = useState(false);
-  // Refs to store dimensions of display logs
-  const logDimensionsRef = useRef<{[key: string]: DOMRect | null}>({});
+
   
   if (logs.length === 0 && pendingFoods.length === 0) {
     return <div className="log-list">

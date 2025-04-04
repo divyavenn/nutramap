@@ -164,7 +164,7 @@ input, textarea {
 
 .edit-entry-form-bubble:hover{
   background-color: #ffffffa1;
-  color: #1e002e;
+  color: #230035;
 }
 
 /* Activate suggestions dropdown */
@@ -193,7 +193,7 @@ input, textarea {
 
 
 .edit-food-name:hover {
-  color: white;
+  color: #000000;
 }
 
 
@@ -245,7 +245,7 @@ input, textarea {
 }
 
 .edit-input-food-amt:hover {
-  color: white;
+  color: #000000;
 }
 
 /* Styling for the "g" unit */
@@ -318,7 +318,7 @@ input, textarea {
 }
 
 .edit-input-time-wrapper:hover {
-  color: white
+  color: #000000;
 }
 
 

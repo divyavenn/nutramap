@@ -221,23 +221,34 @@ function NutrientStatRow({ name, target, dayIntake = 0, avgIntake, shouldExceed,
             className={`daily-intake ${hovered ? 'hidden' : 'visible'}`}>
             {shouldExceed ?
             (<div
-              className="progress-bar"
-              style={{
-              width: `${progressPercentage}%`,
-              backgroundColor: progressColor}}>
+              className="progress-bar-container">
+              <div
+                className="progress-bar"
+                style={{
+                width: `${progressPercentage}%`,
+                backgroundColor: progressColor}}>
+              </div>
             </div>) :
             (<div
-              className="progress-bar"
-              style={{
-              width: `${progressPercentage * .75}%`,
-              backgroundColor: progressColor}}>
+              className="progress-bar-container">
+              <div
+                className="progress-bar"
+                style={{
+                width: `${progressPercentage * .75}%`,
+                backgroundColor: progressColor}}>
+              </div>
             </div>)
             }
           </div>
         </div>
       </div>
       <div className="avg-stats-wrapper">
-        <div className="avg-intake" style={{ color: avgColor }}>
+        <div 
+          className="avg-intake"
+          style={{ 
+            '--avg-color': avgColor
+          } as React.CSSProperties}
+        >
            {Math.round(avgIntake * 100) / 100} {units}
         </div>
       </div>

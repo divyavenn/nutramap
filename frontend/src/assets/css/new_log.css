@@ -31,13 +31,33 @@ input, textarea {
   transition: color 0.3s ease, background-color 0.3s ease; /* Smooth transition */
 }
 
+/* Add specific high-contrast styling for placeholders */
+::placeholder { /* Chrome, Firefox, Opera, Safari 10.1+ */
+  color: #a6a5a5 !important;
+  opacity: 0.9 !important;
+}
+
+:-ms-input-placeholder { /* Internet Explorer 10-11 */
+  color: #a6a5a5 !important;
+  opacity: 0.9 !important;
+}
+
+::-ms-input-placeholder { /* Microsoft Edge */
+  color: #a6a5a5 !important;
+  opacity: 0.9 !important;
+}
+
+.input-food-name::placeholder,
+.input-food-amt::placeholder {
+  color: #a6a5a5 !important;
+  opacity: 0.9 !important;
+}
 
 .form-elements-wrapper{
   width: 600px;
   display: flex;
   margin-top: 20px;
-  background-color: #19050584;
-  color: var(--white);
+
   flex-direction: column;
   border-radius: 14px;
   position: relative;
@@ -91,7 +111,7 @@ input, textarea {
   box-sizing: border-box;
   will-change: transform;
   opacity: 1; /* Ensure full opacity by default */
-  background-color: rgba(25, 5, 5, 0.52); /* Restore the background color */
+  background-color: #19050584;
 }
 
 .entry-form-bubble.active{

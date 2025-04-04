@@ -5,31 +5,54 @@ import { foodsAtom, nutrientDetailsByNameAtom} from "./account_states";
 import { useRecoilValue } from "recoil";
 // Function to interpolate between red and blue based on intake vs. target
 const calculateColor = (percentage: number, shouldExceed: boolean) => {
-  // If shouldExceed is true, red (when less) to blue (when exceeded)
-  // If shouldExceed is false, blue (when less) to red (when exceeded)
+  // If shouldExceed is true, red (when less) to green (when exceeded)
+  // If shouldExceed is false, green (when less) to red (when exceeded)
 
-  // Define RGB values for the two endpoints
-  const red = [209, 99, 0]; // RGB for red
-  const blue = [60, 181, 57]; // RGB for blue
-
+  // Define RGB values for the two endpoints with higher saturation and brightness
+  // Using more vibrant colors that will stand out against the gray/fog background
+  const red = [0, 0, 0]; // Black
+  const green = [255, 255, 255]; // White
+  const yellow = [128, 0, 128]; // Purple
+  
   // Calculate the ratio (how far along we are towards the target)
   const ratio = Math.min(percentage / 100, 1);
+  
+  let r, g, b;
+  
+  if (shouldExceed) {
+    // For nutrients we want to exceed (like protein, vitamins)
+    if (ratio < 0.5) {
+      // Red to yellow (0% to 50%)
+      const subRatio = ratio * 2; // Scale to 0-1 range
+      r = Math.floor(red[0] * (1 - subRatio) + yellow[0] * subRatio);
+      g = Math.floor(red[1] * (1 - subRatio) + yellow[1] * subRatio);
+      b = Math.floor(red[2] * (1 - subRatio) + yellow[2] * subRatio);
+    } else {
+      // Yellow to green (50% to 100%)
+      const subRatio = (ratio - 0.5) * 2; // Scale to 0-1 range
+      r = Math.floor(yellow[0] * (1 - subRatio) + green[0] * subRatio);
+      g = Math.floor(yellow[1] * (1 - subRatio) + green[1] * subRatio);
+      b = Math.floor(yellow[2] * (1 - subRatio) + green[2] * subRatio);
+    }
+  } else {
+    // For nutrients we don't want to exceed (like sodium, sugar)
+    if (ratio < 0.5) {
+      // Green to yellow (0% to 50%)
+      const subRatio = ratio * 2; // Scale to 0-1 range
+      r = Math.floor(green[0] * (1 - subRatio) + yellow[0] * subRatio);
+      g = Math.floor(green[1] * (1 - subRatio) + yellow[1] * subRatio);
+      b = Math.floor(green[2] * (1 - subRatio) + yellow[2] * subRatio);
+    } else {
+      // Yellow to red (50% to 100%)
+      const subRatio = (ratio - 0.5) * 2; // Scale to 0-1 range
+      r = Math.floor(yellow[0] * (1 - subRatio) + red[0] * subRatio);
+      g = Math.floor(yellow[1] * (1 - subRatio) + red[1] * subRatio);
+      b = Math.floor(yellow[2] * (1 - subRatio) + red[2] * subRatio);
+    }
+  }
 
-  // Interpolate between red and blue
-  const [r, g, b] = shouldExceed
-    ? [
-        Math.floor((1 - ratio) * red[0] + ratio * blue[0]),
-        Math.floor((1 - ratio) * red[1] + ratio * blue[1]),
-        Math.floor((1 - ratio) * red[2] + ratio * blue[2]),
-      ]
-    : [
-        Math.floor((1 - ratio) * blue[0] + ratio * red[0]),
-        Math.floor((1 - ratio) * blue[1] + ratio * red[1]),
-        Math.floor((1 - ratio) * blue[2] + ratio * red[2]),
-      ];
-
-  // Return the color as a CSS-compatible string
-  return `rgb(${r}, ${g}, ${b})`;
+  // Return the color as a CSS-compatible string with higher opacity
+  return `rgba(${r}, ${g}, ${b}, 0.9)`;
 };
 
 const getFoodID = (food_name : string, foodList : Record<string, number>) => {

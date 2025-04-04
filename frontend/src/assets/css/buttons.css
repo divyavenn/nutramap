@@ -9,7 +9,7 @@
 }
 
 .svg-button svg {
-  fill: #8400ffa8; /* You can change the SVG color here */
+  fill: #b9b0b0; /* Changed from #8400ffa8 to black */
   width: 50px;
   height: 50px;
 }
