@@ -18,8 +18,8 @@
   border-radius: 14px;
   background-color: hsla(0, 0%, 0%, 0.518);
   color: var(--white);
+  transition: background-color 0.3s ease, transform 0.3s ease;
 }
-
 
 .requirement-edit-wrapper{
   width: 100%;
@@ -100,6 +100,12 @@
   flex-basis: auto;
 }
 
+.nutrient-name {
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
 .today-stats-wrapper {
   position: relative;
   width: 50%;
@@ -119,9 +125,33 @@
 
 }
 
-.nutrient-name {
-  cursor: pointer;
+.hover-transition-container {
+  position: relative;
+  width: 100%;
+  height: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.goal-message {
+  position: absolute;
   font-size: 14px;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  width: 100%;
+  text-align: center;
+}
+
+.visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.hidden {
+  opacity: 0;
+  transform: translateY(5px);
+  pointer-events: none;
 }
 
 .daily-intake {
@@ -139,29 +169,13 @@
   align-items: center;
   justify-content: start;
   justify-self: center;
+  transition: opacity 0.3s ease, transform 0.3s ease;
 }
-
-/* .daily-intake:hover {
-  position: relative;
-  border-color: antiquewhite;
-  height: 10px;
-  background-color: #de00aeb9;
-  border-radius: 100px;
-  overflow: hidden;
-  cursor: pointer;
-  display: flex;
-  flex-direction: row;
-  align-self: center;
-  align-items: center;
-  justify-content: start;
-  justify-self: center;
-} */
-
 
 .progress-bar {
   height: 100%;
   width: 100%; /* Ensure the progress bar fills the container */
-  transition: width 0.3s ease;
+  transition: width 0.3s ease, background-color 0.3s ease;
   border-radius: 100px;
 }
 

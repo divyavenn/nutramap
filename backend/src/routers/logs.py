@@ -7,7 +7,7 @@ from datetime import timedelta, datetime
 
 from src.databases.mongo import get_data
 from src.databases.mongo_models import Log, LogEdit
-from src.routers.foods import get_nutrient_amount, amount_by_weight, get_food_name
+from src.routers.foods import get_food_name, get_total_nutrients, consolidate_amounts
 from src.routers.auth import get_current_user
 from src.routers.parse import parse_meal_description
 
@@ -176,55 +176,51 @@ def edit_log(user: user, db : db, update_info: LogEdit):
    
  
 
+
 @router.get("/day_intake")
 def day_intake(date: datetime, user: user, db : db):
-    requirements = db.requirements.find({"user_id" : user["_id"]})
-    tally = {}
-    if db.requirements.count_documents({"user_id" : user["_id"]}) == 0:
-        return tally
     
-    for r in requirements:
-      tally[r["nutrient_id"]] = 0
-    
-    # Validate that the food exists in SQLite
-    logs = list(get_logs_for_day(user, date, db))
-    # print(logs)
-    for log in logs:
-      data = get_nutrient_amount(db, log["food_id"])
-      for d in data:
-          if d["id"] in tally:
-            tally[d["id"]] += amount_by_weight(d["amount"], log["amount_in_grams"])
+    start_of_day = datetime(date.year, date.month, date.day)
 
-    return tally
+    # Set the end of the day (23:59:59) for the given date
+    end_of_day = start_of_day + timedelta(days=1) - timedelta(seconds=1)
+    
+    requirements = db.requirements.find({"user_id" : user["_id"]})
+    nutrient_ids = [r["nutrient_id"] for r in requirements]
+    if len(nutrient_ids) == 0:
+        return {}
+    return consolidate_amounts(db, user["_id"], start_of_day, end_of_day, nutrient_ids)
+
     
 # 2024-10-01T00:00:00
 # 2024-10-31T23:59:59
 @router.get("/range_intake")
 def meets(startDate : datetime, endDate: datetime, user: user, db : db):
-    requirements = db.requirements.find({"user_id" : user["_id"]})
-    tally = {}
+    # Check if user has any requirements
     if db.requirements.count_documents({"user_id" : user["_id"]}) == 0:
-        return tally
+        return {}
+        
+    # Get requirements and extract just the nutrient IDs
+    requirements = list(db.requirements.find({"user_id" : user["_id"]}))
+    nutrient_ids = [r["nutrient_id"] for r in requirements]
     
-    for r in requirements:
-      tally[r["nutrient_id"]] = 0
-
-    # Validate that the food exists in SQLite
-    logs = list(get_logs_in_range(user,startDate, endDate, db))
-    for log in logs:
-      data = get_nutrient_amount(db, log["food_id"])
-      for d in data:
-          if d["id"]in tally:
-            tally[d["id"]] += amount_by_weight(d["amount"], log["amount_in_grams"])
+    if len(nutrient_ids) == 0:
+        return {}
     
-    # number of days 
+    # Get total nutrients for the date range
+    tally = consolidate_amounts(db, user["_id"], startDate, endDate, nutrient_ids)
+    
+    # Count number of unique days in the range
+    logs = list(get_logs_in_range(user, startDate, endDate, db))
     days = count_unique_days(logs)
-    if (days > 0):
-        for nutrient in tally:
-            total = tally[nutrient]
+    
+    # Calculate daily average if there are days with logs
+    if days > 0:
+        for nutrient_id in tally:
+            total = tally[nutrient_id]
             # Return 0 if total is 0 to avoid NaN
             avg = total / days if total != 0 else 0
-            tally[nutrient] = avg
+            tally[nutrient_id] = avg
     
     return tally
 

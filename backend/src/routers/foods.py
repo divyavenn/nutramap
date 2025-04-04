@@ -2,12 +2,15 @@ from typing_extensions import Annotated
 from fastapi import APIRouter, Depends, Request, BackgroundTasks
 from fastapi.responses import JSONResponse
 from pymongo.database import Database
+from bson import ObjectId
 from decimal import Decimal
 from typing import Dict, List, Union
 from src.routers.auth import get_current_user
 import pickle
+import datetime
 import os
 import asyncio
+from src.routers.parallel import parallel_process
 
 # When running as a module within the application, use relative imports
 try:
@@ -31,19 +34,140 @@ router = APIRouter(   # groups API endpoints together
     tags=['food'])
 
 
-def get_nutrient_amount(db, food_id : int):
-    food = db.foods.find_one({"_id": food_id}, {"nutrients": 1, "_id": 0})
-    if not food or "nutrients" not in food:
-        return [] 
-    
-    result = []
-    for nutrient in food["nutrients"]:
-        if nutrient["amt"] > 0:
-            result.append({
-                "id": nutrient["nutrient_id"],
-                "amount": nutrient["amt"]})
 
-    return result
+
+async def process_nutrient_conversion(target_id_pair, convert_map, expanded_nutrient_ids, conversion_sources):
+    """Process a single nutrient ID for conversion mapping"""
+    target_id = target_id_pair
+    if target_id in convert_map:
+        # For each target nutrient, add all source nutrients to the expanded list
+        for source_dict in convert_map[target_id]:
+            for source_id in source_dict:
+                if source_id not in expanded_nutrient_ids:
+                    expanded_nutrient_ids.append(source_id)
+                # Track which sources map to which targets and their conversion factors
+                if target_id not in conversion_sources:
+                    conversion_sources[target_id] = []
+                conversion_sources[target_id].append((source_id, source_dict[source_id]))
+    return target_id
+
+async def apply_conversion(conversion_pair, tally):
+    """Apply conversion factor to a single source-target pair"""
+    target_id, sources = conversion_pair
+    for source_id, conversion_factor in sources:
+        if source_id in tally:
+            # Convert the source amount and add it to the target
+            converted_amount = tally[source_id] * conversion_factor
+            if target_id in tally:
+                tally[target_id] += converted_amount
+            else:
+                tally[target_id] = converted_amount
+    return target_id
+
+def consolidate_amounts(db, user_id, start_date: datetime, end_date: datetime, nutrient_ids: list):
+    return asyncio.run(consolidate_amounts_async(db, user_id, start_date, end_date, nutrient_ids))
+
+async def consolidate_amounts_async(db, user_id, start_date: datetime, end_date: datetime, nutrient_ids: list):
+
+    expanded_nutrient_ids = nutrient_ids.copy()
+    conversion_sources = {}
+    
+    # Process nutrient conversions in parallel
+    await parallel_process(
+        nutrient_ids, 
+        process_nutrient_conversion, 
+        [convert_map, expanded_nutrient_ids, conversion_sources]
+    )
+    
+    # Step 2: Get the total nutrients for the expanded list
+    tally = get_total_nutrients(db, user_id, start_date, end_date, expanded_nutrient_ids)
+    
+    # Step 3: Apply conversions and consolidate amounts in parallel
+    if conversion_sources:
+        conversion_items = list(conversion_sources.items())
+        await parallel_process(
+            conversion_items,
+            apply_conversion,
+            [tally]
+        )
+    
+    # Step 4: Remove source nutrients that were only used for conversion
+    # (only if they weren't in the original nutrient_ids list)
+    final_tally = {}
+    for nutrient_id in nutrient_ids:
+        if nutrient_id in tally:
+            final_tally[nutrient_id] = tally[nutrient_id]
+        else:
+            final_tally[nutrient_id] = 0
+            
+    return final_tally
+
+vit_d_iu = .025
+
+# a table of nutrient_id with functional equivalents
+# mapped to a list of equivalent nutrient_ids that should be included in their total mapped to conversion factor
+convert_map = {1114 : [{1110 : .025}]}
+
+def get_total_nutrients(db, user_id: str, start_date: datetime, end_date: datetime, nutrient_ids: list):
+    pipeline = [
+        {
+            "$match": {
+                "user_id": ObjectId(user_id),
+                "date": {
+                    "$gte": start_date,
+                    "$lte": end_date
+                }
+            }
+        },
+        {
+            "$lookup": {
+                "from": "foods",
+                "localField": "food_id",
+                "foreignField": "_id",
+                "as": "food"
+            }
+        },
+        { "$unwind": "$food" },
+        { "$unwind": "$food.nutrients" },
+        {
+            "$match": {
+                "food.nutrients.nutrient_id": { "$in": nutrient_ids }
+            }
+        },
+        {
+            "$project": {
+                "nutrient_id": "$food.nutrients.nutrient_id",
+                "scaled_amt": {
+                    "$multiply": [
+                        "$food.nutrients.amt",
+                        { "$divide": ["$amount_in_grams", 100] }
+                    ]
+                }
+            }
+        },
+        {
+            "$group": {
+                "_id": "$nutrient_id",
+                "total": { "$sum": "$scaled_amt" }
+            }
+        }
+    ]
+
+    # Get the aggregation results
+    results = list(db.logs.aggregate(pipeline))
+    
+    # Convert from list of dictionaries to a single dictionary
+    tally = {}
+    for result in results:
+        tally[result["_id"]] = result["total"]
+    
+    # Initialize any missing nutrients to 0
+    for nutrient_id in nutrient_ids:
+        if nutrient_id not in tally:
+            tally[nutrient_id] = 0
+            
+    return tally
+
 
 @router.get("/panel", response_model = None)
 def get_nutrient_panel(food_id : int, db : db):

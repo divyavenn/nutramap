@@ -178,20 +178,23 @@ function NutrientStatRow({ name, target, dayIntake = 0, avgIntake, shouldExceed,
   const progressPercentage = Math.min((dayIntake / target) * 100, 100);
   const progressColor = calculateColor(progressPercentage, shouldExceed);
 
-
   // Determine the average intake color based on the same rules as above
   const avgColor = calculateColor((avgIntake / target) * 100, shouldExceed);
 
   const goalMessage = (target : number, intake : number, units : string, shouldExceed : boolean) => {
     const difference = Math.abs(target - dayIntake);
     if (shouldExceed) {
-      if (intake < target) return difference.toFixed(2) + " " + units + " until target";
-      else return "target met : " + intake.toFixed(2) + " " + units;
+      if (intake < target) return difference.toFixed(0) + " " + units + " until target";
+      else return "target met : " + intake.toFixed(0) + " " + units;
     }
     else {
-      if (intake < target) return difference.toFixed(2) + " within target";
-      else return "exceeded target by " + difference.toFixed(2) + " " + units
+      if (intake < target) return difference.toFixed(0) + " within target";
+      else return "exceeded target by " + difference.toFixed(0) + " " + units
     }
+  }
+
+  const targetDisplay =  (target: number, units: string) =>{
+    return target.toFixed(0) + ' ' + units
   }
 
   return (
@@ -205,31 +208,33 @@ function NutrientStatRow({ name, target, dayIntake = 0, avgIntake, shouldExceed,
         </div>
       </div>
 
-      <div className="today-stats-wrapper" 
-          onMouseEnter={() => setHovered(true)}
-          onMouseLeave={() => setHovered(false)} >
-          {hovered ? 
-            (<div className="nutrient-name">
-              {goalMessage(target, dayIntake, units, shouldExceed)}
-              </div>) : 
-            (
-              <div className="daily-intake">
-                {shouldExceed ?
-                (<div
-                  className="progress-bar"
-                  style={{
-                  width: `${progressPercentage}%`,
-                  backgroundColor: progressColor}}>
-                </div>) :
-                (<div
-                  className="progress-bar"
-                  style={{
-                  width: `${progressPercentage * .75}%`,
-                  backgroundColor: progressColor}}>
-                </div>)
-                }
-              </div>
-            )}
+      <div 
+        className="today-stats-wrapper"
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}>
+        <div className="hover-transition-container">
+          <div 
+            className={`goal-message ${hovered ? 'visible' : 'hidden'}`}>
+            {targetDisplay(dayIntake, units)}
+          </div>
+          <div 
+            className={`daily-intake ${hovered ? 'hidden' : 'visible'}`}>
+            {shouldExceed ?
+            (<div
+              className="progress-bar"
+              style={{
+              width: `${progressPercentage}%`,
+              backgroundColor: progressColor}}>
+            </div>) :
+            (<div
+              className="progress-bar"
+              style={{
+              width: `${progressPercentage * .75}%`,
+              backgroundColor: progressColor}}>
+            </div>)
+            }
+          </div>
+        </div>
       </div>
       <div className="avg-stats-wrapper">
         <div className="avg-intake" style={{ color: avgColor }}>
