@@ -132,7 +132,7 @@
   align-self: center;
   align-items: start;
   border-radius: 14px;
-  background-color: #19050584;
+  background-color: #19050560;
   color: var(--white);
   justify-content: space-between; /* Ensure space is distributed between elements */
   transition: all 0.1s ease; 

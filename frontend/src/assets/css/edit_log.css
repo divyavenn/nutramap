@@ -149,7 +149,6 @@ input, textarea {
   display: flex;
   border-radius: 14px;
   width: 600px;
-  background-color: #19050584;
   flex-direction: row;
   align-items: start;
   color: var(--white);

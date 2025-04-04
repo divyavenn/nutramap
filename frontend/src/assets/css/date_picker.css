@@ -1,7 +1,7 @@
 /* Override the main calendar container */
 .date-picker-popup .rdrCalendarWrapper {
   border-radius: 20px;
-  background-color: transparent;
+  background-color: #19050560;
   overflow: hidden;
 }
 
@@ -11,7 +11,7 @@
   justify-content: center;
   align-items: center;
   gap: 10px;
-  background-color: transparent;
+  background-color: #19050560;
   color: white;
 }
 
@@ -102,4 +102,93 @@
 .custom-datepicker .react-datepicker__today-button {
   background-color: transparent;
   color: white;
+}
+
+/* Custom styling for selected day with our custom class */
+.react-datepicker__day.selected-day {
+  background-color: #ff69b4 !important; /* Hot pink - highly visible */
+  color: white !important;
+  border-radius: 50% !important;
+  font-weight: bold !important;
+  box-shadow: 0 0 0 2px white !important;
+  position: relative !important;
+  z-index: 5 !important;
+  transform: scale(1.1) !important;
+}
+
+/* Fix hover styles for react-datepicker day cells */
+.react-datepicker__day:hover {
+  background-color: rgba(128, 128, 128, 0.3) !important;
+  color: white !important;
+  opacity: 1 !important;
+}
+
+/* Make sure all days are visible */
+.react-datepicker__day {
+  color: white !important;
+  font-weight: normal !important;
+}
+
+/* Ensure month and day names are visible */
+.react-datepicker__current-month,
+.react-datepicker__day-name {
+  color: white !important;
+}
+
+/* Override react-datepicker hover styles with high specificity */
+.date-picker-popup .react-datepicker__day:hover:not(.react-datepicker__day--selected):not(.react-datepicker__day--keyboard-selected):not(.selected-day) {
+  background-color: rgba(128, 128, 128, 0.3) !important;
+  color: white !important;
+  opacity: 1 !important;
+}
+
+/* Override react-date-range hover styles */
+.calendar-popup .rdrDay:not(.rdrDayPassive):not(.rdrDayDisabled):hover .rdrInRange,
+.calendar-popup .rdrDay:not(.rdrDayPassive):not(.rdrDayDisabled):hover .rdrDayNumber span {
+  background-color: rgba(128, 128, 128, 0.3) !important;
+  color: white !important;
+}
+
+/* Fix preview styling for date range picker */
+.calendar-popup .rdrDayStartPreview,
+.calendar-popup .rdrDayInPreview,
+.calendar-popup .rdrDayEndPreview {
+  background-color: rgba(128, 128, 128, 0.3) !important;
+  opacity: 1 !important;
+}
+
+/* Fix preview span styling */
+.calendar-popup .rdrDayStartPreview span,
+.calendar-popup .rdrDayInPreview span,
+.calendar-popup .rdrDayEndPreview span,
+.calendar-popup .rdrDay:hover span {
+  color: white !important;
+  opacity: 1 !important;
+}
+
+/* Handle preview on top of selected dates - ensure selected dates remain visible */
+.calendar-popup .rdrDayStartSelected.rdrDayStartPreview,
+.calendar-popup .rdrDayEndSelected.rdrDayEndPreview,
+.calendar-popup .rdrDayInSelected.rdrDayInPreview {
+  background-color: #ff69b4 !important; /* Use the same hot pink as our selected-day class */
+  opacity: 1 !important;
+  z-index: 5 !important;
+}
+
+/* Make sure the text in selected+preview days is clearly visible */
+.calendar-popup .rdrDayStartSelected.rdrDayStartPreview span,
+.calendar-popup .rdrDayEndSelected.rdrDayEndPreview span,
+.calendar-popup .rdrDayInSelected.rdrDayInPreview span {
+  color: white !important;
+  font-weight: bold !important;
+  opacity: 1 !important;
+}
+
+/* Keep selected day styling in date range */
+.calendar-popup .rdrDaySelected:not(.rdrDayDisabled):not(.rdrDayPassive) .rdrInRange,
+.calendar-popup .rdrDaySelected:not(.rdrDayDisabled):not(.rdrDayPassive) .rdrDayNumber span {
+  background-color: #1e002e !important;
+  color: white !important;
+  border-radius: 50% !important;
+  opacity: 1 !important;
 }

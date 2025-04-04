@@ -111,7 +111,7 @@ input, textarea {
   box-sizing: border-box;
   will-change: transform;
   opacity: 1; /* Ensure full opacity by default */
-  background-color: #19050584;
+  background-color: #19050560;
 }
 
 .entry-form-bubble.active{

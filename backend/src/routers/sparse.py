@@ -21,7 +21,7 @@ except ImportError:
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
     from src.databases.mongo import get_data
     from src.routers.auth import get_current_user
-    from src.routers.foods import get_all_foods 
+    from src.routers.foods import get_all_foods, get_food_name
     from src.routers.parallel import parallel_process
     
 
@@ -222,27 +222,23 @@ async def get_sparse_index(
     return filtered_matches
 
 def pretty_print_matches(matches):
-    # Simplified version of get_food_name that works in standalone scripts
-    import pickle
     import os
     from dotenv import load_dotenv
-    
-    # Load environment variables
+    from pymongo import MongoClient
+
     load_dotenv()
-    
-    # Get food names from pickle cache
-    try:
-        with open(os.getenv("FOOD_ID_CACHE"), 'rb') as f:
-            food_names = pickle.load(f)
-    except (FileNotFoundError, pickle.UnpicklingError) as e:
-        print(f"Error loading food names: {e}")
-        return
-    
-    # Print matches with food names
+
+    mongo_uri = os.getenv("MONGO_URI")
+    db_name = os.getenv("DB_NAME")
+    mongo_client = MongoClient(mongo_uri)
+    db = mongo_client[db_name]
+
     for food_id, score in matches.items():
         food_id_int = int(food_id)
-        food_name = food_names.get(food_id_int, f"Unknown food ({food_id_int})")
+        food_name = get_food_name(food_id_int, db)
         print(f"{food_name} - {score:.4f}")
+
+    mongo_client.close()
 
 if __name__ == "__main__":
     import asyncio

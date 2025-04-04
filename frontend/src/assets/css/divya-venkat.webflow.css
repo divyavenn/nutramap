@@ -1760,7 +1760,7 @@ label {
 }
 
 .nutramap-subtitle {
-  background-color: var(--nutramap-accent);
+  background-color: #14070762;
   color: #fff;
   border-radius: 15px;
   align-self: center;
@@ -1910,6 +1910,12 @@ label {
 .nutramap-logo {
   filter: invert();
   height: 50px;
+}
+
+.nutramap-logo-large{
+  filter: invert();
+  height: 250px;
+  padding-right: 50px;
 }
 
 .nutramap-copy {

@@ -27,13 +27,13 @@ const VantaBackground: React.FC<VantaBackgroundProps> = ({ children }) => {
             gyroControls: false,
             minHeight: 200.00,
             minWidth: 200.00,
-            highlightColor: 0xaaa8aa,
+            highlightColor: 0xa2a1a2,
             midtoneColor: 0xc3bebe,
             lowlightColor: 0x959498,
             baseColor: 0x7d7676,
             blurFactor: 0.6,
             speed: 0.80,
-            zoom: 1.40
+            zoom: 1.80
           })
         );
       }

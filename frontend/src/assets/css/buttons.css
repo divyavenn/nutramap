@@ -46,8 +46,8 @@
 
 .login-button svg {
   fill: #ffffffa8; /* You can change the SVG color here */
-  width: 45px;
-  height: 45px;
+  width: 30px;
+  height: 30px;
 }
 
 .login-button:hover svg {

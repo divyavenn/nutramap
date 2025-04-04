@@ -1,4 +1,3 @@
-
 import { DateRange } from 'react-date-range';
 import {TimePeriod, RangeType} from './structures'
 import DatePicker from 'react-datepicker';
@@ -115,6 +114,13 @@ const CalendarDay = forwardRef<HTMLDivElement, CalendarProps>(({ day, handleSele
             selected={datePicked} // Pass the selected date
             onChange={handleDateChange} // Your date change handler
             inline
+            dayClassName={date => 
+              date.getDate() === datePicked.getDate() && 
+              date.getMonth() === datePicked.getMonth() && 
+              date.getFullYear() === datePicked.getFullYear() 
+                ? "selected-day" 
+                : ""
+            }
           />
         </div>
       )}
