@@ -81,11 +81,77 @@ function NewSmartLog() {
         // Set the global state for pending foods
         setPendingFoods(foodsWithTimestamps);
         
-        // Refresh logs after a delay to allow background processing to complete
-        setTimeout(() => {
-          refreshLogs();
-          setPendingFoods([]);
-        }, 3000);
+        // Start polling for logs immediately
+        const today = new Date();
+        const dateKey = today.toDateString();
+        const startDate = today.toISOString().split('T')[0];
+        const endDate = startDate;
+        
+        // Function to check if logs are available and clear pending state
+        const checkForLogs = async () => {
+          try {
+            const logs = await request(`/logs/get?startDate=${startDate}&endDate=${endDate}`, 'GET');
+            
+            // Check if we have any logs for today that match our pending foods
+            const matchingLogs = logs.body.filter((log: any) => 
+              new Date(log.date).toDateString() === dateKey &&
+              foodsWithTimestamps.some(food => 
+                log.food_name.toLowerCase().includes(food.name.toLowerCase())
+              )
+            );
+            
+            if (matchingLogs.length > 0) {
+              // We found matching logs, clear pending foods and refresh
+              setPendingFoods([]);
+              refreshLogs();
+              return true; // Successfully found logs
+            }
+            
+            return false; // No matching logs found yet
+          } catch (error) {
+            console.error('Error checking for logs:', error);
+            return false;
+          }
+        };
+        
+        // Try immediately first
+        checkForLogs().then(found => {
+          if (!found) {
+            // If not found, start polling with exponential backoff
+            let attempts = 0;
+            let timeoutId: number | null = null;
+            const maxAttempts = 100;
+            const maxTimeout = setTimeout(() => {
+              if (timeoutId) clearTimeout(timeoutId);
+              setPendingFoods([]);
+              refreshLogs();
+            }, 3000);
+            
+            const poll = async () => {
+              if (attempts >= maxAttempts) {
+                // Give up after max attempts and just clear pending
+                setPendingFoods([]);
+                refreshLogs();
+                clearTimeout(maxTimeout);
+                return;
+              }
+              
+              const found = await checkForLogs();
+              if (!found) {
+                attempts++;
+                // More aggressive polling: 100ms, 200ms, 400ms, 800ms, 1600ms, etc.
+                const delay = 30;
+                timeoutId = setTimeout(poll, delay) as unknown as number;
+              } else {
+                // Clear the max timeout if we found the logs
+                clearTimeout(maxTimeout);
+              }
+            };
+            
+            // Start polling sooner (100ms instead of 200ms)
+            timeoutId = setTimeout(poll, 100) as unknown as number;
+          }
+        });
       } else {
         // Handle the old response format if needed
         refreshLogs();

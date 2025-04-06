@@ -118,8 +118,12 @@ function EditLogForm({food_name, date, amount_in_grams, _id, onAnimationStart, o
       
       // If no suggestions are shown or none selected, submit the form
       if (!showSuggestions || selectedSuggestionIndex < 0) {
-        const form = document.getElementById('edit-log-form') as HTMLFormElement;
-        if (form) form.requestSubmit();
+        // Get the form element directly from the event target
+        const form = (e.target as HTMLTextAreaElement).closest('form') as HTMLFormElement;
+        if (form) {
+          // Use submit() instead of requestSubmit() for better browser compatibility
+          form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+        }
       }
     }
   };

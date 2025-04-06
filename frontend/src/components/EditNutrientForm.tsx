@@ -1,4 +1,3 @@
-
 import React, {useState } from 'react' 
 import {request } from './endpoints';
 import '../assets/css/new_nutrient.css'
@@ -30,6 +29,30 @@ function NewNutrientForm({ original }: { original?: Nutrient }): React.ReactNode
   const [isDeleted, setIsDeleted] = useState(false)
   const refreshRequirements = useRefreshRequirements()
 
+  // Handle key down events for inputs
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // If Enter is pressed and not in the middle of selecting a suggestion
+    if (e.key === 'Enter' && (!showSuggestions || suggestions.length === 0)) {
+      e.preventDefault();
+      
+      // Check if form is valid before submitting
+      if (formData.nutrient_name && formData.requirement && validInput) {
+        // Call the submission logic directly
+        submitForm();
+      }
+    }
+  };
+
+  // Extract the submission logic to a separate function
+  const submitForm = async () => {
+    let requestData = {
+      nutrient_id: getNutrientInfo(formData.nutrient_name, false, nutrientList),
+      amt: parseFloat(formData.requirement),
+      should_exceed: Boolean(formData.should_exceed)
+    }
+    let response = await request('/requirements/new','POST', requestData, 'JSON')
+    refreshRequirements();
+  }
 
   // Handler for the comparison select element
   const handleComparisonChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -78,19 +101,8 @@ function NewNutrientForm({ original }: { original?: Nutrient }): React.ReactNode
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     console.log("submitting")
     e.preventDefault() // prevent automatic submission
-    let requestData = {
-      nutrient_id: getNutrientInfo(formData.nutrient_name, false, nutrientList),
-      amt: parseFloat(formData.requirement),
-      should_exceed: Boolean(formData.should_exceed)
-    }
-    let response = await request('/requirements/new','POST', requestData, 'JSON')
-    refreshRequirements();
-
-      // Reset the form state immediately to avoid showing incorrect data
-    if (!original) setFormData({ nutrient_name: '', requirement: '', should_exceed: true });
-    else setFormData({ nutrient_name: original.name, requirement: String(original.target), should_exceed: original.shouldExceed});
-    }
-
+    await submitForm();
+  }
 
   const handleDelete = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault() // prevent automatic submission
@@ -123,6 +135,7 @@ function NewNutrientForm({ original }: { original?: Nutrient }): React.ReactNode
           placeholder='nutrient'
           value = {formData.nutrient_name}
           onChange={handleTyping}
+          onKeyDown={handleKeyDown}
           required
         ></input>
       </div>
@@ -143,6 +156,7 @@ function NewNutrientForm({ original }: { original?: Nutrient }): React.ReactNode
           placeholder='0'
           value = {formData.requirement}
           onChange={handleTyping}
+          onKeyDown={handleKeyDown}
           required
         ></input>
         <span className="nutrient-unit">
