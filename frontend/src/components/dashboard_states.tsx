@@ -38,6 +38,11 @@ const pendingFoodsAtom = atom<PendingFood[]>({
   default: []
 })
 
+const hoveredLogIdAtom = atom<string | null>({
+  key: 'hoveredLogId',
+  default: null
+})
+
 function useRefreshData(){
   let dateRange = useRecoilValue(dateRangeAtom)
   let setLogs = useSetRecoilState(logsAtom)
@@ -99,8 +104,12 @@ const dayIntake = selector<{[key: string]: number}>({
   get: async ({get}) => {
     const day = get(currentDayAtom)
     const logs = get(logsAtom)
+    const log_id = get(hoveredLogIdAtom)
     let endpoint = '/logs/day_intake?date=' 
     + tolocalDateString(day)
+    if (log_id) {
+      endpoint = '/food/panel?log_id=' + log_id
+    }
     let response = await request(endpoint)
     return response.body;
   }
@@ -230,4 +239,5 @@ export {dateRangeAtom,
   averageIntake,
   dayIntake,
   pendingFoodsAtom,
+  hoveredLogIdAtom
 }

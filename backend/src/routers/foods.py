@@ -168,23 +168,23 @@ def get_total_nutrients(db, user_id: str, start_date: datetime, end_date: dateti
             
     return tally
 
+@router.get("/panel", response_model=None)
+async def get_nutrient_panel(log_id: str, db: db):
+    log = db.logs.find_one({"_id": ObjectId(log_id)})
+    if not log:
+        return {}
 
-@router.get("/panel", response_model = None)
-def get_nutrient_panel(food_id : int, db : db):
-    food = db.foods.find_one({"_id": food_id}, {"nutrients": 1, "_id": 0})
+    food = db.foods.find_one({"_id": log["food_id"]}, {"nutrients": 1, "_id": 0})
     if not food or "nutrients" not in food:
-        return [] 
-    
-    result = []
+        return {}
+
+    proration_factor = log["amount_in_grams"] / 100  # Assuming nutrients are per 100g
+    result = {}
+
     for nutrient in food["nutrients"]:
-        if nutrient["amt"] > 0:
-            details = get_nutrient_details(db, nutrient["nutrient_id"])
-            result.append({
-                "id": nutrient["nutrient_id"],
-                "amount": nutrient["amt"],
-                "name" : details["name"],
-                "unit" : details["unit"]
-            })
+        prorated_amount = nutrient["amt"] * proration_factor
+        if prorated_amount > 0:
+            result[nutrient["nutrient_id"]] = prorated_amount
 
     return result
     

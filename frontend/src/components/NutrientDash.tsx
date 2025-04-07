@@ -5,7 +5,7 @@ import AddLogButton from '../assets/images/plus.svg?react'
 import { NewNutrientForm } from './EditNutrientForm';
 import '../assets/css/NutrientStats.css'; // Import your CSS file for styling
 import {useRecoilValue, useRecoilValueLoadable} from 'recoil'
-import { currentDayAtom, rowData} from './dashboard_states';
+import { currentDayAtom, rowData, hoveredLogIdAtom} from './dashboard_states';
 import { requirementsAtom, RequirementData, requirementsDataAtom, dayIntake, averageIntake } from './dashboard_states';
 import { nutrientDetailsByIDAtom } from './account_states';
 
@@ -27,6 +27,7 @@ function NutrientDashboard(){
   const currentDay = useRecoilValue(currentDayAtom) 
   const requirementsData = useRecoilValueLoadable(requirementsDataAtom);
   const [requirements, setRequirements] = useState<RequirementData[]>([]);
+  const hoveredLogId = useRecoilValue(hoveredLogIdAtom);
     
   useEffect(() => {
     if (requirementsData.state === 'hasValue') {
@@ -112,7 +113,8 @@ function NutrientDashboardTitle({currentDay = new Date()} : {currentDay? : Date}
 
 
 const NutrientStats = ({requirements} : {requirements : RequirementData[]}) => {
-
+  const hoveredLogId = useRecoilValue(hoveredLogIdAtom);
+  
   function initialize(): { [key: string]: number } {
     return requirements.reduce((acc, requirement) => {
       acc[requirement.id] = 0; // Initialize each requirement ID with 0

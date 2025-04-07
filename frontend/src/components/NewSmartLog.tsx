@@ -23,8 +23,7 @@ function NewSmartLog() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isJiggling, setIsJiggling] = useState(false);
   // Use the global state for pending foods
-  const setPendingFoods = useSetRecoilState(pendingFoodsAtom);
-  const pendingFoods = useRecoilValue(pendingFoodsAtom);
+  const setPendingFoods = useSetRecoilState(pendingFoodsAtom); 
   const refreshLogs = useRefreshLogs();
   const formRef = useRef<HTMLFormElement>(null);
 

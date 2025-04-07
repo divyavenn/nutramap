@@ -6,15 +6,15 @@ import {useState, useRef, useEffect} from 'react'
 import { EditLogForm } from './EditLogForm';
 import { formatTime } from './utlis';
 import { LogProps, DisplayLogProps } from './structures';
-import {useRecoilValue, useSetRecoilState} from 'recoil'
-import { logsAtom, currentDayAtom, useRefreshLogs, pendingFoodsAtom, PendingFood } from './dashboard_states';
+import {useRecoilValue, useSetRecoilState, useRecoilState} from 'recoil'
+import { logsAtom, currentDayAtom, hoveredLogIdAtom, useRefreshLogs, pendingFoodsAtom, PendingFood } from './dashboard_states';
 import { motion } from 'framer-motion';
 
 function LogList (){
   const logs = useRecoilValue(logsAtom) 
   const pendingFoods = useRecoilValue(pendingFoodsAtom)
   // Track which log is being hovered
-  const [hoveredLogId, setHoveredLogId] = useState<string | null>(null);
+  const [hoveredLogId, setHoveredLogId] = useRecoilState(hoveredLogIdAtom);
   // Track if an animation is currently playing
   const [animationLock, setAnimationLock] = useState(false);
 

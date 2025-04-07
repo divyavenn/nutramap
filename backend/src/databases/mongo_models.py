@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field, field_validator
-from typing import Optional
+from typing import Optional, List, Dict, Union
 from datetime import datetime
 from bson import ObjectId
 
@@ -41,6 +41,19 @@ class Log(BaseModel):
             return str(v)
         return v
 
+class Recipe(BaseModel):
+    recipe_id: str = Field(alias="_id") 
+    user_id: Optional[str] 
+    foods: List[Dict[int, float]]
+    
+    @field_validator('recipe_id', 'user_id')
+    def validate_objectid(cls, v):
+        if v is None:  # Skip validation if the field is missing
+            return v
+        if isinstance(v, ObjectId):
+            return str(v)
+        return v
+    
 
 class RequirementCreate(BaseModel):
     nutrient_id: int
