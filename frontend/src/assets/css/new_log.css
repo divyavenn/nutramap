@@ -47,28 +47,13 @@ input, textarea {
   opacity: 0.9 !important;
 }
 
-.input-food-name::placeholder,
-.input-food-amt::placeholder {
-  color: #a6a5a5 !important;
-  opacity: 0.9 !important;
-}
-
 .form-elements-wrapper{
   width: 600px;
   display: flex;
-  margin-top: 20px;
-
   flex-direction: column;
   border-radius: 14px;
   position: relative;
   overflow: hidden;
-}
-
-/* Activate suggestions dropdown */
-.form-elements-wrapper.active .suggestions-list {
-  opacity: .5;
-  transform: translateY(0);
-  pointer-events: all;
 }
 
 /* Quivering animation styles */
@@ -95,28 +80,16 @@ input, textarea {
 
 .entry-form-bubble{
   display: flex;
-  padding: 10px 15px;
   border-radius: 14px;
   align-items: center;
   color: var(--white);
-  justify-content: space-between; /* Ensure space is distributed between elements */
-  position: relative;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 15px;
-  border-radius: 14px;
   transition: all 0.3s ease;
   width: 100%;
   box-sizing: border-box;
   will-change: transform;
   opacity: 1; /* Ensure full opacity by default */
   background-color: #19050560;
-}
-
-.entry-form-bubble.active{
-  border-bottom-left-radius: 0px;
-  border-bottom-right-radius: 0px;
+  justify-content: space-between;
 }
 
 .entry-form-bubble:hover{
@@ -128,122 +101,6 @@ input, textarea {
   animation: quiver 0.25s infinite alternate;
 }
 
-/*--------------------------------------------NAME----------------------------------*/
-
-
-/* Autocomplete suggestions styling */
-.input-food-name-wrapper {
-  width: 300px;
-  /* border: 1px solid rgb(47, 156, 114); Add a red border to visually see the amount's boundaries */
-  position: relative; /* This is to ensure the suggestions dropdown aligns with the input */
-}
-
-
-.input-food-name {
-  padding-top: 15px;
-  padding-bottom: 15px;
-  padding-left: 27px;
-  padding-right: 10px;
-  width: 300px;
-
-
-  background: none;
-  font-family: Inconsolata;
-  color: inherit;
-  outline: none;
-  transition: background-color 0.3s ease, color 0.3s ease;
-  text-align: left; /* Ensures the text aligns properly */
-}
-
-/* ------------------------------------------AMOUNT-------------------------------------- */
-/* Wrapper for the input and "g" unit */
-.input-food-amt-wrapper {
-  display: flex;
-  justify-self: right;
-  align-items: center;
-  align-self: center;
-  position: relative;
-  font-family: Inconsolata;
-  width: 7%; /* Set width to match your layout */
-  margin-left: -50px;
-}
-
-/* The input for entering food amount */
-.input-food-amt {
-  width: 100%; /* Ensures the input takes full available space in the wrapper */
-  padding-right: 10px; /* Creates space for the "g" */
-  background: none;
-  border: none; /* Removes the default border */
-  text-align: left; /* Align the input text to the left */
-  color: inherit; /* Inherit the text color (useful for hover) */
-}
-
-/* Styling for the "g" unit */
-.nutrient-unit {
-  position: absolute;
-  right: 0px;
-  width: 30%;
-  text-align: left;
-  font-family: Poppins;
-  font-size: 14px;
-  color: inherit; /* Inherit text color (important for hover) */
-  pointer-events: none; /* Ensure the span doesn't interfere with input focus */
-}
-
-
-/*-----------------------------------SUGGESTIONS------------------------------*/
-.suggestions-list {
-  list-style-type: none; 
-  padding-left: 0; /* Removes default padding */
-  margin-left: 0; /* Removes default margin */
-  margin: 0; /* Optionally set the entire margin to 0 */
-
-  width: 100%; /* Ensure the suggestions take up the full width of the input */
-  max-height: 300px; /* Optional: Limit height */
-  overflow-y: auto; /* Scrollable if suggestions overflow */
-  z-index: 999;
-  opacity: 1;
-  transition: opacity 0.3s ease, max-height 0.3s ease;
-  /* Hides scrollbar in WebKit browsers (Chrome, Safari, etc.) */
-  -webkit-overflow-scrolling: touch; /* Enables smooth scrolling on mobile */
-  scrollbar-width: none; /* For Firefox */
-  }
-
-.suggestions-list::-webkit-scrollbar {
-  display: none; /* Hides scrollbar for WebKit browsers */
-  }
-
-/* Individual suggestion items */
-.suggestion-item {
-  padding-top: 10px;
-  padding-bottom: 10px;
-  padding-left: 27px;
-  padding-right: 40px;
-  font-family: Inconsolata;
-  background-color: none;
-  color: var(--white);
-
-  cursor: pointer;
-  transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-/* Hover effect for suggestions */
-.suggestion-item:hover {
-  background-color: #ffffffa1;
-  color: #1e002e;
-}
-
-
-/* ------------------------------------------DATE-------------------------------------- */
-
-.new-log-button-container {
-  display: flex; /* Enables flexbox on the container */
-  width: 25%;
-  justify-content: flex-end; /* Pushes content to the right side */
-  align-items: center; /* Vertically centers the button */
-  padding: 10px; /* Optional: padding */
-}
-
 .new-smart-log-button-container {
   display: flex; /* Enables flexbox on the container */
   width: 3.2%;
@@ -251,7 +108,6 @@ input, textarea {
   align-items: center; /* Vertically centers the button */
   padding: 10px; /* Optional: padding */
 }
-
 
 .new-log-button {
   align-items: center; /* Vertically center the SVG within the button */
@@ -274,30 +130,17 @@ input, textarea {
   height: 15px;
 }
 
-.submit-button-animation {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  height: 100%;
-}
-
-.submit-button-animation svg {
-  width: 24px;
-  height: 24px;
-  color: var(--white);
-}
-
 /* Journal input styling */
 .input-journal {
   flex: 1;
-  width: 100%;
-  padding-top: 15px;
+  width: calc(100% - 60px); /* Account for padding and button space */
   padding-bottom: 15px;
   padding-left: 27px;
   padding-right: 10px;
-  resize: vertical;
-  min-height: 50px;
+  resize: none;
+  height: 50px;
+  max-height: 50px;
+  overflow: hidden;
   font-family: Inconsolata;
   color: inherit;
   background: none;
@@ -305,76 +148,9 @@ input, textarea {
   outline: none;
   transition: background-color 0.3s ease, color 0.3s ease;
   text-align: left;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.smart-entry-form-bubble{
-  display: flex;
-  border-radius: 14px;
-  width: 600px;
-  padding-top: 15px;
-  padding-bottom: 15px;
-  background-color: #19050584;
-  /* border: 1px solid red; */
-  flex-direction: row;
-  align-items: center;
-  color: var(--white);
-  justify-content: space-between; /* Ensure space is distributed between elements */
-}
-
-.smart-entry-form-bubble:hover{
-  background-color: #ffffffa1;
-  color: #1e002e;
-}
-
-/* Sparkle animation styles */
-.sparkle-container {
-  position: relative;
-  overflow: visible;
-}
-
-.sparkle {
-  position: absolute;
-  background-color: #FFD700;
-  border-radius: 50%;
-  z-index: 10;
-  pointer-events: none;
-  box-shadow: 0 0 10px 2px rgba(255, 215, 0, 0.7);
-}
-
-/* Pending foods animation styles */
-.pending-foods-container {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  align-items: center;
-  margin: 10px 0;
-}
-
-.pending-food-item {
-  margin-bottom: 10px;
-  backdrop-filter: blur(4px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-.pending-food-item .entry-food-name,
-.pending-food-item .entry-food-amt,
-.pending-food-item .entry-date {
-  color: rgba(255, 255, 255, 0.8);
-}
-
-/* Feedback message styling */
-.feedback-message {
-  text-align: center;
-  margin-top: 10px;
-  color: var(--color-text-light);
-  font-size: 14px;
-  animation: fadeIn 0.3s ease-in-out;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
 
 /* Jiggle animation for text input when submitting */
 @keyframes jiggle {

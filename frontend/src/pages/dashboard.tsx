@@ -61,9 +61,7 @@ function Dashboard(){
   </MainSection>
 
   <MainSection>
-    <div>
     <NewSmartLog />
-   </div>
   </MainSection>
 
   <MainSection>

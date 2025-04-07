@@ -4,6 +4,39 @@
   max-width: 800px;
   margin: 0 auto;
   padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.foods-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 20px;
+}
+
+.foods-actions {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.add-food-button {
+  background-color: #19050560;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-family: Inconsolata;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.add-food-button:hover {
+  background-color: #ffffffa1;
+  color: #1e002e;
 }
 
 .no-foods-message {
@@ -125,4 +158,236 @@
   color: var(--white);
   padding: 8px 0;
   text-align: right;
+}
+
+/* When log-bubble is hovered, change input text and background color */
+.entry-form-bubble:hover input,
+.entry-form-bubble:hover textarea {
+  color: #1e002e; /* Change input text color to dark */
+  background-color: transparent; /* Ensure the background is transparent on hover */
+}
+
+input, textarea {
+  font-family: inherit;  /* Ensures input fields inherit the font-family of the parent */
+  font-size: inherit;
+  font-weight: inherit;
+  color: var(--white); /* Default text color */
+  background-color: transparent; /* Make sure the background is transparent initially */
+  border: none; /* Removes default borders */
+  outline: none; /* Removes outline when focused */
+  transition: color 0.3s ease, background-color 0.3s ease; /* Smooth transition */
+}
+
+/* Add specific high-contrast styling for placeholders */
+::placeholder { /* Chrome, Firefox, Opera, Safari 10.1+ */
+  color: #a6a5a5 !important;
+  opacity: 0.9 !important;
+}
+
+:-ms-input-placeholder { /* Internet Explorer 10-11 */
+  color: #a6a5a5 !important;
+  opacity: 0.9 !important;
+}
+
+::-ms-input-placeholder { /* Microsoft Edge */
+  color: #a6a5a5 !important;
+  opacity: 0.9 !important;
+}
+
+.form-elements-wrapper{
+  width: 600px;
+  display: flex;
+  margin-top: 20px;
+  flex-direction: column;
+  border-radius: 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Quivering animation styles */
+@keyframes quiver {
+  0% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(2px);
+  }
+  40% {
+    transform: translateX(-2px);
+  }
+  60% {
+    transform: translateX(1px);
+  }
+  80% {
+    transform: translateX(-1px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.entry-form-bubble{
+  display: flex;
+  padding: 15px;
+  border-radius: 14px;
+  align-items: center;
+  color: var(--white);
+  transition: all 0.3s ease;
+  width: 100%;
+  box-sizing: border-box;
+  will-change: transform;
+  opacity: 1;
+  background-color: #19050560;
+  justify-content: space-between;
+}
+
+.entry-form-bubble:hover{
+  background-color: #ffffffa1;
+  color: #1e002e;
+}
+
+.pixelating {
+  animation: quiver 0.25s infinite alternate;
+}
+
+.new-smart-log-button-container {
+  display: flex; /* Enables flexbox on the container */
+  width: 3.2%;
+  justify-content: flex-end; /* Pushes content to the right side */
+  align-items: center; /* Vertically centers the button */
+  padding: 10px; /* Optional: padding */
+}
+
+.new-log-button {
+  align-items: center; /* Vertically center the SVG within the button */
+  background: none;
+  margin-right: 5px;
+  cursor: pointer;
+  border: none;
+  order: 1;
+}
+
+.new-log-button svg {
+  fill: #ffffffa8; /* You can change the SVG color here */
+  width: 15px;
+  height: 15px;
+}
+
+.new-log-button:hover svg {
+  fill: #1e002e;; /* You can change the SVG color here */
+  width: 15px;
+  height: 15px;
+}
+
+/* Journal input styling */
+.input-journal {
+  flex: 1;
+  width: calc(100% - 60px); /* Account for padding and button space */
+  padding-top: 15px;
+  padding-bottom: 15px;
+  padding-left: 27px;
+  padding-right: 10px;
+  resize: none;
+  height: 50px;
+  max-height: 50px;
+  overflow: hidden;
+  font-family: Inconsolata;
+  color: inherit;
+  background: none;
+  border: none;
+  outline: none;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  text-align: left;
+}
+
+/* Jiggle animation for text input when submitting */
+@keyframes jiggle {
+  0% { transform: translateX(0); opacity: 1; }
+  25% { transform: translateX(-1px); opacity: 0.75; }
+  50% { transform: translateX(3px); opacity: 0.5; }
+  75% { transform: translateX(-1px); opacity: 0.25; }
+  100% { transform: translateX(0); opacity: 0; }
+}
+
+/* Separate fade animation for more control */
+@keyframes fadeOut {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.jiggle-text {
+  animation: jiggle .3s ease 3.33, fadeOut 1s ease forwards;
+  will-change: opacity, transform;
+}
+
+/* Image upload and preview styles */
+.image-upload-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 15px;
+}
+
+.image-upload-button {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--white);
+  border: none;
+  border-radius: 5px;
+  padding: 8px 15px;
+  font-family: Inconsolata;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.image-upload-button:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.image-preview-container {
+  position: relative;
+  margin-top: 10px;
+  border-radius: 8px;
+  overflow: hidden;
+  max-width: 100%;
+  width: 100%;
+}
+
+.image-preview {
+  width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+}
+
+.remove-image-button {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.remove-image-button:hover {
+  background-color: rgba(255, 0, 0, 0.7);
+}
+
+.success-message {
+  background-color: rgba(76, 175, 80, 0.8);
+  color: white;
+  padding: 10px 15px;
+  border-radius: 8px;
+  margin-top: 10px;
+  text-align: center;
+  animation: fadeIn 0.3s ease-in-out;
+  font-weight: 500;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }

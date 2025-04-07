@@ -2,30 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { Header } from '../components/Sections';
 import { Heading } from '../components/Title';
 import Account from '../assets/images/account.svg?react';
-import Utensils from '../assets/images/utensils-solid.svg?react';
+import Dashboard from '../assets/images/dashboard.svg?react'
 import Trashcan from '../assets/images/trashcan.svg?react';
 import { request } from '../components/endpoints';
 import { useNavigate } from 'react-router-dom';
 import { isLoginExpired } from '../components/utlis';
-import { HoverButton } from '../components/Sections';
-import YesOk from '../assets/images/check_circle.svg?react';
-
+import { firstNameAtom } from '../components/account_states'; 
+import { useRecoilValue } from 'recoil';
 import '../assets/css/foods.css';
+import NewFood from '../components/NewFood';
 
 interface Food {
   _id: string;
-  food_name: string;
-  nutrients: {
-    nutrient_id: string;
-    amount: number;
-  }[];
-  source: string;
-}
-
-interface NutrientInfo {
-  _id: string;
   name: string;
-  unit: string;
+  nutrients: {
+    [key: string]: number;
+  };
 }
 
 function FoodsPage() {
@@ -33,11 +25,7 @@ function FoodsPage() {
   const [expandedFood, setExpandedFood] = useState<string | null>(null);
   const [editingFood, setEditingFood] = useState<string | null>(null);
   const [editedName, setEditedName] = useState('');
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [newFoodDescription, setNewFoodDescription] = useState('');
-  const [newFoodImageUrl, setNewFoodImageUrl] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [nutrientInfo, setNutrientInfo] = useState<Record<string, NutrientInfo>>({});
+  const [showNewFood, setShowNewFood] = useState(false);
   const navigate = useNavigate();
 
   // Fetch user's custom foods
@@ -47,36 +35,31 @@ function FoodsPage() {
       return;
     }
 
-    const fetchFoods = async () => {
-      try {
-        const response = await request('/foods/custom-foods', 'GET');
-        if (response.body) {
-          setFoods(response.body);
-        }
-      } catch (error) {
-        console.error('Error fetching custom foods:', error);
-      }
-    };
-
-    const fetchNutrientInfo = async () => {
-      try {
-        const response = await request('/nutrients/all', 'GET');
-        if (response.body) {
-          // Convert array to object with _id as key
-          const nutrientMap: Record<string, NutrientInfo> = {};
-          response.body.forEach((nutrient: NutrientInfo) => {
-            nutrientMap[nutrient._id] = nutrient;
-          });
-          setNutrientInfo(nutrientMap);
-        }
-      } catch (error) {
-        console.error('Error fetching nutrient info:', error);
-      }
-    };
-
     fetchFoods();
-    fetchNutrientInfo();
   }, [navigate]);
+
+  // Listen for food added event
+  useEffect(() => {
+    const handleFoodAdded = () => {
+      fetchFoods();
+    };
+
+    document.addEventListener('foodAdded', handleFoodAdded);
+    return () => {
+      document.removeEventListener('foodAdded', handleFoodAdded);
+    };
+  }, []);
+
+  const fetchFoods = async () => {
+    try {
+      const response = await request('/food/custom-foods', 'GET');
+      if (response.body) {
+        setFoods(response.body);
+      }
+    } catch (error) {
+      console.error('Error fetching custom foods:', error);
+    }
+  };
 
   const toggleExpand = (foodId: string) => {
     setExpandedFood(expandedFood === foodId ? null : foodId);
@@ -84,16 +67,16 @@ function FoodsPage() {
 
   const startEditing = (food: Food) => {
     setEditingFood(food._id);
-    setEditedName(food.food_name);
+    setEditedName(food.name);
   };
 
   const saveEditedName = async (foodId: string) => {
     try {
-      await request(`/foods/${foodId}`, 'PUT', { name: editedName });
+      await request(`/food/update-custom-food/${foodId}`, 'PUT', { name: editedName });
       
       // Update local state
       setFoods(foods.map(food => 
-        food._id === foodId ? { ...food, food_name: editedName } : food
+        food._id === foodId ? { ...food, name: editedName } : food
       ));
       
       setEditingFood(null);
@@ -104,7 +87,7 @@ function FoodsPage() {
 
   const deleteFood = async (foodId: string) => {
     try {
-      await request(`/foods/${foodId}`, 'DELETE');
+      await request(`/food/delete-custom-food/${foodId}`, 'DELETE');
       
       // Update local state
       setFoods(foods.filter(food => food._id !== foodId));
@@ -118,75 +101,27 @@ function FoodsPage() {
     }
   };
 
-  const handleAddFood = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!newFoodDescription.trim()) {
-      return;
-    }
-    
-    setIsSubmitting(true);
-    
-    try {
-      // Create form data for multipart/form-data request
-      const formData = new FormData();
-      formData.append('food_description', newFoodDescription);
-      
-      if (newFoodImageUrl.trim()) {
-        formData.append('image_url', newFoodImageUrl);
-      }
-      
-      const response = await fetch('/api/foods/add-custom-food', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include'
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        
-        // Refresh the foods list
-        const foodsResponse = await request('/foods/custom-foods', 'GET');
-        if (foodsResponse.body) {
-          setFoods(foodsResponse.body);
-        }
-        
-        // Reset form
-        setNewFoodDescription('');
-        setNewFoodImageUrl('');
-        setShowAddDialog(false);
-      } else {
-        console.error('Failed to add food:', await response.text());
-      }
-    } catch (error) {
-      console.error('Error adding food:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const getNutrientName = (nutrientId: string) => {
-    return nutrientInfo[nutrientId]?.name || 'Unknown Nutrient';
-  };
-
-  const getNutrientUnit = (nutrientId: string) => {
-    return nutrientInfo[nutrientId]?.unit || '';
+  const toggleNewFood = () => {
+    setShowNewFood(!showNewFood);
   };
 
   return (
     <>
-      <Header linkIcons={[{to: '/account', img: <Account/>}, {to: '/dashboard', img: <Utensils/>}]}/>
-      <Heading words={'My Custom Foods'} />
+      <Header linkIcons={[{to: '/account', img: <Account/>}, {to: '/dashboard', img: <Dashboard/>}]}/>
+      <Heading words={`${useRecoilValue(firstNameAtom)}'s Foods`} />
       
       <div className="foods-container">
-        <div className="foods-header">
+        <div className="foods-actions">
           <button 
-            className="add-food-button"
-            onClick={() => setShowAddDialog(true)}
+            className="add-food-button" 
+            onClick={toggleNewFood}
+            aria-label={showNewFood ? "Hide add food form" : "Show add food form"}
           >
-            + Add Custom Food
+            {showNewFood ? "Cancel" : "Add Custom Food"}
           </button>
         </div>
+        
+        {showNewFood && <NewFood />}
         
         {foods.length === 0 ? (
           <div className="no-foods-message">
@@ -216,7 +151,7 @@ function FoodsPage() {
                       onClick={() => toggleExpand(food._id)}
                       onDoubleClick={() => startEditing(food)}
                     >
-                      {food.food_name}
+                      {food.name}
                     </div>
                   )}
                   
@@ -234,12 +169,10 @@ function FoodsPage() {
                     <h4>Nutritional Information</h4>
                     <table className="nutrients-table">
                       <tbody>
-                        {food.nutrients.map((nutrient) => (
-                          <tr key={nutrient.nutrient_id}>
-                            <td className="nutrient-name">{getNutrientName(nutrient.nutrient_id)}</td>
-                            <td className="nutrient-value">
-                              {nutrient.amount} {getNutrientUnit(nutrient.nutrient_id)}
-                            </td>
+                        {Object.entries(food.nutrients).map(([nutrient, value]) => (
+                          <tr key={nutrient}>
+                            <td className="nutrient-name">{nutrient}</td>
+                            <td className="nutrient-value">{value}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -251,57 +184,6 @@ function FoodsPage() {
           </ul>
         )}
       </div>
-      
-      {/* Add Food Dialog */}
-      {showAddDialog && (
-        <div className="dialog-overlay">
-          <div className="add-food-dialog">
-            <h3>Add Custom Food</h3>
-            <form onSubmit={handleAddFood}>
-              <div className="form-group">
-                <label htmlFor="food-description">Food Description:</label>
-                <textarea
-                  id="food-description"
-                  value={newFoodDescription}
-                  onChange={(e) => setNewFoodDescription(e.target.value)}
-                  placeholder="Describe the food in detail (e.g., 'Homemade chocolate chip cookie with walnuts')"
-                  rows={4}
-                  required
-                />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="image-url">Image URL (optional):</label>
-                <input
-                  type="url"
-                  id="image-url"
-                  value={newFoodImageUrl}
-                  onChange={(e) => setNewFoodImageUrl(e.target.value)}
-                  placeholder="https://example.com/image.jpg"
-                />
-              </div>
-              
-              <div className="dialog-buttons">
-                <button
-                  type="button"
-                  className="cancel-button"
-                  onClick={() => setShowAddDialog(false)}
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="submit-button"
-                  disabled={isSubmitting || !newFoodDescription.trim()}
-                >
-                  <YesOk />
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </>
   );
 }

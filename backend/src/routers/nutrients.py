@@ -17,7 +17,7 @@ router = APIRouter(   # groups API endpoints together
 @router.get("/all")
 async def get_all_nutrients(db: db):
     # Query the nutrients collection and exclude specified IDs
-    excluded_ids = [1062, 2047, 2048, 1141, 1142, 1238, 1240]
+    excluded_ids = [1062, 2047, 2048, 1141, 1142, 1238, 1240, 1006, 1066]
     nutrients = list(db.nutrients.find(
     {"_id": {"$nin": excluded_ids}},  # Filter to exclude nutrient IDs
     ))

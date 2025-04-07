@@ -226,37 +226,7 @@ def pretty_print_matches(matches):
     for food_id, score in matches.items():
         print(f"{food_id}: {score}")
 
-async def search_nutrients_by_name(nutrient_name: str, threshold: float = 0.1, limit: int = 10):
-    """
-    Search for nutrients using the sparse index (Typesense)
-    Returns a dictionary of nutrient_id -> score
-    """
-    
-    # Search for nutrients
-    search_params = {
-        'q': nutrient_name,
-        'query_by': 'name',
-        'sort_by': '_text_match:desc',
-        'per_page': limit
-    }
-    
-    try:
-        search_results = await client.collections['nutrients'].documents.search(search_params)
-        
-        # Process results
-        matches = {}
-        for hit in search_results['hits']:
-            nutrient_id = hit['document']['id']
-            score = hit['text_match']
-            matches[nutrient_id] = score
-        
-        # Filter results by threshold
-        filtered_matches = {nutrient_id: score for nutrient_id, score in matches.items() if score >= threshold}
-        
-        return filtered_matches
-    except Exception as e:
-        print(f"Error searching nutrients: {e}")
-        return {}
+
 
 if __name__ == "__main__":
     import asyncio
