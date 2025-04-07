@@ -186,12 +186,12 @@ async def find_dense_matches(text: str, db, user, request: Request = None, thres
     
     global faiss_index, id_list
     
-    print("Searching for faiss index in app state...")
+    # print("Searching for faiss index in app state...")
     # if not in app state, check bin. if not in bin, run update
     if request is not None and hasattr(request.app.state, 'faiss_index') and request.app.state.faiss_index is not None:
         faiss_index = request.app.state.faiss_index
     else:
-        print("Searching for faiss index in BIN...")
+        # print("Searching for faiss index in BIN...")
         faiss_path = os.getenv("FAISS_BIN")
         if os.path.exists(faiss_path) and os.path.getsize(faiss_path) > 0:
             faiss_index = faiss.read_index(faiss_path)
@@ -205,7 +205,7 @@ async def find_dense_matches(text: str, db, user, request: Request = None, thres
             id_name_map = pickle.load(f)
             id_list = list(id_name_map.keys())
     
-    print(f"Found {len(id_list)} food IDs")
+    # print(f"Found {len(id_list)} food IDs")
         
     # Create query embedding
     query_embedding = await embed_query(text)

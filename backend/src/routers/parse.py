@@ -5,6 +5,8 @@ from typing import List, Dict, Tuple
 from datetime import datetime
 import json
 import asyncio
+# re is used in parse_new_food function for regex pattern matching
+import re
 
 # When running as a module within the application, use relative imports
 try:
@@ -154,7 +156,87 @@ async def parse_meal_description(meal_description: str) -> Tuple[List[Dict], Dic
         print(f"Error in parse_meal_description: {e}")
         # Return empty results as fallback
         return [], {}
-          
+
+async def parse_new_food(food_description: str, image_url=None):
+    """
+    Parse a food description and optionally an image to extract food name and nutrients.
+    Uses OpenAI to analyze the description and image (if provided).
+    
+    Args:
+        food_description: Text description of the food
+        image_url: Optional URL to an image of the food
+    
+    Returns:
+        Tuple of (food_name, nutrients_list)
+        where nutrients_list is a list of dicts with keys 'nutrient_name' and 'amount'
+    """
+    try:
+        # Prepare the system message
+        system_message = """You are a nutrition expert assistant. Your task is to analyze the food description 
+        and extract the food name and its nutritional information. Focus on common nutrients like calories, 
+        protein, carbohydrates, fat, fiber, vitamins, and minerals. Provide the most accurate estimates based 
+        on standard nutritional databases."""
+        
+        # Prepare the user message
+        user_message = f"Please analyze this food: {food_description}"
+        if image_url:
+            user_message += f"\n\nI'm also providing an image of the food at: {image_url}"
+        
+        user_message += """\n\nPlease respond in the following JSON format only:
+        {
+            "food_name": "Name of the food",
+            "nutrients": [
+                {"nutrient_name": "Calories", "amount": 100, "unit": "kcal"},
+                {"nutrient_name": "Protein", "amount": 5, "unit": "g"},
+                ...
+            ]
+        }
+        """
+        
+        # Make the OpenAI API call
+        response = await client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": user_message}
+            ],
+            temperature=0.3,
+            max_tokens=1000
+        )
+        
+        # Parse the response
+        response_text = response.choices[0].message.content
+        
+        # Extract JSON from the response
+        import json
+        import re
+        
+        # Find JSON pattern in the response
+        json_match = re.search(r'({[\s\S]*})', response_text)
+        if json_match:
+            json_str = json_match.group(1)
+            data = json.loads(json_str)
+            
+            food_name = data.get("food_name", food_description)
+            nutrients_list = data.get("nutrients", [])
+            
+            # Convert to the format needed by add_food
+            formatted_nutrients = []
+            for nutrient in nutrients_list:
+                formatted_nutrients.append({
+                    "nutrient_name": nutrient.get("nutrient_name"),
+                    "amount": float(nutrient.get("amount", 0))
+                })
+            
+            return food_name, formatted_nutrients
+        else:
+            print(f"Failed to extract JSON from OpenAI response: {response_text}")
+            return food_description, []
+            
+    except Exception as e:
+        print(f"Error in parse_new_food: {e}")
+        return food_description, []
+    
 if __name__ == "__main__":
     # Run the async function
     import asyncio

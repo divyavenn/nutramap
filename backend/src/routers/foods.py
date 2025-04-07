@@ -1,5 +1,5 @@
 from typing_extensions import Annotated
-from fastapi import APIRouter, Depends, Request, BackgroundTasks
+from fastapi import APIRouter, Depends, Request, BackgroundTasks, Form
 from fastapi.responses import JSONResponse
 from pymongo.database import Database
 from bson import ObjectId
@@ -11,6 +11,8 @@ import datetime
 import os
 import asyncio
 from src.routers.parallel import parallel_process
+from src.routers.parse import parse_new_food
+from src.routers.sparse import search_nutrients_by_name
 
 # When running as a module within the application, use relative imports
 try:
@@ -336,12 +338,72 @@ async def get_food_embeddings(db: db, user: dict = Depends(get_current_user)):
   return {food["_id"]: food["embedding"] for food in foods}
 
 
-@router.post("/add")
+@router.get("/custom-foods")
+async def get_custom_foods(request: Request, db: db, user: dict = Depends(get_current_user)):
+    # Query foods with source matching the user's ID
+    foods = list(db.foods.find(
+        {"source": user["_id"]},
+        {"_id": 1, "food_name": 1, "nutrients": 1}
+    ))
+    
+    return foods
+
+
+@router.post("/add-custom-food", response_model=JSONResponse)
+async def add_custom_food(
+    background_tasks: BackgroundTasks,
+    request: Request, 
+    food_description: str = Form(...),
+    image_url: str = Form(None),
+    db: db = Depends(get_data),
+    user: dict = Depends(get_current_user)
+):
+    try:
+        # Parse the food description to get name and nutrients
+        food_name, nutrients_list = await parse_new_food(food_description, image_url)
+        
+        # Match nutrient names to nutrient IDs using sparse search
+        formatted_nutrients = []
+        for nutrient in nutrients_list:
+            nutrient_name = nutrient.get("nutrient_name")
+            amount = nutrient.get("amount", 0)
+            
+            # Search for nutrient ID using sparse search
+            nutrient_matches = await search_nutrients_by_name(nutrient_name)
+            
+            if nutrient_matches:
+                # Get the top match
+                nutrient_id = next(iter(nutrient_matches))
+                formatted_nutrients.append({
+                    "nutrient_id": nutrient_id,
+                    "amount": amount
+                })
+            else:
+                print(f"Could not find nutrient ID for: {nutrient_name}")
+        
+        # Add the food to the database
+        result = await add_food(
+            background_tasks,
+            request,
+            food_name,
+            formatted_nutrients,
+            user,
+            db
+        )
+        
+        return result
+    except Exception as e:
+        print(f"Error adding custom food: {e}")
+        return JSONResponse(
+            content={"message": f"Error adding custom food: {str(e)}"},
+            status_code=500
+        )
+    
 async def add_food(
     background_tasks: BackgroundTasks,
     request: Request,
     food_name: str,
-    nutrients: List[Dict[str, Union[int, float]]],
+    nutrients: List[Dict[str, float]],
     user: dict = Depends(get_current_user),
     db: Database = Depends(get_data)
 ):

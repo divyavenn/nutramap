@@ -45,7 +45,7 @@ function Header({linkIcons} : {linkIcons? : PageLinkIcon[]}) {
       </Link>
       <div style = {{width : '80%'}}></div>
       {linkIcons &&
-        linkIcons.map((link) => { return(
+        linkIcons.map((link) => { return (
           <Link key={link.to}
                 to={link.to}
                 className="header-link-button">

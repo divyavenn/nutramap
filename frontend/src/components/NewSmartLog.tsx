@@ -51,7 +51,7 @@ function NewSmartLog() {
     // Start the API request immediately
     try {
       const response = await request(
-        '/match/log-meal',
+        '/match/log-meal-now',
         'POST',
         {
           meal_description: mealDescription,

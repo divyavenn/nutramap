@@ -21,7 +21,7 @@ except ImportError:
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
     from src.databases.mongo import get_data
     from src.routers.auth import get_current_user
-    from src.routers.foods import get_all_foods, get_food_name
+    from src.routers.foods import get_all_foods
     from src.routers.parallel import parallel_process
     
 
@@ -160,10 +160,10 @@ async def search_foods(query: str, limit: int = 50) -> Dict:
             'limit': limit
         }
         
-        print(f"Searching for: '{q}'")
+        # print(f"Searching for: '{q}'")
         results = client.collections['foods'].documents.search(search_parameters)
         hit_count = len(results.get('hits', []))
-        print(f"Found {hit_count} results")
+        # print(f"Found {hit_count} results")
         
         if hit_count == 0 and q != '*':
             # Try a wildcard search to see if any documents exist
@@ -207,7 +207,6 @@ async def get_sparse_index(
     Search for foods using the sparse index (Typesense)
     Returns a dictionary of food_id -> score
     """
-    print(f"Searching for: '{query}'")
     
     # Search for foods
     search_results = await search_foods(query, limit)
@@ -218,27 +217,46 @@ async def get_sparse_index(
     # Filter results by threshold
     filtered_matches = {food_id: score for food_id, score in search_results.items() if score >= threshold}
     
-    print(f"Found {len(filtered_matches)} results")
     return filtered_matches
 
 def pretty_print_matches(matches):
-    import os
-    from dotenv import load_dotenv
-    from pymongo import MongoClient
-
-    load_dotenv()
-
-    mongo_uri = os.getenv("MONGO_URI")
-    db_name = os.getenv("DB_NAME")
-    mongo_client = MongoClient(mongo_uri)
-    db = mongo_client[db_name]
-
+    """
+    Print matches in a readable format
+    """
     for food_id, score in matches.items():
-        food_id_int = int(food_id)
-        food_name = get_food_name(food_id_int, db)
-        print(f"{food_name} - {score:.4f}")
+        print(f"{food_id}: {score}")
 
-    mongo_client.close()
+async def search_nutrients_by_name(nutrient_name: str, threshold: float = 0.1, limit: int = 10):
+    """
+    Search for nutrients using the sparse index (Typesense)
+    Returns a dictionary of nutrient_id -> score
+    """
+    
+    # Search for nutrients
+    search_params = {
+        'q': nutrient_name,
+        'query_by': 'name',
+        'sort_by': '_text_match:desc',
+        'per_page': limit
+    }
+    
+    try:
+        search_results = await client.collections['nutrients'].documents.search(search_params)
+        
+        # Process results
+        matches = {}
+        for hit in search_results['hits']:
+            nutrient_id = hit['document']['id']
+            score = hit['text_match']
+            matches[nutrient_id] = score
+        
+        # Filter results by threshold
+        filtered_matches = {nutrient_id: score for nutrient_id, score in matches.items() if score >= threshold}
+        
+        return filtered_matches
+    except Exception as e:
+        print(f"Error searching nutrients: {e}")
+        return {}
 
 if __name__ == "__main__":
     import asyncio

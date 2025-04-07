@@ -3,18 +3,17 @@ import { StrictMode, useEffect, useState} from 'react'
 import { LogList} from '../components/Logs'
 import { DateSelector} from '../components/DateSelector'
 
-import {doWithData} from '../components/endpoints'
 import {Heading} from '../components/Title'
 import { MainSection, Header} from '../components/Sections'
 import NewSmartLog from '../components/NewSmartLog'
 import { NutrientDashboard} from '../components/NutrientDash'
-import { useRefreshLogs, useRefreshRequirements, useRefreshData } from '../components/dashboard_states'
+import { useRefreshData } from '../components/dashboard_states'
 import Account from '../assets/images/account.svg?react'
+import Utensils from '../assets/images/utensils-solid.svg?react'
 import { isLoginExpired } from '../components/utlis'
 import { useNavigate } from 'react-router-dom';
 import { firstNameAtom, useRefreshAccountInfo} from '../components/account_states'
 import { request } from '../components/endpoints'
-import { useFetchAutoFillData } from '../components/account_states'
 
 import {RecoilRoot, useRecoilValue,} from 'recoil';
 
@@ -49,7 +48,7 @@ function Dashboard(){
   
   return(
   <StrictMode>
-  <Header linkIcons = {[{to : '/account', img : <Account/>}]}/>
+  <Header linkIcons = {[{to : '/account', img : <Account/>}, {to : '/foods', img : <Utensils/>}]}/>
   <Heading words = {'Hello, ' + name}/>
 
 

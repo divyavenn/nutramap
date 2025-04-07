@@ -44,6 +44,9 @@ function EditLogForm({food_name, date, amount_in_grams, _id, onAnimationStart, o
   const [validInput, markValidInput] = useState(true)
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState<number>(-1); // Track selected suggestion
 
+  // Create a ref for the suggestions container
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+
   // Auto-adjust textarea height based on content
   useEffect(() => {
     if (textareaRef.current) {
@@ -57,6 +60,32 @@ function EditLogForm({food_name, date, amount_in_grams, _id, onAnimationStart, o
     setSelectedSuggestionIndex(suggestions.length > 0 ? 0 : -1);
   }, [suggestions]);
 
+  // Scroll selected suggestion into view when selection changes
+// Scroll selected suggestion into view when selection changes
+useEffect(() => {
+  if (selectedSuggestionIndex >= 0 && suggestionsRef.current) {
+    const suggestionsContainer = suggestionsRef.current;
+    const selectedElement = suggestionsContainer.querySelector(`.suggestion-item:nth-child(${selectedSuggestionIndex + 1})`) as HTMLElement;
+    
+    if (selectedElement) {
+      // Calculate if the element is outside the visible area
+      const containerTop = suggestionsContainer.scrollTop;
+      const containerBottom = containerTop + suggestionsContainer.clientHeight;
+      const elementTop = selectedElement.offsetTop;
+      const elementBottom = elementTop + selectedElement.offsetHeight;
+      
+      // Scroll if the element is not fully visible
+      if (elementTop < containerTop) {
+        // Element is above visible area
+        suggestionsContainer.scrollTop = elementTop;
+      } else if (elementBottom > containerBottom) {
+        // Element is below visible area
+        suggestionsContainer.scrollTop = elementBottom - suggestionsContainer.clientHeight;
+      }
+    }
+  }
+}, [selectedSuggestionIndex]);
+
   // Prevent events from bubbling up to parent, except for mouseLeave
   const handleMouseEvent = (e: React.MouseEvent) => {
     // Don't stop propagation for mouseLeave events
@@ -65,9 +94,38 @@ function EditLogForm({food_name, date, amount_in_grams, _id, onAnimationStart, o
     }
   };
 
+
+  const handleAdvancedSearch = async (value: string) => {
+    if (!value.trim()) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    
+    try {
+      const response = await request('/match/autocomplete' + '?prompt=' + value, 'POST', {}, 'JSON');
+      if (response.body) {
+        setSuggestions(response.body);
+        setShowSuggestions(value.length > 0 && response.body.length > 0);
+        markValidInput(response.body.includes(value));
+      }
+    } catch (error) {
+      console.error('Error fetching autocomplete suggestions:', error);
+      setSuggestions([]);
+      setShowSuggestions(false);
+      markValidInput(false);
+    }
+  };
+  
   // Handle keyboard navigation for suggestions
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement | HTMLInputElement>) => {
     if (!showSuggestions) return;
+    
+    if (e.key === 'Enter' && e.shiftKey) {
+      e.preventDefault();
+      handleAdvancedSearch(formData.food_name);
+      return;
+    }
     
     switch (e.key) {
       case 'ArrowDown':
@@ -194,15 +252,17 @@ function EditLogForm({food_name, date, amount_in_grams, _id, onAnimationStart, o
     catch {}
   };
 
-  const handleTyping = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const {name, value} = e.target; // get the name and value of the input field
+  
 
-    setFormData({
-      ...formData,
-      [name] : value, // this works because the form variables match the names of the input fields
-    })
 
-    //for the food name input
+  const handleTyping = async (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+
+    setFormData(prevData => ({
+      ...prevData,
+      [name]: value,
+    }));
+
     if (name === 'food_name') {
       markValidInput(value in foodList)
       // Filter the foodList to match the input value
@@ -373,23 +433,28 @@ function EditLogForm({food_name, date, amount_in_grams, _id, onAnimationStart, o
           </div>
 
           {showSuggestions && (
-            <ul 
-              className="suggestions-list" 
-              onMouseEnter={handleMouseEvent}
-              onMouseLeave={handleMouseEvent}
-              onMouseOver={handleMouseEvent}
-              onMouseMove={handleMouseEvent}
+            <div 
+              className="suggestions-container" 
+              ref={suggestionsRef}
             >
-              {suggestions.map((suggestion, index) => (
-                <li key={suggestion}
-                    onClick={() => handleSuggestionClick(suggestion)}
-                    className={`suggestion-item ${index === selectedSuggestionIndex ? 'selected' : ''}`}
-                    onMouseEnter={() => setSelectedSuggestionIndex(index)}
-                >
-                  {suggestion}
-                </li>
-              ))}
-            </ul>
+              <ul 
+                className="suggestions-list" 
+                onMouseEnter={handleMouseEvent}
+                onMouseLeave={handleMouseEvent}
+                onMouseOver={handleMouseEvent}
+                onMouseMove={handleMouseEvent}
+              >
+                {suggestions.map((suggestion, index) => (
+                  <li key={suggestion}
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      className={`suggestion-item ${index === selectedSuggestionIndex ? 'selected' : ''}`}
+                      onMouseEnter={() => setSelectedSuggestionIndex(index)}
+                  >
+                    {suggestion}
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
 
           {showCalendar && (
