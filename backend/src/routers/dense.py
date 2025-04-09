@@ -13,7 +13,7 @@ import pickle
 # When running as a module within the application, use relative imports
 try:
     from ..databases.mongo import get_data
-    from ..routers.foods import get_food_embeddings, get_id_name_map
+    from ..routers.foods import food_embedding_map, get_foods_list, food_name_map
     from ..routers.auth import get_current_user
     from ..routers.parallel import parallel_process
 
@@ -23,7 +23,7 @@ except ImportError:
     import os
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
     from src.databases.mongo import get_data
-    from src.routers.foods import get_food_embeddings, get_id_name_map
+    from src.routers.foods import food_embedding_map, get_foods_list, food_name_map
     from src.routers.auth import get_current_user
     from src.routers.parallel import parallel_process
 
@@ -45,7 +45,7 @@ client = OpenAI(api_key=api_key)
 response_format = { "type": "json_object" }
 
 
-async def update_id_list(db=None, user=None, request: Request = None):
+async def update_foods_list(db=None, user=None, request: Request = None):
     if db is None or user is None:
         from pymongo import MongoClient
         mongo_uri = os.getenv("MONGO_URI")
@@ -54,7 +54,7 @@ async def update_id_list(db=None, user=None, request: Request = None):
         db = mongo_client[db_name]
         user = {"_id": "system"}
 
-    id_name_map = await get_id_name_map(db, user)
+    id_name_map = await get_foods_list(db, user)
     
     # save list to cache
     with open(os.getenv("FOOD_ID_CACHE"), "wb") as f:
@@ -79,7 +79,7 @@ async def update_faiss_index(db=None, user=None, request: Request = None):
     
     try:
         pq = False
-        embedding_id_map = await get_food_embeddings(db, user)
+        embedding_id_map = await food_embedding_map(db, user)
         
         if not embedding_id_map:
             print("No embeddings found in database")
@@ -89,7 +89,7 @@ async def update_faiss_index(db=None, user=None, request: Request = None):
         # Print some debug info
         print(f"Found {len(embeddings)} embeddings for FAISS index")
         
-        id_name_map = await update_id_list(db, user, request)
+        id_name_map = await update_foods_list(db, user, request)
         
         # Convert list of embeddings to numpy array with proper dtype
         embedding_matrix = np.array(embeddings, dtype=np.float32)
@@ -171,7 +171,7 @@ async def find_and_print_matches(text: str, db, user):
     try:
         top_matches = await find_dense_matches(text, db, user, None, 40, 20)
         
-        food_names = await get_id_name_map(db, user)
+        food_names = await food_name_map(db, user)
         print("Top matches:")
         for food_id, similarity_score in top_matches.items():
             food_name = food_names.get(food_id, "Unknown Food")

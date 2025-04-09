@@ -134,7 +134,7 @@ async def find_and_print_matches(text: str, db, user):
         food_names = await get_id_name_map(db, user)
         print("Top matches:")
         for food_id, similarity_score in top_matches.items():
-            food_name = food_names.get(food_id, "Unknown Food")
+            food_name = food_names.get(food_id, {"name": "Unknown Food"})
             print(f"{food_name} - {similarity_score:.4f}")
         
     except Exception as e:

@@ -5,9 +5,8 @@ import AddLogButton from '../assets/images/plus.svg?react'
 import { NewNutrientForm } from './EditNutrientForm';
 import '../assets/css/NutrientStats.css'; // Import your CSS file for styling
 import {useRecoilValue, useRecoilValueLoadable} from 'recoil'
-import { currentDayAtom, rowData, hoveredLogIdAtom} from './dashboard_states';
+import { currentDayAtom, hoveredLogAtom, rowData} from './dashboard_states';
 import { requirementsAtom, RequirementData, requirementsDataAtom, dayIntake, averageIntake } from './dashboard_states';
-import { nutrientDetailsByIDAtom } from './account_states';
 
 
 interface NutrientStatsProps {
@@ -27,7 +26,6 @@ function NutrientDashboard(){
   const currentDay = useRecoilValue(currentDayAtom) 
   const requirementsData = useRecoilValueLoadable(requirementsDataAtom);
   const [requirements, setRequirements] = useState<RequirementData[]>([]);
-  const hoveredLogId = useRecoilValue(hoveredLogIdAtom);
     
   useEffect(() => {
     if (requirementsData.state === 'hasValue') {
@@ -62,7 +60,7 @@ function NutrientDashboard(){
 
   return (
     <div className="nutrient-dashboard">
-      {!editing && <NutrientDashboardTitle currentDay = {currentDay}/>}
+      {!editing && <NutrientDashboardTitle/>}
         <div className = 'requirement-edit-wrapper' ref = {editFormRef}>
           {!editing ?
             requirements.length === 0 ? 
@@ -95,13 +93,15 @@ function NutrientDashboard(){
 }
 
 
-function NutrientDashboardTitle({currentDay = new Date()} : {currentDay? : Date}){
+function NutrientDashboardTitle(){
+  const hoveredLog = useRecoilValue(hoveredLogAtom);
+  const currentDay = useRecoilValue(currentDayAtom) 
   return <div className='dashboard-row'>
     <div className = 'nutrient-name-wrapper'>
       <div className = 'nutrient-dashboard-title'> target </div>
     </div>
     <div className = 'today-stats-wrapper'>
-      <div className = 'nutrient-dashboard-title'> {formatDayForFrontend(currentDay)} </div>
+      <div className = 'nutrient-dashboard-title'> {hoveredLog ? hoveredLog[1] : formatDayForFrontend(currentDay)} </div>
     </div>
 
     <div className='avg-stats-wrapper'>
@@ -113,7 +113,7 @@ function NutrientDashboardTitle({currentDay = new Date()} : {currentDay? : Date}
 
 
 const NutrientStats = ({requirements} : {requirements : RequirementData[]}) => {
-  const hoveredLogId = useRecoilValue(hoveredLogIdAtom);
+  const hoveredLog = useRecoilValue(hoveredLogAtom);
   
   function initialize(): { [key: string]: number } {
     return requirements.reduce((acc, requirement) => {
@@ -140,7 +140,7 @@ const NutrientStats = ({requirements} : {requirements : RequirementData[]}) => {
     } else if (day.state === 'hasError') {
       console.error('Error loading daily values data:', day.contents);
     }
-  }, [day]);
+  }, [day, hoveredLog]);
 
   useEffect(() => {
     if (average.state === 'hasValue') {
@@ -175,6 +175,7 @@ const NutrientStats = ({requirements} : {requirements : RequirementData[]}) => {
 function NutrientStatRow({ name, target, dayIntake = 0, avgIntake, shouldExceed, units }: NutrientStatsProps) {
   const [hovered, setHovered] = useState(false);
   const [hoveredName, setHoveredName] = useState(false);
+  const hoveredLog = useRecoilValue(hoveredLogAtom);
 
   // Calculate the progress percentage
   const progressPercentage = Math.min((dayIntake / target) * 100, 100);
@@ -216,11 +217,11 @@ function NutrientStatRow({ name, target, dayIntake = 0, avgIntake, shouldExceed,
         onMouseLeave={() => setHovered(false)}>
         <div className="hover-transition-container">
           <div 
-            className={`goal-message ${hovered ? 'visible' : 'hidden'}`}>
+            className={`goal-message ${hoveredLog || hovered ? 'visible' : 'hidden'}`}>
             {targetDisplay(dayIntake, units)}
           </div>
           <div 
-            className={`daily-intake ${hovered ? 'hidden' : 'visible'}`}>
+            className={`daily-intake ${hoveredLog || hovered ? 'hidden' : 'visible'}`}>
             {shouldExceed ?
             (<div
               className="progress-bar-container">
@@ -251,7 +252,7 @@ function NutrientStatRow({ name, target, dayIntake = 0, avgIntake, shouldExceed,
             '--avg-color': avgColor
           } as React.CSSProperties}
         >
-           {Math.round(avgIntake * 100) / 100} {units}
+           {avgIntake.toFixed(0)} {units}
         </div>
       </div>
      </div>

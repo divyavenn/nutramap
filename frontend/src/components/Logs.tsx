@@ -7,14 +7,14 @@ import { EditLogForm } from './EditLogForm';
 import { formatTime } from './utlis';
 import { LogProps, DisplayLogProps } from './structures';
 import {useRecoilValue, useSetRecoilState, useRecoilState} from 'recoil'
-import { logsAtom, currentDayAtom, hoveredLogIdAtom, useRefreshLogs, pendingFoodsAtom, PendingFood } from './dashboard_states';
+import { logsAtom, currentDayAtom, hoveredLogAtom, useRefreshLogs, pendingFoodsAtom, PendingFood } from './dashboard_states';
 import { motion } from 'framer-motion';
 
 function LogList (){
   const logs = useRecoilValue(logsAtom) 
   const pendingFoods = useRecoilValue(pendingFoodsAtom)
   // Track which log is being hovered
-  const [hoveredLogId, setHoveredLogId] = useRecoilState(hoveredLogIdAtom);
+  const [hoveredLog, setHoveredLog] = useRecoilState(hoveredLogAtom);
   // Track if an animation is currently playing
   const [animationLock, setAnimationLock] = useState(false);
 
@@ -50,11 +50,17 @@ function LogList (){
   const sortedDates = Array.from(groupedByDate.entries())
     .sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime());
 
+  
+  const formatLogDescription = (foodName: string, amountInGrams: number): string => {
+  const truncatedName = foodName.split(',')[0].trim();
+  return `${Math.round(amountInGrams)} g of ${truncatedName}`;
+};
+
   // Handle mouse enter for a specific log - immediate response
-  const handleLogMouseEnter = (logId: string) => {
+  const handleLogMouseEnter = (logId: string, blurb: string) => {
     // Only change the hovered log if no animation is playing
     if (!animationLock) {
-      setHoveredLogId(logId);
+      setHoveredLog([logId, blurb]);
     }
   };
 
@@ -62,7 +68,7 @@ function LogList (){
   const handleLogMouseLeave = () => {
     // Only change the hovered log if no animation is playing
     if (!animationLock) {
-      setHoveredLogId(null);
+      setHoveredLog(null);
     }
   };
 
@@ -125,10 +131,10 @@ function LogList (){
               <div 
                 key={log._id} 
                 className="log-wrapper"
-                onMouseEnter={() => handleLogMouseEnter(log._id)}
+                onMouseEnter={() => handleLogMouseEnter(log._id, formatLogDescription(log.food_name, log.amount_in_grams))}
                 onMouseLeave={handleLogMouseLeave}
               >
-                {hoveredLogId === log._id ? (
+                {hoveredLog && hoveredLog[0] === log._id ? (
                   <EditLogForm
                     food_name={log.food_name}
                     date={new Date(log.date)}

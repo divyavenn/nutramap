@@ -12,7 +12,7 @@ import asyncio
 try:
     from ..databases.mongo import get_data
     from ..routers.auth import get_current_user
-    from ..routers.foods import get_all_foods 
+    from ..routers.foods import get_foods_list 
     from ..routers.parallel import parallel_process
 # When running this file directly, use absolute imports
 except ImportError:
@@ -21,7 +21,7 @@ except ImportError:
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
     from src.databases.mongo import get_data
     from src.routers.auth import get_current_user
-    from src.routers.foods import get_all_foods
+    from src.routers.foods import get_foods_list
     from src.routers.parallel import parallel_process
     
 
@@ -46,7 +46,7 @@ async def update_sparse_index(db = None, user = None):
     if user is None:
         user = Annotated[dict, Depends(get_current_user)]
     
-    foods = await get_all_foods(db, user)
+    foods = await get_foods_list(db, user)
     schema = {
         'name': 'foods',
         'fields': [

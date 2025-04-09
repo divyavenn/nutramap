@@ -10,7 +10,7 @@ import { DeleteAccount } from './pages/goodbye';
 import NewAccount from './pages/hello';
 import { RecoilRoot } from 'recoil';
 import VantaBackground from './components/VantaBackground';
-import Foods from './pages/foods';
+import FoodsPage from './pages/foods';
 
 // Load Vanta.js scripts
 const loadScript = (src: string): Promise<void> => {
@@ -48,7 +48,7 @@ if (rootElem) {
             <Route path="/account" element={<AccountRoot/>}  />
             <Route path = '/goodbye' element={<DeleteAccount/>} />
             <Route path = '/hello' element={<NewAccount/>} />
-            <Route path="/foods" element={<Foods />} />
+            <Route path="/myfoods" element={<FoodsPage />} />
           </Routes>
         </Router>
       </VantaBackground>

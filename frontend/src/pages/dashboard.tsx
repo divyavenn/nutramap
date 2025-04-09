@@ -48,7 +48,7 @@ function Dashboard(){
   
   return(
   <StrictMode>
-  <Header linkIcons = {[{to : '/account', img : <Account/>}, {to : '/foods', img : <Utensils/>}]}/>
+  <Header linkIcons = {[{to : '/account', img : <Account/>}, {to : '/myfoods', img : <Utensils/>}]}/>
   <Heading words = {'Hello, ' + name}/>
 
 

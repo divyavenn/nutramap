@@ -30,7 +30,7 @@ async def parse_new_food(food_description: str, image_path: Optional[str] = None
         system_message = """You are a nutrition expert assistant. Your task is to analyze the food description 
         and extract the food name and its nutritional information. Focus on common nutrients like calories, 
         protein, carbohydrates, fat, fiber, vitamins, and minerals. Provide the most accurate estimates based 
-        on standard nutritional databases."""
+        on standard nutritional databases. If you cannot find exact nutritional information for an item, estimate it based off a common recipe."""
         
         # Prepare the user message
         user_message = f"Please analyze this food: {food_description}"
@@ -51,7 +51,7 @@ async def parse_new_food(food_description: str, image_path: Optional[str] = None
             messages.append({
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": "Here is an image of the food:"},
+                    {"type": "text", "text": "Here is an image, either of the food or its nutritional label, that may provide additional context."},
                     {
                         "type": "image_url",
                         "image_url": {
@@ -77,7 +77,7 @@ async def parse_new_food(food_description: str, image_path: Optional[str] = None
         })
         
         # Make the OpenAI API call
-        response = await client.chat.completions.create(
+        response = client.chat.completions.create(
             model="gpt-4-vision-preview" if image_path else "gpt-4",
             messages=messages,
             temperature=0.3,

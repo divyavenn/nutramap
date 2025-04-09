@@ -28,16 +28,12 @@ export default defineConfig(({ mode }) => {
       proxy: {
         '/auth': {
           // target: env.VITE_API_URL, // Use the loaded environment variable
-          target: 'http://localhost:8000',
+          target: env.VITE_API_URL,
           changeOrigin: true,
         },
         '/user': {
           target: env.VITE_API_URL,
-          changeOrigin: true,
-        },
-        '/food': {
-          target: env.VITE_API_URL,
-          changeOrigin: true,
+          changeOrigin: true
         },
         '/logs': {
           target: env.VITE_API_URL,
@@ -51,6 +47,10 @@ export default defineConfig(({ mode }) => {
           target: env.VITE_API_URL,
           changeOrigin: true,
         },
+        '/food': {
+          target: env.VITE_API_URL,
+          changeOrigin: true,
+        }
       },
     },
   };

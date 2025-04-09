@@ -43,10 +43,9 @@ class Log(BaseModel):
 
 class Recipe(BaseModel):
     recipe_id: str = Field(alias="_id") 
-    user_id: Optional[str] 
     foods: List[Dict[int, float]]
     
-    @field_validator('recipe_id', 'user_id')
+    @field_validator('recipe_id')
     def validate_objectid(cls, v):
         if v is None:  # Skip validation if the field is missing
             return v

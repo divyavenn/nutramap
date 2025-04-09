@@ -5,10 +5,7 @@ import Arrow from '../assets/images/arrow.svg?react';
 import { useRefreshLogs, pendingFoodsAtom, PendingFood } from './dashboard_states';
 import IsOk from '../assets/images/checkmark.svg?react'
 import '../assets/css/new_log.css';
-import '../assets/css/edit_log.css'
-import { motion, AnimatePresence } from 'framer-motion';
-import { formatTime } from './utlis';
-import { useSetRecoilState, useRecoilValue } from 'recoil';
+import { useSetRecoilState } from 'recoil';
 
 /**
  * NewSmartLog component for natural language meal logging
@@ -171,8 +168,8 @@ function NewSmartLog() {
       >
          <div className = "entry-form-bubble">
           <textarea
-            className={`input-journal ${isJiggling ? 'jiggle-text' : ''}`}
-            placeholder="a bowl of steel-cut oats with blueberries and a cup of coffee with whole milk for breakfast"
+            className={`new-log-input-journal ${isJiggling ? 'jiggle-text' : ''}`}
+            placeholder="a bowl of steel-cut oats with blueberries with a 12oz latte"
             value={mealDescription}
             onChange={handleTyping}
             onKeyDown={handleKeyDown}

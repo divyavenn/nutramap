@@ -137,25 +137,13 @@ function NewFood() {
       }
       
       // Make the API request
-      const response = await fetch('/food/add_custom_food', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include'
-      });
+      let response = await request('/food/add_custom_food', 'POST', formData);
       
-      if (response.ok) {
+      if (response.status === 200) {
         // Reset form
         setFoodDescription('');
         clearImage();
         setSubmitSuccess(true);
-        
-        // Trigger a custom event to notify parent components
-        const customEvent = new CustomEvent('foodAdded', {
-          detail: { success: true }
-        });
-        document.dispatchEvent(customEvent);
-      } else {
-        console.error('Failed to add food:', await response.text());
       }
     } catch (error) {
       console.error('Error adding food:', error);

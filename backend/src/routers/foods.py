@@ -205,9 +205,9 @@ def get_food_name(food_id: int, db: Annotated[Database, Depends(get_data)] = Non
     # Then check pickle
     try:
         with open(os.getenv("FOOD_ID_CACHE"), 'rb') as f:
-            food_names = pickle.load(f)
-            if food_id in food_names:
-                return food_names[food_id]
+            foods = pickle.load(f)
+            if food_id in foods:
+                return foods[food_id]
     except (FileNotFoundError, pickle.UnpicklingError):
         pass
     
@@ -222,7 +222,7 @@ def get_food_name(food_id: int, db: Annotated[Database, Depends(get_data)] = Non
 def amount_by_weight(amt: float, grams: float):
   return Decimal(amt) * Decimal(grams/100.0)
 
-async def retrieve_id_food_map(request: Request, db: Annotated[Database, Depends(get_data)] = None, user: Annotated[dict, Depends(get_current_user)] = None):
+async def retrieve_food_list(request: Request, db: Annotated[Database, Depends(get_data)] = None, user: Annotated[dict, Depends(get_current_user)] = None):
     # Check app state first
     if request is not None and hasattr(request.app.state, 'id_name_map'):
         return request.app.state.id_name_map
@@ -237,7 +237,7 @@ async def retrieve_id_food_map(request: Request, db: Annotated[Database, Depends
         pass
 
     # Finally, default to MongoDB query using the parallel processing function
-    id_name_map = await get_id_name_map(db, user)
+    id_name_map = await get_foods_list(db, user)
     
     # Store in app state and cache
     if not isinstance(id_name_map, JSONResponse):  # Make sure it's not an error response
@@ -247,67 +247,67 @@ async def retrieve_id_food_map(request: Request, db: Annotated[Database, Depends
     
     return id_name_map
 
-@router.get("/all")
-async def get_all_foods(request: Request, db: Annotated[Database, Depends(get_data)] = None, user: Annotated[dict, Depends(get_current_user)] = None):
-    id_name_map = await retrieve_id_food_map(request, db, user)
-    
-    # Swap keys and values: from {id: name} to {name: id}
-    result = {food_name: food_id for food_id, food_name in id_name_map.items()}
 
-    return result
 
-async def get_id_name_map(db: Annotated[Database, Depends(get_data)] = None, user: Annotated[dict, Depends(get_current_user)] = None): 
+async def get_foods_list(db: Annotated[Database, Depends(get_data)] = None, user: Annotated[dict, Depends(get_current_user)] = None): 
   foods = list(db.foods.find(
         {"$or": [{"source": "USDA"}, {"source": user["_id"]}]},  # Match source "USDA" or user ID
-        {"_id": 1, "food_name": 1}  # Retrieve only `_id` and `food_name`
+        {"_id": 1, "food_name": 1, "source": 1}  # Retrieve only `_id` and `food_name`
     ).sort("_id", 1))
   if not foods:
       return JSONResponse(content={"message": "No data found."}, status_code=404)
 
   # Format the result as a dictionary
-  return {food["_id"]: food["food_name"] for food in foods}
+  return {food["_id"]: {"name": food["food_name"]} for food in foods}
 
-async def get_food_embeddings(db: Annotated[Database, Depends(get_data)] = None, user: Annotated[dict, Depends(get_current_user)] = None): 
-  foods = list(db.foods.find(
+async def food_embedding_map(db: Annotated[Database, Depends(get_data)] = None, user: Annotated[dict, Depends(get_current_user)] = None): 
+  foods = []
+  async for food in db.foods.find(
         {"$or": [{"source": "USDA"}, {"source": user["_id"]}]},  # Match source "USDA" or user ID
         {"_id": 1, "embedding": 1}  # Retrieve only `_id` and `embedding`
-    ).sort("_id", 1))
+    ).sort("_id", 1):
+      foods.append(food)
   if not foods:
       return JSONResponse(content={"message": "No data found."}, status_code=404)
 
    # Format the result as a dictionary
   return {food["_id"]: food["embedding"] for food in foods}
 
+async def food_name_map(request: Request, db: Annotated[Database, Depends(get_data)] = None, user: Annotated[dict, Depends(get_current_user)] = None):
+    id_name_map = await retrieve_food_list(request, db, user)
+    
+    # Swap keys and values: from {id: {name, source}} to {name: {id, source}}
+    result = {{food_info['name']: food_id} for food_id, food_info in id_name_map.items()}
+
+    return result
+
 @router.get("/custom-foods")
 async def get_custom_foods(
     db: Annotated[Database, Depends(get_data)] = None,
-    user: Annotated[dict, Depends(get_current_user)] = None
+    user: Annotated[dict, Depends(get_current_user)] = None,
+    request: Request = None
 ):
-    """
-    Get all custom foods for the current user.
-    
-    Args:
-        db: MongoDB database connection
-        user: Current authenticated user
-        
-    Returns:
-        List of custom foods
-    """
-    try:
-        # Find all custom foods for the user
-        cursor = db.foods.find({"user_id": user["_id"], "is_custom": True})
-        foods = []
-        
-        async for food in cursor:
-            # Convert ObjectId to string
-            food["_id"] = str(food["_id"])
-            foods.append(food)
-        
-        return foods
-    
-    except Exception as e:
-        print(f"Error getting foods: {e}")
-        raise HTTPException(status_code=500, detail=f"Error getting foods: {str(e)}")
+    # Query MongoDB for custom foods
+    custom_foods = list(db.foods.find(
+        {"source": user["_id"]},
+        {"_id": 1, "food_name": 1, "nutrients": 1}
+    ))
+
+    # Format the result
+    formatted_foods = [
+        {
+            "_id": str(food["_id"]),
+            "name": food["food_name"],
+            "nutrients": {
+                str(nutrient["nutrient_id"]): nutrient["amt"]
+                for nutrient in food.get("nutrients", [])
+            }
+        }
+        for food in custom_foods
+    ]
+
+    return formatted_foods
+
 
 @router.post("/add_custom_food")
 async def add_custom_food(
@@ -318,20 +318,7 @@ async def add_custom_food(
     db: Annotated[Database, Depends(get_data)] = None,
     user: Annotated[dict, Depends(get_current_user)] = None
 ):
-    """
-    Add a new custom food to the database.
-    
-    Args:
-        background_tasks: FastAPI background tasks
-        request: FastAPI request
-        food_description: Description of the food
-        food_image: Optional image file of the food
-        db: MongoDB database connection
-        user: Current authenticated user
-        
-    Returns:
-        JSON response with the created food details
-    """
+    print("hi!")
     try:
         # Process image if provided
         image_path = None
@@ -373,7 +360,7 @@ async def add_custom_food(
             "name": food_name,
             "description": food_description,
             "nutrients": nutrient_data,
-            "user_id": user["_id"],
+            "user_id": str(user["_id"]),  # Convert ObjectId to string
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow(),
             "is_custom": True
@@ -384,8 +371,10 @@ async def add_custom_food(
             relative_path = os.path.relpath(image_path, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
             food_doc["image_path"] = relative_path
         
-        # Insert into database
-        result = await db.foods.insert_one(food_doc)
+        # Insert into database - convert back to ObjectId for MongoDB
+        doc_to_insert = food_doc.copy()
+        doc_to_insert["user_id"] = ObjectId(food_doc["user_id"])
+        result = db.foods.insert_one(doc_to_insert)
         
         # Return the created food
         food_doc["_id"] = str(result.inserted_id)

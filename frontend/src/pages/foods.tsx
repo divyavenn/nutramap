@@ -7,10 +7,11 @@ import Trashcan from '../assets/images/trashcan.svg?react';
 import { request } from '../components/endpoints';
 import { useNavigate } from 'react-router-dom';
 import { isLoginExpired } from '../components/utlis';
-import { firstNameAtom } from '../components/account_states'; 
+import { firstNameAtom, useRefreshAccountInfo} from '../components/account_states'; 
 import { useRecoilValue } from 'recoil';
 import '../assets/css/foods.css';
 import NewFood from '../components/NewFood';
+import {RecoilRoot} from 'recoil';
 
 interface Food {
   _id: string;
@@ -20,13 +21,17 @@ interface Food {
   };
 }
 
-function FoodsPage() {
+
+
+function Foods() {
   const [foods, setFoods] = useState<Food[]>([]);
   const [expandedFood, setExpandedFood] = useState<string | null>(null);
   const [editingFood, setEditingFood] = useState<string | null>(null);
   const [editedName, setEditedName] = useState('');
+  const refreshAccountInfo = useRefreshAccountInfo();
   const [showNewFood, setShowNewFood] = useState(false);
   const navigate = useNavigate();
+  const name = useRecoilValue(firstNameAtom) 
 
   // Fetch user's custom foods
   useEffect(() => {
@@ -34,9 +39,9 @@ function FoodsPage() {
       navigate('/login');
       return;
     }
-
+    refreshAccountInfo()
     fetchFoods();
-  }, [navigate]);
+  }, []);
 
   // Listen for food added event
   useEffect(() => {
@@ -101,27 +106,15 @@ function FoodsPage() {
     }
   };
 
-  const toggleNewFood = () => {
-    setShowNewFood(!showNewFood);
-  };
 
   return (
     <>
       <Header linkIcons={[{to: '/account', img: <Account/>}, {to: '/dashboard', img: <Dashboard/>}]}/>
-      <Heading words={`${useRecoilValue(firstNameAtom)}'s Foods`} />
+      <Heading words={`${name}'s Foods`} />
       
       <div className="foods-container">
-        <div className="foods-actions">
-          <button 
-            className="add-food-button" 
-            onClick={toggleNewFood}
-            aria-label={showNewFood ? "Hide add food form" : "Show add food form"}
-          >
-            {showNewFood ? "Cancel" : "Add Custom Food"}
-          </button>
-        </div>
-        
-        {showNewFood && <NewFood />}
+
+        <NewFood />
         
         {foods.length === 0 ? (
           <div className="no-foods-message">
@@ -186,6 +179,14 @@ function FoodsPage() {
       </div>
     </>
   );
+}
+
+function FoodsPage(){
+  return (
+    <RecoilRoot>
+      <Foods/>
+    </RecoilRoot>
+  )
 }
 
 export default FoodsPage;

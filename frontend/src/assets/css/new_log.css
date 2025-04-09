@@ -19,7 +19,6 @@ input[type="number"] {
   background-color: transparent; /* Ensure the background is transparent on hover */
 }
 
-
 input, textarea {
   font-family: inherit;  /* Ensures input fields inherit the font-family of the parent */
   font-size: inherit;
@@ -53,7 +52,6 @@ input, textarea {
   flex-direction: column;
   border-radius: 14px;
   position: relative;
-  overflow: hidden;
 }
 
 /* Quivering animation styles */
@@ -85,11 +83,11 @@ input, textarea {
   color: var(--white);
   transition: all 0.3s ease;
   width: 100%;
-  box-sizing: border-box;
+  resize: vertical;
   will-change: transform;
   opacity: 1; /* Ensure full opacity by default */
   background-color: #19050560;
-  justify-content: space-between;
+
 }
 
 .entry-form-bubble:hover{
@@ -101,8 +99,8 @@ input, textarea {
   animation: quiver 0.25s infinite alternate;
 }
 
-.new-smart-log-button-container {
-  display: flex; /* Enables flexbox on the container */
+.button-wrapper{
+  display: flex;
   width: 3.2%;
   justify-content: flex-end; /* Pushes content to the right side */
   align-items: center; /* Vertically centers the button */
@@ -131,26 +129,24 @@ input, textarea {
 }
 
 /* Journal input styling */
-.input-journal {
-  flex: 1;
+.new-log-input-journal {
   width: calc(100% - 60px); /* Account for padding and button space */
-  padding-bottom: 15px;
-  padding-left: 27px;
-  padding-right: 10px;
   resize: none;
-  height: 50px;
-  max-height: 50px;
-  overflow: hidden;
   font-family: Inconsolata;
   color: inherit;
   background: none;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  padding-left: 10px;
   border: none;
   outline: none;
   transition: background-color 0.3s ease, color 0.3s ease;
-  text-align: left;
-  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
+.new-log-input-journal::placeholder {
+  text-align: left;
+  color: rgba(255, 255, 255, 0.642);
+}
 
 /* Jiggle animation for text input when submitting */
 @keyframes jiggle {

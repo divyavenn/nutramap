@@ -91,7 +91,7 @@
 .nutrient-name-wrapper {
   position: relative;
   display: block;
-  width: 25%;
+  width: 20%;
   height: auto;
   text-align: left;
   align-self: center;
@@ -102,15 +102,16 @@
 
 .nutrient-name {
   cursor: pointer;
-  font-size: 14px;
+  font-family: Poppins;
+  font-size: 18px;
   transition: all 0.3s ease;
 }
 
 .today-stats-wrapper {
   position: relative;
-  width: 50%;
+  width: 60%;
   font-family: Poppins;
-  font-size: 15px;
+  font-size: 18px;
   align-self: center;
   font-weight: 300;
   text-align: center;
@@ -125,8 +126,8 @@
 }
 
 .avg-intake {
-  font-family: Poppins;
-  font-size: 14px;
+  font-family: Inconsolata;
+  font-size: 18px;
   font-weight: 300;
   padding-left: 25px;
   cursor: default;
@@ -150,7 +151,8 @@
 
 .goal-message {
   position: absolute;
-  font-size: 14px;
+  font-family: Inconsolata;
+  font-size: 18px;
   transition: opacity 0.3s ease, transform 0.3s ease;
   width: 100%;
   text-align: center;
@@ -171,8 +173,8 @@
 .daily-intake {
   position: relative;
   border-color: antiquewhite;
-  height: 10px;
-  width: 250px;
+  height: 13px;
+  width: 300px;
   
   background-color: #12000e42;
   border-radius: 100px;

@@ -38,8 +38,9 @@ const pendingFoodsAtom = atom<PendingFood[]>({
   default: []
 })
 
-const hoveredLogIdAtom = atom<string | null>({
-  key: 'hoveredLogId',
+// stores id of log [0] and blurb about it [1]
+const hoveredLogAtom = atom<string[] | null>({
+  key: 'hoveredLog',
   default: null
 })
 
@@ -104,11 +105,11 @@ const dayIntake = selector<{[key: string]: number}>({
   get: async ({get}) => {
     const day = get(currentDayAtom)
     const logs = get(logsAtom)
-    const log_id = get(hoveredLogIdAtom)
+    const log = get(hoveredLogAtom)
     let endpoint = '/logs/day_intake?date=' 
     + tolocalDateString(day)
-    if (log_id) {
-      endpoint = '/food/panel?log_id=' + log_id
+    if (log) {
+      endpoint = '/food/panel?log_id=' + log[0]
     }
     let response = await request(endpoint)
     return response.body;
@@ -239,5 +240,5 @@ export {dateRangeAtom,
   averageIntake,
   dayIntake,
   pendingFoodsAtom,
-  hoveredLogIdAtom
+  hoveredLogAtom
 }

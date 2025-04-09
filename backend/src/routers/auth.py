@@ -109,7 +109,7 @@ async def handle_login(request: Request, background_tasks: BackgroundTasks, user
     # Initialize indexes with the current user's information
     try:
         # Import here to avoid circular imports
-        from src.routers.dense_og import update_faiss_index, update_id_list
+        from src.routers.dense import update_faiss_index, update_foods_list
         from src.routers.sparse import update_sparse_index
         
         # Define the initialization function as a standalone function
@@ -139,7 +139,7 @@ async def handle_login(request: Request, background_tasks: BackgroundTasks, user
                     id_list_path = os.getenv("FOOD_ID_CACHE")
                     if not (os.path.exists(id_list_path) and os.path.getsize(id_list_path) > 0):
                         print("No id list found — generating id list...")
-                        tasks.append(update_id_list(db=db, user=user, request=request))
+                        tasks.append(update_foods_list(db=db, user=user, request=request))
                     else:
                         with open(id_list_path, "rb") as f:
                             id_name_map = pickle.load(f)

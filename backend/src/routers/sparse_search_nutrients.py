@@ -50,10 +50,11 @@ async def search_nutrients_by_name(nutrient_name: str, threshold: float = 0.1, l
     }
     
     try:
-        # Use asyncio.to_thread to run the synchronous Typesense client in a separate thread
-        search_results = await asyncio.to_thread(
-            client.collections['nutrients'].documents.search,
-            search_params
+        # Use run_in_executor to run the synchronous Typesense client in a separate thread
+        loop = asyncio.get_event_loop()
+        search_results = await loop.run_in_executor(
+            None,
+            lambda: client.collections['nutrients'].documents.search(search_params)
         )
         
         # Process results
