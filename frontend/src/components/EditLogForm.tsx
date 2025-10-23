@@ -426,7 +426,6 @@ useEffect(() => {
             </div>
 
             <div className='food-date-space'>
-              <div className='edit-input-date-wrapper'>
                 <input
                   className='edit-input-date'
                   name='date'
@@ -436,7 +435,6 @@ useEffect(() => {
                   value={formatDate(formData.date)} // Format date to 'YYYY-MM-DD'
                   required
                 />
-              </div>
             </div>
 
             <div className='food-time-space'>

@@ -52,7 +52,7 @@ input[type="datetime-local"] {
   font-family: Inconsolata;
   border-radius: 5px;
   outline: none;
-  width: 100%; /* Adjust width as needed */
+  height: var(--edit-log-input-height)
 }
 
 .edit-input-date:hover {
@@ -76,7 +76,6 @@ input, textarea {
 .edit-form-container {
   display: flex;
   margin-bottom: 20px;
-  border: solid 1px blue;
 }
 
 .edit-form-container.submitting {
@@ -148,8 +147,6 @@ input, textarea {
   display: flex;
   border-radius: 14px;
   width: var(--modal-width);
-  padding-top: 10px;
-  padding-bottom: 10px;
   flex-direction: row;
   align-items: start;
   color: var(--white);
@@ -198,6 +195,7 @@ input, textarea {
 
 .edit-input-food-name {
   background: none;
+  padding: 0;
   font-family: Inconsolata;
   color: inherit;
   outline: none;
@@ -219,26 +217,17 @@ input, textarea {
 
 .edit-input-food-amt-wrapper {
   display: flex;
-  border: 1px solid red;
   flex-direction: row;
   align-items: center;
   gap: 8px;
   position: relative;
-  width: var(--log-portion-container-width);
 }
 
 /* The input for entering portion */
 .edit-input-portion {
-  width: auto;
-  padding: 0;
-  background: none;
-  border: none;
-  border: 1px solid red;
   font-family: Inconsolata;
-  text-align: left;
-  color: inherit;
-  outline: none;
-  flex-shrink: 0;
+  height: var(--edit-log-input-height);
+  width: 100%
 }
 
 .edit-input-portion:hover {
@@ -251,9 +240,11 @@ input, textarea {
   font-size: inherit;
   color: inherit;
   opacity: 0.8;
-  border: 1px solid red;
   padding-left: 0px;
   text-align: left;
+  /* this is here to make it match the height of the input field */
+  height: 35px;
+  padding-top: 5px;
 }
 
 /* Legacy: The input for entering food amount */
@@ -337,6 +328,7 @@ input, textarea {
   font-family: Inconsolata;
   text-align: right; /* Align the date to the right */
   flex-shrink: 0;
+  height: var(--edit-log-input-height)
 }
 
 .edit-input-time-wrapper:hover {

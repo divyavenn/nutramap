@@ -94,7 +94,6 @@
   width: 30%;
   height: auto;
   text-align: left;
-  border: 1px solid red;
   align-self: center;
   flex-grow: 0;
   flex-shrink: 0;
@@ -111,7 +110,6 @@
 .today-stats-wrapper {
   position: relative;
   width: 60%;
-  border: 1px solid red;
   font-family: Poppins;
   font-size: 18px;
   align-self: center;
@@ -124,7 +122,6 @@
   position: relative;
   width: 20%;
   align-self:center;
-  border: 1px solid red;
   text-align: center;
 }
 

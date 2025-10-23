@@ -6,36 +6,49 @@
 
 .food-name-space{
   text-overflow: ellipsis;
-  border: 1px solid red;
+  padding-top: 10px;
+  padding-bottom: 10px;
   padding-left: 27px;
+  padding-right: 10px;
   width: var(--log-name-width);
+  display: flex;
+  align-items: flex-start;
 }
 
 .food-portion-space{
-  border: 1px solid red;
-  min-width: 50px;
+  padding-top: 10px;
+  padding-bottom: 10px;
   width: var(--log-portion-width);
+  display: flex;
+  align-items: flex-start;
 }
 
 .food-weight-space{
-  border: 1px solid red;
   width: var(--log-weight-width);
+  display: flex;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  align-items: flex-start;
 }
 
 .food-date-space{
-  border: 1px solid red;
+  padding-top: 10px;
+  padding-bottom: 10px;
   width: var(--log-date-width);
+  display: flex;
+  align-items: flex-start;
 }
 
 .food-time-space{
   display: flex;
   width: var(--log-time-width);
+  padding-top: 10px;
+  padding-bottom: 10px;
   justify-content: flex-end;
   align-items: center;
   padding-right: 20px;
   background: none;
   border: none;
-  border: 1px solid red;
   font-family: Inconsolata;
   text-align: right;
   flex-shrink: 0;
@@ -100,8 +113,6 @@
   display: flex;
   width: var(--modal-width);
   margin-bottom: 20px;
-  padding-top: 10px;
-  padding-bottom: 10px;
   flex-direction: row;
   align-self: center;
   align-items: start;

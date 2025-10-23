@@ -18,4 +18,6 @@
   --log-weight-width: 10%;
   --log-date-width: 20%;
   --log-time-width: 10%;
+
+  --edit-log-input-height: 35px;
 }
