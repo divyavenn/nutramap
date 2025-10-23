@@ -27,7 +27,12 @@ user_db_dependency = Annotated[Database, Depends(get_data)]
 @router.get("/info")
 def protected_route(user: dict = Depends(get_current_user)):
     if user:
-      return {"name" : user["name"], 'email' : user["email"], "role" : user["role"]}
+      return {
+        "name": user["name"],
+        "email": user["email"],
+        "role": user["role"],
+        "isTrial": user.get("trial", False)  # Include trial status
+      }
     else:
       return JSONResponse(content={"message": "You are not authenticated"}, status_code=401)
 

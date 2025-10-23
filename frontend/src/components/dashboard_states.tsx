@@ -82,10 +82,8 @@ function useRefreshLogs() {
 function useRefreshRequirements() {
   let setRequirements = useSetRecoilState(requirementsAtom)
   const refreshRequirements = async () => {
-    // console.log("refreshing requirements")
-    let data = await request('/requirements/all')
-    // console.log(data)
-    setRequirements(await data.body)
+    let data = await request('/requirements/all');
+    setRequirements(data.body);
   }
   return refreshRequirements
 }
@@ -106,7 +104,9 @@ const dayIntake = selector<{[key: string]: number}>({
     const day = get(currentDayAtom)
     const logs = get(logsAtom)
     const log = get(hoveredLogAtom)
-    let endpoint = '/logs/day_intake?date=' 
+    // Add requirements as dependency so intake recalculates when requirements change
+    const requirements = get(requirementsAtom)
+    let endpoint = '/logs/day_intake?date='
     + tolocalDateString(day)
     if (log) {
       endpoint = '/food/panel?log_id=' + log[0]
@@ -120,11 +120,13 @@ const averageIntake = selector<{[key : string] : number}>({
   key: 'avgIntake',
   get: async ({get}) => {
     const dateRange = get(dateRangeAtom)
-    // included so that addding new logs automatically refreshes 
+    // included so that addding new logs automatically refreshes
     const logs = get(logsAtom)
-    let endpoint = '/logs/range_intake?startDate=' 
+    // Add requirements as dependency so intake recalculates when requirements change
+    const requirements = get(requirementsAtom)
+    let endpoint = '/logs/range_intake?startDate='
                 + tolocalDateString(dateRange.start)
-                + '&endDate=' 
+                + '&endDate='
                 + tolocalDateString(dateRange.end) + ''
     let response = await request(endpoint)
     return response.body;

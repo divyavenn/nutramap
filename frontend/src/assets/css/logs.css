@@ -4,102 +4,74 @@
 
 /*--------------------------------------------NAME----------------------------------*/
 
-.entry-food-name {
+.food-name-space{
   text-overflow: ellipsis;
-  border-radius: 2px;
-  max-width: 300px;
-  position: relative; /* This is to ensure the suggestions dropdown aligns with the input */
-
-  padding-top: 15px;
-  padding-bottom: 15px;
+  border: 1px solid red;
   padding-left: 27px;
-  padding-right: 10px;
-  width: 300px;
-
-  line-height: 1.2;
-
-  background: none;
-  font-family: Inconsolata;
-  color: inherit;
-  outline: none;
+  width: var(--log-name-width);
 }
 
-/* ------------------------------------------AMOUNT-------------------------------------- */
-.entry-food-amt {
+.food-portion-space{
+  border: 1px solid red;
+  min-width: 50px;
+  width: var(--log-portion-width);
+}
+
+.food-weight-space{
+  border: 1px solid red;
+  width: var(--log-weight-width);
+}
+
+.food-date-space{
+  border: 1px solid red;
+  width: var(--log-date-width);
+}
+
+.food-time-space{
   display: flex;
-  justify-self: right;
+  width: var(--log-time-width);
+  justify-content: flex-end;
   align-items: center;
-  padding-top: 10px;
-  
-  position: relative;
-  width: 10%; /* Set width to match your layout */
-  margin-left: -70px;
-
-  padding-right: 10px; /* Creates space for the "g" */
-  background: none;
-  border: none; /* Removes the default border */
-  font-family: Inconsolata;
-  text-align: left; /* Align the input text to the left */
-  color: inherit; /* Inherit the text color (useful for hover) */
-
-}
-
-/* Styling for the "g" unit */
-.log-unit {
-  position: absolute;
-  right: 0px;
-  font-family: Inconsolata;
-  color: inherit; /* Inherit text color (important for hover) */
-  pointer-events: none; /* Ensure the span doesn't interfere with input focus */
-}
-
-
-/* ------------------------------------------DATE-------------------------------------- */
-
-.entry-date {
-  padding-top: 10px;
-  display: flex; /* Enables flexbox on the container */
-  width: 25%;
-  justify-content: flex-end; /* Pushes content to the right side */
-  align-items: center; /* Vertically centers the button */
-  padding-right: 20px; /* Optional: padding */
+  padding-right: 20px;
   background: none;
   border: none;
+  border: 1px solid red;
   font-family: Inconsolata;
-  text-align: right; /* Align the date to the right */
+  text-align: right;
   flex-shrink: 0;
 }
+
 
 /* ------------------------------------------DIVIDER-------------------------------------- */
 
 .date-divider {
-  width: 650px;
-  margin-bottom: 20px;
+  width: calc(var(--modal-width) + 150px);
+  margin-bottom: 50px;
   border-bottom-style: solid;
   border-bottom-width: 1px;
-  border-bottom-color: hsla(0, 0%, 9%, 0.073);
+  border-bottom-color: rgba(255, 255, 255, 0.2);
 }
 
 .day {
   margin-bottom: 0px;
   font-family: 'Ubuntu';
-  color: hsla(0, 0%, 9%, 0.614);
+  color: rgba(255, 255, 255, 0.6);
   font-size: 14px;
-  font-weight: 300; 
+  font-weight: 300;
   background-color: transparent;
 }
 
 /* ------------------------------------------CONTAINERS-------------------------------------- */
 
-.log-wrapper{ 
+.log-wrapper{
   display: flex;
-  width: 700px;
+  width: calc(var(--modal-width) + 100px);
   flex-direction: column;
   justify-content: center;
   align-items: center;
   position: relative;
-  transition: all 0.1s ease; 
-  
+  transition: all 0.1s ease;
+
 }
 
 /* Add a buffer zone around the log wrapper to prevent flickering */
@@ -126,16 +98,20 @@
 
 .log-bubble {
   display: flex;
-  width: 600px;
+  width: var(--modal-width);
   margin-bottom: 20px;
+  padding-top: 10px;
+  padding-bottom: 10px;
   flex-direction: row;
   align-self: center;
   align-items: start;
+  font-family: Inconsolata;
   border-radius: 14px;
-  background-color: #19050560;
+  background-color: var(--purple);
   color: var(--white);
-  justify-content: space-between; /* Ensure space is distributed between elements */
-  transition: all 0.1s ease; 
+  justify-content: flex-start;
+  transition: all 0.1s ease;
+  box-sizing: border-box;
 }
 
 .log-bubble:hover {

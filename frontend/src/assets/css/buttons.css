@@ -29,12 +29,12 @@
 }
 
 .header-link-button svg {
-  fill: var(--bright); /* You can change the SVG color here */
+  fill: #ffffff; /* White color */
   height: 30px;
 }
 
 .header-link-button:hover svg {
-  fill: #ffffff; /* Change the color on hover */
+  fill: #a855f7; /* Bright purple on hover */
 }
 
 .login-button {

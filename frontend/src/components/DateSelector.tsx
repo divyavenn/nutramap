@@ -16,6 +16,8 @@ import LeftArrow from '../assets/images/caret-left.svg?react'
 import { dateRangeAtom, rangeTypeAtom } from './dashboard_states';
 import { useRecoilState } from 'recoil';
 import { useRefreshLogs, useRefreshRequirements } from './dashboard_states';
+import { isLoginExpired } from './utlis';
+import { LoginPrompt } from './LoginPrompt';
 
 
 function formatDateRange(startDate: Date, endDate: Date) {
@@ -196,6 +198,7 @@ const CalendarRange = forwardRef<HTMLDivElement, CalendarRangeProps>(({ range, h
 
 function DateSelector() {
   const [isOpen, setIsOpen] = useState(false)
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false)
   const toggleCalendar = () => setIsOpen(!isOpen);
   const [rangeType, setRangeType] = useRecoilState(rangeTypeAtom)
   const [dateRange, setDateRange] = useRecoilState(dateRangeAtom)
@@ -209,6 +212,10 @@ function DateSelector() {
   }, [dateRange])
 
   const handleNextMonth = () => {
+    if (isLoginExpired()) {
+      setShowLoginPrompt(true);
+      return;
+    }
     if (rangeType === RangeType.default) {
       // Move to the next entire month
       setDateRange(new TimePeriod(
@@ -228,6 +235,10 @@ function DateSelector() {
   };
   
   const handlePreviousMonth = () => {
+    if (isLoginExpired()) {
+      setShowLoginPrompt(true);
+      return;
+    }
     if (rangeType === RangeType.default) {
       // Move to the previous entire month
       setDateRange({
@@ -245,9 +256,23 @@ function DateSelector() {
   };
 
   const handleSelect = (ranges: { selection: { startDate: Date, endDate: Date } }) => {
+    if (isLoginExpired()) {
+      setShowLoginPrompt(true);
+      setIsOpen(false);
+      return;
+    }
     const { startDate, endDate } = ranges.selection;
     setRangeType(RangeType.custom);
     setDateRange(new TimePeriod(startDate, endDate));
+  };
+
+  const handleTodayClick = () => {
+    if (isLoginExpired()) {
+      setShowLoginPrompt(true);
+      return;
+    }
+    setRangeType(RangeType.default);
+    setDateRange(getCurrentPeriod());
   };
 
   return (
@@ -266,12 +291,7 @@ function DateSelector() {
             </ImageButton>
           </div>)}
         {!isOpen && rangeType === RangeType.custom && (
-          <div className="today" onClick = {() =>
-            {
-              setRangeType(RangeType.default)
-              setDateRange(getCurrentPeriod())
-            }
-          }>today</div>
+          <div className="today" onClick={handleTodayClick}>today</div>
         )}
       </div>
       <CalendarRange
@@ -281,6 +301,7 @@ function DateSelector() {
               setIsOpen={setIsOpen}
               clickToOpen = {<div className="range-text">{formatDateRange(dateRange.start, dateRange.end)}</div>}
             />
+      {showLoginPrompt && <LoginPrompt onClose={() => setShowLoginPrompt(false)} />}
     </div>
   );
 }

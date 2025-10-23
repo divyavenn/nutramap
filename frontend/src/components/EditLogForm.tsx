@@ -16,20 +16,22 @@ import { foodsAtom } from './account_states';
 interface LogProps {
   food_name: string;
   date: Date;
+  portion?: string;
   amount_in_grams: number;
   _id: string;
-  onAnimationStart?: () => void;  
-  onAnimationEnd?: () => void;    
+  onAnimationStart?: () => void;
+  onAnimationEnd?: () => void;
 }
 
-function EditLogForm({food_name, date, amount_in_grams, _id, onAnimationStart, onAnimationEnd} : LogProps){
+function EditLogForm({food_name, date, portion, amount_in_grams, _id, onAnimationStart, onAnimationEnd} : LogProps){
 
   // Mock food data for autocomplete
   const foodList = useRecoilValue(foodsAtom)
   const [deleted, setDeleted] = useState(false)
   const [formData, setFormData] = useState({
     food_name : food_name,
-    amount_in_grams : String(amount_in_grams), 
+    portion: portion || `${amount_in_grams}g`,
+    amount_in_grams : String(amount_in_grams),
     date : date,
   })
   const [isSubmitting, setIsSubmitting] = useState(false); // Track submission animation state
@@ -289,30 +291,40 @@ useEffect(() => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault() // prevent automatic submission
     e.stopPropagation(); // prevent event from bubbling up
-    
+
     // Start the submission animation
     setIsSubmitting(true);
-    
+
     // Notify parent component that animation has started
     if (onAnimationStart) {
       onAnimationStart();
     }
-    
+
     // Add a delay to show the animation before submitting
     setTimeout(async () => {
-      const data = {
-        food_id: getFoodID(formData.food_name, foodList),
-        amount_in_grams: Number(formData.amount_in_grams),
-        date: tolocalDateString(formData.date),
-        log_id: _id
+      // Create form data for portion update
+      const formDataObj = new FormData();
+      formDataObj.append('log_id', _id);
+      formDataObj.append('portion', formData.portion);
+      formDataObj.append('food_name', formData.food_name);
+
+      // Call update-portion endpoint which will recalculate grams
+      const response = await request('/logs/update-portion', 'POST', formDataObj, 'FORM');
+
+      // If successful, update the grams in local state
+      if (response.status === 200 && response.body) {
+        setFormData(prev => ({
+          ...prev,
+          amount_in_grams: String(response.body.amount_in_grams)
+        }));
       }
-      await request('/logs/edit', 'POST', data, 'JSON')
-      refreshLogs()
-      
+
+      refreshLogs();
+
       // Reset the submission state after a short delay to show the animation
       setTimeout(() => {
         setIsSubmitting(false);
-        
+
         // Notify parent component that animation has ended
         if (onAnimationEnd) {
           onAnimationEnd();
@@ -379,7 +391,7 @@ useEffect(() => {
 
         <div className="form-dropdown-wrapper">
           <div className={`edit-entry-form-bubble ${showSuggestions ? 'active' : ''}`}>
-            <div className='edit-food-name'>
+            <div className='food-name-space'>
               <textarea
                 ref={textareaRef}
                 name='food_name'
@@ -392,21 +404,28 @@ useEffect(() => {
               ></textarea>
             </div>
 
-            <div className="edit-input-food-amt-wrapper">
+            <div className="food-portion-space">
               <input
-                name='amount_in_grams'
-                className='edit-input-food-amt'
-                type='number'
-                placeholder='0'
-                value={formData.amount_in_grams}
+                name='portion'
+                className='edit-input-portion'
+                type='text'
+                placeholder='1 cup'
+                value={formData.portion}
                 onChange={handleTyping}
                 onKeyDown={handleKeyDown}
                 required
               ></input>
-              <div className="edit-unit">g</div>
             </div>
 
-            <div className='edit-dateTime-container'>
+            <div className='food-weight-space'>
+              {formData.amount_in_grams && (
+                <div className="edit-grams-display">
+                  {Math.round(Number(formData.amount_in_grams))}g
+                </div>
+              )}
+            </div>
+
+            <div className='food-date-space'>
               <div className='edit-input-date-wrapper'>
                 <input
                   className='edit-input-date'
@@ -418,7 +437,9 @@ useEffect(() => {
                   required
                 />
               </div>
+            </div>
 
+            <div className='food-time-space'>
               <div className='edit-input-time-wrapper'>
                 <input className='edit-input-time-wrapper'
                 name='time'
@@ -478,7 +499,7 @@ useEffect(() => {
           <HoverButton
                   type="submit"
                   className={`edit-log-submit ${isSubmitting ? 'confirming' : ''}`}
-                  disabled={!formData.food_name || !formData.amount_in_grams || !validInput || isSubmitting}
+                  disabled={!formData.food_name || !formData.portion || !validInput || isSubmitting}
                   childrenOn={<YesOk/>}
                   childrenOff={<IsOk/>}>
           </HoverButton>

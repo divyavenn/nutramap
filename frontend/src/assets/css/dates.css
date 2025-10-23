@@ -27,24 +27,24 @@
   padding-top: 3px;
   padding-right: 5px;
   padding-bottom: 3px;
-  padding-left: 5px; 
+  padding-left: 5px;
 
   border-style: solid;
   border-width: 1px;
-  border-color: hsla(14, 0.00%, 100.00%, 0.43);
+  border-color: #ffffff;
   border-radius: 20px;
 
   font-family: Inconsolata;
-  color: hsla(0, 0.00%, 100.00%, 0.50);
+  color: #ffffff;
   font-size: 15px;
   font-style: normal;
   font-weight: 400;
-  text-align: center; 
+  text-align: center;
 }
 
 .today:hover {
-  border-color: hsla(0, 0%, 100%, 0);
-  color: hsl(0, 0%, 100%);
+  border-color: #a855f7;
+  color: #a855f7;
 }
 
 .date-selector {
@@ -66,7 +66,7 @@
   .range-text {
     padding: 10px;
     order: 1;
-    color: #0000009e;
+    color: #ffffff;
     font-size: 18px;
     font-family: Inconsolata;
     font-weight: 300;
@@ -88,12 +88,12 @@
   }
   
   .month-arrow svg {
-    fill: #0000009e; /* You can change the SVG color here */ 
+    fill: #ffffff; /* White color */
     height: 20px;
   }
 
   .month-arrow:hover svg {
-    fill: #0000003c; /* Change the color on hover */
+    fill: #a855f7; /* Bright purple on hover */
   }
 
   .month-arrow.left {

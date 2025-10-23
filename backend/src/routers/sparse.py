@@ -28,24 +28,39 @@ except ImportError:
 # Load environment variables
 load_dotenv()
 
-# Initialize Typesense client
-client = typesense.Client({
-    'api_key': os.getenv('TYPESENSE_API_KEY'),
-    'nodes': [{
-        'host': os.getenv('TYPESENSE_HOST'),
-        'port': int(os.getenv('TYPESENSE_PORT', '443')),
-        'protocol': 'https'
-    }],
-    'connection_timeout_seconds': 5
-})
+# Lazy Typesense client initialization
+_client = None
+
+def _get_client():
+    """Get Typesense client, initializing if needed"""
+    global _client
+    if _client is None:
+        api_key = os.getenv('TYPESENSE_API_KEY')
+        if not api_key:
+            return None  # Typesense not configured
+
+        _client = typesense.Client({
+            'api_key': api_key,
+            'nodes': [{
+                'host': os.getenv('TYPESENSE_HOST'),
+                'port': int(os.getenv('TYPESENSE_PORT', '443')),
+                'protocol': 'https'
+            }],
+            'connection_timeout_seconds': 5
+        })
+    return _client
 
 
 async def update_sparse_index(db = None, user = None):
+    client = _get_client()
+    if client is None:
+        return {"status": "Typesense not configured"}
+
     if db is None:
         db = Annotated[Database, Depends(get_data)]
     if user is None:
         user = Annotated[dict, Depends(get_current_user)]
-    
+
     foods = await get_foods_list(db, user)
     schema = {
         'name': 'foods',
@@ -147,6 +162,10 @@ async def update_sparse_index(db = None, user = None):
         print(f"Error verifying document count: {e}")
 
 async def search_foods(query: str, limit: int = 50) -> Dict:
+    client = _get_client()
+    if client is None:
+        return {}
+
     try:
         # Use a wildcard search if query is empty
         if not query or query.strip() == "":

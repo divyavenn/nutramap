@@ -138,6 +138,7 @@ function LogList (){
                   <EditLogForm
                     food_name={log.food_name}
                     date={new Date(log.date)}
+                    portion={log.portion}
                     amount_in_grams={log.amount_in_grams}
                     _id={log._id}
                     onAnimationStart={handleAnimationStart}
@@ -147,6 +148,7 @@ function LogList (){
                   <DisplayLog
                     food_name={log.food_name}
                     date={new Date(log.date)}
+                    portion={log.portion}
                     amount_in_grams={log.amount_in_grams}
                   />
                 )}
@@ -159,14 +161,26 @@ function LogList (){
   );
 }
 
-function DisplayLog ({ food_name, date, amount_in_grams } : DisplayLogProps) {
-   return (<div className = 'log-bubble'> 
-    <div className = 'entry-food-name'> {food_name} </div>
-    <div className='entry-food-amt'>{Math.round(amount_in_grams)}
-    <div className="log-unit"> {'g'} </div>
+function DisplayLog ({ food_name, date, portion, amount_in_grams } : DisplayLogProps) {
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <div
+      className='log-bubble'
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <div className='food-name-space'> {food_name} </div>
+      <div className='food-portion-space'>
+          {portion || `${Math.round(amount_in_grams)}g`}
+      </div>
+      <div className='food-weight-space'>
+      </div>
+      <div className='food-date-space'></div>
+      <div className='food-time-space'> {formatTime(date)} </div>
+
     </div>
-    <div className = 'entry-date'> {formatTime(date)} </div>
-  </div>)
+  );
 }
 
 

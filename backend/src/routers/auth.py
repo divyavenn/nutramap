@@ -28,20 +28,28 @@ except ImportError:
 
 __package__ = "nutramap.routers"
 
-# Load environment variables
+# Load environment variables from .env file (for local development)
 load_dotenv()
 
 router = APIRouter(
   # groups API endpoints together
-  prefix='/auth', 
+  prefix='/auth',
   tags=['auth']
 )
 
-# Get JWT settings from environment variables
-SECRET_KEY = os.getenv("JWT_SECRET_KEY")
-ALGORITHM = os.getenv("JWT_ALGORITHM")
-if not SECRET_KEY and not ALGORITHM:
-    raise ValueError("authentication environment variable is not set")
+# Lazy getters for JWT settings
+_SECRET_KEY = None
+_ALGORITHM = None
+
+def _get_jwt_config():
+    """Get JWT configuration, reading from env at runtime"""
+    global _SECRET_KEY, _ALGORITHM
+    if _SECRET_KEY is None:
+        _SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+        _ALGORITHM = os.getenv("JWT_ALGORITHM")
+        if not _SECRET_KEY or not _ALGORITHM:
+            raise ValueError("JWT_SECRET_KEY and JWT_ALGORITHM environment variables must be set")
+    return _SECRET_KEY, _ALGORITHM
 
 def hash_password(password: str) :
   return hashlib.sha256(password.encode()).hexdigest()
@@ -76,20 +84,23 @@ def create_access_token(email : str, user_id: any, role: str, name: str, expires
   encode = {'email': email, '_id': str(user_id), 'role' : role, 'name' : name}
   expires = datetime.now(timezone.utc) + expires
   # encode.update({'exp': expires})
+  SECRET_KEY, ALGORITHM = _get_jwt_config()
   return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
 def get_current_user(token:Annotated[str, Depends(oauth2_bearer)]):
-  try: 
+  try:
+    SECRET_KEY, ALGORITHM = _get_jwt_config()
     payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    
+
     email = payload.get('email')
     user_id = ObjectId(payload.get('_id'))
     role = payload.get('role')
     name = payload.get('name')
+    trial = payload.get('trial', False)  # Extract trial flag from token
     if email is None or user_id is None or role is None or name is None:
       raise HTTPException(status_code = 401, detail = "Unauthorized; could not validate credentials.")
-    return {'email' : email, '_id' : user_id, "role" : role, "name" : name}
+    return {'email' : email, '_id' : user_id, "role" : role, "name" : name, "trial": trial}
   except JWTError:
       raise HTTPException(status_code = 401, detail = "Unauthorized; could not validate credentials.")
 
@@ -121,13 +132,13 @@ async def handle_login(request: Request, background_tasks: BackgroundTasks, user
                 # Process index initialization tasks in parallel
                 async def check_and_update_indexes():
                     tasks = []
-                    
+
                     # Add sparse index update task
-                    tasks.append(update_sparse_index(db=db, user=user, request=request))
+                    tasks.append(update_sparse_index(db=db, user=user))
                     
                     # Check FAISS index
                     faiss_path = os.getenv("FAISS_BIN")
-                    if not (os.path.exists(faiss_path) and os.path.getsize(faiss_path) > 0):
+                    if not (faiss_path and os.path.exists(faiss_path) and os.path.getsize(faiss_path) > 0):
                         print("No index found — generating FAISS index...")
                         tasks.append(update_faiss_index(db=db, user=user, request=request))
                     else:

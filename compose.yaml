@@ -1,37 +1,19 @@
-version: "3.8"
+# Production setup: Frontend only
+# Backend runs on Modal: https://modal.com
+#
+# For local development with both services, use:
+#   docker compose -f compose.dev.yaml up
 
 services:
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        PORT: ${FRONTEND_PORT}
     ports:
-      - "${FRONTEND_PORT}:${FRONTEND_PORT}" # Expose port 5173 on the host to port 5173 in the container
+      - "${FRONTEND_PORT}:${FRONTEND_PORT}"
     environment:
-      - PORT=${FRONTEND_PORT}  
-
-
-  backend:
-    build:
-      context: ./backend  # Path to your backend directory
-      dockerfile: Dockerfile  # Dockerfile in the backend directory
-    ports:
-      - "${BACKEND_PORT}:${BACKEND_PORT}"  # Expose backend on localhost:8000
-    depends_on:
-      - db  # Ensure backend waits for MongoDB
-    volumes:
-      - ./backend:/app  # Mount backend code for development
-    environment:
-      - PORT=${BACKEND_PORT}  
-
-  db:
-    image: mongo:5.0
-    container_name: mongo
-    restart: always
-    ports:
-      - "27017:27017"  # Expose MongoDB on localhost
-    volumes:
-      - mongo_data:/data/db  # Persistent volume for MongoDB data
-
-volumes:
-  mongo_data:
+      - PORT=${FRONTEND_PORT}
+      # Point to Modal backend in production
+      - VITE_API_URL=${BACKEND_URL}

@@ -77,7 +77,7 @@ input, textarea {
   display: flex;
   width: 100%;
   margin-bottom: 20px;
-  padding: 18px;
+  padding: 0;
 }
 
 .edit-form-container.submitting {
@@ -137,22 +137,22 @@ input, textarea {
 
 .form-dropdown-wrapper {
   display: flex;
-  background-color: #19050576;
+  background-color: var(--purple);
   color: var(--white);
   flex-direction: column;
   border-radius: 14px;
-  width: 600px;
+  width: var(--modal-width);
   transition: all 0.1s ease;
 }
 
 .edit-entry-form-bubble {
   display: flex;
   border-radius: 14px;
-  width: 600px;
+  width: var(--modal-width);
   flex-direction: row;
   align-items: start;
   color: var(--white);
-  justify-content: space-between;
+  justify-content: flex-start;
   transition: all 0.1s ease;
 }
 
@@ -162,8 +162,8 @@ input, textarea {
 }
 
 .edit-entry-form-bubble:hover{
-  background-color: #ffffffa1;
-  color: #230035;
+  background-color: var(--hover-white);
+  color: #1e002e;
 }
 
 /* Activate suggestions dropdown */
@@ -180,7 +180,7 @@ input, textarea {
 /* Autocomplete suggestions styling */
 .edit-food-name{
   border-radius: 2px;
-  width: 300px;
+  width: var(--log-name-width);
   position: relative; /* This is to ensure the suggestions dropdown aligns with the input */
   flex-grow: 0;
   flex-shrink: 0;
@@ -201,8 +201,9 @@ input, textarea {
   padding-bottom: 12px;
   padding-left: 27px;
   padding-right: 10px;
-  width: 300px;
+  width: var(--log-name-width);
   background: none;
+  border: 1px solid red;
   font-family: Inconsolata;
   color: inherit;
   outline: none;
@@ -223,16 +224,48 @@ input, textarea {
 /* ------------------------------------------AMOUNT-------------------------------------- */
 
 .edit-input-food-amt-wrapper {
-  padding-top: 20px;
+  padding-top: 10px;
   display: flex;
+  border: 1px solid red;
   flex-direction: row;
   align-items: center;
+  gap: 8px;
   position: relative;
   margin-left: -70px;
-  width: 10%; /* Set width to match your layout */
+  width: var(--log-portion-container-width);
 }
 
-/* The input for entering food amount */
+/* The input for entering portion */
+.edit-input-portion {
+  width: auto;
+  padding: 0;
+  background: none;
+  border: none;
+  border: 1px solid red;
+  font-family: Inconsolata;
+  text-align: left;
+  color: inherit;
+  outline: none;
+  flex-shrink: 0;
+}
+
+.edit-input-portion:hover {
+  color: #000000;
+}
+
+/* Display grams below portion */
+.edit-grams-display {
+  font-family: Inconsolata;
+  font-size: inherit;
+  color: inherit;
+  opacity: 0.8;
+  margin-top: 2px;
+  border: 1px solid red;
+  padding-left: 0px;
+  text-align: left;
+}
+
+/* Legacy: The input for entering food amount */
 .edit-input-food-amt {
   width: 100%; /* Ensures the input takes full available space in the wrapper */
   padding-right: 15px; /* Creates space for the "g" */
@@ -261,14 +294,14 @@ input, textarea {
 
 
 .edit-dateTime-container {
-  padding-top: 20px;
+  padding-top: 10px;
   flex-direction: row;
-  display: flex; /* Enables flexbox on the container */
-  width: 25%;
-  justify-content: flex-end; /* Pushes content to the right side */
-  align-items: center; /* Vertically centers the button */
-  padding-right: 20px; /* Optional: padding */
-  flex-shrink: 0; /* Prevent shrinking */
+  display: flex;
+  width: var(--log-date-width);
+  justify-content: flex-end;
+  align-items: center;
+  padding-right: 20px;
+  flex-shrink: 0;
 }
 
 .edit-input-date-wrapper {

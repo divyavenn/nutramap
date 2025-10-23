@@ -3,12 +3,14 @@ import { createContext } from 'react';
 export interface DisplayLogProps {
   food_name: string;
   date: Date;
+  portion?: string;
   amount_in_grams: number;
 }
 
 export interface LogProps {
   food_name: string;
   date: Date;
+  portion?: string;
   amount_in_grams: number;
   _id: string;
 }

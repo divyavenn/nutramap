@@ -5,11 +5,12 @@ import './assets/css/divya-venkat.webflow.css'
 import Login from './pages/login';
 import Home from './pages/home';
 import DashboardRoot from './pages/dashboard';
+import TryNutramapRoot from './pages/try';
 import AccountRoot from './pages/account'
 import { DeleteAccount } from './pages/goodbye';
 import NewAccount from './pages/hello';
 import { RecoilRoot } from 'recoil';
-import VantaBackground from './components/VantaBackground';
+import VantaBackgroundWaves from './components/VantaBackgroundWaves';
 import FoodsPage from './pages/foods';
 
 // Load Vanta.js scripts
@@ -28,6 +29,8 @@ const loadVantaScripts = async () => {
   try {
     await loadScript('/three.r134.min.js');
     await loadScript('/vanta.fog.min.js');
+    await loadScript('/vanta.waves.min.js');
+    await loadScript('/vanta.cells.min.js');
   } catch (error) {
     console.error('Failed to load Vanta scripts:', error);
   }
@@ -39,10 +42,11 @@ let rootElem = document.getElementById('root')
 if (rootElem) {
   createRoot(rootElem).render(
     <RecoilRoot>
-      <VantaBackground>
+      <VantaBackgroundWaves>
         <Router>
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/try" element={<TryNutramapRoot/>} />
             <Route path="/login" element={<Login />} />
             <Route path="/dashboard" element={<DashboardRoot/>} />
             <Route path="/account" element={<AccountRoot/>}  />
@@ -51,7 +55,7 @@ if (rootElem) {
             <Route path="/myfoods" element={<FoodsPage />} />
           </Routes>
         </Router>
-      </VantaBackground>
+      </VantaBackgroundWaves>
     </RecoilRoot>
   )
 }

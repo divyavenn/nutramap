@@ -1,30 +1,34 @@
 ARG PORT
 
-# Use Miniconda as the base image
-FROM continuumio/miniconda3:latest
+# Use Python 3.9 slim image
+FROM python:3.9-slim
+
+# Install system dependencies required for faiss and other packages
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory
 WORKDIR /app
 ENV PORT=${PORT}
 
-# Copy the conda environment file
-COPY environment.yml .
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Set PATH to include conda binaries
-ENV PATH=/opt/conda/bin:$PATH
+# Copy dependency files
+COPY pyproject.toml .
+COPY uv.lock* .
 
-# Create the conda environment
-RUN conda env create -f environment.yml
+# Update lock file and install dependencies
+RUN uv lock
+RUN uv sync --no-dev
 
-# Ensure the Conda environment is activated
-ENV CONDA_DEFAULT_ENV=nutramapEnv
-ENV PATH=/opt/conda/envs/nutramapEnv/bin:$PATH
-
-# Copy the rest of the application code into the container
+# Copy the rest of the application code
 COPY . .
 
 # Expose the application port
 EXPOSE $PORT
 
-# Command to activate the Conda environment and run Uvicorn
-CMD ["bash", "-c", "source activate nutramapEnv && uvicorn main:app --host 0.0.0.0 --port ${PORT}"]
+# Run the application using uv
+CMD uv run uvicorn main:fastapi_app --host 0.0.0.0 --port $PORT

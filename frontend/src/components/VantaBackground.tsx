@@ -22,18 +22,18 @@ const VantaBackground: React.FC<VantaBackgroundProps> = ({ children }) => {
         setVantaEffect(
           window.VANTA.FOG({
             el: vantaRef.current,
-            mouseControls: false, // Disable mouse controls to prevent interaction issues
-            touchControls: false, // Disable touch controls to prevent interaction issues
-            gyroControls: false,
+            mouseControls: true, // Disable mouse controls to prevent interaction issues
+            touchControls: true, // Disable touch controls to prevent interaction issues
+            gyroControls: true,
             minHeight: 200.00,
             minWidth: 200.00,
-            highlightColor: 0xa2a1a2,
-            midtoneColor: 0xc3bebe,
-            lowlightColor: 0x959498,
-            baseColor: 0x7d7676,
-            blurFactor: 0.6,
-            speed: 0.80,
-            zoom: 1.80
+            highlightColor: 0x100c0b,
+            midtoneColor: 0x1f2230,
+            lowlightColor: 0x171923,
+            baseColor: 0x0a0c14,
+            blurFactor: 0.3,
+            speed: 1.00,
+            zoom: 3.0
           })
         );
       }

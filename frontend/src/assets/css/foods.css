@@ -23,7 +23,7 @@
 }
 
 .add-food-button {
-  background-color: #19050560;
+  background-color: var(--purple);
   color: white;
   border: none;
   border-radius: 8px;
@@ -195,7 +195,7 @@ input, textarea {
 }
 
 .form-elements-wrapper{
-  width: 600px;
+  width: var(--modal-width);
   display: flex;
   margin-top: 20px;
   flex-direction: column;
@@ -224,26 +224,6 @@ input, textarea {
   100% {
     transform: translateX(0);
   }
-}
-
-.entry-form-bubble{
-  display: flex;
-  padding: 15px;
-  border-radius: 14px;
-  align-items: center;
-  color: var(--white);
-  transition: all 0.3s ease;
-  width: 100%;
-  box-sizing: border-box;
-  will-change: transform;
-  opacity: 1;
-  background-color: #d0d0d0bb;
-  justify-content: space-between;
-}
-
-.entry-form-bubble:hover{
-  background-color: #ffffffa1;
-  color: #1e002e;
 }
 
 .pixelating {

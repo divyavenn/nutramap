@@ -15,14 +15,17 @@ function Home(){
     <Subtitle/>
   </MainSection>
   <MainSection>
-    <LottieAnimation 
+    <LottieAnimation
       url="https://lottie.host/a6b05235-d19b-48b1-9811-e76c7f90afb4/Y5gjHcPneC.json"
       width = "300px"
       height = "300px"/>
   </MainSection>
   <MainSection>
   <div className="link-text">
-    <Link to="/login">login</Link>
+    <Link to="/try">try it</Link>
+  </div>
+  <div className="link-text" style={{marginTop: '10px', fontSize: '16px'}}>
+    <Link to="/login">or log in</Link>
   </div>
   </MainSection>
   </RecoilRoot>

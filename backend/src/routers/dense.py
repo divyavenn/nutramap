@@ -34,12 +34,18 @@ user = Annotated[dict, Depends(get_current_user)]
 # Load environment variables
 load_dotenv()
 
-# Initialize OpenAI client
-api_key = os.getenv("OPENAI_API_KEY")
-if not api_key:
-    raise ValueError("OPENAI_API_KEY environment variable is not set")
+# Lazy OpenAI client initialization
+_client = None
 
-client = OpenAI(api_key=api_key)
+def _get_client():
+    """Get OpenAI client, initializing if needed"""
+    global _client
+    if _client is None:
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY environment variable is not set")
+        _client = OpenAI(api_key=api_key)
+    return _client
 
 # Define the structured output response format
 response_format = { "type": "json_object" }
@@ -155,6 +161,7 @@ async def update_faiss_index(db=None, user=None, request: Request = None):
         return None, None
 
 async def embed_query(text: str):
+    client = _get_client()
     response = client.embeddings.create(
         model="text-embedding-3-large",
         input=text
@@ -193,7 +200,7 @@ async def find_dense_matches(text: str, db, user, request: Request = None, thres
     else:
         # print("Searching for faiss index in BIN...")
         faiss_path = os.getenv("FAISS_BIN")
-        if os.path.exists(faiss_path) and os.path.getsize(faiss_path) > 0:
+        if faiss_path and os.path.exists(faiss_path) and os.path.getsize(faiss_path) > 0:
             faiss_index = faiss.read_index(faiss_path)
         else:
             faiss_index, id_list = await update_faiss_index(db, user, request)

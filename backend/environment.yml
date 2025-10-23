@@ -13,4 +13,5 @@ dependencies:
   - pip:
     - openai>=1.0.0
     - python-dotenv
+    - faiss-cpu
 prefix: /Users/divyavenn/miniforge3/envs/nutramapEnv

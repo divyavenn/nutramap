@@ -27,10 +27,13 @@ def get_requirements_for_user(user, user_db):
         
 @router.get("/all")
 def requirement_info(user: user, db: db):
-    # Retrieve all requirements for the user
+    # Retrieve all requirements for the user (including trial users)
+    # Trial users get default requirements created at account creation,
+    # but they can modify them just like regular users
     requirements = list(get_requirements_for_user(user, db))
 
     if not requirements:
+        print(f"No requirements found for user {user['email']}")
         return {}
 
     # Extract all nutrient IDs from the user's requirements
@@ -38,7 +41,7 @@ def requirement_info(user: user, db: db):
 
     # # Batch query the nutrients collection for all required nutrient details
     # nutrient_details = db.nutrients.find(
-    #     {"_id": {"$in": nutrient_ids}}, 
+    #     {"_id": {"$in": nutrient_ids}},
     #     {"_id": 1, "nutrient_name": 1, "unit": 1}
     # )
 
@@ -99,7 +102,7 @@ def remove_requirement(requirement_id: str, user: user, db : db):
 
     filters = {"nutrient_id": int(requirement_id), "user_id": user["_id"]}
     requirement = db.requirements.find_one(filters)
-    
+
     if not requirement:
         raise HTTPException(status_code=404, detail="Requirement not found.")
     # Perform the update operation

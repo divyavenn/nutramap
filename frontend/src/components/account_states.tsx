@@ -12,6 +12,7 @@ interface AccountInfo{
   name : string,
   email: string;
   password : string;
+  isTrial?: boolean;  // Optional flag to indicate trial user
 }
 
 
@@ -22,9 +23,12 @@ const editingPasswordAtom = atom<boolean>({
 
 const accountInfoAtom = atom<AccountInfo>({
   key: 'accountInfo',
-  default: {name : "",
-            email : "",
-            password : ""}
+  default: {
+    name : "",
+    email : "",
+    password : "",
+    isTrial: false
+  }
 })
 
 
@@ -55,6 +59,13 @@ const firstNameAtom = selector<string>({
     let name = get(accountInfoAtom).name
     let firstName = name ? name.trim().split(' ')[0] : "";
     return firstName
+  }
+})
+
+const isTrialUserAtom = selector<boolean>({
+  key: 'isTrialUser',
+  get: ({get}) => {
+    return get(accountInfoAtom).isTrial || false;
   }
 })
 
@@ -136,12 +147,13 @@ function useFetchAutoFillData(){
 
 }
 
-export {accountInfoAtom, 
-        firstNameAtom, 
-        nutrientDetailsByIDAtom, 
-        nutrientDetailsByNameAtom, 
-        foodsAtom, 
-        useRefreshAccountInfo, 
-        editingPasswordAtom, 
+export {accountInfoAtom,
+        firstNameAtom,
+        isTrialUserAtom,
+        nutrientDetailsByIDAtom,
+        nutrientDetailsByNameAtom,
+        foodsAtom,
+        useRefreshAccountInfo,
+        editingPasswordAtom,
         useResetAccountAtoms,
       useFetchAutoFillData}

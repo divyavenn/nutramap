@@ -47,7 +47,7 @@ input, textarea {
 }
 
 .form-elements-wrapper{
-  width: 600px;
+  width: var(--modal-width);
   display: flex;
   flex-direction: column;
   border-radius: 14px;
@@ -78,21 +78,23 @@ input, textarea {
 
 .entry-form-bubble{
   display: flex;
+  padding: 15px;
   border-radius: 14px;
   align-items: center;
   color: var(--white);
   transition: all 0.3s ease;
   width: 100%;
+  box-sizing: border-box;
   resize: vertical;
   will-change: transform;
-  opacity: 1; /* Ensure full opacity by default */
-  background-color: #19050560;
-
+  opacity: 1;
+  background-color: rgba(255, 255, 255, 0.1);
+  justify-content: space-between;
 }
 
 .entry-form-bubble:hover{
-  background-color: #ffffffa1;
-  color: #1e002e;
+  background-color: var(--hover-white);
+  color: var(--white);
 }
 
 .pixelating {

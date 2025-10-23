@@ -9,22 +9,20 @@ import base64
 # Load environment variables
 load_dotenv()
 
-# Initialize OpenAI client
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# Lazy OpenAI client initialization
+_client = None
+
+def _get_client():
+    """Get OpenAI client, initializing if needed"""
+    global _client
+    if _client is None:
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY environment variable is not set")
+        _client = OpenAI(api_key=api_key)
+    return _client
 
 async def parse_new_food(food_description: str, image_path: Optional[str] = None) -> Tuple[str, List[Dict]]:
-    """
-    Parse a food description and optionally an image to extract food name and nutrients.
-    Uses OpenAI to analyze the description and image (if provided).
-    
-    Args:
-        food_description: Text description of the food
-        image_path: Optional path to an image of the food
-    
-    Returns:
-        Tuple of (food_name, nutrients_list)
-        where nutrients_list is a list of dicts with keys 'nutrient_name' and 'amount'
-    """
     try:
         # Prepare the system message
         system_message = """You are a nutrition expert assistant. Your task is to analyze the food description 
@@ -77,6 +75,7 @@ async def parse_new_food(food_description: str, image_path: Optional[str] = None
         })
         
         # Make the OpenAI API call
+        client = _get_client()
         response = client.chat.completions.create(
             model="gpt-4-vision-preview" if image_path else "gpt-4",
             messages=messages,

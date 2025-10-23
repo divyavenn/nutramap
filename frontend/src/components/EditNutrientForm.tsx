@@ -106,11 +106,17 @@ function NewNutrientForm({ original }: { original?: Nutrient }): React.ReactNode
 
   const handleDelete = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault() // prevent automatic submission
-    await request(`/requirements/delete?requirement_id=${ getNutrientInfo(formData.nutrient_name, false, nutrientList)}`, 'DELETE');
-    console.log("Requirement deleted successfully");
-    setIsDeleted(true)
-    refreshRequirements()
-    setFormData({ ...formData, nutrient_name: '', requirement : ''})
+    const nutrientId = getNutrientInfo(formData.nutrient_name, false, nutrientList);
+
+    const response = await request(`/requirements/delete?requirement_id=${nutrientId}`, 'DELETE');
+
+    if (response.status === 200) {
+      await refreshRequirements();
+      setIsDeleted(true);
+      setFormData({ ...formData, nutrient_name: '', requirement : ''});
+    } else {
+      console.error("Failed to delete requirement:", response);
+    }
   }
 
   return (

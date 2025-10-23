@@ -172,7 +172,7 @@ const NutrientStats = ({requirements} : {requirements : RequirementData[]}) => {
 };
 
 
-function NutrientStatRow({ name, target, dayIntake = 0, avgIntake, shouldExceed, units }: NutrientStatsProps) {
+function NutrientStatRow({ name, target, dayIntake = 0, avgIntake = 0, shouldExceed, units }: NutrientStatsProps) {
   const [hovered, setHovered] = useState(false);
   const [hoveredName, setHoveredName] = useState(false);
   const hoveredLog = useRecoilValue(hoveredLogAtom);

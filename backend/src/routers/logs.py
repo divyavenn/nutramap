@@ -9,7 +9,8 @@ from src.databases.mongo import get_data
 from src.databases.mongo_models import Log, LogEdit
 from src.routers.foods import get_food_name, get_total_nutrients, consolidate_amounts
 from src.routers.auth import get_current_user
-from src.routers.parse import parse_meal_description
+from src.routers.parse import parse_meal_description, estimate_grams
+from src.routers.trial_user import is_trial_user, can_create_log
 
 __package__ = "nutramap.routers"
 
@@ -97,6 +98,13 @@ async def new_log(user : user, db: db, food_id: str = Form(...), amount_in_grams
         raise HTTPException(status_code=400)
 
 async def add_log(user: user, log, db: db):
+    # Check if trial user has reached log limit
+    if is_trial_user(user) and not can_create_log(db, user):
+        raise HTTPException(
+            status_code=403,
+            detail="Trial user log limit reached (10 logs maximum). Please create an account to continue."
+        )
+
     # Check if log is a dictionary or a Log object
     print(log)
     if isinstance(log, dict):
@@ -106,7 +114,7 @@ async def add_log(user: user, log, db: db):
         # It's a Log object
         food_id = log.food_id
         log_dict = log.model_dump()
-    
+
     # Validate that the food exists in MongoDB
     food = db.foods.find_one({"_id": food_id})
     if not food:
@@ -118,7 +126,7 @@ async def add_log(user: user, log, db: db):
         # set log ID to current logged in user
         log_dict["user_id"] = user["_id"]
         log_dict["_id"] = ObjectId()  # Ensure it is unique
-    
+
     db.logs.insert_one(log_dict)
     
 
@@ -173,8 +181,43 @@ def edit_log(user: user, db : db, update_info: LogEdit):
     # if updated_log:
     #   return Log(**updated_log)
     return None
-   
- 
+
+
+@router.post("/update-portion")
+async def update_portion(
+    user: user,
+    db: db,
+    log_id: str = Form(...),
+    portion: str = Form(...),
+    food_name: str = Form(...)
+):
+    """Update a log's portion and automatically recalculate grams"""
+    # Check if the log exists and belongs to the user
+    target_log = db.logs.find_one({"_id": ObjectId(log_id), "user_id": ObjectId(user["_id"])})
+
+    if not target_log:
+        raise HTTPException(status_code=404, detail="Log not found.")
+
+    # Convert the new portion to grams using GPT
+    amount_in_grams = await estimate_grams(food_name, portion)
+
+    # Update both portion and amount_in_grams
+    update_data = {
+        "portion": portion,
+        "amount_in_grams": amount_in_grams
+    }
+
+    # Perform the update operation
+    result = db.logs.update_one({"_id": target_log["_id"]}, {"$set": update_data})
+
+    if result.matched_count == 0:
+        raise HTTPException(status_code=500, detail="Something went wrong; log not updated.")
+
+    # Return the updated values
+    return {
+        "portion": portion,
+        "amount_in_grams": amount_in_grams
+    }
 
 
 @router.get("/day_intake")

@@ -7,25 +7,36 @@ import asyncio
 # Load environment variables
 load_dotenv()
 
-# Initialize Typesense client
-typesense_api_key = os.getenv("TYPESENSE_API_KEY")
-typesense_host = os.getenv("TYPESENSE_HOST", "localhost")
-typesense_port = os.getenv("TYPESENSE_PORT", "8108")
-typesense_protocol = os.getenv("TYPESENSE_PROTOCOL", "http")
+# Lazy Typesense client initialization
+_client = None
 
-client_config = {
-    'api_key': typesense_api_key,
-    'nodes': [
-        {
-            'host': typesense_host,
-            'port': typesense_port,
-            'protocol': typesense_protocol
+def _get_client():
+    """Get Typesense client, initializing if needed"""
+    global _client
+    if _client is None:
+        typesense_api_key = os.getenv("TYPESENSE_API_KEY")
+        typesense_host = os.getenv("TYPESENSE_HOST", "localhost")
+        typesense_port = os.getenv("TYPESENSE_PORT", "8108")
+        typesense_protocol = os.getenv("TYPESENSE_PROTOCOL", "http")
+
+        if not typesense_api_key:
+            # Return None if not configured - feature is optional
+            return None
+
+        client_config = {
+            'api_key': typesense_api_key,
+            'nodes': [
+                {
+                    'host': typesense_host,
+                    'port': typesense_port,
+                    'protocol': typesense_protocol
+                }
+            ],
+            'connection_timeout_seconds': 10
         }
-    ],
-    'connection_timeout_seconds': 10
-}
 
-client = typesense.Client(client_config)
+        _client = typesense.Client(client_config)
+    return _client
 
 async def search_nutrients_by_name(nutrient_name: str, threshold: float = 0.1, limit: int = 10) -> Dict[str, float]:
     """
@@ -50,6 +61,11 @@ async def search_nutrients_by_name(nutrient_name: str, threshold: float = 0.1, l
     }
     
     try:
+        # Get client
+        client = _get_client()
+        if client is None:
+            return {}  # Typesense not configured
+
         # Use run_in_executor to run the synchronous Typesense client in a separate thread
         loop = asyncio.get_event_loop()
         search_results = await loop.run_in_executor(

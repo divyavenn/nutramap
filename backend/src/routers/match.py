@@ -19,7 +19,7 @@ import asyncio
 
 # When running as a module within the application, use relative imports
 try:
-    from .parse import parse_meal_description
+    from .parse import parse_meal_description, estimate_grams
     from .sparse import get_sparse_index
     from .dense import find_dense_matches
     from .logs import add_log
@@ -210,19 +210,26 @@ async def process_logs(user, db, request, parsed_foods, timestamps):
     """Process logs in the background after initial response is sent"""
     try:
         async def process_ingredient(ingredient):
+            # Convert portion to grams using GPT
+            portion = ingredient.get('portion', '1 serving')
+            amount_in_grams = await estimate_grams(ingredient['food_name'], portion)
+
+            # Find matches
             sparse_results, dense_results = await get_matches(ingredient, db, user, request)
             matches = await rrf_fusion(sparse_results, dense_results)
+
             return {
                 "food_id": int(matches[0]),
-                "amount_in_grams": ingredient['amount_in_grams'],
+                "portion": portion,  # Store natural portion
+                "amount_in_grams": amount_in_grams,  # Store converted grams
                 "date": timestamps.get(ingredient['food_name']),
                 "user_id": user["_id"]
             }
 
         log_entries = await asyncio.gather(*[process_ingredient(ingredient) for ingredient in parsed_foods])
-        
+
         await asyncio.gather(*[add_log(user, log_entry, db) for log_entry in log_entries])
-        
+
         # print(f"Successfully processed {len(log_entries)} log entries in the background")
     except Exception as e:
         print(f"Error in background log processing: {e}")
