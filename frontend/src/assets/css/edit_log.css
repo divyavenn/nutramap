@@ -75,9 +75,8 @@ input, textarea {
 
 .edit-form-container {
   display: flex;
-  width: 100%;
   margin-bottom: 20px;
-  padding: 0;
+  border: solid 1px blue;
 }
 
 .edit-form-container.submitting {
@@ -149,10 +148,12 @@ input, textarea {
   display: flex;
   border-radius: 14px;
   width: var(--modal-width);
+  padding-top: 10px;
+  padding-bottom: 10px;
   flex-direction: row;
   align-items: start;
   color: var(--white);
-  justify-content: flex-start;
+  justify-content: space-between;
   transition: all 0.1s ease;
 }
 
@@ -186,7 +187,6 @@ input, textarea {
   flex-shrink: 0;
   display: flex; /* Use flexbox for alignment */
   align-items: center; /* Center vertically */
-  padding-top: 5px;
   padding-bottom: 5px;
 }
 
@@ -197,13 +197,7 @@ input, textarea {
 
 
 .edit-input-food-name {
-  padding-top: 12px;
-  padding-bottom: 12px;
-  padding-left: 27px;
-  padding-right: 10px;
-  width: var(--log-name-width);
   background: none;
-  border: 1px solid red;
   font-family: Inconsolata;
   color: inherit;
   outline: none;
@@ -224,14 +218,12 @@ input, textarea {
 /* ------------------------------------------AMOUNT-------------------------------------- */
 
 .edit-input-food-amt-wrapper {
-  padding-top: 10px;
   display: flex;
   border: 1px solid red;
   flex-direction: row;
   align-items: center;
   gap: 8px;
   position: relative;
-  margin-left: -70px;
   width: var(--log-portion-container-width);
 }
 
@@ -259,7 +251,6 @@ input, textarea {
   font-size: inherit;
   color: inherit;
   opacity: 0.8;
-  margin-top: 2px;
   border: 1px solid red;
   padding-left: 0px;
   text-align: left;
@@ -294,14 +285,13 @@ input, textarea {
 
 
 .edit-dateTime-container {
-  padding-top: 10px;
   flex-direction: row;
-  display: flex;
+  display: flex; /* Enables flexbox on the container */
   width: var(--log-date-width);
-  justify-content: flex-end;
-  align-items: center;
-  padding-right: 20px;
-  flex-shrink: 0;
+  justify-content: flex-end; /* Pushes content to the right side */
+  align-items: center; /* Vertically centers the button */
+  padding-right: 20px; /* Optional: padding */
+  flex-shrink: 0; /* Prevent shrinking */
 }
 
 .edit-input-date-wrapper {
@@ -408,18 +398,17 @@ input, textarea {
 
 .edit-log-submit-container {
   display: flex; /* Enables flexbox on the container */
+  width: 40px;
   justify-content: flex-end; /* Pushes content to the right side */
-  padding-top: 10px;
-  padding-left: 5px;
-  align-items: start; /* Vertically centers the button */
+  padding-top: 8px;
+  padding-left: 20px;
 
 }
 
 .edit-log-submit {
   background: none;
+  margin-left: 10px;
   cursor: pointer;
-  border: none;
-
   order: 1;
 }
 
@@ -460,9 +449,8 @@ input, textarea {
 
 .delete-log-button-container {
   display: flex; 
-  width: 30px;
-  margin-right: 5px;
-  padding-top: 12px;
+  width: 40px;
+  padding-top: 12px;;
   align-items: start; /* Vertically centers the button */
 }
 
