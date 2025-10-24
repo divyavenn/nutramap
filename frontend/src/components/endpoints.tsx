@@ -79,8 +79,16 @@ function getHeader(authorized : boolean = true, hasData : boolean = false, data_
 }
 
 function proxy(endpoint : string ) {
-  console.log((import.meta.env.VITE_API_URL) + endpoint)
-  return (import.meta.env.VITE_API_URL) + endpoint
+  const apiUrl = import.meta.env.VITE_API_URL;
+  console.log('Environment API URL:', apiUrl);
+  console.log('Full URL:', apiUrl + endpoint);
+
+  if (!apiUrl || apiUrl === 'undefined') {
+    console.error('VITE_API_URL is not defined! Falling back to relative path.');
+    return endpoint; // Fallback to relative path
+  }
+
+  return apiUrl + endpoint;
 }
 
 async function request(url : string, method : string = 'GET', data : any = null, data_type : 'JSON' | 'URLencode' = 'URLencode', authorized : boolean = true) {

@@ -65,7 +65,7 @@ try:
     from pathlib import Path
 
     # Create Modal app
-    modal_app = modal.App("nutramap-backend")
+    app = modal.App("nutramap-backend")
 
     # Get the directory containing this file
     backend_path = Path(__file__).parent
@@ -78,7 +78,7 @@ try:
     )
 
     # Load secrets from Modal
-    @modal_app.function(
+    @app.function(
         image=image,
         secrets=[modal.Secret.from_name("nutramap-secrets")],
         min_containers=1,
