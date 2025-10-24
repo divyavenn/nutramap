@@ -542,6 +542,23 @@ async def update_custom_food(
         print(f"Error updating food: {e}")
         raise HTTPException(status_code=500, detail=f"Error updating food: {str(e)}")
 
+@router.get("/all")
+async def get_all_foods(db: Annotated[Database, Depends(get_data)] = None):
+    """
+    Get all foods as a dictionary mapping food names to food IDs.
+    Used by frontend for autocomplete and caching.
+    """
+    try:
+        foods = {}
+        cursor = db.foods.find({}, {"_id": 1, "name": 1})
+        async for food in cursor:
+            foods[food["name"]] = food["_id"]
+        return foods
+    except Exception as e:
+        print(f"Error fetching all foods: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/custom_foods/{food_id}")
 async def get_custom_food(
     food_id: str,
@@ -550,12 +567,12 @@ async def get_custom_food(
 ):
     """
     Get a specific food by ID.
-    
+
     Args:
         food_id: ID of the food to get
         db: MongoDB database connection
         user: Current authenticated user
-        
+
     Returns:
         Food document
     """

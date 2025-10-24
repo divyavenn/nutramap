@@ -3,6 +3,7 @@ import {
   selector,
   useSetRecoilState,
   useRecoilValue,
+  useRecoilCallback,
 } from 'recoil';
 
 import { getCurrentPeriod } from './utlis';
@@ -10,6 +11,27 @@ import { LogProps, RangeType, TimePeriod, NutrientStatsProps} from './structures
 import { request } from './endpoints';
 import { tolocalDateString } from './utlis';
 import { nutrientDetailsByIDAtom } from './account_states';
+
+// Shallow comparison helper for arrays
+function arraysEqual<T>(a: T[], b: T[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((val, idx) => {
+    if (typeof val === 'object' && val !== null && typeof b[idx] === 'object' && b[idx] !== null) {
+      return shallowEqual(val as Record<string, any>, b[idx] as Record<string, any>);
+    }
+    return val === b[idx];
+  });
+}
+
+// Shallow comparison helper for objects
+function shallowEqual(obj1: Record<string, any>, obj2: Record<string, any>): boolean {
+  const keys1 = Object.keys(obj1);
+  const keys2 = Object.keys(obj2);
+
+  if (keys1.length !== keys2.length) return false;
+
+  return keys1.every(key => obj1[key] === obj2[key]);
+}
 
 // Define a type for pending foods with timestamps
 export interface PendingFood {
@@ -45,47 +67,67 @@ const hoveredLogAtom = atom<string[] | null>({
 })
 
 function useRefreshData(){
-  let dateRange = useRecoilValue(dateRangeAtom)
-  let setLogs = useSetRecoilState(logsAtom)
-  let setRequirements = useSetRecoilState(requirementsAtom)
+  const refreshData = useRecoilCallback(({snapshot, set}) => async () => {
+    // Get current values without triggering re-render
+    const dateRange = await snapshot.getPromise(dateRangeAtom);
+    const currentLogs = await snapshot.getPromise(logsAtom);
+    const currentRequirements = await snapshot.getPromise(requirementsAtom);
 
-  const refreshData = async () => {
     const [logData, requirementsData] = await Promise.all([
-      request('/logs/get?startDate=' 
+      request('/logs/get?startDate='
         + tolocalDateString(dateRange.start)
-        + '&endDate=' 
+        + '&endDate='
         + tolocalDateString(dateRange.end) + ''),
       request('/requirements/all')
     ]);
-    setLogs(logData.body)
-    setRequirements(requirementsData.body);
-  }
-  return refreshData
+
+    // Only update if data has actually changed
+    if (!arraysEqual(currentLogs, logData.body)) {
+      set(logsAtom, logData.body);
+    }
+
+    if (!shallowEqual(currentRequirements, requirementsData.body)) {
+      set(requirementsAtom, requirementsData.body);
+    }
+  }, []);
+
+  return refreshData;
 }
 
 function useRefreshLogs() {
-  let dateRange = useRecoilValue(dateRangeAtom)
-  let setLogs = useSetRecoilState(logsAtom)
+  const refreshLogs = useRecoilCallback(({snapshot, set}) => async () => {
+    // Get current values without triggering re-render
+    const dateRange = await snapshot.getPromise(dateRangeAtom);
+    const currentLogs = await snapshot.getPromise(logsAtom);
 
-  const refreshLogs = async () => {
-    // console.log("refreshing logs")
-    let data = await request('/logs/get?startDate=' 
-    + tolocalDateString(dateRange.start)
-    + '&endDate=' 
-    + tolocalDateString(dateRange.end) + '');
-    // console.log('logs' + data.body)
-    setLogs(data.body)
-  }
-  return refreshLogs
+    const data = await request('/logs/get?startDate='
+      + tolocalDateString(dateRange.start)
+      + '&endDate='
+      + tolocalDateString(dateRange.end) + '');
+
+    // Only update if data has actually changed
+    if (!arraysEqual(currentLogs, data.body)) {
+      set(logsAtom, data.body);
+    }
+  }, []);
+
+  return refreshLogs;
 }
 
 function useRefreshRequirements() {
-  let setRequirements = useSetRecoilState(requirementsAtom)
-  const refreshRequirements = async () => {
-    let data = await request('/requirements/all');
-    setRequirements(data.body);
-  }
-  return refreshRequirements
+  const refreshRequirements = useRecoilCallback(({snapshot, set}) => async () => {
+    // Get current values without triggering re-render
+    const currentRequirements = await snapshot.getPromise(requirementsAtom);
+
+    const data = await request('/requirements/all');
+
+    // Only update if data has actually changed
+    if (!shallowEqual(currentRequirements, data.body)) {
+      set(requirementsAtom, data.body);
+    }
+  }, []);
+
+  return refreshRequirements;
 }
 
 const rangeTypeAtom = atom<RangeType>({

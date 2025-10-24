@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+deploy-modal.sh
+
 # C extensions
 *.so
 
@@ -162,3 +164,5 @@ cython_debug/
 #.idea/
 
 burnished-fold-443107-p1-2e8e47dad2d4.json
+
+backend/deploy-modal.sh

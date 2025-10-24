@@ -235,9 +235,11 @@
 .delete-button {
   display: block;
   clear: none;
-  background: none;
+  background: transparent;
+  border: none;
   font-size: 10px;
   text-align: center;
+  cursor: pointer;
 }
 
 .delete-button svg {
