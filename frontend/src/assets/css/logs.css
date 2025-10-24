@@ -169,3 +169,119 @@
   font-weight: 300; 
   font-style: italic;
 }
+
+/* Recipe log entry styles */
+.recipe-log-entry {
+  margin-bottom: 20px;
+}
+
+.recipe-log-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  padding-left: 27px;
+  padding-right: 20px;
+  width: var(--modal-width);
+  font-family: Inconsolata;
+  border-radius: 14px;
+  background-color: rgba(100, 50, 150, 0.35); /* Different purple shade from regular logs */
+  color: var(--white);
+  justify-content: flex-start;
+  transition: all 0.1s ease;
+  box-sizing: border-box;
+  align-self: center;
+}
+
+.recipe-log-header:hover {
+  background-color: rgba(120, 70, 170, 0.45);
+  transform: scale(1.01);
+}
+
+.recipe-log-name {
+  font-family: 'Ubuntu', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.95);
+  flex-shrink: 0;
+}
+
+.recipe-log-name.clickable {
+  color: rgba(200, 150, 255, 1);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.recipe-log-name.clickable:hover {
+  color: rgba(220, 180, 255, 1);
+  text-decoration: underline;
+}
+
+.recipe-log-servings {
+  font-family: 'Inconsolata', monospace;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  font-style: italic;
+  flex-shrink: 0;
+}
+
+.recipe-log-time {
+  font-family: 'Inconsolata', monospace;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.component-log {
+  margin-left: 20px;
+  margin-bottom: 6px;
+}
+
+/* Edit form styles for recipe logs */
+.recipe-name-display {
+  font-family: 'Ubuntu', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.95);
+  padding-left: 27px;
+  padding-right: 10px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.recipe-servings-space {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.edit-input-servings {
+  width: 50px;
+  font-family: 'Inconsolata', monospace;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: white;
+  padding: 4px 8px;
+  text-align: center;
+}
+
+.edit-input-servings:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.servings-label {
+  font-family: 'Inconsolata', monospace;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  font-style: italic;
+}

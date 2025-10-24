@@ -17,7 +17,7 @@ from src.routers.auth import get_current_user
 from src.routers.parse import estimate_grams
 from src.routers.logs import add_log
 from src.routers.match import get_matches, rrf_fusion
-from src.routers.parallel import parallel_process
+from src.routers.foods import get_food_name
 
 __package__ = "nutramap.routers"
 
@@ -100,6 +100,7 @@ async def find_similar_recipes(
 async def match_ingredient_to_food_id(ingredient_name: str, db: Database, user: dict) -> Optional[int]:
     """Match ingredient name to food_id using hybrid vector search (sparse + dense + RRF)"""
     try:
+        print(f"Matching ingredient: '{ingredient_name}'")
         # Use the hybrid search from match.py
         sparse_results, dense_results = await get_matches(
             {"food_name": ingredient_name},
@@ -109,15 +110,24 @@ async def match_ingredient_to_food_id(ingredient_name: str, db: Database, user: 
             k=30
         )
 
+        print(f"  Sparse results: {len(sparse_results)} matches")
+        print(f"  Dense results: {len(dense_results)} matches")
+
         # Get the top match using RRF
         matches = await rrf_fusion(sparse_results, dense_results, k=30, n=1)
 
         if matches and len(matches) > 0:
-            return int(matches[0])
+            matched_food_id = int(matches[0])
+            matched_food_name = get_food_name(matched_food_id, db, None)
+            print(f"  ✓ Matched to: {matched_food_name} (ID: {matched_food_id})")
+            return matched_food_id
 
+        print(f"  ✗ No match found for '{ingredient_name}'")
         return None
     except Exception as e:
         print(f"Error matching ingredient '{ingredient_name}': {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 
@@ -318,9 +328,10 @@ async def parse_meal(
                 )
 
                 if existing_recipe:
-                    # Use existing recipe's ingredients
+                    # Use existing recipe's ingredients (no need to run RRF again!)
                     ingredients_to_log = existing_recipe["ingredients"]
                     matched_existing = True
+                    print(f"✓ Using cached recipe '{description}' with {len(ingredients_to_log)} ingredients")
                 else:
                     # Recipe ID not found, treat as new
                     recipe_id = None
@@ -334,6 +345,7 @@ async def parse_meal(
 
                 # If no ingredients provided, generate them
                 if not ingredients_to_log:
+                    print(f"→ New recipe '{description}' - running ingredient matching...")
                     parsed_ingredients = await parse_recipe_into_ingredients(description)
                     ingredients_to_log = []
 
@@ -341,8 +353,11 @@ async def parse_meal(
                         food_id = await match_ingredient_to_food_id(ing["food_name"], db, user)
                         if food_id:
                             weight = await estimate_grams(ing["food_name"], ing["amount"])
+                            # Get the actual food name from the database for the matched food_id
+                            matched_food_name = get_food_name(food_id, db, None)
                             ingredients_to_log.append({
                                 "food_id": food_id,
+                                "food_name": matched_food_name,
                                 "amount": ing["amount"],
                                 "weight_in_grams": weight
                             })
@@ -366,12 +381,12 @@ async def parse_meal(
                     {"$push": {"recipes": new_recipe}}
                 )
 
-            # Create logs for all ingredients
-            created_logs = []
-            print(f"Creating logs for recipe '{description}' with {len(ingredients_to_log)} ingredients")
+            # Create a single log entry with all ingredients as components
+            print(f"Creating log for recipe '{description}' with {len(ingredients_to_log)} ingredients")
 
-            # Match all food_ids in parallel
-            async def match_and_create_log(ingredient, db, user, meal_date, recipe_id, servings):
+            # Prepare components with actual amounts based on servings
+            components = []
+            for ingredient in ingredients_to_log:
                 # Match food_id if not already present
                 food_id = ingredient.get("food_id")
                 if not food_id and "food_name" in ingredient:
@@ -380,47 +395,42 @@ async def parse_meal(
                 if food_id:
                     # Calculate actual amount based on servings
                     actual_weight = ingredient["weight_in_grams"] * servings
-
-                    log_dict = {
-                        "food_id": food_id,
-                        "amount": ingredient["amount"],
-                        "weight_in_grams": actual_weight,
-                        "date": meal_date,
-                        "recipe_id": recipe_id,
-                        "recipe_servings": servings,
-                        "user_id": user["_id"],
-                        "_id": ObjectId()
-                    }
-
-                    print(f"Creating log: food_id={food_id}, amount={ingredient['amount']}, weight={actual_weight}")
-                    await add_log(user, log_dict, db)
-                    return {
+                    components.append({
                         "food_id": food_id,
                         "amount": ingredient["amount"],
                         "weight_in_grams": actual_weight
-                    }
+                    })
+                    print(f"  Component: food_id={food_id}, amount={ingredient['amount']}, weight={actual_weight}")
                 else:
-                    print(f"Skipping ingredient (no food_id found): {ingredient}")
-                    return None
+                    print(f"  Skipping ingredient (no food_id found): {ingredient}")
 
-            # Process all ingredients in parallel using parallel_process
-            results = await parallel_process(ingredients_to_log, match_and_create_log, [db, user, meal_date, recipe_id, servings])
+            # Only create log if we have at least one valid component
+            if components:
+                log_dict = {
+                    "recipe_id": recipe_id if matched_existing else None,
+                    "recipe_name": description,
+                    "servings": servings,
+                    "date": meal_date,
+                    "components": components,
+                    "user_id": user["_id"],
+                    "_id": ObjectId()
+                }
 
-            # Filter out None results (skipped ingredients)
-            created_logs = [log for log in results if log is not None]
+                print(f"Creating log: {len(components)} components, {servings} servings")
+                await add_log(user, log_dict, db)
 
             result_recipes.append({
                 "recipe_id": recipe_id,
                 "description": description,
                 "matched_existing": matched_existing,
                 "recipe_servings": servings,
-                "ingredients": created_logs
+                "components": components
             })
 
         response_data = {
             "status": "success",
             "recipes": result_recipes,
-            "created_logs_count": sum(len(r["ingredients"]) for r in result_recipes),
+            "created_logs_count": len(result_recipes),  # Now one log per recipe
             "new_recipes_count": sum(1 for r in result_recipes if not r["matched_existing"])
         }
         print(f"=== parse_meal completed successfully ===")
@@ -431,6 +441,55 @@ async def parse_meal(
         import traceback
         print(f"Error in parse_meal: {e}")
         print(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/migrate-food-names")
+async def migrate_recipe_food_names(user: user, db: db):
+    """
+    Migration endpoint to add food_name to existing recipe ingredients
+    that only have food_id
+    """
+    try:
+        user_doc = db.users.find_one({"_id": user["_id"]})
+        if not user_doc or "recipes" not in user_doc:
+            return {"status": "no_recipes", "message": "No recipes found"}
+
+        recipes = user_doc.get("recipes", [])
+        updated_count = 0
+
+        for recipe in recipes:
+            updated_ingredients = []
+            needs_update = False
+
+            for ingredient in recipe.get("ingredients", []):
+                # Check if food_name is missing
+                if "food_id" in ingredient and "food_name" not in ingredient:
+                    needs_update = True
+                    food_name = get_food_name(ingredient["food_id"], db, None)
+                    updated_ingredients.append({
+                        **ingredient,
+                        "food_name": food_name
+                    })
+                else:
+                    updated_ingredients.append(ingredient)
+
+            # Update the recipe if needed
+            if needs_update:
+                db.users.update_one(
+                    {"_id": user["_id"], "recipes.recipe_id": recipe["recipe_id"]},
+                    {"$set": {"recipes.$.ingredients": updated_ingredients}}
+                )
+                updated_count += 1
+
+        return {
+            "status": "success",
+            "updated_recipes": updated_count,
+            "total_recipes": len(recipes)
+        }
+
+    except Exception as e:
+        print(f"Error migrating recipe food names: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

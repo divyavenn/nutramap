@@ -13,25 +13,24 @@ import '../assets/css/edit_log.css'
 import { useRefreshLogs } from './dashboard_states';
 import { foodsAtom } from './account_states';
 
-interface LogProps {
-  food_name: string;
+interface RecipeProps {
+  recipe_name: string;
   date: Date;
-  amount?: string;
-  weight_in_grams: number;
+  servings: number;
   _id: string;
+  onCancel: () => void;
   onAnimationStart?: () => void;
   onAnimationEnd?: () => void;
 }
 
-function EditLogForm({food_name, date, amount, weight_in_grams, _id, onAnimationStart, onAnimationEnd} : LogProps){
+function RecipeEdit({recipe_name, date, servings, _id, onCancel, onAnimationStart, onAnimationEnd} : RecipeProps){
 
   // Mock food data for autocomplete
   const foodList = useRecoilValue(foodsAtom)
   const [deleted, setDeleted] = useState(false)
   const [formData, setFormData] = useState({
-    food_name : food_name,
-    amount: amount || `${weight_in_grams}g`,
-    weight_in_grams : String(weight_in_grams),
+    recipe_name : recipe_name,
+    servings: String(servings),
     date : date,
   })
   const [isSubmitting, setIsSubmitting] = useState(false); // Track submission animation state
@@ -55,7 +54,7 @@ function EditLogForm({food_name, date, amount, weight_in_grams, _id, onAnimation
       textareaRef.current.style.height = 'auto';
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
-  }, [formData.food_name]);
+  }, [formData.recipe_name]);
 
   // Reset selected suggestion index when suggestions change
   useEffect(() => {
@@ -125,7 +124,7 @@ useEffect(() => {
     
     if (e.key === 'Enter' && e.shiftKey) {
       e.preventDefault();
-      handleAdvancedSearch(formData.food_name);
+      handleAdvancedSearch(formData.recipe_name);
       return;
     }
     
@@ -283,7 +282,7 @@ useEffect(() => {
     // Update the formData with the selected suggestion
     setFormData({
       ...formData,
-      food_name: suggestion,
+      recipe_name: suggestion,
     });
     setShowSuggestions(false); // Hide suggestions after selection
   };
@@ -302,22 +301,14 @@ useEffect(() => {
 
     // Add a delay to show the animation before submitting
     setTimeout(async () => {
-      // Create form data for portion update
+      // Create form data for recipe log update
       const formDataObj = new FormData();
       formDataObj.append('log_id', _id);
-      formDataObj.append('amount', formData.amount);
-      formDataObj.append('food_name', formData.food_name);
+      formDataObj.append('servings', formData.servings);
+      formDataObj.append('date', formData.date.toISOString());
 
-      // Call update-portion endpoint which will recalculate grams
-      const response = await request('/logs/update-portion', 'POST', formDataObj);
-
-      // If successful, update the grams in local state
-      if (response.status === 200 && response.body) {
-        setFormData(prev => ({
-          ...prev,
-          weight_in_grams: String(response.body.weight_in_grams)
-        }));
-      }
+      // Call edit-recipe-log endpoint
+      await request('/logs/edit-recipe-log', 'POST', formDataObj);
 
       refreshLogs();
 
@@ -329,6 +320,7 @@ useEffect(() => {
         if (onAnimationEnd) {
           onAnimationEnd();
         }
+        onCancel();
       }, 500);
     }, 800); // Delay before actual submission
   }
@@ -351,7 +343,7 @@ useEffect(() => {
       console.log("Log deleted successfully");
       setDeleted(true)
       refreshLogs()
-      setFormData({ ...formData, food_name: '', weight_in_grams : ''})
+      setFormData({ ...formData, recipe_name: ''})
       
       // Reset the deletion state (though it won't be visible anymore)
       setIsDeleting(false);
@@ -397,7 +389,7 @@ useEffect(() => {
                 name='food_name'
                 className='edit-input-food-name textarea-auto-height'
                 placeholder='food'
-                value={formData.food_name}
+                value={formData.recipe_name}
                 onChange={handleTyping}
                 onKeyDown={handleTextareaKeyDown}
                 required
@@ -410,19 +402,11 @@ useEffect(() => {
                 className='edit-input-portion'
                 type='text'
                 placeholder='1 cup'
-                value={formData.amount}
+                value={formData.servings}
                 onChange={handleTyping}
                 onKeyDown={handleKeyDown}
                 required
               ></input>
-            </div>
-
-            <div className='food-weight-space'>
-              {formData.weight_in_grams && (
-                <div className="edit-grams-display">
-                  {Math.round(Number(formData.weight_in_grams))}g
-                </div>
-              )}
             </div>
 
             <div className='food-date-space'>
@@ -497,7 +481,7 @@ useEffect(() => {
           <HoverButton
                   type="submit"
                   className={`edit-log-submit ${isSubmitting ? 'confirming' : ''}`}
-                  disabled={!formData.food_name || !formData.amount || !validInput || isSubmitting}
+                  disabled={!formData.recipe_name || !formData.servings || !validInput || isSubmitting}
                   childrenOn={<YesOk/>}
                   childrenOff={<IsOk/>}>
           </HoverButton>
@@ -512,4 +496,4 @@ useEffect(() => {
 
 }
 
-export {EditLogForm}
+export {RecipeEdit}

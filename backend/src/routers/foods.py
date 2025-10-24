@@ -103,6 +103,7 @@ async def consolidate_amounts_async(db, user_id, start_date: datetime, end_date:
     return final_tally
 
 def get_total_nutrients(db, user_id: str, start_date: datetime, end_date: datetime, nutrient_ids: list):
+    # Updated pipeline to handle new log structure with components array
     pipeline = [
         {
             "$match": {
@@ -113,10 +114,12 @@ def get_total_nutrients(db, user_id: str, start_date: datetime, end_date: dateti
                 }
             }
         },
+        # Unwind the components array to process each food item
+        { "$unwind": "$components" },
         {
             "$lookup": {
                 "from": "foods",
-                "localField": "food_id",
+                "localField": "components.food_id",
                 "foreignField": "_id",
                 "as": "food"
             }
@@ -134,7 +137,7 @@ def get_total_nutrients(db, user_id: str, start_date: datetime, end_date: dateti
                 "scaled_amt": {
                     "$multiply": [
                         "$food.nutrients.amt",
-                        { "$divide": ["$weight_in_grams", 100] }
+                        { "$divide": ["$components.weight_in_grams", 100] }
                     ]
                 }
             }
@@ -149,17 +152,17 @@ def get_total_nutrients(db, user_id: str, start_date: datetime, end_date: dateti
 
     # Get the aggregation results
     results = list(db.logs.aggregate(pipeline))
-    
+
     # Convert from list of dictionaries to a single dictionary
     tally = {}
     for result in results:
         tally[result["_id"]] = result["total"]
-    
+
     # Initialize any missing nutrients to 0
     for nutrient_id in nutrient_ids:
         if nutrient_id not in tally:
             tally[nutrient_id] = 0
-            
+
     return tally
 
 @router.get("/panel", response_model=None)
@@ -168,19 +171,49 @@ async def get_nutrient_panel(log_id: str, db: Annotated[Database, Depends(get_da
     if not log:
         return {}
 
-    food = db.foods.find_one({"_id": log["food_id"]}, {"nutrients": 1, "_id": 0})
-    if not food or "nutrients" not in food:
-        return {}
+    # Handle new log structure with components array
+    if "components" in log and isinstance(log["components"], list):
+        result = {}
 
-    proration_factor = log["weight_in_grams"] / 100  # Assuming nutrients are per 100g
-    result = {}
+        # Aggregate nutrients from all components
+        for component in log["components"]:
+            food_id = component.get("food_id")
+            weight_in_grams = component.get("weight_in_grams", 0)
 
-    for nutrient in food["nutrients"]:
-        prorated_amount = nutrient["amt"] * proration_factor
-        if prorated_amount > 0:
-            result[nutrient["nutrient_id"]] = prorated_amount
+            if not food_id:
+                continue
 
-    return result
+            food = db.foods.find_one({"_id": food_id}, {"nutrients": 1, "_id": 0})
+            if not food or "nutrients" not in food:
+                continue
+
+            proration_factor = weight_in_grams / 100  # Assuming nutrients are per 100g
+
+            for nutrient in food["nutrients"]:
+                prorated_amount = nutrient["amt"] * proration_factor
+                if prorated_amount > 0:
+                    nutrient_id = nutrient["nutrient_id"]
+                    result[nutrient_id] = result.get(nutrient_id, 0) + prorated_amount
+
+        return result
+
+    # Fallback for old log structure (backward compatibility)
+    elif "food_id" in log:
+        food = db.foods.find_one({"_id": log["food_id"]}, {"nutrients": 1, "_id": 0})
+        if not food or "nutrients" not in food:
+            return {}
+
+        proration_factor = log.get("weight_in_grams", 0) / 100  # Assuming nutrients are per 100g
+        result = {}
+
+        for nutrient in food["nutrients"]:
+            prorated_amount = nutrient["amt"] * proration_factor
+            if prorated_amount > 0:
+                result[nutrient["nutrient_id"]] = prorated_amount
+
+        return result
+
+    return {}
 
 def get_nutrient_details(db, nutrient_id: int):
     """

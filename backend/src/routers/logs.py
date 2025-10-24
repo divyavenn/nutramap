@@ -57,31 +57,30 @@ def get_logs_in_range(user, startDate : datetime, endDate: datetime, user_db):
     logs = user_db.logs.find(query)
     return logs
 
-# outpuwqt form:
-# food_name: string
-# date: Optional[datetime]
-# weight_in_grams: float
-# recipe_description: Optional[string] (if log is part of a recipe)
+# output form:
+# New structure: logs with components
+# Each log has: recipe_name, servings, date, components[]
+# Each component has: food_id, food_name, amount, weight_in_grams
 def make_log_readable(logs, db, request: Request = None):
     for log in logs:
-        # Replace food_id with food_name
         log = serialize_document(log)
-        log["food_name"] = str(get_food_name(log["food_id"], db, request)).strip("(')',")
-        log.pop("food_id")  # Remove the food_id key
 
-        # Add recipe description if this log is part of a recipe
+        # Add food names to each component
+        if "components" in log:
+            for component in log["components"]:
+                component["food_name"] = str(get_food_name(component["food_id"], db, request)).strip("(')',")
+
+        # Check if recipe still exists (if recipe_id is present)
         if log.get("recipe_id"):
-            # Find the recipe description from the user's recipes
             user_doc = db.users.find_one(
                 {"recipes.recipe_id": log["recipe_id"]},
                 {"recipes.$": 1}
             )
-            if user_doc and "recipes" in user_doc and len(user_doc["recipes"]) > 0:
-                log["recipe_description"] = user_doc["recipes"][0].get("description", "Unknown Recipe")
-            else:
-                log["recipe_description"] = "Unknown Recipe"
+            log["recipe_exists"] = bool(user_doc and "recipes" in user_doc and len(user_doc["recipes"]) > 0)
+        else:
+            log["recipe_exists"] = False
 
-        log.pop("user_id")
+        log.pop("user_id", None)
     return logs 
               
 def count_unique_days(logs: List[Log]) -> int:
@@ -135,16 +134,24 @@ async def add_log(user: user, log, db: db):
     print(log)
     if isinstance(log, dict):
         log_dict = log
-        food_id = log_dict.get("food_id")
     else:
         # It's a Log object
-        food_id = log.food_id
         log_dict = log.model_dump()
 
-    # Validate that the food exists in MongoDB
-    food = db.foods.find_one({"_id": food_id})
-    if not food:
-        raise HTTPException(status_code=404, detail="Food not found")
+    # Validate that all component foods exist in MongoDB (new format)
+    if "components" in log_dict and isinstance(log_dict["components"], list):
+        for component in log_dict["components"]:
+            food_id = component.get("food_id")
+            if food_id:
+                food = db.foods.find_one({"_id": food_id})
+                if not food:
+                    raise HTTPException(status_code=404, detail=f"Food not found: {food_id}")
+    # Old format validation (for backward compatibility with /logs/new endpoint)
+    elif "food_id" in log_dict:
+        food_id = log_dict.get("food_id")
+        food = db.foods.find_one({"_id": food_id})
+        if not food:
+            raise HTTPException(status_code=404, detail="Food not found")
 
     # Insert log into MongoDB
     # If it's already a dict, use it directly
@@ -320,6 +327,77 @@ async def parse_meal(user: user, db: db, meal_description: str = Form(...)):
             logs.append(result)
             
         return {"status": "success", "logs": logs}
-        
+
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/delete-old-logs")
+def delete_old_logs(user: user, db: db):
+    """
+    Delete all old-format logs that don't have a 'components' field.
+    """
+    # Delete all logs that don't have a 'components' field (old format)
+    result = db.logs.delete_many({
+        "user_id": user["_id"],
+        "components": {"$exists": False}
+    })
+
+    return {
+        "status": "success",
+        "deleted_count": result.deleted_count,
+        "message": f"Deleted {result.deleted_count} old logs"
+    }
+
+
+@router.post("/edit-recipe-log")
+def edit_recipe_log(
+    user: user,
+    db: db,
+    log_id: str = Form(...),
+    servings: float = Form(...),
+    date: str = Form(...)
+):
+    """
+    Edit a recipe log's servings, date, and time.
+    Updates the components' weights proportionally based on new servings.
+    """
+    # Check if the log exists and belongs to the user
+    target_log = db.logs.find_one({"_id": ObjectId(log_id), "user_id": ObjectId(user["_id"])})
+
+    if not target_log:
+        raise HTTPException(status_code=404, detail="Log not found.")
+
+    # Parse the date string
+    try:
+        date_str = date.replace('Z', '+00:00')
+        new_date = datetime.fromisoformat(date_str)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format")
+
+    # Calculate the ratio of new servings to old servings
+    old_servings = target_log.get("servings", 1.0)
+    servings_ratio = servings / old_servings if old_servings > 0 else 1.0
+
+    # Update component weights proportionally
+    updated_components = []
+    if "components" in target_log:
+        for component in target_log["components"]:
+            updated_component = component.copy()
+            # Scale the weight based on servings ratio
+            updated_component["weight_in_grams"] = component["weight_in_grams"] * servings_ratio
+            updated_components.append(updated_component)
+
+    # Update the log
+    update_data = {
+        "servings": servings,
+        "date": new_date,
+        "components": updated_components
+    }
+
+    result = db.logs.update_one({"_id": target_log["_id"]}, {"$set": update_data})
+
+    if result.matched_count == 0:
+        raise HTTPException(status_code=500, detail="Something went wrong; log not updated.")
+
+    return {"status": "success", "message": "Recipe log updated successfully"}

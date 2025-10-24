@@ -452,7 +452,7 @@ input, textarea {
   transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
-.delete-button {
+.delete-log-button-container .delete-button {
   display: block;
   clear: none;
   background: none;
@@ -460,11 +460,11 @@ input, textarea {
   text-align: center;
 }
 
-.delete-button svg {
-  fill: #ffffff77; /* You can change the SVG color here */ 
+.delete-log-button-container .delete-button svg {
+  fill: #ffffff77; /* You can change the SVG color here */
   height: 20px;
 }
 
-.delete-button:hover svg {
+.delete-log-button-container .delete-button:hover svg {
   fill: #ffffff; /* Change the color on hover */
 }

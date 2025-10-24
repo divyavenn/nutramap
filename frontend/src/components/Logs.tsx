@@ -4,20 +4,24 @@ import 'react-date-range/dist/theme/default.css';
 
 import {useState, useRef, useEffect} from 'react'
 import { EditLogForm } from './EditLogForm';
+import { RecipeEdit } from './RecipeEdit';
+import { RecipeDisplay } from './RecipeDisplay';
 import { formatTime } from './utlis';
-import { LogProps, DisplayLogProps } from './structures';
+import { LogProps, DisplayLogProps, LogComponent } from './structures';
 import {useRecoilValue, useSetRecoilState, useRecoilState} from 'recoil'
 import { logsAtom, currentDayAtom, hoveredLogAtom, useRefreshLogs, pendingFoodsAtom, PendingFood } from './dashboard_states';
 import { motion } from 'framer-motion';
 import { RecipeDivider } from './RecipeDivider';
 
 function LogList (){
-  const logs = useRecoilValue(logsAtom) 
+  const logs = useRecoilValue(logsAtom)
   const pendingFoods = useRecoilValue(pendingFoodsAtom)
   // Track which log is being hovered
   const [hoveredLog, setHoveredLog] = useRecoilState(hoveredLogAtom);
   // Track if an animation is currently playing
   const [animationLock, setAnimationLock] = useState(false);
+  // Track which recipe log is being edited
+  const [editingLogId, setEditingLogId] = useState<string | null>(null);
 
   
   if (logs.length === 0 && pendingFoods.length === 0) {
@@ -52,48 +56,13 @@ function LogList (){
     .sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime());
 
   
-  const formatLogDescription = (foodName: string, weightInGrams: number): string => {
-    const truncatedName = foodName.split(',')[0].trim();
-    return `${Math.round(weightInGrams)} g of ${truncatedName}`;
-  };
-
-  // Group logs by recipe_id
-  interface RecipeGroup {
-    recipeId: string | null;
-    recipeDescription?: string;
-    logs: LogProps[];
-  }
-
-  const groupLogsByRecipe = (logs: LogProps[]): RecipeGroup[] => {
-    const groups = new Map<string | null, RecipeGroup>();
-
-    logs.forEach(log => {
-      const key = log.recipe_id || null;
-
-      if (!groups.has(key)) {
-        groups.set(key, {
-          recipeId: key,
-          recipeDescription: log.recipe_description,
-          logs: []
-        });
-      }
-
-      groups.get(key)!.logs.push(log);
-    });
-
-    // Convert to array - recipes first, then standalone logs
-    const recipeGroups: RecipeGroup[] = [];
-    const standaloneGroup: RecipeGroup[] = [];
-
-    groups.forEach((group, key) => {
-      if (key === null) {
-        standaloneGroup.push(group);
-      } else {
-        recipeGroups.push(group);
-      }
-    });
-
-    return [...recipeGroups, ...standaloneGroup];
+  const formatLogDescription = (components: LogComponent[]): string => {
+    if (components.length === 0) return 'No components';
+    if (components.length === 1) {
+      const comp = components[0];
+      return `${Math.round(comp.weight_in_grams)} g of ${comp.food_name.split(',')[0]}`;
+    }
+    return `${components.length} components`;
   };
 
   // Handle mouse enter for a specific log - immediate response
@@ -129,9 +98,6 @@ function LogList (){
         const sortedLogs = [...dateLogs].sort((a, b) =>
           new Date(b.date).getTime() - new Date(a.date).getTime()
         );
-
-        // Group logs by recipe
-        const recipeGroups = groupLogsByRecipe(sortedLogs);
 
         return (
           <div key={dateKey} className="logs-wrapper">
@@ -169,51 +135,60 @@ function LogList (){
               </div>
             ))}
 
-            {/* Render recipe groups */}
-            {recipeGroups.map((group, groupIndex) => (
-              <div key={group.recipeId || `standalone-${groupIndex}`}>
-                {/* Show recipe divider only for actual recipes (not standalone logs) */}
-                {group.recipeId && group.recipeDescription && (
-                  <RecipeDivider
-                    recipeDescription={group.recipeDescription}
-                    recipeId={group.recipeId}
-                    onClick={() => {
-                      // TODO: Open recipe detail modal
-                      console.log('Open recipe:', group.recipeId);
-                    }}
-                  />
-                )}
+            {/* Render each log (each log is a recipe/meal entry) */}
+            {sortedLogs.map((log) => {
+              // Skip logs without components array (old format)
+              if (!log.components || !Array.isArray(log.components)) {
+                return null;
+              }
 
-                {/* Render logs in this recipe group */}
-                {group.logs.map((log) => (
-                  <div
-                    key={log._id}
-                    className="log-wrapper"
-                    onMouseEnter={() => handleLogMouseEnter(log._id, formatLogDescription(log.food_name, log.weight_in_grams))}
-                    onMouseLeave={handleLogMouseLeave}
-                  >
-                    {hoveredLog && hoveredLog[0] === log._id ? (
-                      <EditLogForm
-                        food_name={log.food_name}
+              const isEditing = editingLogId === log._id;
+
+              return (
+                <div key={log._id} className="recipe-log-entry">
+                  {/* Recipe header - show edit form if editing, otherwise show normal header */}
+                  {isEditing ? (
+                    <div className="log-wrapper">
+                      <RecipeEdit
+                        recipe_name={log.recipe_name}
+                        servings={log.servings}
                         date={new Date(log.date)}
-                        amount={log.amount}
-                        weight_in_grams={log.weight_in_grams}
                         _id={log._id}
+                        onCancel={() => setEditingLogId(null)}
                         onAnimationStart={handleAnimationStart}
                         onAnimationEnd={handleAnimationEnd}
                       />
-                    ) : (
+                    </div>
+                  ) : (
+                    <RecipeDisplay
+                      recipe_name={log.recipe_name}
+                      servings={log.servings}
+                      date={new Date(log.date)}
+                      recipe_id={log.recipe_id}
+                      recipe_exists={log.recipe_exists}
+                      onClick={() => setEditingLogId(log._id)}
+                    />
+                  )}
+
+                  {/* Render each component (only show when not editing) */}
+                  {!isEditing && log.components.map((component, idx) => (
+                    <div
+                      key={`${log._id}-${idx}`}
+                      className="log-wrapper component-log"
+                      onMouseEnter={() => handleLogMouseEnter(`${log._id}-${idx}`, formatLogDescription([component]))}
+                      onMouseLeave={handleLogMouseLeave}
+                    >
                       <DisplayLog
-                        food_name={log.food_name}
+                        food_name={component.food_name}
                         date={new Date(log.date)}
-                        amount={log.amount}
-                        weight_in_grams={log.weight_in_grams}
+                        amount={component.amount}
+                        weight_in_grams={component.weight_in_grams}
                       />
-                    )}
-                  </div>
-                ))}
-              </div>
-            ))}
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
           </div>
         );
       })}

@@ -6,24 +6,32 @@ from bson import ObjectId
 
 __package__ = "nutramap.databases"
 
-class LogCreate(BaseModel):
+class LogComponent(BaseModel):
+    """Individual food item within a log"""
     food_id: int
     amount: str  # natural portion (e.g., "1 cup", "2 tablespoons")
     weight_in_grams: float
+
+class LogCreate(BaseModel):
+    """New log structure - can represent a recipe or standalone food"""
+    recipe_id: Optional[str] = None  # Links to user's saved recipe if exists
+    recipe_name: str  # Display name (recipe description or food name)
+    servings: float  # Number of servings consumed
     date: datetime
-    recipe_id: Optional[str] = None
-    recipe_servings: Optional[float] = None
+    components: List[LogComponent]  # Array of food items
 
     class Config:
         json_schema_extra = {
             'example': {
-                'food_id' : 170903,
-                'amount' : '1 cup',
-                'weight_in_grams' : 20,
-                'date' : "2024-10-16T10:15:30.000Z",
-                'recipe_id': None,
-                'recipe_servings': None
-                }
+                'recipe_id': 'abc-123',
+                'recipe_name': 'Hot chocolate with collagen',
+                'servings': 1.0,
+                'date': "2024-10-16T10:15:30.000Z",
+                'components': [
+                    {'food_id': 170903, 'amount': '1 cup', 'weight_in_grams': 244},
+                    {'food_id': 170904, 'amount': '2 tbsp', 'weight_in_grams': 11}
+                ]
+            }
         }
 
 class LogEdit(BaseModel):
@@ -36,14 +44,14 @@ class LogEdit(BaseModel):
     recipe_servings: Optional[float] = None
 
 class Log(BaseModel):
+    """Log entry - can represent a recipe or standalone food"""
     log_id: str = Field(alias="_id")
     user_id: Optional[str]
-    food_id: int
-    amount: str
-    weight_in_grams: float
+    recipe_id: Optional[str] = None  # Links to saved recipe if exists
+    recipe_name: str  # Display name
+    servings: float  # Number of servings consumed
     date: Optional[datetime]
-    recipe_id: Optional[str] = None
-    recipe_servings: Optional[float] = None
+    components: List[LogComponent]  # Array of food items
 
     @field_validator('log_id', 'user_id')
     def validate_objectid(cls, v):
@@ -55,6 +63,7 @@ class Log(BaseModel):
 
 class RecipeIngredient(BaseModel):
     food_id: int
+    food_name: Optional[str] = None  # The matched food name from database
     amount: str  # e.g., "1 cup"
     weight_in_grams: float
 

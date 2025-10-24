@@ -32,8 +32,22 @@ function MyRecipes() {
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   useEffect(() => {
-    fetchRecipes();
+    initializeRecipes();
   }, []);
+
+  const initializeRecipes = async () => {
+    try {
+      // First, run migration to add food_name to existing recipes
+      await request('/recipes/migrate-food-names', 'POST');
+
+      // Then fetch the updated recipes
+      await fetchRecipes();
+    } catch (error) {
+      console.error('Error initializing recipes:', error);
+      // Still try to fetch recipes even if migration fails
+      await fetchRecipes();
+    }
+  };
 
   const fetchRecipes = async () => {
     try {
@@ -161,57 +175,29 @@ function RecipeDetailModal({ recipe, onClose, onDelete, onUpdate }: RecipeDetail
   const [isSaving, setIsSaving] = useState(false);
   const [nutritionData, setNutritionData] = useState<NutrientData[]>([]);
   const [loadingNutrition, setLoadingNutrition] = useState(true);
-  const [loadingFoodNames, setLoadingFoodNames] = useState(true);
 
   useEffect(() => {
-    fetchFoodNames();
     fetchRecipeNutrition();
-  }, [recipe.recipe_id, editedIngredients]);
-
-  const fetchFoodNames = async () => {
-    try {
-      setLoadingFoodNames(true);
-      const ingredientsWithNames = await Promise.all(
-        editedIngredients.map(async (ingredient) => {
-          try {
-            const response = await request(`/foods/name?food_id=${ingredient.food_id}`, 'GET');
-            return {
-              ...ingredient,
-              food_name: response.body || 'Unknown Food'
-            };
-          } catch (error) {
-            console.error(`Error fetching food name for ${ingredient.food_id}:`, error);
-            return {
-              ...ingredient,
-              food_name: 'Unknown Food'
-            };
-          }
-        })
-      );
-      setEditedIngredients(ingredientsWithNames);
-      setLoadingFoodNames(false);
-    } catch (error) {
-      console.error('Error fetching food names:', error);
-      setLoadingFoodNames(false);
-    }
-  };
+  }, [editedIngredients]);
 
   const fetchRecipeNutrition = async () => {
     try {
       setLoadingNutrition(true);
-      // Fetch nutrition for all ingredients
-      const nutritionPromises = editedIngredients.map(async (ingredient) => {
-        try {
-          const response = await request(
-            `/foods/nutrients?food_id=${ingredient.food_id}&amount_in_grams=${ingredient.weight_in_grams}`,
-            'GET'
-          );
-          return response.body || [];
-        } catch (error) {
-          console.error(`Error fetching nutrition for food ${ingredient.food_id}:`, error);
-          return [];
-        }
-      });
+      // Fetch nutrition for all ingredients that have valid food_id
+      const nutritionPromises = editedIngredients
+        .filter(ingredient => ingredient.food_id && ingredient.food_id !== 'undefined')
+        .map(async (ingredient) => {
+          try {
+            const response = await request(
+              `/foods/nutrients?food_id=${ingredient.food_id}&amount_in_grams=${ingredient.weight_in_grams}`,
+              'GET'
+            );
+            return response.body || [];
+          } catch (error) {
+            console.error(`Error fetching nutrition for food ${ingredient.food_id}:`, error);
+            return [];
+          }
+        });
 
       const allNutrients = await Promise.all(nutritionPromises);
 
@@ -281,28 +267,44 @@ function RecipeDetailModal({ recipe, onClose, onDelete, onUpdate }: RecipeDetail
         <div className="modal-content">
           <div className="ingredients-section">
             <h3>Ingredients</h3>
-            <div className="ingredients-list">
-              {editedIngredients.map((ingredient, index) => (
-                <div key={index} className="ingredient-edit-row">
-                  <div className="ingredient-amount">
-                    <label>Amount</label>
-                    <input
-                      type="text"
-                      value={ingredient.amount}
-                      onChange={(e) => handleIngredientChange(index, 'amount', e.target.value)}
-                    />
+            {editedIngredients.length === 0 ? (
+              <p className="nutrition-note">No ingredients found. This recipe may have been created before ingredients could be matched.</p>
+            ) : (
+              <div className="ingredients-list">
+                {editedIngredients.map((ingredient, index) => (
+                  <div key={index} className="ingredient-edit-row">
+                    <div className="ingredient-name-display">
+                      <label>Food</label>
+                      <div className="ingredient-food-name">
+                        {!ingredient.food_id || ingredient.food_id === 'undefined' ? (
+                          <span style={{color: 'rgba(255, 100, 100, 0.8)', fontStyle: 'italic'}}>
+                            ⚠ Food not matched
+                          </span>
+                        ) : (
+                          ingredient.food_name || 'Unknown Food'
+                        )}
+                      </div>
+                    </div>
+                    <div className="ingredient-amount">
+                      <label>Amount</label>
+                      <input
+                        type="text"
+                        value={ingredient.amount}
+                        onChange={(e) => handleIngredientChange(index, 'amount', e.target.value)}
+                      />
+                    </div>
+                    <div className="ingredient-weight">
+                      <label>Weight (g)</label>
+                      <input
+                        type="number"
+                        value={ingredient.weight_in_grams}
+                        onChange={(e) => handleIngredientChange(index, 'weight_in_grams', e.target.value)}
+                      />
+                    </div>
                   </div>
-                  <div className="ingredient-weight">
-                    <label>Weight (g)</label>
-                    <input
-                      type="number"
-                      value={ingredient.weight_in_grams}
-                      onChange={(e) => handleIngredientChange(index, 'weight_in_grams', e.target.value)}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="nutrition-section">

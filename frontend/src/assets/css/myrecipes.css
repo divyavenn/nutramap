@@ -217,10 +217,18 @@
   gap: 12px;
 }
 
-.ingredient-edit-row,
+.ingredient-edit-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 120px;
+  gap: 12px;
+  padding: 12px;
+  background-color: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+}
+
 .ingredient-create-row {
   display: grid;
-  grid-template-columns: 1fr 120px;
+  grid-template-columns: 2fr 1fr 120px;
   gap: 12px;
   padding: 12px;
   background-color: rgba(255, 255, 255, 0.03);
@@ -229,6 +237,24 @@
 
 .ingredient-create-row {
   grid-template-columns: 2fr 1fr 120px 32px;
+}
+
+.ingredient-name-display {
+  display: flex;
+  flex-direction: column;
+}
+
+.ingredient-food-name {
+  padding: 8px 12px;
+  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.8);
+  font-family: 'Inconsolata', monospace;
+  font-size: 14px;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
 }
 
 .ingredient-name input,

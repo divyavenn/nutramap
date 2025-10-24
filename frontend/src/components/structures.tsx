@@ -1,5 +1,12 @@
 import { createContext } from 'react';
 
+export interface LogComponent {
+  food_id: number;
+  food_name: string;
+  amount: string;
+  weight_in_grams: number;
+}
+
 export interface DisplayLogProps {
   food_name: string;
   date: Date;
@@ -8,14 +15,13 @@ export interface DisplayLogProps {
 }
 
 export interface LogProps {
-  food_name: string;
-  date: Date;
-  amount?: string;
-  weight_in_grams: number;
   _id: string;
   recipe_id?: string | null;
-  recipe_description?: string;
-  recipe_servings?: number | null;
+  recipe_name: string;
+  servings: number;
+  date: Date;
+  components: LogComponent[];
+  recipe_exists?: boolean;  // Whether the linked recipe still exists
 }
 
 export interface LogbookProps {
