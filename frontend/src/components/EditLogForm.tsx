@@ -455,7 +455,7 @@ useEffect(() => {
 
             <div className='food-time-space'>
               <div className='edit-input-time-wrapper'>
-                <input className='edit-input-time-wrapper'
+                <input
                 name='time'
                 type='time'
                 onChange={handleTimeChange}

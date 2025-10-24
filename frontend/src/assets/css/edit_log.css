@@ -52,6 +52,7 @@ input[type="datetime-local"] {
   font-family: Inconsolata;
   border-radius: 5px;
   outline: none;
+  margin-top: 7px;
   height: var(--edit-log-input-height)
 }
 
@@ -135,7 +136,7 @@ input, textarea {
 
 .form-dropdown-wrapper {
   display: flex;
-  background-color: var(--purple);
+  background-color: var(--log-bubble-color);
   color: var(--white);
   flex-direction: column;
   border-radius: 14px;
@@ -209,7 +210,8 @@ input, textarea {
   overflow: hidden;
   box-sizing: border-box;
   display: block;
-  margin: 0;
+  margin-top: 15px;
+  margin-bottom: 15px;
 }
 
 
@@ -226,6 +228,7 @@ input, textarea {
 /* The input for entering portion */
 .edit-input-portion {
   font-family: Inconsolata;
+  margin-top: 5px;
   height: var(--edit-log-input-height);
   width: 100%
 }
@@ -240,7 +243,8 @@ input, textarea {
   font-size: inherit;
   color: inherit;
   opacity: 0.8;
-  padding-left: 0px;
+  padding-left: 10px;
+  margin-top: 5px;
   text-align: left;
   /* this is here to make it match the height of the input field */
   height: 35px;
@@ -252,6 +256,7 @@ input, textarea {
   width: 100%; /* Ensures the input takes full available space in the wrapper */
   padding-right: 15px; /* Creates space for the "g" */
   background: none;
+  margin-top: 5px;
   border: none; /* Removes the default border */
   font-family: Inconsolata;
   text-align: right; /* Align the input text to the left */
@@ -325,6 +330,7 @@ input, textarea {
   background: none;
   color: inherit;
   border: none;
+  margin-top: 10px;
   font-family: Inconsolata;
   text-align: right; /* Align the date to the right */
   flex-shrink: 0;
@@ -445,8 +451,7 @@ input, textarea {
   display: flex; 
   width: 40px;
   margin-right: 10px;
-  padding-top: 12px;;
-  align-items: start; /* Vertically centers the button */
+  align-items: center; /* Vertically centers the button */
 }
 
 .delete-log-button-container.hide {

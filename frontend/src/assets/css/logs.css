@@ -118,7 +118,7 @@
   align-items: start;
   font-family: Inconsolata;
   border-radius: 14px;
-  background-color: rgba(0, 0, 0, 0.338);
+  background-color: var(--log-bubble-color);
   color: var(--white);
   justify-content: flex-start;
   transition: all 0.1s ease;
@@ -140,13 +140,6 @@
   justify-content: flex-start;
   transition: all 0.1s ease;
   box-sizing: border-box;
-}
-
-/* Remove padding from child elements in recipe bubble */
-
-.log-bubble:hover {
-  background-color: #ffffff00;
-  color: #1e002e;
 }
 
 .list-container {
