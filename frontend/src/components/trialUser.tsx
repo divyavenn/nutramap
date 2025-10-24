@@ -75,9 +75,25 @@ export async function cleanupTrialUser() {
     try {
       // Use sendBeacon for reliable cleanup on page unload
       const url = `${import.meta.env.VITE_API_URL}/trial/cleanup/${trialId}`;
-      const blob = new Blob([JSON.stringify({})], { type: 'application/json' });
 
-      navigator.sendBeacon(url, blob);
+      // Try sendBeacon first (most reliable for page unload)
+      const blob = new Blob([JSON.stringify({})], { type: 'application/json' });
+      const beaconSent = navigator.sendBeacon(url, blob);
+
+      if (!beaconSent) {
+        console.warn('sendBeacon failed, falling back to fetch with keepalive');
+        // Fallback to fetch with keepalive flag
+        fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({}),
+          keepalive: true, // Ensures request completes even if page closes
+        }).catch(err => {
+          console.error('Fetch cleanup also failed:', err);
+        });
+      }
 
       // Clear local storage
       localStorage.removeItem('access_token');
@@ -122,7 +138,30 @@ export async function initializeTrialUserIfNeeded(): Promise<void> {
 export function setupTrialUserCleanup() {
   // Only setup cleanup if user is a trial user
   if (isTrialUser()) {
+    // Listen to multiple events to catch different close scenarios
     window.addEventListener('beforeunload', cleanupTrialUser);
     window.addEventListener('unload', cleanupTrialUser);
+    window.addEventListener('pagehide', cleanupTrialUser); // Mobile Safari support
+
+    // Handle visibility change (tab hidden) - cleanup after 30 seconds of being hidden
+    let hiddenTimeout: number | null = null;
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Tab is hidden - set timeout to cleanup after 30 seconds
+        hiddenTimeout = window.setTimeout(() => {
+          console.log('Tab hidden for 30 seconds, cleaning up trial user');
+          cleanupTrialUser();
+        }, 30000);
+      } else {
+        // Tab is visible again - cancel cleanup
+        if (hiddenTimeout !== null) {
+          window.clearTimeout(hiddenTimeout);
+          hiddenTimeout = null;
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
   }
 }

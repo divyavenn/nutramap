@@ -37,15 +37,9 @@ function MyRecipes() {
 
   const initializeRecipes = async () => {
     try {
-      // First, run migration to add food_name to existing recipes
-      await request('/recipes/migrate-food-names', 'POST');
-
-      // Then fetch the updated recipes
       await fetchRecipes();
     } catch (error) {
       console.error('Error initializing recipes:', error);
-      // Still try to fetch recipes even if migration fails
-      await fetchRecipes();
     }
   };
 
@@ -228,7 +222,7 @@ function RecipeDetailModal({ recipe, onClose, onDelete, onUpdate }: RecipeDetail
     }
   };
 
-  const handleIngredientChange = (index: number, field: 'amount' | 'weight_in_grams', value: string) => {
+  const handleIngredientChange = (index: number, field: 'amount' | 'weight_in_grams' | 'food_name', value: string) => {
     const updated = [...editedIngredients];
     if (field === 'weight_in_grams') {
       updated[index][field] = parseFloat(value);
@@ -275,15 +269,23 @@ function RecipeDetailModal({ recipe, onClose, onDelete, onUpdate }: RecipeDetail
                   <div key={index} className="ingredient-edit-row">
                     <div className="ingredient-name-display">
                       <label>Food</label>
-                      <div className="ingredient-food-name">
-                        {!ingredient.food_id || ingredient.food_id === 'undefined' ? (
-                          <span style={{color: 'rgba(255, 100, 100, 0.8)', fontStyle: 'italic'}}>
-                            ⚠ Food not matched
-                          </span>
-                        ) : (
-                          ingredient.food_name || 'Unknown Food'
-                        )}
-                      </div>
+                      {!ingredient.food_id || ingredient.food_id === 'undefined' ? (
+                        <input
+                          type="text"
+                          placeholder="Enter food name to match..."
+                          value={ingredient.food_name || ''}
+                          onChange={(e) => handleIngredientChange(index, 'food_name', e.target.value)}
+                          style={{
+                            width: '100%',
+                            borderColor: 'rgba(255, 100, 100, 0.5)',
+                            backgroundColor: 'rgba(255, 100, 100, 0.1)'
+                          }}
+                        />
+                      ) : (
+                        <div className="ingredient-food-name">
+                          {ingredient.food_name || 'Unknown Food'}
+                        </div>
+                      )}
                     </div>
                     <div className="ingredient-amount">
                       <label>Amount</label>

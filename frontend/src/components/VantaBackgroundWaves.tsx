@@ -29,7 +29,7 @@ const VantaBackgroundWaves: React.FC<VantaBackgroundProps> = ({ children }) => {
             minWidth: 200.00,
             scale: 2.0,
             scaleMobile: 1.00,
-            color: 0x0e001c,
+            color: 0x04000f,
             shininess: 1.00
           })
         );

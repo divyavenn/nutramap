@@ -11,6 +11,8 @@ import { useRefreshData } from '../components/dashboard_states'
 import { useRefreshAccountInfo} from '../components/account_states'
 import { initializeTrialUserIfNeeded, setupTrialUserCleanup } from '../components/trialUser'
 import {RecoilRoot} from 'recoil';
+import Utensils from '../assets/images/utensils-solid.svg?react'
+import FoodBowl from '../assets/images/food_bowl.svg?react'
 
 function TryNutramapRoot(){
   return (<RecoilRoot>
@@ -49,7 +51,7 @@ function TryNutramap(){
   if (!isReady) {
     return (
       <StrictMode>
-        <Header linkIcons = {[]}/>
+        <Header linkIcons = {[{to : '/myfoods', img : <Utensils/>}, {to : '/myrecipes', img : <FoodBowl/>}]}/>
         <MainSection>
           <Heading words = "Loading..."/>
         </MainSection>
@@ -59,7 +61,7 @@ function TryNutramap(){
 
   return(
   <StrictMode>
-  <Header linkIcons = {[]}/>
+  <Header linkIcons = {[{to : '/myfoods', img : <Utensils/>}, {to : '/myrecipes', img : <FoodBowl/>}]}/>
   <Heading words = "Hello, you!"/>
 
   <MainSection>

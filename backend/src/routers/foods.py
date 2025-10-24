@@ -167,7 +167,19 @@ def get_total_nutrients(db, user_id: str, start_date: datetime, end_date: dateti
 
 @router.get("/panel", response_model=None)
 async def get_nutrient_panel(log_id: str, db: Annotated[Database, Depends(get_data)] = None):
-    log = db.logs.find_one({"_id": ObjectId(log_id)})
+    # Check if log_id is actually a component ID (format: "log_id-component_index")
+    component_index = None
+    actual_log_id = log_id
+
+    if "-" in log_id:
+        parts = log_id.split("-")
+        # Check if the last part is a digit (component index)
+        if len(parts) >= 2 and parts[-1].isdigit():
+            component_index = int(parts[-1])
+            # Reconstruct the log_id without the component index
+            actual_log_id = "-".join(parts[:-1])
+
+    log = db.logs.find_one({"_id": ObjectId(actual_log_id)})
     if not log:
         return {}
 
@@ -175,7 +187,26 @@ async def get_nutrient_panel(log_id: str, db: Annotated[Database, Depends(get_da
     if "components" in log and isinstance(log["components"], list):
         result = {}
 
-        # Aggregate nutrients from all components
+        # If component_index is specified, only show that component's nutrients
+        if component_index is not None:
+            if component_index < len(log["components"]):
+                component = log["components"][component_index]
+                food_id = component.get("food_id")
+                weight_in_grams = component.get("weight_in_grams", 0)
+
+                if food_id:
+                    food = db.foods.find_one({"_id": food_id}, {"nutrients": 1, "_id": 0})
+                    if food and "nutrients" in food:
+                        proration_factor = weight_in_grams / 100
+
+                        for nutrient in food["nutrients"]:
+                            prorated_amount = nutrient["amt"] * proration_factor
+                            if prorated_amount > 0:
+                                result[nutrient["nutrient_id"]] = prorated_amount
+
+            return result
+
+        # Otherwise, aggregate nutrients from all components (full recipe)
         for component in log["components"]:
             food_id = component.get("food_id")
             weight_in_grams = component.get("weight_in_grams", 0)

@@ -8,16 +8,32 @@ interface DisplayRecipeProps {
   recipe_id?: string | null;
   recipe_exists?: boolean;
   onClick?: () => void;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }
 
-function RecipeDisplay ({ recipe_name, date, servings, recipe_id, recipe_exists, onClick } : DisplayRecipeProps) {
+function RecipeDisplay ({ recipe_name, date, servings, recipe_id, recipe_exists, onClick, onMouseEnter, onMouseLeave } : DisplayRecipeProps) {
   const [isHovered, setIsHovered] = useState(false);
+
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+    if (onMouseEnter) {
+      onMouseEnter();
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    if (onMouseLeave) {
+      onMouseLeave();
+    }
+  };
 
   return (
     <div
       className='recipe-bubble'
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       onClick={onClick}
       style={{ cursor: onClick ? 'pointer' : 'default' }}
     >

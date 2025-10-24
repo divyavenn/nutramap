@@ -493,6 +493,63 @@ async def migrate_recipe_food_names(user: user, db: db):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/migrate-food-ids")
+async def migrate_recipe_food_ids(user: user, db: db):
+    """
+    Migration endpoint to add food_id to existing recipe ingredients
+    that only have food_name (reverse of migrate-food-names)
+    """
+    try:
+        user_doc = db.users.find_one({"_id": user["_id"]})
+        if not user_doc or "recipes" not in user_doc:
+            return {"status": "no_recipes", "message": "No recipes found"}
+
+        recipes = user_doc.get("recipes", [])
+        updated_count = 0
+        total_ingredients_updated = 0
+
+        for recipe in recipes:
+            updated_ingredients = []
+            needs_update = False
+
+            for ingredient in recipe.get("ingredients", []):
+                # Check if food_id is missing but food_name exists
+                if "food_name" in ingredient and ("food_id" not in ingredient or not ingredient.get("food_id")):
+                    needs_update = True
+                    # Try to match the food_name to a food_id
+                    food_id = await match_ingredient_to_food_id(ingredient["food_name"], db, user)
+                    if food_id:
+                        updated_ingredients.append({
+                            **ingredient,
+                            "food_id": food_id
+                        })
+                        total_ingredients_updated += 1
+                    else:
+                        # Keep ingredient as-is if we can't find a match
+                        updated_ingredients.append(ingredient)
+                else:
+                    updated_ingredients.append(ingredient)
+
+            # Update the recipe if needed
+            if needs_update:
+                db.users.update_one(
+                    {"_id": user["_id"], "recipes.recipe_id": recipe["recipe_id"]},
+                    {"$set": {"recipes.$.ingredients": updated_ingredients}}
+                )
+                updated_count += 1
+
+        return {
+            "status": "success",
+            "updated_recipes": updated_count,
+            "total_ingredients_updated": total_ingredients_updated,
+            "total_recipes": len(recipes)
+        }
+
+    except Exception as e:
+        print(f"Error migrating recipe food IDs: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/list")
 def list_recipes(user: user, db: db):
     """Get all user recipes sorted alphabetically"""
@@ -524,16 +581,32 @@ async def update_recipe_ingredients(
     recipe_id: str = Form(...),
     ingredients: str = Form(...)  # JSON string
 ):
-    """Update a recipe's ingredients"""
+    """Update a recipe's ingredients - automatically matches food_ids for ingredients without them"""
     try:
         ingredients_list = json.loads(ingredients)
+
+        # Process ingredients to add missing food_ids
+        processed_ingredients = []
+        for ingredient in ingredients_list:
+            # If ingredient has food_name but no food_id, try to match it
+            if "food_name" in ingredient and ingredient.get("food_name"):
+                if not ingredient.get("food_id"):
+                    # Try to match the food_name to a food_id
+                    food_id = await match_ingredient_to_food_id(ingredient["food_name"], db, user)
+                    if food_id:
+                        ingredient["food_id"] = food_id
+                        print(f"✓ Matched '{ingredient['food_name']}' to food_id {food_id}")
+                    else:
+                        print(f"✗ Could not match '{ingredient['food_name']}'")
+
+            processed_ingredients.append(ingredient)
 
         # Update the recipe
         result = db.users.update_one(
             {"_id": user["_id"], "recipes.recipe_id": recipe_id},
             {
                 "$set": {
-                    "recipes.$.ingredients": ingredients_list,
+                    "recipes.$.ingredients": processed_ingredients,
                     "recipes.$.updated_at": datetime.now()
                 }
             }

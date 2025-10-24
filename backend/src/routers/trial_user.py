@@ -51,7 +51,8 @@ def create_trial_user(db: Database) -> dict:
         "password_hash": "",  # No password for trial users
         "created_at": datetime.now(timezone.utc),
         "is_trial": True,
-        "trial_id": trial_id
+        "trial_id": trial_id,
+        "recipes": []  # Initialize empty recipes array
     }
 
     # Insert trial user into database
@@ -203,3 +204,52 @@ def can_create_log(db: Database, user: dict) -> bool:
 
     log_count = get_trial_log_count(db, user["_id"])
     return log_count < 10
+
+@router.post("/cleanup-old-trials")
+async def cleanup_old_trial_users(user_db: db):
+    """
+    Admin endpoint to cleanup trial users older than 24 hours
+    This can be called periodically by a cron job or manually
+    """
+    try:
+        # Find trial users created more than 24 hours ago
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=24)
+
+        # Find all old trial users
+        old_trial_users = user_db.users.find({
+            "is_trial": True,
+            "created_at": {"$lt": cutoff_time}
+        })
+
+        cleanup_count = 0
+        for trial_user in old_trial_users:
+            try:
+                user_id = trial_user["_id"]
+
+                # Delete all logs for this trial user
+                user_db.logs.delete_many({"user_id": user_id})
+
+                # Delete all requirements for this trial user
+                user_db.requirements.delete_many({"user_id": user_id})
+
+                # Delete the trial user
+                user_db.users.delete_one({"_id": user_id})
+
+                cleanup_count += 1
+                print(f"Cleaned up old trial user: {trial_user.get('trial_id', 'unknown')}")
+
+            except Exception as e:
+                print(f"Error cleaning up trial user {trial_user.get('trial_id', 'unknown')}: {e}")
+                continue
+
+        return {
+            "status": "success",
+            "cleaned_up_count": cleanup_count,
+            "message": f"Cleaned up {cleanup_count} old trial users"
+        }
+
+    except Exception as e:
+        print(f"Error in cleanup_old_trial_users: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Failed to cleanup old trial users")

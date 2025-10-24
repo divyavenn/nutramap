@@ -192,6 +192,8 @@ function LogList (){
                       recipe_id={log.recipe_id}
                       recipe_exists={log.recipe_exists}
                       onClick={() => setEditingLogId(log._id)}
+                      onMouseEnter={() => !isEditing && handleLogMouseEnter(log._id, `${log.recipe_name} (${log.servings} servings)`)}
+                      onMouseLeave={handleLogMouseLeave}
                     />
                   )}
 

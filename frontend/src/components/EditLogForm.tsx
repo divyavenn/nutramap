@@ -28,8 +28,6 @@ interface LogProps {
 
 function EditLogForm({food_name, date, amount, weight_in_grams, _id, componentIndex, recipeId, onAnimationStart, onAnimationEnd, onCancel} : LogProps){
 
-  // Mock food data for autocomplete
-  const foodList = useRecoilValue(foodsAtom)
   const [deleted, setDeleted] = useState(false)
   const [formData, setFormData] = useState({
     food_name : food_name,
@@ -42,6 +40,7 @@ function EditLogForm({food_name, date, amount, weight_in_grams, _id, componentIn
 
   const refreshLogs = useRefreshLogs();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null); // Timer for debouncing autocomplete
 
   const [suggestions, setSuggestions] = useState<string[]>([]); // State for filtered suggestions
   const [showSuggestions, setShowSuggestions] = useState(false); // Control the visibility of suggestions
@@ -90,6 +89,15 @@ useEffect(() => {
     }
   }
 }, [selectedSuggestionIndex]);
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   // Prevent events from bubbling up to parent, except for mouseLeave
   const handleMouseEvent = (e: React.MouseEvent) => {
@@ -269,15 +277,35 @@ useEffect(() => {
     }));
 
     if (name === 'food_name') {
-      markValidInput(value in foodList)
-      // Filter the foodList to match the input value
-      const filteredFoods = Object.keys(foodList).filter(food =>
-        food.toLowerCase().includes(value.toLowerCase())
-      );
+      // Clear any existing debounce timer
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
 
-      // Show suggestions only if there are matches and the input isn't empty
-      setSuggestions(filteredFoods);
-      setShowSuggestions(value.length > 0 && filteredFoods.length > 0);
+      // Use RRF-based autocomplete for better food matching
+      if (!value.trim()) {
+        setSuggestions([]);
+        setShowSuggestions(false);
+        markValidInput(false);
+        return;
+      }
+
+      // Set a new debounce timer (300ms delay)
+      debounceTimerRef.current = setTimeout(async () => {
+        try {
+          const response = await request('/match/autocomplete' + '?prompt=' + value, 'POST', {}, 'JSON');
+          if (response.body) {
+            setSuggestions(response.body);
+            setShowSuggestions(value.length > 0 && response.body.length > 0);
+            markValidInput(response.body.includes(value));
+          }
+        } catch (error) {
+          console.error('Error fetching autocomplete suggestions:', error);
+          setSuggestions([]);
+          setShowSuggestions(false);
+          markValidInput(false);
+        }
+      }, 300); // 300ms debounce delay
     }
   };
 
