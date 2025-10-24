@@ -305,14 +305,22 @@ useEffect(() => {
 
     // Add a delay to show the animation before submitting
     setTimeout(async () => {
-      // Create form data for portion update
       const formDataObj = new FormData();
       formDataObj.append('log_id', _id);
-      formDataObj.append('amount', formData.amount);
       formDataObj.append('food_name', formData.food_name);
+      formDataObj.append('amount', formData.amount);
 
-      // Call update-portion endpoint which will recalculate grams
-      const response = await request('/logs/update-portion', 'POST', formDataObj);
+      let response;
+
+      // Check if we're editing a component or updating a log portion
+      if (componentIndex !== undefined) {
+        // Editing a component within a log
+        formDataObj.append('component_index', String(componentIndex));
+        response = await request('/logs/edit-component', 'POST', formDataObj);
+      } else {
+        // Updating the entire log portion (legacy behavior)
+        response = await request('/logs/update-portion', 'POST', formDataObj);
+      }
 
       // If successful, update the grams in local state
       if (response.status === 200 && response.body) {
@@ -331,6 +339,11 @@ useEffect(() => {
         // Notify parent component that animation has ended
         if (onAnimationEnd) {
           onAnimationEnd();
+        }
+
+        // If we have an onCancel callback, call it to close edit mode
+        if (onCancel) {
+          onCancel();
         }
       }, 500);
     }, 800); // Delay before actual submission
