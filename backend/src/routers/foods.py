@@ -134,7 +134,7 @@ def get_total_nutrients(db, user_id: str, start_date: datetime, end_date: dateti
                 "scaled_amt": {
                     "$multiply": [
                         "$food.nutrients.amt",
-                        { "$divide": ["$amount_in_grams", 100] }
+                        { "$divide": ["$weight_in_grams", 100] }
                     ]
                 }
             }
@@ -172,7 +172,7 @@ async def get_nutrient_panel(log_id: str, db: Annotated[Database, Depends(get_da
     if not food or "nutrients" not in food:
         return {}
 
-    proration_factor = log["amount_in_grams"] / 100  # Assuming nutrients are per 100g
+    proration_factor = log["weight_in_grams"] / 100  # Assuming nutrients are per 100g
     result = {}
 
     for nutrient in food["nutrients"]:

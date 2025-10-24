@@ -12,6 +12,7 @@ import NewAccount from './pages/hello';
 import { RecoilRoot } from 'recoil';
 import VantaBackgroundWaves from './components/VantaBackgroundWaves';
 import FoodsPage from './pages/foods';
+import MyRecipes from './pages/myrecipes';
 
 // Load Vanta.js scripts
 const loadScript = (src: string): Promise<void> => {
@@ -53,6 +54,7 @@ if (rootElem) {
             <Route path = '/goodbye' element={<DeleteAccount/>} />
             <Route path = '/hello' element={<NewAccount/>} />
             <Route path="/myfoods" element={<FoodsPage />} />
+            <Route path="/myrecipes" element={<MyRecipes />} />
           </Routes>
         </Router>
       </VantaBackgroundWaves>

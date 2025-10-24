@@ -16,22 +16,22 @@ import { foodsAtom } from './account_states';
 interface LogProps {
   food_name: string;
   date: Date;
-  portion?: string;
-  amount_in_grams: number;
+  amount?: string;
+  weight_in_grams: number;
   _id: string;
   onAnimationStart?: () => void;
   onAnimationEnd?: () => void;
 }
 
-function EditLogForm({food_name, date, portion, amount_in_grams, _id, onAnimationStart, onAnimationEnd} : LogProps){
+function EditLogForm({food_name, date, amount, weight_in_grams, _id, onAnimationStart, onAnimationEnd} : LogProps){
 
   // Mock food data for autocomplete
   const foodList = useRecoilValue(foodsAtom)
   const [deleted, setDeleted] = useState(false)
   const [formData, setFormData] = useState({
     food_name : food_name,
-    portion: portion || `${amount_in_grams}g`,
-    amount_in_grams : String(amount_in_grams),
+    amount: amount || `${weight_in_grams}g`,
+    weight_in_grams : String(weight_in_grams),
     date : date,
   })
   const [isSubmitting, setIsSubmitting] = useState(false); // Track submission animation state
@@ -305,7 +305,7 @@ useEffect(() => {
       // Create form data for portion update
       const formDataObj = new FormData();
       formDataObj.append('log_id', _id);
-      formDataObj.append('portion', formData.portion);
+      formDataObj.append('amount', formData.amount);
       formDataObj.append('food_name', formData.food_name);
 
       // Call update-portion endpoint which will recalculate grams
@@ -315,7 +315,7 @@ useEffect(() => {
       if (response.status === 200 && response.body) {
         setFormData(prev => ({
           ...prev,
-          amount_in_grams: String(response.body.amount_in_grams)
+          weight_in_grams: String(response.body.weight_in_grams)
         }));
       }
 
@@ -351,7 +351,7 @@ useEffect(() => {
       console.log("Log deleted successfully");
       setDeleted(true)
       refreshLogs()
-      setFormData({ ...formData, food_name: '', amount_in_grams : ''})
+      setFormData({ ...formData, food_name: '', weight_in_grams : ''})
       
       // Reset the deletion state (though it won't be visible anymore)
       setIsDeleting(false);
@@ -406,11 +406,11 @@ useEffect(() => {
 
             <div className="food-portion-space">
               <input
-                name='portion'
+                name='amount'
                 className='edit-input-portion'
                 type='text'
                 placeholder='1 cup'
-                value={formData.portion}
+                value={formData.amount}
                 onChange={handleTyping}
                 onKeyDown={handleKeyDown}
                 required
@@ -418,9 +418,9 @@ useEffect(() => {
             </div>
 
             <div className='food-weight-space'>
-              {formData.amount_in_grams && (
+              {formData.weight_in_grams && (
                 <div className="edit-grams-display">
-                  {Math.round(Number(formData.amount_in_grams))}g
+                  {Math.round(Number(formData.weight_in_grams))}g
                 </div>
               )}
             </div>
@@ -497,7 +497,7 @@ useEffect(() => {
           <HoverButton
                   type="submit"
                   className={`edit-log-submit ${isSubmitting ? 'confirming' : ''}`}
-                  disabled={!formData.food_name || !formData.portion || !validInput || isSubmitting}
+                  disabled={!formData.food_name || !formData.amount || !validInput || isSubmitting}
                   childrenOn={<YesOk/>}
                   childrenOff={<IsOk/>}>
           </HoverButton>

@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from src.routers import auth, foods, users, requirements, logs, nutrients, match, trial_user
+from src.routers import auth, foods, users, requirements, logs, nutrients, match, trial_user, recipes
 from src.databases.mongo import close_mongo_db
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -51,6 +51,7 @@ fastapi_app.include_router(logs.router)
 fastapi_app.include_router(nutrients.router)
 fastapi_app.include_router(match.router)
 fastapi_app.include_router(trial_user.router)
+fastapi_app.include_router(recipes.router)
 
 
 # ============================================================================

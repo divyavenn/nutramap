@@ -1,6 +1,6 @@
 import '../assets/css/logs.css'
 import 'react-date-range/dist/styles.css'; // main style file
-import 'react-date-range/dist/theme/default.css'; 
+import 'react-date-range/dist/theme/default.css';
 
 import {useState, useRef, useEffect} from 'react'
 import { EditLogForm } from './EditLogForm';
@@ -9,6 +9,7 @@ import { LogProps, DisplayLogProps } from './structures';
 import {useRecoilValue, useSetRecoilState, useRecoilState} from 'recoil'
 import { logsAtom, currentDayAtom, hoveredLogAtom, useRefreshLogs, pendingFoodsAtom, PendingFood } from './dashboard_states';
 import { motion } from 'framer-motion';
+import { RecipeDivider } from './RecipeDivider';
 
 function LogList (){
   const logs = useRecoilValue(logsAtom) 
@@ -51,10 +52,49 @@ function LogList (){
     .sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime());
 
   
-  const formatLogDescription = (foodName: string, amountInGrams: number): string => {
-  const truncatedName = foodName.split(',')[0].trim();
-  return `${Math.round(amountInGrams)} g of ${truncatedName}`;
-};
+  const formatLogDescription = (foodName: string, weightInGrams: number): string => {
+    const truncatedName = foodName.split(',')[0].trim();
+    return `${Math.round(weightInGrams)} g of ${truncatedName}`;
+  };
+
+  // Group logs by recipe_id
+  interface RecipeGroup {
+    recipeId: string | null;
+    recipeDescription?: string;
+    logs: LogProps[];
+  }
+
+  const groupLogsByRecipe = (logs: LogProps[]): RecipeGroup[] => {
+    const groups = new Map<string | null, RecipeGroup>();
+
+    logs.forEach(log => {
+      const key = log.recipe_id || null;
+
+      if (!groups.has(key)) {
+        groups.set(key, {
+          recipeId: key,
+          recipeDescription: log.recipe_description,
+          logs: []
+        });
+      }
+
+      groups.get(key)!.logs.push(log);
+    });
+
+    // Convert to array - recipes first, then standalone logs
+    const recipeGroups: RecipeGroup[] = [];
+    const standaloneGroup: RecipeGroup[] = [];
+
+    groups.forEach((group, key) => {
+      if (key === null) {
+        standaloneGroup.push(group);
+      } else {
+        recipeGroups.push(group);
+      }
+    });
+
+    return [...recipeGroups, ...standaloneGroup];
+  };
 
   // Handle mouse enter for a specific log - immediate response
   const handleLogMouseEnter = (logId: string, blurb: string) => {
@@ -86,32 +126,35 @@ function LogList (){
     <div className="log-list">
       {sortedDates.map(([dateKey, { logs: dateLogs, pending: datePending }]) => {
         // Sort logs by time (newest first)
-        const sortedLogs = [...dateLogs].sort((a, b) => 
+        const sortedLogs = [...dateLogs].sort((a, b) =>
           new Date(b.date).getTime() - new Date(a.date).getTime()
         );
-        
+
+        // Group logs by recipe
+        const recipeGroups = groupLogsByRecipe(sortedLogs);
+
         return (
           <div key={dateKey} className="logs-wrapper">
             {/* Date divider for this group */}
             <DateDivider date={new Date(dateKey)} />
-            
+
             {/* Render pending foods for this date first */}
             {datePending.map((pendingFood, index) => (
               <div key={`pending-${index}`} className="log-wrapper">
-                <motion.div 
+                <motion.div
                   className="log-bubble pending-food-item"
-                  initial={{ 
-                    opacity: 0.7, 
-                    filter: 'blur(4px)', 
+                  initial={{
+                    opacity: 0.7,
+                    filter: 'blur(4px)',
                     scale: 0.95,
                     backgroundColor: 'rgba(25, 5, 5, 0.52)'
                   }}
-                  animate={{ 
-                    opacity: 1, 
-                    filter: 'blur(4px)', 
+                  animate={{
+                    opacity: 1,
+                    filter: 'blur(4px)',
                     scale: 1,
                     backgroundColor: 'rgba(25, 5, 5, 0.52)',
-                    transition: { 
+                    transition: {
                       delay: index * 0.2,
                       duration: 0.8
                     }
@@ -125,33 +168,50 @@ function LogList (){
                 </motion.div>
               </div>
             ))}
-            
-            {/* Then render regular logs */}
-            {sortedLogs.map((log) => (
-              <div 
-                key={log._id} 
-                className="log-wrapper"
-                onMouseEnter={() => handleLogMouseEnter(log._id, formatLogDescription(log.food_name, log.amount_in_grams))}
-                onMouseLeave={handleLogMouseLeave}
-              >
-                {hoveredLog && hoveredLog[0] === log._id ? (
-                  <EditLogForm
-                    food_name={log.food_name}
-                    date={new Date(log.date)}
-                    portion={log.portion}
-                    amount_in_grams={log.amount_in_grams}
-                    _id={log._id}
-                    onAnimationStart={handleAnimationStart}
-                    onAnimationEnd={handleAnimationEnd}
-                  />
-                ) : (
-                  <DisplayLog
-                    food_name={log.food_name}
-                    date={new Date(log.date)}
-                    portion={log.portion}
-                    amount_in_grams={log.amount_in_grams}
+
+            {/* Render recipe groups */}
+            {recipeGroups.map((group, groupIndex) => (
+              <div key={group.recipeId || `standalone-${groupIndex}`}>
+                {/* Show recipe divider only for actual recipes (not standalone logs) */}
+                {group.recipeId && group.recipeDescription && (
+                  <RecipeDivider
+                    recipeDescription={group.recipeDescription}
+                    recipeId={group.recipeId}
+                    onClick={() => {
+                      // TODO: Open recipe detail modal
+                      console.log('Open recipe:', group.recipeId);
+                    }}
                   />
                 )}
+
+                {/* Render logs in this recipe group */}
+                {group.logs.map((log) => (
+                  <div
+                    key={log._id}
+                    className="log-wrapper"
+                    onMouseEnter={() => handleLogMouseEnter(log._id, formatLogDescription(log.food_name, log.weight_in_grams))}
+                    onMouseLeave={handleLogMouseLeave}
+                  >
+                    {hoveredLog && hoveredLog[0] === log._id ? (
+                      <EditLogForm
+                        food_name={log.food_name}
+                        date={new Date(log.date)}
+                        amount={log.amount}
+                        weight_in_grams={log.weight_in_grams}
+                        _id={log._id}
+                        onAnimationStart={handleAnimationStart}
+                        onAnimationEnd={handleAnimationEnd}
+                      />
+                    ) : (
+                      <DisplayLog
+                        food_name={log.food_name}
+                        date={new Date(log.date)}
+                        amount={log.amount}
+                        weight_in_grams={log.weight_in_grams}
+                      />
+                    )}
+                  </div>
+                ))}
               </div>
             ))}
           </div>
@@ -161,7 +221,7 @@ function LogList (){
   );
 }
 
-function DisplayLog ({ food_name, date, portion, amount_in_grams } : DisplayLogProps) {
+function DisplayLog ({ food_name, date, amount, weight_in_grams } : DisplayLogProps) {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -172,7 +232,7 @@ function DisplayLog ({ food_name, date, portion, amount_in_grams } : DisplayLogP
     >
       <div className='food-name-space'> {food_name} </div>
       <div className='food-portion-space'>
-          {portion || `${Math.round(amount_in_grams)}g`}
+          {amount || `${Math.round(weight_in_grams)}g`}
       </div>
       <div className='food-weight-space'>
       </div>

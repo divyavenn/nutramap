@@ -41,119 +41,55 @@ function NewSmartLog() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!mealDescription.trim()) return;
-    
+
     setIsSubmitting(true);
     setIsJiggling(true);
-    
-    // Start the API request immediately
+
+    // Use the new recipe parsing endpoint
     try {
+      const data = {
+        meal_description: mealDescription,
+        date: new Date().toISOString()
+      };
+
       const response = await request(
-        '/match/log-meal-now',
+        '/recipes/parse-meal',
         'POST',
-        {
-          meal_description: mealDescription,
-        },
-        'JSON'
+        data,
+        'URLencode'
       );
-      
+
       setMealDescription('');
       setIsJiggling(false);
       setIsSubmitting(false);
 
-      // If we get the early response with food count
-      if (response && 
-          response.body && 
-          typeof response.body === 'object' && 
-          response.body.status === 'processing' && 
-          Array.isArray(response.body.foods)) {
-        
-        // Convert the foods array with timestamps to our PendingFood format
-        const foodsWithTimestamps: PendingFood[] = response.body.foods.map((foodObj: any) => {
-          const foodName = Object.keys(foodObj)[0];
-          const timestamp = foodObj[foodName];
-          return { name: foodName, timestamp };
-        });
-        
-        // Set the global state for pending foods
-        setPendingFoods(foodsWithTimestamps);
-        
-        // Start polling for logs immediately
-        const today = new Date();
-        const dateKey = today.toDateString();
-        const startDate = today.toISOString().split('T')[0];
-        const endDate = startDate;
-        
-        // Function to check if logs are available and clear pending state
-        const checkForLogs = async () => {
-          try {
-            const logs = await request(`/logs/get?startDate=${startDate}&endDate=${endDate}`, 'GET');
-            
-            // Check if we have any logs for today that match our pending foods
-            const matchingLogs = logs.body.filter((log: any) => 
-              new Date(log.date).toDateString() === dateKey &&
-              foodsWithTimestamps.some(food => 
-                log.food_name.toLowerCase().includes(food.name.toLowerCase())
-              )
-            );
-            
-            if (matchingLogs.length > 0) {
-              // We found matching logs, clear pending foods and refresh
-              setPendingFoods([]);
-              refreshLogs();
-              return true; // Successfully found logs
-            }
-            
-            return false; // No matching logs found yet
-          } catch (error) {
-            console.error('Error checking for logs:', error);
-            return false;
-          }
-        };
-        
-        // Try immediately first
-        checkForLogs().then(found => {
-          if (!found) {
-            // If not found, start polling with exponential backoff
-            let attempts = 0;
-            let timeoutId: number | null = null;
-            const maxAttempts = 100;
-            const maxTimeout = setTimeout(() => {
-              if (timeoutId) clearTimeout(timeoutId);
-              setPendingFoods([]);
-              refreshLogs();
-            }, 3000);
-            
-            const poll = async () => {
-              if (attempts >= maxAttempts) {
-                // Give up after max attempts and just clear pending
-                setPendingFoods([]);
-                refreshLogs();
-                clearTimeout(maxTimeout);
-                return;
-              }
-              
-              const found = await checkForLogs();
-              if (!found) {
-                attempts++;
-                // More aggressive polling: 100ms, 200ms, 400ms, 800ms, 1600ms, etc.
-                const delay = 30;
-                timeoutId = setTimeout(poll, delay) as unknown as number;
-              } else {
-                // Clear the max timeout if we found the logs
-                clearTimeout(maxTimeout);
-              }
-            };
-            
-            // Start polling sooner (100ms instead of 200ms)
-            timeoutId = setTimeout(poll, 100) as unknown as number;
-          }
-        });
+      if (response && response.body && response.body.recipes) {
+        // Extract all recipe descriptions for pending state
+        const pendingRecipes: PendingFood[] = response.body.recipes.flatMap((recipe: any) =>
+          recipe.ingredients.map((ing: any) => ({
+            name: recipe.description + ' - ' + (ing.food_name || 'ingredient'),
+            timestamp: new Date().toISOString()
+          }))
+        );
+
+        // Set pending foods to show blur effect
+        setPendingFoods(pendingRecipes);
+
+        // Refresh logs after a short delay to show the new recipe-grouped logs
+        setTimeout(() => {
+          setPendingFoods([]);
+          refreshLogs();
+        }, 1000);
       } else {
-        // Handle the old response format if needed
+        // Fallback to immediate refresh
         refreshLogs();
       }
     } catch (error) {
-      console.error('Error logging meal:', error);
+      console.error('Error parsing meal:', error);
+      setIsJiggling(false);
+      setIsSubmitting(false);
+      // Still refresh to show any partial results
+      refreshLogs();
     }
   };
 

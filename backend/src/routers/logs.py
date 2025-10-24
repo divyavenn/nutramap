@@ -60,13 +60,27 @@ def get_logs_in_range(user, startDate : datetime, endDate: datetime, user_db):
 # outpuwqt form:
 # food_name: string
 # date: Optional[datetime]
-# amount_in_grams: float
+# weight_in_grams: float
+# recipe_description: Optional[string] (if log is part of a recipe)
 def make_log_readable(logs, db, request: Request = None):
     for log in logs:
         # Replace food_id with food_name
-        log = serialize_document(log) 
-        log["food_name"] = str(get_food_name(log["food_id"], db, request)).strip("(')',")    
+        log = serialize_document(log)
+        log["food_name"] = str(get_food_name(log["food_id"], db, request)).strip("(')',")
         log.pop("food_id")  # Remove the food_id key
+
+        # Add recipe description if this log is part of a recipe
+        if log.get("recipe_id"):
+            # Find the recipe description from the user's recipes
+            user_doc = db.users.find_one(
+                {"recipes.recipe_id": log["recipe_id"]},
+                {"recipes.$": 1}
+            )
+            if user_doc and "recipes" in user_doc and len(user_doc["recipes"]) > 0:
+                log["recipe_description"] = user_doc["recipes"][0].get("description", "Unknown Recipe")
+            else:
+                log["recipe_description"] = "Unknown Recipe"
+
         log.pop("user_id")
     return logs 
               
@@ -86,14 +100,26 @@ def get_logs(endDate : datetime, startDate : datetime, user : user, db: db, requ
   
   
 @router.post("/new")
-async def new_log(user : user, db: db, food_id: str = Form(...), amount_in_grams: str = Form(...), date: str = Form(...)):
+async def new_log(
+    user: user,
+    db: db,
+    food_id: str = Form(...),
+    amount: str = Form(...),
+    weight_in_grams: str = Form(...),
+    date: str = Form(...),
+    recipe_id: str = Form(None),
+    recipe_servings: str = Form(None)
+):
     try:
-        log_data = Log.model_construct(food_id=int(food_id), amount_in_grams=float(amount_in_grams), date = datetime.fromisoformat(date))
-        return await add_log(
-            user=user,
-            log=log_data,
-            db=db)
-        
+        log_data = Log.model_construct(
+            food_id=int(food_id),
+            amount=amount,
+            weight_in_grams=float(weight_in_grams),
+            date=datetime.fromisoformat(date),
+            recipe_id=recipe_id if recipe_id else None,
+            recipe_servings=float(recipe_servings) if recipe_servings else None
+        )
+        return await add_log(user=user, log=log_data, db=db)
     except ValueError:
         raise HTTPException(status_code=400)
 
@@ -153,33 +179,33 @@ def remove_log(user: user, log_id: str, db : db):
     
     
 @router.post("/edit")
-def edit_log(user: user, db : db, update_info: LogEdit):
+def edit_log(user: user, db: db, update_info: LogEdit):
     # Check if the log exists and belongs to the user
     print("looking for " + update_info.log_id + " for user " + str(user["_id"]) + " name " + user["name"])
-    # print(log.amount_in_grams + "    " + log.date)
     target_log = db.logs.find_one({"_id": ObjectId(update_info.log_id), "user_id": ObjectId(user["_id"])})
-    
+
     if not target_log:
         raise HTTPException(status_code=404, detail="Log not found.")
-    
-    
+
     # Update the fields in the log
     update_data = {
-        "food_id" : update_info.food_id,
-        "amount_in_grams" : update_info.amount_in_grams,
-        "date" : update_info.date  # Update the date to the current time
+        "food_id": update_info.food_id,
+        "amount": update_info.amount,
+        "weight_in_grams": update_info.weight_in_grams,
+        "date": update_info.date
     }
+
+    if update_info.recipe_id is not None:
+        update_data["recipe_id"] = update_info.recipe_id
+    if update_info.recipe_servings is not None:
+        update_data["recipe_servings"] = update_info.recipe_servings
 
     # Perform the update operation
     result = db.logs.update_one({"_id": target_log["_id"]}, {"$set": update_data})
-  
+
     if result.matched_count == 0:
         raise HTTPException(status_code=500, detail="Something went wrong; log not updated.")
-    
-    # # Retrieve the updated log
-    # updated_log = user_db.logs.find_one({"_id": target_log["_id"]})
-    # if updated_log:
-    #   return Log(**updated_log)
+
     return None
 
 
@@ -188,7 +214,7 @@ async def update_portion(
     user: user,
     db: db,
     log_id: str = Form(...),
-    portion: str = Form(...),
+    amount: str = Form(...),
     food_name: str = Form(...)
 ):
     """Update a log's portion and automatically recalculate grams"""
@@ -199,12 +225,12 @@ async def update_portion(
         raise HTTPException(status_code=404, detail="Log not found.")
 
     # Convert the new portion to grams using GPT
-    amount_in_grams = await estimate_grams(food_name, portion)
+    weight_in_grams = await estimate_grams(food_name, amount)
 
-    # Update both portion and amount_in_grams
+    # Update both amount and weight_in_grams
     update_data = {
-        "portion": portion,
-        "amount_in_grams": amount_in_grams
+        "amount": amount,
+        "weight_in_grams": weight_in_grams
     }
 
     # Perform the update operation
@@ -215,8 +241,8 @@ async def update_portion(
 
     # Return the updated values
     return {
-        "portion": portion,
-        "amount_in_grams": amount_in_grams
+        "amount": amount,
+        "weight_in_grams": weight_in_grams
     }
 
 
@@ -286,7 +312,7 @@ async def parse_meal(user: user, db: db, meal_description: str = Form(...)):
             food_id = food["food_id"]
             log = {
                 "food_id": ObjectId(food_id),
-                "amount_in_grams": float(food["amount_in_grams"]),
+                "weight_in_grams": float(food["weight_in_grams"]),
                 "date": timestamps.get(food_id, current_time),  # Use mentioned time or current time
                 "user_id": user["_id"]
             }

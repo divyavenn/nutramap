@@ -10,6 +10,7 @@ import { NutrientDashboard} from '../components/NutrientDash'
 import { useRefreshData } from '../components/dashboard_states'
 import Account from '../assets/images/account.svg?react'
 import Utensils from '../assets/images/utensils-solid.svg?react'
+import FoodBowl from '../assets/images/food_bowl.svg?react'
 import { isLoginExpired } from '../components/utlis'
 import { useNavigate } from 'react-router-dom';
 import { firstNameAtom, useRefreshAccountInfo} from '../components/account_states'
@@ -50,7 +51,7 @@ function Dashboard(){
 
   return(
   <StrictMode>
-  <Header linkIcons = {[{to : '/account', img : <Account/>}, {to : '/myfoods', img : <Utensils/>}]}/>
+  <Header linkIcons = {[{to : '/account', img : <Account/>}, {to : '/myfoods', img : <Utensils/>}, {to : '/myrecipes', img : <FoodBowl/>}]}/>
   <Heading words = {getGreeting()}/>
 
 

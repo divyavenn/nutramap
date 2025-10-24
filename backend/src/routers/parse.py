@@ -283,7 +283,7 @@ async def parse_recipe(meal_description: str) -> Tuple[List[Dict], Dict[str, dat
             async def process_food_item(item):
                 food_entry = {
                 "food_name": item.get("food_name", "Unknown food"),
-                "amount_in_grams": float(item.get("amount_in_grams", 0))
+                "weight_in_grams": float(item.get("amount_in_grams", 0))
                 }
 
                 timestamp = item.get("timestamp")

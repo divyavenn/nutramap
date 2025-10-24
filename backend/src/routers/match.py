@@ -212,7 +212,7 @@ async def process_logs(user, db, request, parsed_foods, timestamps):
         async def process_ingredient(ingredient):
             # Convert portion to grams using GPT
             portion = ingredient.get('portion', '1 serving')
-            amount_in_grams = await estimate_grams(ingredient['food_name'], portion)
+            weight_in_grams = await estimate_grams(ingredient['food_name'], portion)
 
             # Find matches
             sparse_results, dense_results = await get_matches(ingredient, db, user, request)
@@ -220,8 +220,8 @@ async def process_logs(user, db, request, parsed_foods, timestamps):
 
             return {
                 "food_id": int(matches[0]),
-                "portion": portion,  # Store natural portion
-                "amount_in_grams": amount_in_grams,  # Store converted grams
+                "amount": portion,  # Store natural portion
+                "weight_in_grams": weight_in_grams,  # Store converted grams
                 "date": timestamps.get(ingredient['food_name']),
                 "user_id": user["_id"]
             }
