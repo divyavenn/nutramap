@@ -19,11 +19,14 @@ interface LogProps {
   amount?: string;
   weight_in_grams: number;
   _id: string;
+  componentIndex?: number; // Optional: index of component being edited
+  recipeId?: string | null; // Optional: recipe ID if this component belongs to a recipe
   onAnimationStart?: () => void;
   onAnimationEnd?: () => void;
+  onCancel?: () => void; // Optional: callback to cancel editing
 }
 
-function EditLogForm({food_name, date, amount, weight_in_grams, _id, onAnimationStart, onAnimationEnd} : LogProps){
+function EditLogForm({food_name, date, amount, weight_in_grams, _id, componentIndex, recipeId, onAnimationStart, onAnimationEnd, onCancel} : LogProps){
 
   // Mock food data for autocomplete
   const foodList = useRecoilValue(foodsAtom)

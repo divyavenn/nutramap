@@ -118,12 +118,31 @@
   align-items: start;
   font-family: Inconsolata;
   border-radius: 14px;
+  background-color: rgba(0, 0, 0, 0.338);
+  color: var(--white);
+  justify-content: flex-start;
+  transition: all 0.1s ease;
+  box-sizing: border-box;
+}
+
+.recipe-bubble {
+  display: flex;
+  width: var(--modal-width);
+  margin-bottom: 20px;
+  flex-direction: row;
+  align-self: center;
+  align-items: start;
+  font-family: Inconsolata;
+  margin-left: 50px;
+  border-radius: 14px;
   background-color: var(--purple);
   color: var(--white);
   justify-content: flex-start;
   transition: all 0.1s ease;
   box-sizing: border-box;
 }
+
+/* Remove padding from child elements in recipe bubble */
 
 .log-bubble:hover {
   background-color: #ffffff00;
@@ -236,10 +255,7 @@
   flex-shrink: 0;
 }
 
-.component-log {
-  margin-left: 20px;
-  margin-bottom: 6px;
-}
+
 
 /* Edit form styles for recipe logs */
 .recipe-name-display {

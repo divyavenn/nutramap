@@ -401,3 +401,95 @@ def edit_recipe_log(
         raise HTTPException(status_code=500, detail="Something went wrong; log not updated.")
 
     return {"status": "success", "message": "Recipe log updated successfully"}
+
+
+@router.post("/edit-component")
+async def edit_component(
+    user: user,
+    db: db,
+    log_id: str = Form(...),
+    component_index: int = Form(...),
+    food_name: str = Form(...),
+    amount: str = Form(...)
+):
+    """
+    Edit a specific component within a log.
+    Updates the food and/or amount for that component.
+    If the log has a recipe_id, also update that recipe.
+    """
+    # Check if the log exists and belongs to the user
+    target_log = db.logs.find_one({"_id": ObjectId(log_id), "user_id": ObjectId(user["_id"])})
+
+    if not target_log:
+        raise HTTPException(status_code=404, detail="Log not found.")
+
+    # Verify the component index exists
+    if "components" not in target_log or component_index >= len(target_log["components"]):
+        raise HTTPException(status_code=400, detail="Invalid component index.")
+
+    # Get the food_id from the food name
+    from src.routers.match import get_matches, rrf_fusion
+    sparse_results, dense_results = await get_matches(
+        {"food_name": food_name}, db, user, request=None, k=30
+    )
+    matches = await rrf_fusion(sparse_results, dense_results, k=30, n=1)
+
+    if not matches or len(matches) == 0:
+        raise HTTPException(status_code=404, detail="Food not found")
+
+    new_food_id = int(matches[0])
+
+    # Estimate grams for the new amount
+    from src.routers.parse import estimate_grams
+    weight_in_grams = await estimate_grams(food_name, amount)
+
+    # Update the component
+    updated_components = target_log["components"].copy()
+    updated_components[component_index] = {
+        "food_id": new_food_id,
+        "amount": amount,
+        "weight_in_grams": weight_in_grams
+    }
+
+    # Update the log
+    result = db.logs.update_one(
+        {"_id": target_log["_id"]},
+        {"$set": {"components": updated_components}}
+    )
+
+    if result.matched_count == 0:
+        raise HTTPException(status_code=500, detail="Something went wrong; component not updated.")
+
+    # If this log has a recipe_id, also update that recipe
+    if target_log.get("recipe_id"):
+        recipe_id = target_log["recipe_id"]
+        user_doc = db.users.find_one(
+            {"_id": user["_id"], "recipes.recipe_id": recipe_id}
+        )
+
+        if user_doc:
+            # Find the recipe and update the corresponding ingredient
+            for recipe in user_doc.get("recipes", []):
+                if recipe["recipe_id"] == recipe_id:
+                    if component_index < len(recipe.get("ingredients", [])):
+                        # Update the recipe ingredient
+                        update_result = db.users.update_one(
+                            {
+                                "_id": user["_id"],
+                                "recipes.recipe_id": recipe_id
+                            },
+                            {
+                                "$set": {
+                                    f"recipes.$.ingredients.{component_index}.food_id": new_food_id,
+                                    f"recipes.$.ingredients.{component_index}.food_name": food_name,
+                                    f"recipes.$.ingredients.{component_index}.amount": amount,
+                                    f"recipes.$.ingredients.{component_index}.weight_in_grams": weight_in_grams / target_log.get("servings", 1.0)
+                                }
+                            }
+                        )
+
+    return {
+        "status": "success",
+        "message": "Component updated successfully",
+        "weight_in_grams": weight_in_grams
+    }

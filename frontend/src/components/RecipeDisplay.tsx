@@ -15,7 +15,7 @@ function RecipeDisplay ({ recipe_name, date, servings, recipe_id, recipe_exists,
 
   return (
     <div
-      className='log-bubble'
+      className='recipe-bubble'
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={onClick}

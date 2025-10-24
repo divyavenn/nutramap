@@ -22,8 +22,33 @@ function LogList (){
   const [animationLock, setAnimationLock] = useState(false);
   // Track which recipe log is being edited
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
+  // Track which component is being edited (format: "logId-componentIndex")
+  const [editingComponentId, setEditingComponentId] = useState<string | null>(null);
 
-  
+  // Handle click outside to close edit mode
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      // Check if click is outside any edit form
+      const target = event.target as HTMLElement;
+      const editForm = target.closest('#edit-log-form');
+
+      // If we're editing and the click is outside the edit form, cancel editing
+      if ((editingLogId || editingComponentId) && !editForm) {
+        setEditingLogId(null);
+        setEditingComponentId(null);
+      }
+    };
+
+    // Add event listener
+    document.addEventListener('mousedown', handleClickOutside);
+
+    // Cleanup
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [editingLogId, editingComponentId]);
+
+
   if (logs.length === 0 && pendingFoods.length === 0) {
     return <div className="log-list">
       <div className = 'no-logs-message'> no logs in this time.</div> </div>;
@@ -145,7 +170,7 @@ function LogList (){
               const isEditing = editingLogId === log._id;
 
               return (
-                <div key={log._id} className="recipe-log-entry">
+                <div key={log._id} >
                   {/* Recipe header - show edit form if editing, otherwise show normal header */}
                   {isEditing ? (
                     <div className="log-wrapper">
@@ -170,22 +195,44 @@ function LogList (){
                     />
                   )}
 
-                  {/* Render each component (only show when not editing) */}
-                  {!isEditing && log.components.map((component, idx) => (
-                    <div
-                      key={`${log._id}-${idx}`}
-                      className="log-wrapper component-log"
-                      onMouseEnter={() => handleLogMouseEnter(`${log._id}-${idx}`, formatLogDescription([component]))}
-                      onMouseLeave={handleLogMouseLeave}
-                    >
-                      <DisplayLog
-                        food_name={component.food_name}
-                        date={new Date(log.date)}
-                        amount={component.amount}
-                        weight_in_grams={component.weight_in_grams}
-                      />
-                    </div>
-                  ))}
+                  {/* Render each component */}
+                  {log.components.map((component, idx) => {
+                    const componentId = `${log._id}-${idx}`;
+                    const isEditingComponent = editingComponentId === componentId;
+
+                    return (
+                      <div
+                        key={componentId}
+                        className="log-wrapper"
+                        onMouseEnter={() => !isEditingComponent && handleLogMouseEnter(componentId, formatLogDescription([component]))}
+                        onMouseLeave={handleLogMouseLeave}
+                      >
+                        {isEditingComponent ? (
+                          <EditLogForm
+                            food_name={component.food_name}
+                            date={new Date(log.date)}
+                            amount={component.amount}
+                            weight_in_grams={component.weight_in_grams}
+                            _id={log._id}
+                            componentIndex={idx}
+                            recipeId={log.recipe_id}
+                            onAnimationStart={handleAnimationStart}
+                            onAnimationEnd={handleAnimationEnd}
+                            onCancel={() => setEditingComponentId(null)}
+                          />
+                        ) : (
+                          <div onClick={() => setEditingComponentId(componentId)}>
+                            <DisplayLog
+                              food_name={component.food_name}
+                              date={new Date(log.date)}
+                              amount={component.amount}
+                              weight_in_grams={component.weight_in_grams}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })}
@@ -212,7 +259,7 @@ function DisplayLog ({ food_name, date, amount, weight_in_grams } : DisplayLogPr
       <div className='food-weight-space'>
       </div>
       <div className='food-date-space'></div>
-      <div className='food-time-space'> {formatTime(date)} </div>
+      <div className='food-time-space'> </div>
 
     </div>
   );

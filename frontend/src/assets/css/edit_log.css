@@ -393,6 +393,8 @@ input, textarea {
   width: 40px;
   justify-content: flex-end; /* Pushes content to the right side */
   padding-top: 8px;
+  margin-left: 5px;
+  margin-right: 5px;
   padding-left: 20px;
 
 }
@@ -442,6 +444,7 @@ input, textarea {
 .delete-log-button-container {
   display: flex; 
   width: 40px;
+  margin-right: 10px;
   padding-top: 12px;;
   align-items: start; /* Vertically centers the button */
 }
