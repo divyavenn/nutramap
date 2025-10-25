@@ -166,3 +166,5 @@ cython_debug/
 burnished-fold-443107-p1-2e8e47dad2d4.json
 
 backend/deploy-modal.sh
+backend/deploy-modal.sh
+backend/.env.local
