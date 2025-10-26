@@ -1,17 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Header } from '../components/Sections';
 import { Heading } from '../components/Title';
 import Account from '../assets/images/account.svg?react';
 import Dashboard from '../assets/images/dashboard.svg?react'
-import Trashcan from '../assets/images/trashcan.svg?react';
 import { request } from '../components/endpoints';
 import { useNavigate } from 'react-router-dom';
 import { isLoginExpired } from '../components/utlis';
-import { firstNameAtom, useRefreshAccountInfo} from '../components/account_states'; 
+import { firstNameAtom, useRefreshAccountInfo} from '../components/account_states';
 import { useRecoilValue } from 'recoil';
 import '../assets/css/foods.css';
+import '../assets/css/NutrientStats.css';
 import NewFood from '../components/NewFood';
 import {RecoilRoot} from 'recoil';
+import { EditFoodNutrientForm } from '../components/NutrientPanel';
+import AddLogButton from '../assets/images/plus.svg?react'
+import { ImageButton } from '../components/Sections';
+
+interface NutrientInfo {
+  nutrient_id: number;
+  name: string;
+  amount: number;
+  unit: string;
+}
 
 interface Food {
   _id: string;
@@ -25,11 +35,11 @@ interface Food {
 
 function Foods() {
   const [foods, setFoods] = useState<Food[]>([]);
-  const [expandedFood, setExpandedFood] = useState<string | null>(null);
-  const [editingFood, setEditingFood] = useState<string | null>(null);
-  const [editedName, setEditedName] = useState('');
+  const [selectedFood, setSelectedFood] = useState<string | null>(null);
+  const [nutrientsDetails, setNutrientsDetails] = useState<NutrientInfo[]>([]);
+  const [editing, setEditing] = useState<boolean>(false);
+  const editFormRef = useRef<HTMLDivElement>(null);
   const refreshAccountInfo = useRefreshAccountInfo();
-  const [showNewFood, setShowNewFood] = useState(false);
   const navigate = useNavigate();
   const name = useRecoilValue(firstNameAtom) 
 
@@ -49,11 +59,27 @@ function Foods() {
       fetchFoods();
     };
 
-    document.addEventListener('foodAdded', handleFoodAdded);
+    document.addEventListener('food-added', handleFoodAdded);
     return () => {
-      document.removeEventListener('foodAdded', handleFoodAdded);
+      document.removeEventListener('food-added', handleFoodAdded);
     };
   }, []);
+
+  // Handle clicks outside edit form
+  useEffect(() => {
+    if (editFormRef.current && editing) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [editFormRef, editing]);
+
+  const handleClickOutside = (event: MouseEvent) => {
+    if (editFormRef.current && !editFormRef.current.contains(event.target as Node)) {
+      setEditing(false);
+    }
+  };
 
   const fetchFoods = async () => {
     try {
@@ -66,40 +92,93 @@ function Foods() {
     }
   };
 
-  const toggleExpand = (foodId: string) => {
-    setExpandedFood(expandedFood === foodId ? null : foodId);
-  };
+  const handleFoodClick = async (foodId: string) => {
+    if (selectedFood === foodId) {
+      setSelectedFood(null);
+      setNutrientsDetails([]);
+      setEditing(false);
+      return;
+    }
 
-  const startEditing = (food: Food) => {
-    setEditingFood(food._id);
-    setEditedName(food.name);
-  };
+    setSelectedFood(foodId);
+    setEditing(false);
 
-  const saveEditedName = async (foodId: string) => {
+    // Fetch nutrient details for this food
+    const food = foods.find(f => f._id === foodId);
+    if (!food) return;
+
     try {
-      await request(`/food/update-custom-food/${foodId}`, 'PUT', { name: editedName });
-      
-      // Update local state
-      setFoods(foods.map(food => 
-        food._id === foodId ? { ...food, name: editedName } : food
-      ));
-      
-      setEditingFood(null);
+      // Get nutrient names and units from backend
+      const nutrientPromises = Object.keys(food.nutrients).map(async (nutrientId) => {
+        const response = await request(`/nutrients/${nutrientId}`, 'GET');
+        return {
+          nutrient_id: parseInt(nutrientId),
+          name: response.body.name,
+          amount: food.nutrients[nutrientId],
+          unit: response.body.unit
+        };
+      });
+
+      const details = await Promise.all(nutrientPromises);
+      setNutrientsDetails(details);
     } catch (error) {
-      console.error('Error updating food name:', error);
+      console.error('Error fetching nutrient details:', error);
     }
   };
 
-  const deleteFood = async (foodId: string) => {
+  const refreshNutrients = async () => {
+    if (!selectedFood) return;
+
+    // Refresh the nutrients for the selected food
+    const food = foods.find(f => f._id === selectedFood);
+    if (!food) return;
+
     try {
-      await request(`/food/delete-custom-food/${foodId}`, 'DELETE');
-      
+      const response = await request(`/food/custom_foods/${selectedFood}`, 'GET');
+      const updatedFood = response.body;
+
+      // Update foods list
+      setFoods(foods.map(f => f._id === selectedFood ? updatedFood : f));
+
+      // Update nutrient details
+      const nutrientPromises = Object.keys(updatedFood.nutrients).map(async (nutrientId) => {
+        const response = await request(`/nutrients/${nutrientId}`, 'GET');
+        return {
+          nutrient_id: parseInt(nutrientId),
+          name: response.body.name,
+          amount: updatedFood.nutrients[nutrientId],
+          unit: response.body.unit
+        };
+      });
+
+      const details = await Promise.all(nutrientPromises);
+      setNutrientsDetails(details);
+    } catch (error) {
+      console.error('Error refreshing nutrients:', error);
+    }
+  };
+
+  const toggleEditing = () => {
+    setEditing(!editing);
+  };
+
+  const deleteFood = async (foodId: string, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent triggering food selection
+
+    if (!confirm('Are you sure you want to delete this food?')) {
+      return;
+    }
+
+    try {
+      await request(`/food/custom_foods/${foodId}`, 'DELETE');
+
       // Update local state
       setFoods(foods.filter(food => food._id !== foodId));
-      
-      // If the deleted food was expanded, collapse it
-      if (expandedFood === foodId) {
-        setExpandedFood(null);
+
+      // If the deleted food was selected, deselect it
+      if (selectedFood === foodId) {
+        setSelectedFood(null);
+        setNutrientsDetails([]);
       }
     } catch (error) {
       console.error('Error deleting food:', error);
@@ -111,72 +190,89 @@ function Foods() {
     <>
       <Header linkIcons={[{to: '/account', img: <Account/>}, {to: '/dashboard', img: <Dashboard/>}]}/>
       <Heading words={`${name}'s Foods`} />
-      
-      <div className="foods-container">
 
+      <div className="foods-container">
         <NewFood />
-        
+
         {foods.length === 0 ? (
           <div className="no-foods-message">
             You haven't created any custom foods yet.
           </div>
         ) : (
-          <ul className="foods-list">
+          <div className="foods-tags-container">
             {foods.map(food => (
-              <li key={food._id} className="food-item">
-                <div className="food-header">
-                  {editingFood === food._id ? (
-                    <input
-                      type="text"
-                      value={editedName}
-                      onChange={(e) => setEditedName(e.target.value)}
-                      onBlur={() => saveEditedName(food._id)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') saveEditedName(food._id);
-                        if (e.key === 'Escape') setEditingFood(null);
-                      }}
-                      autoFocus
-                      className="food-name-input"
-                    />
-                  ) : (
-                    <div 
-                      className="food-name" 
-                      onClick={() => toggleExpand(food._id)}
-                      onDoubleClick={() => startEditing(food)}
-                    >
-                      {food.name}
-                    </div>
-                  )}
-                  
-                  <button 
-                    className="delete-food-button" 
-                    onClick={() => deleteFood(food._id)}
-                    aria-label="Delete food"
-                  >
-                    <Trashcan />
-                  </button>
-                </div>
-                
-                {expandedFood === food._id && (
-                  <div className="food-details">
-                    <h4>Nutritional Information</h4>
-                    <table className="nutrients-table">
-                      <tbody>
-                        {Object.entries(food.nutrients).map(([nutrient, value]) => (
-                          <tr key={nutrient}>
-                            <td className="nutrient-name">{nutrient}</td>
-                            <td className="nutrient-value">{value}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </li>
+              <div
+                key={food._id}
+                className={`food-tag ${selectedFood === food._id ? 'selected' : ''}`}
+                onClick={() => handleFoodClick(food._id)}
+              >
+                <span className="food-tag-name">{food.name}</span>
+                <button
+                  className="food-tag-delete"
+                  onClick={(e) => deleteFood(food._id, e)}
+                  aria-label="Delete food"
+                >
+                  ×
+                </button>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
       </div>
+
+      {selectedFood && (
+        <div className="food-modal-overlay" onClick={() => { setSelectedFood(null); setNutrientsDetails([]); setEditing(false); }}>
+          <div className="food-nutrient-dashboard" onClick={(e) => e.stopPropagation()}>
+            <div className="food-dashboard-title">
+              {foods.find(f => f._id === selectedFood)?.name}
+            </div>
+
+            <div className="requirement-edit-wrapper" ref={editFormRef}>
+              {!editing ? (
+                nutrientsDetails.length === 0 ? (
+                  <div className="no-req-message">no nutrients</div>
+                ) : (
+                  <div className="nutrient-list-wrapper">
+                    {nutrientsDetails.map(nutrient => (
+                      <div key={nutrient.nutrient_id} className="dashboard-row">
+                        <div className="nutrient-name-wrapper">
+                          <div className="nutrient-name">{nutrient.name}</div>
+                        </div>
+                        <div className="today-stats-wrapper">
+                          <div className="daily-intake">
+                            {nutrient.amount} {nutrient.unit}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : (
+                <div className="nutrient-edit-list-wrapper">
+                  {nutrientsDetails.map(nutrient => (
+                    <EditFoodNutrientForm
+                      key={nutrient.nutrient_id}
+                      original={nutrient}
+                      foodId={selectedFood}
+                      onUpdate={refreshNutrients}
+                    />
+                  ))}
+                  <EditFoodNutrientForm
+                    foodId={selectedFood}
+                    onUpdate={refreshNutrients}
+                  />
+                </div>
+              )}
+            </div>
+
+            {!editing && (
+              <ImageButton onClick={toggleEditing}>
+                <AddLogButton />
+              </ImageButton>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }

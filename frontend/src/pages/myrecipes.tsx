@@ -1,6 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { request } from '../components/endpoints';
 import '../assets/css/myrecipes.css';
+import Trashcan from '../assets/images/trashcan.svg?react';
+import OkCheck from '../assets/images/checkmark.svg?react';
+import { Header } from '../components/Sections';
+import { Heading } from '../components/Title';
+import Account from '../assets/images/account.svg?react';
+import Dashboard from '../assets/images/dashboard.svg?react';
+import { useRecoilValue } from 'recoil';
+import { firstNameAtom } from '../components/account_states';
 
 interface RecipeIngredient {
   food_id: number;
@@ -30,6 +38,7 @@ function MyRecipes() {
   const [loading, setLoading] = useState(true);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const name = useRecoilValue(firstNameAtom);
 
   useEffect(() => {
     initializeRecipes();
@@ -82,9 +91,8 @@ function MyRecipes() {
   if (loading) {
     return (
       <div className="myrecipes-page">
-        <div className="myrecipes-header">
-          <h1>My Recipes</h1>
-        </div>
+        <Header linkIcons={[{to: '/account', img: <Account/>}, {to: '/dashboard', img: <Dashboard/>}]}/>
+        <Heading words={`${name}'s Recipes`} />
         <div className="loading-message">Loading recipes...</div>
       </div>
     );
@@ -92,8 +100,9 @@ function MyRecipes() {
 
   return (
     <div className="myrecipes-page">
+      <Header linkIcons={[{to: '/account', img: <Account/>}, {to: '/dashboard', img: <Dashboard/>}]}/>
+      <Heading words={`${name}'s Recipes`} />
       <div className="myrecipes-header">
-        <h1>My Recipes</h1>
         <button
           className="create-recipe-button"
           onClick={() => setShowCreateModal(true)}
@@ -122,14 +131,14 @@ function MyRecipes() {
                 </div>
               </div>
               <div className="recipe-ingredients-preview">
-                {recipe.ingredients.slice(0, 3).map((ing, idx) => (
+                {recipe.ingredients.slice(0, 5).map((ing, idx) => (
                   <div key={idx} className="ingredient-preview-item">
-                    • {ing.amount}
+                    {ing.amount} {ing.food_name || 'Unknown'}
                   </div>
                 ))}
-                {recipe.ingredients.length > 3 && (
+                {recipe.ingredients.length > 5 && (
                   <div className="more-ingredients">
-                    +{recipe.ingredients.length - 3} more
+                    +{recipe.ingredients.length - 5} more
                   </div>
                 )}
               </div>
@@ -179,7 +188,7 @@ function RecipeDetailModal({ recipe, onClose, onDelete, onUpdate }: RecipeDetail
       setLoadingNutrition(true);
       // Fetch nutrition for all ingredients that have valid food_id
       const nutritionPromises = editedIngredients
-        .filter(ingredient => ingredient.food_id && ingredient.food_id !== 'undefined')
+        .filter(ingredient => ingredient.food_id)
         .map(async (ingredient) => {
           try {
             const response = await request(
@@ -269,17 +278,13 @@ function RecipeDetailModal({ recipe, onClose, onDelete, onUpdate }: RecipeDetail
                   <div key={index} className="ingredient-edit-row">
                     <div className="ingredient-name-display">
                       <label>Food</label>
-                      {!ingredient.food_id || ingredient.food_id === 'undefined' ? (
+                      {!ingredient.food_id? (
                         <input
                           type="text"
+                          className="ingredient-name-input"
                           placeholder="Enter food name to match..."
                           value={ingredient.food_name || ''}
                           onChange={(e) => handleIngredientChange(index, 'food_name', e.target.value)}
-                          style={{
-                            width: '100%',
-                            borderColor: 'rgba(255, 100, 100, 0.5)',
-                            backgroundColor: 'rgba(255, 100, 100, 0.1)'
-                          }}
                         />
                       ) : (
                         <div className="ingredient-food-name">
@@ -349,13 +354,13 @@ function RecipeDetailModal({ recipe, onClose, onDelete, onUpdate }: RecipeDetail
         </div>
 
         <div className="modal-footer">
-          <button className="delete-button" onClick={() => onDelete(recipe.recipe_id)}>
-            Delete Recipe
+          <button className="delete-button" onClick={() => onDelete(recipe.recipe_id)} title="Delete Recipe">
+            <Trashcan />
           </button>
           <div className="action-buttons">
-            <button className="cancel-button" onClick={onClose}>Cancel</button>
-            <button className="save-button" onClick={handleSave} disabled={isSaving}>
-              {isSaving ? 'Saving...' : 'Save Changes'}
+            <button className="cancel-button" onClick={onClose}>×</button>
+            <button className="save-button" onClick={handleSave} disabled={isSaving} title={isSaving ? 'Saving...' : 'Save Changes'}>
+              <OkCheck />
             </button>
           </div>
         </div>

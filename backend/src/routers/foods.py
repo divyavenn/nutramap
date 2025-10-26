@@ -10,6 +10,7 @@ import shutil
 import uuid
 import pickle
 import asyncio
+import json
 from datetime import datetime
 
 # Import database connection
@@ -373,88 +374,6 @@ async def get_custom_foods(
     return formatted_foods
 
 
-@router.post("/add_custom_food")
-async def add_custom_food(
-    background_tasks: BackgroundTasks,
-    request: Request, 
-    food_description: str = Form(...),
-    food_image: Optional[UploadFile] = File(None),
-    db: Annotated[Database, Depends(get_data)] = None,
-    user: Annotated[dict, Depends(get_current_user)] = None
-):
-    print("hi!")
-    try:
-        # Process image if provided
-        image_path = None
-        if food_image:
-            # Create a unique filename
-            file_extension = os.path.splitext(food_image.filename)[1]
-            unique_filename = f"{uuid.uuid4()}{file_extension}"
-            image_path = os.path.join(UPLOAD_DIR, unique_filename)
-            
-            # Save the uploaded file
-            with open(image_path, "wb") as buffer:
-                shutil.copyfileobj(food_image.file, buffer)
-        
-        # Parse the food description and image to get nutrients
-        food_name, nutrients = await parse_new_food(food_description, image_path)
-        
-        # Map nutrient names to IDs using the sparse search
-        nutrient_data = []
-        for nutrient in nutrients:
-            nutrient_name = nutrient.get("nutrient_name")
-            amount = nutrient.get("amount", 0)
-            
-            # Skip if no nutrient name or amount is zero
-            if not nutrient_name or amount <= 0:
-                continue
-            
-            # Search for nutrient ID
-            matches = await search_nutrients_by_name(nutrient_name)
-            if matches:
-                # Get the best match (highest score)
-                best_match_id = max(matches.items(), key=lambda x: x[1])[0]
-                nutrient_data.append({
-                    "nutrient_id": best_match_id,
-                    "amount": amount
-                })
-        
-        # Create food document
-        food_doc = {
-            "name": food_name,
-            "description": food_description,
-            "nutrients": nutrient_data,
-            "user_id": str(user["_id"]),  # Convert ObjectId to string
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow(),
-            "is_custom": True
-        }
-        
-        # Add image path if available
-        if image_path:
-            relative_path = os.path.relpath(image_path, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-            food_doc["image_path"] = relative_path
-        
-        # Insert into database - convert back to ObjectId for MongoDB
-        doc_to_insert = food_doc.copy()
-        doc_to_insert["user_id"] = ObjectId(food_doc["user_id"])
-        result = db.foods.insert_one(doc_to_insert)
-        
-        # Return the created food
-        food_doc["_id"] = str(result.inserted_id)
-        
-        return JSONResponse(
-            status_code=201,
-            content={
-                "message": "Food added successfully",
-                "food": food_doc
-            }
-        )
-    
-    except Exception as e:
-        print(f"Error adding food: {e}")
-        raise HTTPException(status_code=500, detail=f"Error adding food: {str(e)}")
-
 @router.delete("/custom_foods/{food_id}")
 async def delete_custom_food(
     food_id: str,
@@ -506,41 +425,87 @@ async def update_custom_food(
 ):
     """
     Update a custom food's name.
-    
+
     Args:
         food_id: ID of the food to update
         name: New name for the food
         db: MongoDB database connection
         user: Current authenticated user
-        
+
     Returns:
         Updated food document
     """
     try:
         # Find the food to update
         food = await db.foods.find_one({"_id": ObjectId(food_id), "user_id": user["_id"]})
-        
+
         if not food:
             raise HTTPException(status_code=404, detail="Food not found")
-        
+
         # Update the food
         result = await db.foods.update_one(
             {"_id": ObjectId(food_id), "user_id": user["_id"]},
             {"$set": {"name": name, "updated_at": datetime.utcnow()}}
         )
-        
+
         if result.modified_count == 0:
             raise HTTPException(status_code=404, detail="Food not found")
-        
+
         # Get the updated food
         updated_food = await db.foods.find_one({"_id": ObjectId(food_id)})
         updated_food["_id"] = str(updated_food["_id"])
-        
+
         return updated_food
-    
+
     except Exception as e:
         print(f"Error updating food: {e}")
         raise HTTPException(status_code=500, detail=f"Error updating food: {str(e)}")
+
+
+@router.put("/update-nutrients/{food_id}")
+def update_food_nutrients(
+    food_id: str,
+    nutrients: str = Form(...),
+    db: Database = Depends(get_data),
+    user: dict = Depends(get_current_user)
+):
+    """
+    Update a custom food's nutrients.
+
+    Args:
+        food_id: ID of the food to update
+        nutrients: JSON string of nutrient array [{"nutrient_id": int, "amt": float}, ...]
+        db: MongoDB database connection
+        user: Current authenticated user
+
+    Returns:
+        Success message
+    """
+    try:
+        # Parse the nutrients JSON
+        nutrients_data = json.loads(nutrients)
+
+        # Convert nutrients array to dict format {nutrient_id: amount}
+        nutrients_dict = {}
+        for n in nutrients_data:
+            nutrients_dict[str(n["nutrient_id"])] = n["amt"]
+
+        # Update the food
+        result = db.foods.update_one(
+            {"_id": ObjectId(food_id), "source": user["_id"]},
+            {"$set": {"nutrients": nutrients_dict}}
+        )
+
+        if result.modified_count == 0:
+            raise HTTPException(status_code=404, detail="Food not found or no changes made")
+
+        return {"message": "Nutrients updated successfully"}
+
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON format for nutrients")
+    except Exception as e:
+        print(f"Error updating food nutrients: {e}")
+        raise HTTPException(status_code=500, detail=f"Error updating nutrients: {str(e)}")
 
 @router.get("/all")
 async def get_all_foods(db: Annotated[Database, Depends(get_data)] = None):
@@ -560,10 +525,10 @@ async def get_all_foods(db: Annotated[Database, Depends(get_data)] = None):
 
 
 @router.get("/custom_foods/{food_id}")
-async def get_custom_food(
+def get_custom_food(
     food_id: str,
-    db: Annotated[Database, Depends(get_data)] = None,
-    user: Annotated[dict, Depends(get_current_user)] = None
+    db: Database = Depends(get_data),
+    user: dict = Depends(get_current_user)
 ):
     """
     Get a specific food by ID.
@@ -578,16 +543,341 @@ async def get_custom_food(
     """
     try:
         # Find the food
-        food = await db.foods.find_one({"_id": ObjectId(food_id)})
-        
+        food = db.foods.find_one({"_id": ObjectId(food_id)})
+
         if not food:
             raise HTTPException(status_code=404, detail="Food not found")
-        
+
         # Convert ObjectId to string
         food["_id"] = str(food["_id"])
-        
+
         return food
-    
+
     except Exception as e:
         print(f"Error getting food: {e}")
         raise HTTPException(status_code=500, detail=f"Error getting food: {str(e)}")
+
+@router.post("/process_images")
+async def process_food_images(
+    description: Optional[str] = Form(None),
+    images: list[UploadFile] = File([]),
+    user: dict = Depends(get_current_user),
+    db: Database = Depends(get_data)
+):
+    """
+    Process uploaded images to extract food description and nutrition information.
+
+    - Accepts multiple images via the 'images' parameter
+    - If description is provided, use it; otherwise generate from images
+    - Detects which images are nutrition labels vs food photos
+    - Extracts nutrition from labels, estimates from food photos
+    - Returns: {description: str, nutrients: List[{nutrient_id, name, amount, unit}]}
+    """
+    try:
+        import openai
+        import base64
+        import json
+
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise HTTPException(status_code=500, detail="OpenAI API key not configured")
+
+        client = openai.OpenAI(api_key=api_key)
+
+        result_description = description
+        result_nutrients = []
+
+        # If no images provided, return early
+        if not images:
+            return {
+                "description": result_description or "Unknown food",
+                "nutrients": []
+            }
+
+        # Helper function to encode image
+        async def encode_image(upload_file: UploadFile) -> str:
+            contents = await upload_file.read()
+            return base64.b64encode(contents).decode('utf-8')
+
+        # Helper function to clean JSON response (remove markdown code blocks)
+        def clean_json_response(text: str) -> str:
+            text = text.strip()
+            # Remove markdown code blocks if present
+            if text.startswith('```'):
+                # Find the first newline after the opening ```
+                first_newline = text.find('\n')
+                if first_newline != -1:
+                    text = text[first_newline + 1:]
+                # Remove the closing ```
+                if text.endswith('```'):
+                    text = text[:-3]
+            return text.strip()
+
+        # Classify images as labels or food photos
+        label_images = []
+        food_images = []
+
+        for img in images:
+            base64_img = await encode_image(img)
+            await img.seek(0)  # Reset file pointer
+
+            # Ask GPT to classify the image
+            classify_response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "Is this image a nutrition facts label? Answer with only 'yes' or 'no'."
+                            },
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{base64_img}"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                max_tokens=10,
+                temperature=0
+            )
+
+            classification = classify_response.choices[0].message.content.strip().lower()
+
+            if "yes" in classification:
+                label_images.append((img, base64_img))
+            else:
+                food_images.append((img, base64_img))
+
+        # Step 1: Generate description if not provided
+        if not result_description:
+            # Prefer food images for description, fall back to label images
+            images_for_description = food_images if food_images else label_images
+
+            if images_for_description:
+                _, base64_image = images_for_description[0]
+
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": "Describe this food item in a concise phrase (e.g., 'Homemade chocolate chip cookie with walnuts', 'Grilled chicken breast', etc.). Just return the food name, nothing else."
+                                },
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/jpeg;base64,{base64_image}"
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    max_tokens=50
+                )
+                result_description = response.choices[0].message.content.strip()
+
+        # Step 2: Extract nutrition from labels
+        if label_images:
+            for img, base64_label in label_images:
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": """Extract all nutritional information from this nutrition facts label.
+                                    Return ONLY a JSON object with this exact format:
+                                    {
+                                      "nutrients": [
+                                        {"name": "Energy", "amount": 250, "unit": "KCAL"},
+                                        {"name": "Protein", "amount": 5.2, "unit": "G"},
+                                        {"name": "Total lipid (fat)", "amount": 12.0, "unit": "G"},
+                                        {"name": "Carbohydrate, by difference", "amount": 30.5, "unit": "G"}
+                                      ]
+                                    }
+
+                                    Important:
+                                    - All values should be per 100g
+                                    - Use standard USDA nutrient names
+                                    - Energy should be in KCAL
+                                    - Use G for grams, MG for milligrams, UG for micrograms
+                                    - Include as many nutrients as visible on the label
+                                    - Return ONLY the JSON, no other text"""
+                                },
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/jpeg;base64,{base64_label}"
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    max_tokens=1000,
+                    temperature=0
+                )
+
+                # Parse JSON response
+                try:
+                    cleaned_response = clean_json_response(response.choices[0].message.content)
+                    nutrition_json = json.loads(cleaned_response)
+                    extracted_nutrients = nutrition_json.get("nutrients", [])
+
+                    # Merge nutrients (if multiple labels, combine them)
+                    for nutrient in extracted_nutrients:
+                        existing = next((n for n in result_nutrients if n["name"] == nutrient["name"]), None)
+                        if existing:
+                            # Average the amounts if duplicate
+                            existing["amount"] = (existing["amount"] + nutrient["amount"]) / 2
+                        else:
+                            result_nutrients.append(nutrient)
+
+                except json.JSONDecodeError as e:
+                    print(f"Failed to parse nutrition JSON: {response.choices[0].message.content}")
+                    print(f"Error: {e}")
+
+        # Step 3: Estimate nutrition from food images if no labels
+        elif food_images:
+            # Use the first food image for estimation
+            _, base64_food = food_images[0]
+
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": """Estimate the nutritional content per 100g for this food.
+                                Return ONLY a JSON object with this exact format:
+                                {
+                                  "nutrients": [
+                                    {"name": "Energy", "amount": 250, "unit": "KCAL"},
+                                    {"name": "Protein", "amount": 5.2, "unit": "G"},
+                                    {"name": "Total lipid (fat)", "amount": 12.0, "unit": "G"},
+                                    {"name": "Carbohydrate, by difference", "amount": 30.5, "unit": "G"}
+                                  ]
+                                }
+
+                                Provide reasonable estimates for common nutrients (energy, protein, fat, carbs, fiber, sugar, sodium, etc.).
+                                Use standard USDA nutrient names.
+                                Return ONLY the JSON, no other text."""
+                            },
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{base64_food}"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                max_tokens=1000,
+                temperature=0
+            )
+
+            # Parse JSON response
+            try:
+                cleaned_response = clean_json_response(response.choices[0].message.content)
+                nutrition_json = json.loads(cleaned_response)
+                result_nutrients = nutrition_json.get("nutrients", [])
+            except json.JSONDecodeError as e:
+                print(f"Failed to parse nutrition JSON: {response.choices[0].message.content}")
+                print(f"Error: {e}")
+
+        # Map nutrient names to IDs
+        nutrients_with_ids = []
+        for nutrient in result_nutrients:
+            # Try to find matching nutrient in database
+            nutrient_doc = db.nutrients.find_one({"nutrient_name": nutrient["name"]})
+            if nutrient_doc:
+                nutrients_with_ids.append({
+                    "nutrient_id": nutrient_doc["_id"],
+                    "name": nutrient["name"],
+                    "amount": nutrient["amount"],
+                    "unit": nutrient["unit"]
+                })
+            else:
+                # If not found, still include it (frontend can handle)
+                nutrients_with_ids.append({
+                    "nutrient_id": -1,  # Unknown
+                    "name": nutrient["name"],
+                    "amount": nutrient["amount"],
+                    "unit": nutrient["unit"]
+                })
+
+        return {
+            "description": result_description or "Unknown food",
+            "nutrients": nutrients_with_ids
+        }
+
+    except Exception as e:
+        print(f"Error processing images: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error processing images: {str(e)}")
+
+
+@router.post("/add_custom_food")
+async def add_custom_food(
+    name: str = Form(...),
+    nutrients: str = Form("[]"),
+    user: dict = Depends(get_current_user),
+    db: Database = Depends(get_data)
+):
+    """
+    Add a custom food with optional nutrition data.
+    
+    - name: Food name/description
+    - nutrients: JSON string of nutrients array
+    """
+    try:
+        import json
+        
+        # Parse nutrients JSON
+        try:
+            nutrients_list = json.loads(nutrients) if isinstance(nutrients, str) else nutrients
+        except json.JSONDecodeError:
+            nutrients_list = []
+        
+        # Create custom food document
+        food_doc = {
+            "_id": ObjectId(),
+            "food_name": name,
+            "nutrients": [
+                {
+                    "nutrient_id": n.get("nutrient_id", -1),
+                    "amt": n.get("amount", 0)
+                }
+                for n in nutrients_list
+                if n.get("nutrient_id", -1) != -1  # Only include mapped nutrients
+            ],
+            "is_custom": True,
+            "source": user["_id"],
+            "created_at": datetime.now()
+        }
+        
+        # Insert into foods collection
+        result = db.foods.insert_one(food_doc)
+
+        return {
+            "status": "success",
+            "food_id": str(result.inserted_id),
+            "message": "Custom food added successfully"
+        }
+    
+    except Exception as e:
+        print(f"Error adding custom food: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error adding custom food: {str(e)}")
