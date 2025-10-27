@@ -102,7 +102,7 @@
 .new-requirement-nutrient-name {
   cursor: pointer;
   font-family: Poppins;
-  font-size: 14px;
+  font-size: 17px;
   width: 100%;
   /* border: 2px solid red */
 }
@@ -116,10 +116,10 @@
   align-items: center;
   align-self: center;
   position: relative;
-  width: 40%; /* Set width to match your layout */
+  width: 15%; /* Set width to match your layout */
   margin-left: 0px;
   font-family: Poppins;
-  font-size: 14px;
+  font-size: 17px;
 }
 
 /* The input for entering food amount */
@@ -142,7 +142,7 @@
   align-self: center;
   position: relative;
   font-family: Poppins;
-  font-size: 14px;
+  font-size: 17px;
   /* border: 2px solid red */
 }
 
@@ -227,7 +227,7 @@
 
 .delete-requirement-button-container {
   display: flex; 
-  width: 75px;
+  width: 30px;
   align-items: start; /* Vertically centers the button */
 /*  */
 }
@@ -242,11 +242,12 @@
   cursor: pointer;
 }
 
-.delete-button svg {
-  fill: #ffffff77; /* You can change the SVG color here */ 
+.delete-requirement-button-container .svg-button.delete-button svg {
+  fill: #ffffff77 !important;
   height: 16px;
+  width: 16px;
 }
 
-.delete-button:hover svg {
-  fill: #ffffff; /* Change the color on hover */
+.delete-requirement-button-container .svg-button.delete-button:hover svg {
+  fill: #ffffff !important;
 }

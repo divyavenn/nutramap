@@ -23,7 +23,7 @@
   border: none;
   padding: 0;
   cursor: pointer;
-  margin-right: 30px;
+  margin-right: 20px;
   margin-top: 20px;
   align-self: left;
 }
@@ -31,6 +31,10 @@
 .header-link-button svg {
   fill: #ffffff; /* White color */
   height: 30px;
+}
+
+.header-link-button:selected svg {
+  fill: #a855f7; /* Bright purple on hover */
 }
 
 .header-link-button:hover svg {

@@ -1,6 +1,6 @@
 .nutrient-dashboard {
   display: flex;
-  width: var(--modal-width);
+  width: var(--dashboard-width);
   margin-top: 0px;
   margin-bottom: 20px;
   padding-top: 40px;
@@ -53,7 +53,7 @@
   font-family: Inconsolata;
   font-style: italic;
   color:var(--transparent-white);
-  font-size: 16px;
+  font-size: var(--inconsolata-font-size);
   text-align: center;
   font-weight: 300;
   text-transform: none;
@@ -66,7 +66,7 @@
   width: 100%;
   font-family: Inconsolata;
   color:var(--white);
-  font-size: 16px;
+  font-size: var(--inconsolata-font-size);
   font-weight: 300;
   text-transform: none;
 }
@@ -103,7 +103,7 @@
 .nutrient-name {
   cursor: pointer;
   font-family: Poppins;
-  font-size: 18px;
+  font-size: 20px;
   transition: all 0.3s ease;
 }
 
@@ -127,7 +127,7 @@
 
 .avg-intake {
   font-family: Inconsolata;
-  font-size: 18px;
+  font-size: var(--inconsolata-font-size);
   font-weight: 300;
   cursor: default;
   text-align: center;
@@ -151,7 +151,7 @@
 .goal-message {
   position: absolute;
   font-family: Inconsolata;
-  font-size: 18px;
+  font-size: var(--inconsolata-font-size);
   transition: opacity 0.3s ease, transform 0.3s ease;
   width: 100%;
   text-align: center;

@@ -43,7 +43,8 @@ def create_user(user: UserCreate, user_db : user_db_dependency):
     # this removes the password field and assigns the value to the password_hash field, allowing hashing for security purposes
     user_dict["password_hash"] = hash_password(user_dict.pop("password"))
     user_dict["role"] = "user"
-    
+    user_dict["custom_foods"] = []  # Initialize empty custom foods list
+
     try:
         # Insert the new user, relying on the unique index to enforce uniqueness
         user_db.users.insert_one(user_dict)

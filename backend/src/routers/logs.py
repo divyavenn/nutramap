@@ -59,7 +59,7 @@ def get_logs_in_range(user, startDate : datetime, endDate: datetime, user_db):
 
 # output form:
 # New structure: logs with components
-# Each log has: recipe_name, servings, date, components[]
+# Each log has: meal_name, recipe_id, servings, date, components[]
 # Each component has: food_id, food_name, amount, weight_in_grams
 def make_log_readable(logs, db, request: Request = None):
     for log in logs:

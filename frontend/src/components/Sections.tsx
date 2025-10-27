@@ -1,7 +1,7 @@
 import nutramapLogo from '../assets/images/nutramap_logo.png'
 import '../assets/css/buttons.css'
 import React, { useState } from 'react';
-import {Link} from 'react-router-dom';
+import {Link, useLocation} from 'react-router-dom';
 
 // 3 rules of JSX
 // (1) return a single root elem (wrap in div or React Fragment <>...</>)
@@ -34,7 +34,8 @@ type PageLinkIcon = {
 };
 
 function Header({linkIcons} : {linkIcons? : PageLinkIcon[]}) {
-  
+  const location = useLocation();
+
   return (
   <header>
     <section className="nutramap-header">
@@ -43,13 +44,18 @@ function Header({linkIcons} : {linkIcons? : PageLinkIcon[]}) {
             loading="lazy" alt="" className = 'nutramap-logo'/>
       <div className="nutra header">nutramap</div>
       </Link>
-      <div style = {{width : '80%'}}></div>
+      <div style = {{width : '80%'}} ></div>
       {linkIcons &&
-        linkIcons.map((link) => { return (
+        linkIcons.map((link) => {
+          const isActive = location.pathname === link.to;
+          return (
           <Link key={link.to}
                 to={link.to}
-                className="header-link-button">
-                {link.img}
+                className="header-link-button"
+                style={isActive ? { fill: '#a855f7' } : undefined}>
+                {React.cloneElement(link.img as React.ReactElement, {
+                  style: isActive ? { fill: '#a855f7' } : undefined
+                })}
           </Link> )
         })
       }

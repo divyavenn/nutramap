@@ -11,11 +11,12 @@
 #	Experiment with distilled vector models for compactness
 #Try compressed sparse vector fusion
 
-from fastapi import APIRouter, Depends, Request, Body
+from fastapi import APIRouter, Depends, Request, Body, Query
 from fastapi.responses import JSONResponse
 from fastapi import BackgroundTasks
 from typing import Dict, List
 import asyncio
+import time
 
 # When running as a module within the application, use relative imports
 try:
@@ -79,7 +80,12 @@ async def rrf_fusion(sparse_results: Dict, dense_results: Dict, k: int = 30, n :
         if score not in sparse_score_groups:
             sparse_score_groups[score] = []
         sparse_score_groups[score].append(food_id)
-    
+     
+    # if there any perfect sparse matches, return them directly
+    # if not, move on to RRF fusion.
+    if sparse_score_groups:
+      return [sparse_score_groups[100]]
+  
     # Sort scores in descending order
     sorted_sparse_scores = sorted(sparse_score_groups.keys(), reverse=True)
     
@@ -255,7 +261,265 @@ async def autocomplete(user : user, db : db, request : Request, prompt: str):
         print(f"Error in background log processing: {e}")
         import traceback
         traceback.print_exc()
-    
+
+
+@router.get("/search/sparse")
+async def test_sparse_food_search(
+    food_name: str = Query(..., description="Food name to search for"),
+    threshold: float = Query(40, description="Minimum score threshold (0-100)", ge=0, le=100),
+    limit: int = Query(50, description="Maximum number of results", ge=1, le=100),
+    user: user = None,
+    db: db = None
+):
+        # Time ONLY the search, not the name lookup
+        start_time = time.perf_counter()
+        results = await get_sparse_index(food_name, db, user, threshold, limit)
+        end_time = time.perf_counter()
+        elapsed_ms = round((end_time - start_time) * 1000, 2)
+
+        if not results:
+            return {
+                "query": food_name,
+                "method": "sparse (Typesense)",
+                "elapsed_ms": elapsed_ms,
+                "results_count": 0,
+                "matches": {},
+                "message": "No foods found matching the query"
+            }
+
+        # AFTER timing, get food names for the matched IDs
+        food_details = {}
+        for food_id, score in results.items():
+            # Query the database directly to get the food name
+            try:
+                # Handle both ObjectId (custom foods) and integer (USDA foods)
+                try:
+                    # Try as integer first (USDA foods)
+                    food_doc = db.foods.find_one({"_id": int(food_id)})
+                except (ValueError, TypeError):
+                    # If that fails, try as ObjectId (custom foods)
+                    from bson import ObjectId
+                    food_doc = db.foods.find_one({"_id": ObjectId(food_id)})
+
+                if food_doc and "food_name" in food_doc:
+                    food_details[str(food_id)] = {
+                        "name": food_doc["food_name"],
+                        "score": score
+                    }
+                else:
+                    food_details[str(food_id)] = {
+                        "name": "Unknown food",
+                        "score": score
+                    }
+            except Exception as e:
+                print(f"Error looking up food {food_id}: {e}")
+                food_details[str(food_id)] = {
+                    "name": "Error retrieving name",
+                    "score": score
+                }
+
+        return {
+            "query": food_name,
+            "method": "sparse (Typesense)",
+            "elapsed_ms": elapsed_ms,
+            "results_count": len(results),
+            "matches": food_details
+        }
+
+
+@router.get("/search/dense")
+async def test_dense_food_search(
+    food_name: str = Query(..., description="Food name to search for"),
+    threshold: float = Query(40, description="Minimum similarity threshold (0-100)", ge=0, le=100),
+    limit: int = Query(50, description="Maximum number of results", ge=1, le=100),
+    user: user = None,
+    db: db = None,
+    request: Request = None
+):
+    """
+    Test dense (semantic/embedding-based) food search using FAISS.
+    Uses cosine similarity with OpenAI embeddings.
+
+    Example queries:
+    - "butter"
+    - "poultry"
+    - "fruit"
+    """
+    try:
+        # Time ONLY the search, not the name lookup
+        start_time = time.perf_counter()
+        results = await find_dense_matches(food_name, db, user, request, threshold, limit)
+        end_time = time.perf_counter()
+        elapsed_ms = round((end_time - start_time) * 1000, 2)
+
+        if not results:
+            return {
+                "query": food_name,
+                "method": "dense (FAISS embeddings)",
+                "elapsed_ms": elapsed_ms,
+                "results_count": 0,
+                "matches": {},
+                "message": "No foods found matching the query"
+            }
+
+        # AFTER timing, get food names for the matched IDs
+        food_details = {}
+        for food_id, score in results.items():
+            # Query the database directly to get the food name
+            try:
+                # Handle both ObjectId (custom foods) and integer (USDA foods)
+                try:
+                    # Try as integer first (USDA foods)
+                    food_doc = db.foods.find_one({"_id": int(food_id)})
+                except (ValueError, TypeError):
+                    # If that fails, try as ObjectId (custom foods)
+                    from bson import ObjectId
+                    food_doc = db.foods.find_one({"_id": ObjectId(food_id)})
+
+                if food_doc and "food_name" in food_doc:
+                    food_details[str(food_id)] = {
+                        "name": food_doc["food_name"],
+                        "score": score
+                    }
+                else:
+                    food_details[str(food_id)] = {
+                        "name": "Unknown food",
+                        "score": score
+                    }
+            except Exception as e:
+                print(f"Error looking up food {food_id}: {e}")
+                food_details[str(food_id)] = {
+                    "name": "Error retrieving name",
+                    "score": score
+                }
+
+        return {
+            "query": food_name,
+            "method": "dense (FAISS embeddings)",
+            "elapsed_ms": elapsed_ms,
+            "results_count": len(results),
+            "matches": food_details
+        }
+    except Exception as e:
+        return JSONResponse(
+            content={"error": str(e)},
+            status_code=500
+        )
+
+
+@router.get("/search/rrf")
+async def test_rrf_food_search(
+    food_name: str = Query(..., description="Food name to search for"),
+    sparse_threshold: float = Query(60, description="Minimum sparse score threshold (0-100)", ge=0, le=100),
+    dense_threshold: float = Query(40, description="Minimum dense score threshold (0-100)", ge=0, le=100),
+    limit: int = Query(30, description="Maximum number of results per method", ge=1, le=100),
+    top_n: int = Query(10, description="Number of top results to return after fusion", ge=1, le=50),
+    user: user = None,
+    db: db = None,
+    request: Request = None
+):
+    """
+    Test RRF (Reciprocal Rank Fusion) hybrid food search.
+    Combines sparse (Typesense) and dense (FAISS) search with weighted fusion.
+
+    Example queries:
+    - "butter"
+    - "chicken"
+    - "apple juice"
+    """
+    try:
+        # Time the entire search process
+        start_time = time.perf_counter()
+
+        # Get sparse and dense results in parallel
+        sparse_start = time.perf_counter()
+        sparse_results, dense_results = await asyncio.gather(
+            get_sparse_index(food_name, db, user, sparse_threshold, limit),
+            find_dense_matches(food_name, db, user, request, dense_threshold, limit)
+        )
+        search_time = time.perf_counter() - sparse_start
+
+        # Perform RRF fusion
+        fusion_start = time.perf_counter()
+        top_food_ids = await rrf_fusion(sparse_results, dense_results, k=30, n=top_n)
+        fusion_time = time.perf_counter() - fusion_start
+
+        end_time = time.perf_counter()
+        elapsed_ms = round((end_time - start_time) * 1000, 2)
+        search_ms = round(search_time * 1000, 2)
+        fusion_ms = round(fusion_time * 1000, 2)
+
+        if not top_food_ids:
+            return {
+                "query": food_name,
+                "method": "RRF (sparse + dense fusion)",
+                "elapsed_ms": elapsed_ms,
+                "search_ms": search_ms,
+                "fusion_ms": fusion_ms,
+                "sparse_count": len(sparse_results),
+                "dense_count": len(dense_results),
+                "results_count": 0,
+                "matches": [],
+                "message": "No foods found matching the query"
+            }
+
+        # AFTER all timing, get food names and scores for the top results
+        food_details = []
+        for rank, food_id in enumerate(top_food_ids, 1):
+            # Query the database directly to get the food name
+            try:
+                # Handle both ObjectId (custom foods) and integer (USDA foods)
+                try:
+                    # Try as integer first (USDA foods)
+                    food_doc = db.foods.find_one({"_id": int(food_id)})
+                except (ValueError, TypeError):
+                    # If that fails, try as ObjectId (custom foods)
+                    from bson import ObjectId
+                    food_doc = db.foods.find_one({"_id": ObjectId(food_id)})
+
+                if food_doc and "food_name" in food_doc:
+                    food_details.append({
+                        "rank": rank,
+                        "food_id": str(food_id),
+                        "name": food_doc["food_name"],
+                        "sparse_score": sparse_results.get(food_id),
+                        "dense_score": dense_results.get(food_id)
+                    })
+                else:
+                    food_details.append({
+                        "rank": rank,
+                        "food_id": str(food_id),
+                        "name": "Unknown food",
+                        "sparse_score": sparse_results.get(food_id),
+                        "dense_score": dense_results.get(food_id)
+                    })
+            except Exception as e:
+                print(f"Error looking up food {food_id}: {e}")
+                food_details.append({
+                    "rank": rank,
+                    "food_id": str(food_id),
+                    "name": "Error retrieving name",
+                    "sparse_score": sparse_results.get(food_id),
+                    "dense_score": dense_results.get(food_id)
+                })
+
+        return {
+            "query": food_name,
+            "method": "RRF (sparse + dense fusion)",
+            "elapsed_ms": elapsed_ms,
+            "search_ms": search_ms,
+            "fusion_ms": fusion_ms,
+            "sparse_count": len(sparse_results),
+            "dense_count": len(dense_results),
+            "results_count": len(food_details),
+            "matches": food_details
+        }
+    except Exception as e:
+        return JSONResponse(
+            content={"error": str(e)},
+            status_code=500
+        )
+
 
 if __name__ == "__main__":
     # Import needed modules for standalone testing

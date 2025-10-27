@@ -197,20 +197,28 @@ async def find_dense_matches(text: str, db, user, request: Request = None, thres
     # if not in app state, check bin. if not in bin, run update
     if request is not None and hasattr(request.app.state, 'faiss_index') and request.app.state.faiss_index is not None:
         faiss_index = request.app.state.faiss_index
+        print(f"✓ Using FAISS index from app.state ({faiss_index.ntotal} vectors)")
     else:
         # print("Searching for faiss index in BIN...")
         faiss_path = os.getenv("FAISS_BIN")
         if faiss_path and os.path.exists(faiss_path) and os.path.getsize(faiss_path) > 0:
             faiss_index = faiss.read_index(faiss_path)
+            print(f"⚠ Loaded FAISS index from bin file ({faiss_index.ntotal} vectors)")
+            # Store in app state for future requests
+            if request is not None:
+                request.app.state.faiss_index = faiss_index
         else:
+            print("⚠ No FAISS index found, creating new one...")
             faiss_index, id_list = await update_faiss_index(db, user, request)
     
     if request is not None and hasattr(request.app.state, 'id_list') and request.app.state.id_list is not None:
         id_list = request.app.state.id_list
+        print(f"✓ Using id_list from app.state ({len(id_list)} entries)")
     else:
         with open(os.getenv("FOOD_ID_CACHE"), "rb") as f:
             id_name_map = pickle.load(f)
             id_list = list(id_name_map.keys())
+        print(f"⚠ Loaded id_list from pickle cache ({len(id_list)} entries)")
     
     # print(f"Found {len(id_list)} food IDs")
         
@@ -230,6 +238,11 @@ async def find_dense_matches(text: str, db, user, request: Request = None, thres
         i = I[0][idx]
         if 0 <= i < len(id_list):  # Make sure index is valid
             food_id = id_list[i]
+            # Filter out deleted foods (marked with -1)
+            if food_id == -1:
+                return None
+            # Ensure food_id is string for consistency (handles both int and ObjectId)
+            food_id = str(food_id)
             similarity_score = float(D[0][idx])
             # Convert to 0-100 scale for consistency with sparse search
             normalized_score = round(max(0, min(100, similarity_score * 100)))

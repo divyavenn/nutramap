@@ -52,7 +52,8 @@ def create_trial_user(db: Database) -> dict:
         "created_at": datetime.now(timezone.utc),
         "is_trial": True,
         "trial_id": trial_id,
-        "recipes": []  # Initialize empty recipes array
+        "recipes": [],  # Initialize empty recipes array
+        "custom_foods": []  # Initialize empty custom foods list
     }
 
     # Insert trial user into database

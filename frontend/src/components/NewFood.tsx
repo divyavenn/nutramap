@@ -4,15 +4,9 @@ import { HoverButton } from './Sections';
 import Arrow from '../assets/images/arrow.svg?react';
 import IsOk from '../assets/images/checkmark.svg?react';
 import ImageIcon from '../assets/images/image.svg?react';
-import Trashcan from '../assets/images/trashcan.svg?react';
 import '../assets/css/foods.css';
-
-interface NutrientData {
-  nutrient_id: number;
-  name: string;
-  amount: number;
-  unit: string;
-}
+import { useSetRecoilState } from 'recoil';
+import { foodsAtom } from './account_states';
 
 /**
  * NewFood component for adding custom foods
@@ -20,26 +14,21 @@ interface NutrientData {
  * - Enter a food description (optional)
  * - Upload or paste multiple images
  * - Auto-extract nutrition from labels or estimate from food images
- * - Edit generated description and nutrition data before saving
+ * - Submit directly without review modal
  */
 
 function NewFood() {
   const [foodDescription, setFoodDescription] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isJiggling, setIsJiggling] = useState(false);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
-
-  // Generated data state
-  const [generatedDescription, setGeneratedDescription] = useState('');
-  const [nutritionData, setNutritionData] = useState<NutrientData[]>([]);
-  const [showEditMode, setShowEditMode] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const setFoods = useSetRecoilState(foodsAtom);
 
   // Handle paste events for direct image pasting
   useEffect(() => {
@@ -69,19 +58,6 @@ function NewFood() {
     };
   }, []);
 
-  // Reset success message after 3 seconds
-  useEffect(() => {
-    let timer: number | undefined;
-    if (submitSuccess) {
-      timer = window.setTimeout(() => {
-        setSubmitSuccess(false);
-        resetForm();
-      }, 3000);
-    }
-    return () => {
-      if (timer) window.clearTimeout(timer);
-    };
-  }, [submitSuccess]);
 
   const handleTyping = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setFoodDescription(e.target.value);
@@ -134,12 +110,25 @@ function NewFood() {
   };
 
   const clearAllImages = () => {
-    imagePreviews.forEach(url => URL.revokeObjectURL(url));
+    // Revoke all object URLs to free memory
+    imagePreviews.forEach(url => {
+      try {
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        console.error('Error revoking URL:', e);
+      }
+    });
+
+    // Clear state
     setImagePreviews([]);
     setImageFiles([]);
+
+    // Clear file input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+
+    console.log('Cleared all images'); // Debug log
   };
 
   const handleProcess = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -149,6 +138,14 @@ function NewFood() {
       return;
     }
 
+    // Capture the current values before clearing
+    const descriptionToProcess = foodDescription;
+    const filesToProcess = [...imageFiles];
+
+    // Clear UI immediately (before async operations)
+    setFoodDescription('');
+    clearAllImages();
+
     setIsProcessing(true);
     setIsJiggling(true);
 
@@ -157,12 +154,12 @@ function NewFood() {
       const formData = new FormData();
 
       // Add description if provided
-      if (foodDescription.trim()) {
-        formData.append('description', foodDescription);
+      if (descriptionToProcess.trim()) {
+        formData.append('description', descriptionToProcess);
       }
 
-      // Add all images
-      imageFiles.forEach((file, index) => {
+      // Add all images (using captured files)
+      filesToProcess.forEach((file) => {
         formData.append('images', file);
       });
 
@@ -184,10 +181,31 @@ function NewFood() {
 
       const data = await response.json();
 
-      // Set generated data
-      setGeneratedDescription(data.description || foodDescription);
-      setNutritionData(data.nutrients || []);
-      setShowEditMode(true);
+      // Directly submit the food without review modal
+      const generatedDescription = data.description || foodDescription;
+      const nutritionData = data.nutrients || [];
+
+      const addResponse = await request('/food/add_custom_food', 'POST', {
+        name: generatedDescription,
+        nutrients: JSON.stringify(nutritionData)
+      }, 'URLencode');
+
+      if (addResponse.status === 200) {
+        // Update localStorage cache with new food
+        const foodId = addResponse.body.food_id;
+        if (foodId) {
+          const foodsCache = JSON.parse(localStorage.getItem('foods') || '{}');
+          foodsCache[generatedDescription] = parseInt(foodId);
+          localStorage.setItem('foods', JSON.stringify(foodsCache));
+
+          // Also update the Recoil atom so autocomplete works immediately
+          setFoods(foodsCache);
+        }
+
+        // Dispatch event with the new food ID so Foods page can refresh and animate
+        const event = new CustomEvent('food-added', { detail: { foodId } });
+        window.dispatchEvent(event);
+      }
 
     } catch (error) {
       console.error('Error processing food:', error);
@@ -197,128 +215,6 @@ function NewFood() {
       setIsJiggling(false);
     }
   };
-
-  const handleSubmitFinal = async () => {
-    if (!generatedDescription.trim()) {
-      alert('Please provide a food description');
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      const response = await request('/food/add_custom_food', 'POST', {
-        name: generatedDescription,
-        nutrients: JSON.stringify(nutritionData)
-      }, 'URLencode');
-
-      if (response.status === 200) {
-        // Dispatch event so Foods page can refresh
-        window.dispatchEvent(new Event('food-added'));
-
-        // Exit edit mode and show success message
-        setShowEditMode(false);
-        setSubmitSuccess(true);
-      }
-    } catch (error) {
-      console.error('Error adding food:', error);
-      alert('Error adding food. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const resetForm = () => {
-    setFoodDescription('');
-    clearAllImages();
-    setGeneratedDescription('');
-    setNutritionData([]);
-    setShowEditMode(false);
-  };
-
-  const updateNutrient = (index: number, value: string) => {
-    const updated = [...nutritionData];
-    updated[index].amount = parseFloat(value) || 0;
-    setNutritionData(updated);
-  };
-
-  const removeNutrient = (index: number) => {
-    setNutritionData(nutritionData.filter((_, i) => i !== index));
-  };
-
-  if (showEditMode) {
-    return (
-      <div className="edit-food-container">
-        <div className="edit-food-header">
-          <h3>Review & Edit Food</h3>
-          <button
-            className="cancel-edit-button"
-            onClick={() => setShowEditMode(false)}
-          >
-            ← Back
-          </button>
-        </div>
-
-        <div className="edit-food-form">
-          <div className="form-group">
-            <label>Food Name</label>
-            <input
-              type="text"
-              value={generatedDescription}
-              onChange={(e) => setGeneratedDescription(e.target.value)}
-              placeholder="Enter food name"
-              className="edit-description-input"
-            />
-          </div>
-
-          <div className="nutrition-edit-section">
-            <h4>Nutritional Information (per 100g)</h4>
-            {nutritionData.length === 0 ? (
-              <p className="no-nutrition-message">
-                No nutritional data available. You can proceed without nutrition data.
-              </p>
-            ) : (
-              <div className="nutrients-list">
-                {nutritionData.map((nutrient, index) => (
-                  <div key={index} className="nutrient-edit-row">
-                    <span className="nutrient-name">{nutrient.name}</span>
-                    <div className="nutrient-input-group">
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={nutrient.amount}
-                        onChange={(e) => updateNutrient(index, e.target.value)}
-                        className="nutrient-amount-input"
-                      />
-                      <span className="nutrient-unit">{nutrient.unit}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeNutrient(index)}
-                        className="remove-nutrient-button"
-                        title="Remove nutrient"
-                      >
-                        <Trashcan />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="edit-actions">
-            <button
-              onClick={handleSubmitFinal}
-              disabled={isSubmitting || !generatedDescription.trim()}
-              className="submit-food-button"
-            >
-              {isSubmitting ? 'Saving...' : 'Save Food'}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <>
@@ -393,12 +289,6 @@ function NewFood() {
           </div>
         )}
 
-        {/* Success message */}
-        {submitSuccess && (
-          <div className="success-message">
-            Food added successfully!
-          </div>
-        )}
       </form>
     </>
   );

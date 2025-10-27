@@ -5,6 +5,12 @@
   padding: 40px;
 }
 
+.myrecipes-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
 .myrecipes-header {
   display: flex;
   justify-content: center;
@@ -112,7 +118,7 @@
   justify-content: center;
   align-items: center;
   z-index: 1000;
-  padding: 20px;
+  padding: 50px;
 }
 
 .recipe-detail-modal {
@@ -120,17 +126,32 @@
   border-radius: 16px;
   max-width: 800px;
   width: 100%;
+  padding: 20px;
+  
   max-height: 90vh;
+  -webkit-overflow-scrolling: touch; /* Enables smooth scrolling on mobile */
+  scrollbar-width: none; /* For Firefox */
   overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
+
+.recipe-detail-modal::-webkit-scrollbar {
+  display: none; /* Hides scrollbar for WebKit browsers */
+}
+
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 32px 32px 24px 32px;
+  margin-top: 24px;
+  margin-left: 24px;
+  color: #ffffffc0;
+  font-family: Georgia, Times, Times New Roman, serif;
+  font-size: 70px;
+  font-weight: 400;
 }
+
 
 .modal-header h2 {
   font-family: 'Poppins', sans-serif;
@@ -205,7 +226,7 @@
 .ingredients-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0px;
 }
 
 .ingredient-edit-row {
@@ -259,7 +280,7 @@
   border-radius: 0;
   color: var(--white);
   font-family: 'Inconsolata', monospace;
-  font-size: 25px;
+  font-size: var(--inconsolata-font-size)
 }
 
 .remove-ingredient-button {
@@ -353,7 +374,7 @@
 
 .modal-footer {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   padding: 24px 32px 32px 32px;
 }
@@ -362,6 +383,24 @@
   display: flex;
   gap: 16px;
   align-items: center;
+}
+
+.delete-recipe-button {
+  background-color: var(--purple);
+  color: var(--white);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 12px 24px;
+  font-family: 'Ubuntu', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.delete-recipe-button:hover {
+  background-color: rgba(102, 0, 255, 0.85);
+  transform: translateY(-2px);
 }
 
 .delete-button,
@@ -378,13 +417,13 @@
 }
 
 .delete-button svg {
-  fill: rgba(255, 100, 100, 0.6);
+  fill: rgba(255, 255, 255, 0.469);
   height: 20px;
   width: 20px;
 }
 
 .delete-button:hover svg {
-  fill: rgba(255, 100, 100, 1);
+  fill: rgb(255, 255, 255);
 }
 
 .cancel-button {
@@ -412,4 +451,43 @@
 .save-button:disabled {
   opacity: 0.3;
   cursor: not-allowed;
+}
+
+/* Autocomplete suggestions */
+.suggestions-container {
+  position: relative;
+  width: 100%;
+  margin-top: 8px;
+  z-index: 1001;
+}
+
+.suggestions-list {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+  max-height: 300px;
+  overflow-y: auto;
+  background: linear-gradient(135deg, #2a0042 0%, #150020 100%);
+  border-radius: 8px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.suggestions-list::-webkit-scrollbar {
+  display: none;
+}
+
+.suggestion-item {
+  padding: 12px 24px;
+  font-family: 'Inconsolata', monospace;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+.suggestion-item:hover,
+.suggestion-item.selected {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--white);
 }

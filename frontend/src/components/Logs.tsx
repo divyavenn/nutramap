@@ -4,14 +4,14 @@ import 'react-date-range/dist/theme/default.css';
 
 import {useState, useRef, useEffect} from 'react'
 import { EditLogForm } from './EditLogForm';
-import { RecipeEdit } from './RecipeEdit';
-import { RecipeDisplay } from './RecipeDisplay';
+import { MealEdit } from './MealEdit';
+import { MealDisplay } from './MealDisplay';
 import { formatTime } from './utlis';
 import { LogProps, DisplayLogProps, LogComponent } from './structures';
 import {useRecoilValue, useSetRecoilState, useRecoilState} from 'recoil'
 import { logsAtom, currentDayAtom, hoveredLogAtom, useRefreshLogs, pendingFoodsAtom, PendingFood } from './dashboard_states';
 import { motion } from 'framer-motion';
-import { RecipeDivider } from './RecipeDivider';
+import { MealDivider } from './MealDivider';
 
 function LogList (){
   const logs = useRecoilValue(logsAtom)
@@ -171,11 +171,11 @@ function LogList (){
 
               return (
                 <div key={log._id} >
-                  {/* Recipe header - show edit form if editing, otherwise show normal header */}
+                  {/* Meal header - show edit form if editing, otherwise show normal header */}
                   {isEditing ? (
                     <div className="log-wrapper">
-                      <RecipeEdit
-                        recipe_name={log.recipe_name}
+                      <MealEdit
+                        meal_name={log.meal_name}
                         servings={log.servings}
                         date={new Date(log.date)}
                         _id={log._id}
@@ -185,14 +185,14 @@ function LogList (){
                       />
                     </div>
                   ) : (
-                    <RecipeDisplay
-                      recipe_name={log.recipe_name}
+                    <MealDisplay
+                      meal_name={log.meal_name}
                       servings={log.servings}
                       date={new Date(log.date)}
                       recipe_id={log.recipe_id}
                       recipe_exists={log.recipe_exists}
                       onClick={() => setEditingLogId(log._id)}
-                      onMouseEnter={() => !isEditing && handleLogMouseEnter(log._id, `${log.recipe_name} (${log.servings} servings)`)}
+                      onMouseEnter={() => !isEditing && handleLogMouseEnter(log._id, `${log.meal_name} (${log.servings} servings)`)}
                       onMouseLeave={handleLogMouseLeave}
                     />
                   )}

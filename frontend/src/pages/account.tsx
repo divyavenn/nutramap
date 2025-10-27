@@ -7,7 +7,10 @@ import {
 import { Header, MainSection} from '../components/Sections';
 import { StrictMode, useEffect, useState, useRef} from 'react'
 import {Heading} from '../components/Title'
-import Dashboard from '../assets/images/dashboard.svg?react'
+import AccountIcon from '../assets/images/account.svg?react'
+import DashboardIcon from '../assets/images/dashboard.svg?react'
+import Utensils from '../assets/images/utensils-solid.svg?react'
+import FoodBowl from '../assets/images/food_bowl.svg?react'
 import {request} from '../components/endpoints'
 import '../assets/css/account.css'
 import { accountInfoAtom, firstNameAtom, useRefreshAccountInfo, editingPasswordAtom, useResetAccountAtoms} from '../components/account_states';
@@ -244,7 +247,7 @@ function Account(){
 
   return (
   <StrictMode>
-  <Header linkIcons = {[{to : "/dashboard", img:  <Dashboard/>}]}/>
+  <Header linkIcons = {[{to : "/dashboard", img:  <DashboardIcon/>}, {to : '/account', img : <AccountIcon/>}, {to : '/myfoods', img : <Utensils/>}, {to : '/myrecipes', img : <FoodBowl/>}]}/>
   <Heading words = {'Hello, ' + firstName}/>
 
   <AccountInfo/>

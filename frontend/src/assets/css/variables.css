@@ -12,7 +12,9 @@
   --purple: #6600ff6c;
   --hover-white: rgba(255, 255, 255, 0.764);
   --modal-width: 900px;
+  --dashboard-width: 800px;
   --log-bubble-color: rgba(0, 0, 0, 0.338);
+  --inconsolata-font-size: 20px;
 
   --log-name-width: 50%;
   --log-portion-width: 10%;

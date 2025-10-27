@@ -28,7 +28,33 @@ const accountInfoAtom = atom<AccountInfo>({
     email : "",
     password : "",
     isTrial: false
-  }
+  },
+  effects: [
+    ({setSelf, onSet}) => {
+      // Load from localStorage on initialization
+      const savedValue = localStorage.getItem('accountInfo');
+      if (savedValue != null) {
+        try {
+          const parsed = JSON.parse(savedValue);
+          // Don't persist the password for security
+          setSelf({...parsed, password: ""});
+        } catch (e) {
+          console.error('Error parsing stored account info:', e);
+        }
+      }
+
+      // Save to localStorage whenever the atom changes
+      onSet((newValue, _, isReset) => {
+        if (isReset) {
+          localStorage.removeItem('accountInfo');
+        } else {
+          // Don't persist the password for security
+          const toStore = {...newValue, password: ""};
+          localStorage.setItem('accountInfo', JSON.stringify(toStore));
+        }
+      });
+    }
+  ]
 })
 
 

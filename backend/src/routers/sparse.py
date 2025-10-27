@@ -37,6 +37,8 @@ def _get_client():
     if _client is None:
         api_key = os.getenv('TYPESENSE_API_KEY')
         if not api_key:
+            print("⚠ Typesense not configured. Set TYPESENSE_API_KEY in .env")
+            print("  Falling back to dense (embedding-based) search only.")
             return None  # Typesense not configured
 
         _client = typesense.Client({
@@ -48,6 +50,7 @@ def _get_client():
             }],
             'connection_timeout_seconds': 5
         })
+        print(f"✓ Typesense client initialized: {os.getenv('TYPESENSE_HOST')}")
     return _client
 
 
@@ -88,8 +91,14 @@ async def update_sparse_index(db = None, user = None):
     # Convert foods to a list if it's a dictionary
     food_list = []
     if isinstance(foods, dict):
-        # If foods is a dictionary of food_id -> food_name
-        for food_name, food_id in foods.items():
+        # If foods is a dictionary of food_id -> {"name": food_name}
+        for food_id, food_data in foods.items():
+            # Handle both {food_id: {"name": food_name}} and {food_id: food_name} formats
+            if isinstance(food_data, dict):
+                food_name = food_data.get('name', '')
+            else:
+                food_name = food_data
+
             food_list.append({
                 '_id': food_id,
                 'food_name': food_name
@@ -199,8 +208,13 @@ async def search_foods(query: str, limit: int = 50) -> Dict:
                 print("No documents found with wildcard search either")
         
         hits = results.get('hits', [])
+
+        # Return empty dict if no hits
+        if not hits:
+            return {}
+
         max_score = max(hit.get('text_match', 0) for hit in hits)
-        
+
         # Return normalized scores (0-100) as a dictionary of food_id to score
         results_dict = {}
         for hit in hits:
@@ -208,7 +222,7 @@ async def search_foods(query: str, limit: int = 50) -> Dict:
             if food_id:  # Only include if we have a valid food_id
                 similarity = round((hit.get('text_match', 0) / max_score) * 100) if max_score > 0 else 0
                 results_dict[food_id] = similarity
-        
+
         return results_dict
         
     except Exception as e:

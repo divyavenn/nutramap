@@ -17,7 +17,7 @@ export interface DisplayLogProps {
 export interface LogProps {
   _id: string;
   recipe_id?: string | null;
-  recipe_name: string;
+  meal_name: string;
   servings: number;
   date: Date;
   components: LogComponent[];

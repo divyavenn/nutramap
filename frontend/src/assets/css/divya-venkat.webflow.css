@@ -578,7 +578,7 @@ label {
   margin-top: 40px;
   padding: 8px 20px;
   font-family: Inconsolata, monospace;
-  font-size: 20px;
+  font-size: var(--inconsolata-font-size);
   font-weight: 400;
 }
 
@@ -590,7 +590,7 @@ label {
   margin-top: 40px;
   padding: 8px 20px;
   font-family: Inconsolata, monospace;
-  font-size: 20px;
+  font-size: var(--inconsolata-font-size);
   font-weight: 400;
 
 }
@@ -1887,6 +1887,7 @@ label {
   height: 100px;
   padding-top: 20px;
   padding-left: 40px;
+  padding-right: 40px;
   display: flex;
 }
 

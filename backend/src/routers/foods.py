@@ -12,6 +12,9 @@ import pickle
 import asyncio
 import json
 from datetime import datetime
+from openai import OpenAI
+import numpy as np
+import faiss
 
 # Import database connection
 from ..databases.mongo import get_data
@@ -346,6 +349,42 @@ async def food_name_map(request: Request, db: Annotated[Database, Depends(get_da
 
     return result
 
+async def get_user_custom_foods(db: Database, user: dict):
+    """
+    Get user's custom foods with descriptions.
+    Returns a list of dictionaries with food_id and food_name.
+    Used internally by parse_meal and other functions.
+    """
+    # Get user's custom food IDs
+    user_doc = db.users.find_one({"_id": user["_id"]})
+    if not user_doc or "custom_foods" not in user_doc:
+        return []
+
+    custom_food_ids = user_doc.get("custom_foods", [])
+
+    if not custom_food_ids:
+        return []
+
+    # Convert string IDs to ObjectIds for query
+    object_ids = [ObjectId(food_id) for food_id in custom_food_ids]
+
+    # Query foods collection for these IDs
+    custom_foods = list(db.foods.find(
+        {"_id": {"$in": object_ids}},
+        {"_id": 1, "food_name": 1}
+    ))
+
+    # Format result
+    result = [
+        {
+            "food_id": str(food["_id"]),
+            "food_name": food.get("food_name", "Unknown")
+        }
+        for food in custom_foods
+    ]
+
+    return result
+
 @router.get("/custom-foods")
 async def get_custom_foods(
     db: Annotated[Database, Depends(get_data)] = None,
@@ -375,45 +414,113 @@ async def get_custom_foods(
 
 
 @router.delete("/custom_foods/{food_id}")
-async def delete_custom_food(
+def delete_custom_food(
     food_id: str,
-    db: Annotated[Database, Depends(get_data)] = None,
-    user: Annotated[dict, Depends(get_current_user)] = None
+    db: Database = Depends(get_data),
+    user: dict = Depends(get_current_user),
+    request: Request = None
 ):
     """
-    Delete a custom food.
-    
+    Delete a custom food and remove from search indexes.
+
     Args:
         food_id: ID of the food to delete
         db: MongoDB database connection
         user: Current authenticated user
-        
+        request: FastAPI request object for accessing app state
+
     Returns:
         Success message
     """
     try:
-        # Find the food to delete
-        food = await db.foods.find_one({"_id": ObjectId(food_id), "user_id": user["_id"]})
-        
+        # Find the food to delete (custom foods use 'source' field, not 'user_id')
+        food = db.foods.find_one({"_id": ObjectId(food_id), "source": user["_id"]})
+
         if not food:
             raise HTTPException(status_code=404, detail="Food not found")
-        
-        # Delete the food
-        result = await db.foods.delete_one({"_id": ObjectId(food_id), "user_id": user["_id"]})
-        
+
+        # Delete the food from MongoDB
+        result = db.foods.delete_one({"_id": ObjectId(food_id), "source": user["_id"]})
+
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Food not found")
+
+        # Remove food_id from user's custom_foods array
+        db.users.update_one(
+            {"_id": ObjectId(user["_id"])},
+            {"$pull": {"custom_foods": food_id}}
+        )
+        print(f"✓ Removed food_id {food_id} from user's custom_foods list")
+
         # Delete the image if it exists
         if "image_path" in food and food["image_path"]:
             image_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), food["image_path"])
             if os.path.exists(image_path):
                 os.remove(image_path)
-        
-        if result.deleted_count == 0:
-            raise HTTPException(status_code=404, detail="Food not found")
-        
+
+        # Remove from Typesense (sparse search) index
+        try:
+            from .sparse import _get_client as get_typesense_client
+
+            typesense_client = get_typesense_client()
+            if typesense_client:
+                typesense_client.collections['foods'].documents[food_id].delete()
+                print(f"✓ Removed food from Typesense index: {food_id}")
+        except Exception as e:
+            print(f"⚠ Warning: Could not remove from Typesense: {e}")
+
+        # For FAISS: Mark that a rebuild is needed
+        # FAISS IndexFlat doesn't support efficient deletion - need to rebuild the entire index
+        # Options:
+        # 1. Rebuild immediately (expensive for large indexes)
+        # 2. Mark as deleted and filter during search (implemented below)
+        # 3. Schedule periodic rebuilds
+
+        if request and hasattr(request.app.state, 'id_list'):
+            id_list = request.app.state.id_list
+            try:
+                # Custom foods use ObjectId strings, USDA foods use integers
+                # Check if this food_id is in the id_list (could be string or int)
+                if food_id in id_list:
+                    # We can't remove from FAISS directly, but we can update id_list
+                    # The position in FAISS stays, but we mark it as deleted
+                    idx = id_list.index(food_id)
+                    # Replace with -1 to mark as deleted (filter during search)
+                    id_list[idx] = -1
+                    request.app.state.id_list = id_list
+                    print(f"✓ Marked position {idx} as deleted in FAISS id_list")
+                else:
+                    print(f"⚠ Food ID {food_id} not found in FAISS id_list")
+
+                # Update pickle cache
+                food_id_cache_path = os.getenv("FOOD_ID_CACHE")
+                if food_id_cache_path:
+                    with open(food_id_cache_path, "rb") as f:
+                        id_name_map = pickle.load(f)
+                    # Remove using string key (works for both ObjectId strings and integer keys)
+                    if food_id in id_name_map:
+                        del id_name_map[food_id]
+                        print(f"✓ Removed from food ID cache")
+                    elif int(food_id) if food_id.isdigit() else None in id_name_map:
+                        # Fallback: try as integer if string lookup fails
+                        del id_name_map[int(food_id)]
+                        print(f"✓ Removed from food ID cache (as integer)")
+                    with open(food_id_cache_path, "wb") as f:
+                        pickle.dump(id_name_map, f)
+            except Exception as e:
+                print(f"⚠ Warning: Could not update FAISS mappings: {e}")
+                import traceback
+                traceback.print_exc()
+
+        print(f"✓ Deleted custom food: {food.get('food_name', food_id)}")
         return {"message": "Food deleted successfully"}
-    
+
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error deleting food: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error deleting food: {str(e)}")
 
 @router.put("/custom_foods/{food_id}")
@@ -694,9 +801,16 @@ async def process_food_images(
                             "content": [
                                 {
                                     "type": "text",
-                                    "text": """Extract all nutritional information from this nutrition facts label.
+                                    "text": """Extract all nutritional information from this nutrition facts label and convert to per 100g.
+
+                                    CRITICAL CONVERSION INSTRUCTIONS:
+                                    1. First, identify the serving size on the label (e.g., "33g", "10g", "1 cup (240ml)")
+                                    2. Convert ALL nutrient amounts to per 100g by calculating: (amount / serving_size_in_grams) * 100
+                                    3. If serving size is in volume (cups, ml), estimate the weight (e.g., 1 cup = ~240g for liquids)
+
                                     Return ONLY a JSON object with this exact format:
                                     {
+                                      "serving_size": "33g",
                                       "nutrients": [
                                         {"name": "Energy", "amount": 250, "unit": "KCAL"},
                                         {"name": "Protein", "amount": 5.2, "unit": "G"},
@@ -706,12 +820,15 @@ async def process_food_images(
                                     }
 
                                     Important:
-                                    - All values should be per 100g
-                                    - Use standard USDA nutrient names
+                                    - ALL nutrient values MUST be converted to per 100g
+                                    - serving_size field is for reference only, shows the original serving size on the label
+                                    - Use standard USDA nutrient names when possible
                                     - Energy should be in KCAL
                                     - Use G for grams, MG for milligrams, UG for micrograms
                                     - Include as many nutrients as visible on the label
-                                    - Return ONLY the JSON, no other text"""
+                                    - Return ONLY the JSON, no other text
+
+                                    Example: If label shows "Serving size: 33g, Protein: 3g", convert to per 100g: (3/33)*100 = 9.09g"""
                                 },
                                 {
                                     "type": "image_url",
@@ -795,20 +912,62 @@ async def process_food_images(
                 print(f"Failed to parse nutrition JSON: {response.choices[0].message.content}")
                 print(f"Error: {e}")
 
-        # Map nutrient names to IDs
+        # Map nutrient names to IDs with hybrid search
+        from ..routers.sparse_search_nutrients import search_nutrients_by_name
+
         nutrients_with_ids = []
         for nutrient in result_nutrients:
-            # Try to find matching nutrient in database
-            nutrient_doc = db.nutrients.find_one({"nutrient_name": nutrient["name"]})
+            nutrient_name = nutrient["name"].lower().strip()
+
+            # Step 1: Try exact match first
+            nutrient_doc = db.nutrients.find_one({"nutrient_name": {"$regex": f"^{nutrient['name']}$", "$options": "i"}})
+
+            # Step 2: If not found, try common name mappings
+            if not nutrient_doc:
+                name_mappings = {
+                    "total fat": "Total lipid (fat)",
+                    "total lipid (fat)": "Total lipid (fat)",
+                    "fat": "Total lipid (fat)",
+                    "carbohydrates": "Carbohydrate, by difference",
+                    "carbohydrate, by difference": "Carbohydrate, by difference",
+                    "carbs": "Carbohydrate, by difference",
+                    "fiber": "Fiber, total dietary",
+                    "dietary fiber": "Fiber, total dietary",
+                    "sugars": "Sugars, total including NLEA",
+                    "protein": "Protein",
+                    "sodium": "Sodium, Na",
+                    "potassium": "Potassium, K",
+                    "iron": "Iron, Fe",
+                    "energy": "Energy"
+                }
+
+                mapped_name = name_mappings.get(nutrient_name)
+                if mapped_name:
+                    nutrient_doc = db.nutrients.find_one({"nutrient_name": {"$regex": f"^{mapped_name}$", "$options": "i"}})
+
+            # Step 3: If still not found, use hybrid vector search
+            if not nutrient_doc:
+                try:
+                    search_results = await search_nutrients_by_name(nutrient["name"], db=db, threshold=0.5, limit=1)
+                    if search_results:
+                        # Get the top match
+                        best_nutrient_id = max(search_results, key=search_results.get)
+                        nutrient_doc = db.nutrients.find_one({"_id": int(best_nutrient_id)})
+                        if nutrient_doc:
+                            print(f"Matched '{nutrient['name']}' to '{nutrient_doc['nutrient_name']}' via hybrid search (score: {search_results[best_nutrient_id]:.2f})")
+                except Exception as e:
+                    print(f"Error during hybrid search for '{nutrient['name']}': {e}")
+
             if nutrient_doc:
                 nutrients_with_ids.append({
                     "nutrient_id": nutrient_doc["_id"],
-                    "name": nutrient["name"],
+                    "name": nutrient_doc["nutrient_name"],  # Use database name
                     "amount": nutrient["amount"],
                     "unit": nutrient["unit"]
                 })
             else:
-                # If not found, still include it (frontend can handle)
+                # If not found after all attempts, still include it
+                print(f"Warning: Could not find nutrient '{nutrient['name']}' in database after all matching attempts")
                 nutrients_with_ids.append({
                     "nutrient_id": -1,  # Unknown
                     "name": nutrient["name"],
@@ -833,23 +992,38 @@ async def add_custom_food(
     name: str = Form(...),
     nutrients: str = Form("[]"),
     user: dict = Depends(get_current_user),
-    db: Database = Depends(get_data)
+    db: Database = Depends(get_data),
+    request: Request = None
 ):
     """
     Add a custom food with optional nutrition data.
-    
+
     - name: Food name/description
     - nutrients: JSON string of nutrients array
     """
     try:
         import json
-        
+
         # Parse nutrients JSON
         try:
             nutrients_list = json.loads(nutrients) if isinstance(nutrients, str) else nutrients
         except json.JSONDecodeError:
             nutrients_list = []
-        
+
+        # Generate embedding for the custom food name
+        embedding = None
+        try:
+            client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            response = client.embeddings.create(
+                model="text-embedding-3-large",  # Must match FAISS index dimension
+                input=name.lower().strip()
+            )
+            embedding = response.data[0].embedding
+            print(f"✓ Generated embedding for custom food: {name}")
+        except Exception as e:
+            print(f"⚠ Warning: Could not generate embedding for custom food '{name}': {e}")
+            # Continue without embedding - food will still be added but won't appear in dense search
+
         # Create custom food document
         food_doc = {
             "_id": ObjectId(),
@@ -866,16 +1040,100 @@ async def add_custom_food(
             "source": user["_id"],
             "created_at": datetime.now()
         }
-        
+
+        # Add embedding if generated
+        if embedding:
+            food_doc["embedding"] = embedding
+
         # Insert into foods collection
         result = db.foods.insert_one(food_doc)
+        food_id = str(result.inserted_id)
+
+        # Add food_id to user's custom_foods array
+        db.users.update_one(
+            {"_id": ObjectId(user["_id"])},
+            {"$addToSet": {"custom_foods": food_id}}
+        )
+        print(f"✓ Added food_id {food_id} to user's custom_foods list")
+
+        # Add to search indexes immediately if embedding was generated
+        if embedding:
+            # 1. Add to Typesense (sparse search) index
+            try:
+                from .sparse import _get_client as get_typesense_client
+
+                typesense_client = get_typesense_client()
+                if typesense_client:
+                    document = {
+                        'id': food_id,
+                        'food_name': name
+                    }
+                    typesense_client.collections['foods'].documents.create(document)
+                    print(f"✓ Added custom food to Typesense index: {name}")
+            except Exception as e:
+                print(f"⚠ Warning: Could not add to Typesense: {e}")
+
+            # 2. Add to FAISS (dense search) index
+            try:
+                # Get the FAISS index from app state
+                if request and hasattr(request.app.state, 'faiss_index') and request.app.state.faiss_index is not None:
+                    faiss_index = request.app.state.faiss_index
+                    id_list = request.app.state.id_list if hasattr(request.app.state, 'id_list') else []
+
+                    # Prepare embedding as numpy array
+                    embedding_array = np.array([embedding], dtype=np.float32)
+                    faiss.normalize_L2(embedding_array)  # Normalize for cosine similarity
+
+                    # Check if index is trained (should always be true for IndexFlat)
+                    if not faiss_index.is_trained:
+                        print(f"⚠ Warning: FAISS index not trained, skipping add")
+                    else:
+                        # Add to FAISS index
+                        faiss_index.add(embedding_array)
+                        print(f"✓ Added embedding to FAISS index (new total: {faiss_index.ntotal})")
+
+                        # Add food_id to the id_list (this maps FAISS index positions to food IDs)
+                        # Custom foods use ObjectId strings, so store as string
+                        id_list.append(food_id)
+                        request.app.state.id_list = id_list
+                        print(f"✓ Updated id_list in app.state (new length: {len(id_list)})")
+
+                        # Update the cached pickle file
+                        try:
+                            food_id_cache_path = os.getenv("FOOD_ID_CACHE")
+                            if food_id_cache_path:
+                                with open(food_id_cache_path, "rb") as f:
+                                    id_name_map = pickle.load(f)
+                                # Store with string key for custom foods (ObjectId)
+                                id_name_map[food_id] = {"name": name}
+                                with open(food_id_cache_path, "wb") as f:
+                                    pickle.dump(id_name_map, f)
+                        except Exception as cache_error:
+                            print(f"⚠ Warning: Could not update food ID cache: {cache_error}")
+
+                        # Optionally persist to .bin file (can be done periodically instead)
+                        try:
+                            faiss_bin_path = os.getenv("FAISS_BIN")
+                            if faiss_bin_path:
+                                faiss.write_index(faiss_index, faiss_bin_path)
+                                print(f"✓ Updated FAISS .bin file")
+                        except Exception as bin_error:
+                            print(f"⚠ Warning: Could not update FAISS .bin: {bin_error}")
+
+                        print(f"✓ Added custom food to FAISS index: {name} (index now has {faiss_index.ntotal} vectors)")
+                else:
+                    print(f"⚠ Warning: FAISS index not available in app state (will be included in next rebuild)")
+            except Exception as e:
+                print(f"⚠ Warning: Could not add to FAISS index: {e}")
+                import traceback
+                traceback.print_exc()
 
         return {
             "status": "success",
-            "food_id": str(result.inserted_id),
+            "food_id": food_id,
             "message": "Custom food added successfully"
         }
-    
+
     except Exception as e:
         print(f"Error adding custom food: {e}")
         import traceback

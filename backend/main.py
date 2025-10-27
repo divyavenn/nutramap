@@ -11,10 +11,43 @@ from fastapi.middleware.cors import CORSMiddleware
 @asynccontextmanager
 async def lifespan(fastapi_app: FastAPI):
     # Startup
+    import os
+    import pickle
+    import faiss
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
     # Initialize app state to hold indexes
     fastapi_app.state.faiss_index = None
     fastapi_app.state.id_list = None
     fastapi_app.state.sparse_index = None
+
+    print("Loading FAISS index at startup...")
+
+    # Load FAISS index from .bin file if it exists
+    try:
+        faiss_bin_path = os.getenv("FAISS_BIN")
+        if faiss_bin_path and os.path.exists(faiss_bin_path):
+            fastapi_app.state.faiss_index = faiss.read_index(faiss_bin_path)
+            print(f"✓ Loaded FAISS index with {fastapi_app.state.faiss_index.ntotal} vectors")
+        else:
+            print(f"⚠ FAISS index file not found at: {faiss_bin_path}")
+    except Exception as e:
+        print(f"⚠ Failed to load FAISS index: {e}")
+
+    # Load food ID list from pickle cache
+    try:
+        food_id_cache_path = os.getenv("FOOD_ID_CACHE")
+        if food_id_cache_path and os.path.exists(food_id_cache_path):
+            with open(food_id_cache_path, "rb") as f:
+                id_name_map = pickle.load(f)
+            fastapi_app.state.id_list = list(id_name_map.keys())
+            print(f"✓ Loaded food ID list with {len(fastapi_app.state.id_list)} entries")
+        else:
+            print(f"⚠ Food ID cache not found at: {food_id_cache_path}")
+    except Exception as e:
+        print(f"⚠ Failed to load food ID cache: {e}")
 
     print("App state initialized successfully at startup")
 

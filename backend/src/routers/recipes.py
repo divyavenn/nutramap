@@ -17,7 +17,7 @@ from src.routers.auth import get_current_user
 from src.routers.parse import estimate_grams
 from src.routers.logs import add_log
 from src.routers.match import get_matches, rrf_fusion
-from src.routers.foods import get_food_name
+from src.routers.foods import get_food_name, get_user_custom_foods
 
 __package__ = "nutramap.routers"
 
@@ -181,7 +181,7 @@ Examples:
         raise HTTPException(status_code=500, detail=f"Failed to parse recipe: {str(e)}")
 
 
-async def identify_recipes_from_meal(meal_description: str, user_recipes: List[dict]) -> List[dict]:
+async def identify_recipes_from_meal(meal_description: str, user_recipes: List[dict], user_custom_foods: List[dict]) -> List[dict]:
     """Use GPT-4 to identify recipes in meal description and match to existing recipes"""
     try:
         client = _get_client()
@@ -192,34 +192,49 @@ async def identify_recipes_from_meal(meal_description: str, user_recipes: List[d
             recipes_context = "User's existing recipes:\n"
             for idx, recipe in enumerate(user_recipes[:30], 1):
                 recipes_context += f"{idx}. {recipe['description']} (ID: {recipe['recipe_id']})\n"
+                
+        custom_foods_context = ""
+        if user_custom_foods:
+            custom_foods_context = "User's custom foods:\n"
+            for idx, food in enumerate(user_custom_foods[:30], 1):
+                custom_foods_context += f"{idx}. {food['food_name']}\n"
 
         prompt = f"""Parse this meal description into separate recipes/dishes.
 
 {recipes_context}
+{custom_foods_context}
 
 Meal description: {meal_description}
 
 Instructions:
 1. Identify distinct recipes/dishes in the meal
-2. For each recipe, determine if it matches an existing recipe from the user's list (high similarity)
-3. If it matches, use the recipe_id
-4. If it's new, set recipe_id to null and estimate ingredients
-5. Estimate number of servings consumed
+2. For each recipe, determine if it matches:
+   a) An existing recipe from the user's list (high similarity) - use the recipe_id and leave ingredients empty
+   b) A custom food from the user's custom foods list (exact or very close match) - set recipe_id to null, use the EXACT custom food name from the list as the description, and create ONE ingredient with that exact food name
+   c) A new recipe - set recipe_id to null and estimate ingredients
+3. Estimate number of servings consumed
+
+IMPORTANT: If you identify a custom food, you MUST:
+- Use the exact food name from the "User's custom foods" list
+- Set recipe_id to null
+- Set description to the exact custom food name
+- Create exactly ONE ingredient with food_name matching the custom food name exactly
+- Estimate the weight_in_grams for that ingredient
 
 Respond with ONLY a JSON object:
 {{
   "recipes": [
     {{
-      "recipe_id": "uuid or null for new recipes",
-      "description": "recipe name",
+      "recipe_id": "uuid or null for new/custom recipes",
+      "description": "recipe or custom food name",
       "recipe_servings": number (0.5 for half serving, 1 for full, etc.),
       "ingredients": [
         {{
-          "food_name": "ingredient name",
+          "food_name": "ingredient name (must match custom food name exactly if custom food)",
           "amount": "portion size",
           "weight_in_grams": estimated_weight
         }}
-      ] (only for new recipes, empty array if matched existing)
+      ] (empty array ONLY if matched existing recipe, must have ingredients for custom foods and new recipes)
     }}
   ]
 }}
@@ -308,8 +323,11 @@ async def parse_meal(
         user_doc = db.users.find_one({"_id": user["_id"]})
         user_recipes = user_doc.get("recipes", []) if user_doc else []
 
+        # Get user's custom foods
+        user_custom_foods = await get_user_custom_foods(db, user) 
+
         # Identify recipes in the meal
-        identified_recipes = await identify_recipes_from_meal(meal_description, user_recipes)
+        identified_recipes = await identify_recipes_from_meal(meal_description, user_recipes, user_custom_foods)
         print(f"identified_recipes: {identified_recipes}")
 
         result_recipes = []
@@ -407,8 +425,8 @@ async def parse_meal(
             # Only create log if we have at least one valid component
             if components:
                 log_dict = {
-                    "recipe_id": recipe_id if matched_existing else None,
-                    "recipe_name": description,
+                    "recipe_id": recipe_id,  # Always store recipe_id (for both new and existing recipes)
+                    "meal_name": description,
                     "servings": servings,
                     "date": meal_date,
                     "components": components,
@@ -416,7 +434,7 @@ async def parse_meal(
                     "_id": ObjectId()
                 }
 
-                print(f"Creating log: {len(components)} components, {servings} servings")
+                print(f"Creating log: recipe_id={recipe_id}, {len(components)} components, {servings} servings")
                 await add_log(user, log_dict, db)
 
             result_recipes.append({

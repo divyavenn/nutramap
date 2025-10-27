@@ -3,56 +3,58 @@ import { useState, useEffect } from "react";
 import '../assets/css/variables.css'
 import { foodsAtom, nutrientDetailsByNameAtom} from "./account_states";
 import { useRecoilValue } from "recoil";
-// Function to interpolate between red and blue based on intake vs. target
+// Function to interpolate between red, yellow, and green based on intake vs. target
 const calculateColor = (percentage: number, shouldExceed: boolean) => {
-  // If shouldExceed is true, red (when less) to green (when exceeded)
-  // If shouldExceed is false, green (when less) to red (when exceeded)
+  // Red = far from goal, Yellow = getting close, Green = goal met
+  // If shouldExceed is true: red (low) → yellow (medium) → green (met goal)
+  // If shouldExceed is false: green (low) → yellow (medium) → red (exceeded)
 
-  // Define RGB values for the two endpoints with higher saturation and brightness
-  // Using more vibrant colors that will stand out against the gray/fog background
-  const red = [0, 0, 0]; // Black
-  const green = [255, 255, 255]; // White
-  const yellow = [128, 0, 128]; // Purple
-  
+  // Define vibrant RGB values
+  const red = [220, 38, 38];     // Bright red
+  const yellow = [234, 179, 8];  // Vibrant yellow
+  const green = [34, 197, 94];   // Bright green
+
   // Calculate the ratio (how far along we are towards the target)
   const ratio = Math.min(percentage / 100, 1);
-  
+
   let r, g, b;
-  
+
   if (shouldExceed) {
     // For nutrients we want to exceed (like protein, vitamins)
-    if (ratio < 0.5) {
-      // Red to yellow (0% to 50%)
-      const subRatio = ratio * 2; // Scale to 0-1 range
+    // Red (0%) → Yellow (70%) → Green (100%)
+    if (ratio < 0.7) {
+      // Red to yellow (0% to 70%)
+      const subRatio = ratio / 0.7; // Scale to 0-1 range
       r = Math.floor(red[0] * (1 - subRatio) + yellow[0] * subRatio);
       g = Math.floor(red[1] * (1 - subRatio) + yellow[1] * subRatio);
       b = Math.floor(red[2] * (1 - subRatio) + yellow[2] * subRatio);
     } else {
-      // Yellow to green (50% to 100%)
-      const subRatio = (ratio - 0.5) * 2; // Scale to 0-1 range
+      // Yellow to green (70% to 100%)
+      const subRatio = (ratio - 0.7) / 0.3; // Scale to 0-1 range
       r = Math.floor(yellow[0] * (1 - subRatio) + green[0] * subRatio);
       g = Math.floor(yellow[1] * (1 - subRatio) + green[1] * subRatio);
       b = Math.floor(yellow[2] * (1 - subRatio) + green[2] * subRatio);
     }
   } else {
     // For nutrients we don't want to exceed (like sodium, sugar)
-    if (ratio < 0.5) {
-      // Green to yellow (0% to 50%)
-      const subRatio = ratio * 2; // Scale to 0-1 range
+    // Green (0%) → Yellow (70%) → Red (100%+)
+    if (ratio < 0.7) {
+      // Green to yellow (0% to 70%)
+      const subRatio = ratio / 0.7; // Scale to 0-1 range
       r = Math.floor(green[0] * (1 - subRatio) + yellow[0] * subRatio);
       g = Math.floor(green[1] * (1 - subRatio) + yellow[1] * subRatio);
       b = Math.floor(green[2] * (1 - subRatio) + yellow[2] * subRatio);
     } else {
-      // Yellow to red (50% to 100%)
-      const subRatio = (ratio - 0.5) * 2; // Scale to 0-1 range
+      // Yellow to red (70% to 100%)
+      const subRatio = (ratio - 0.7) / 0.3; // Scale to 0-1 range
       r = Math.floor(yellow[0] * (1 - subRatio) + red[0] * subRatio);
       g = Math.floor(yellow[1] * (1 - subRatio) + red[1] * subRatio);
       b = Math.floor(yellow[2] * (1 - subRatio) + red[2] * subRatio);
     }
   }
 
-  // Return the color as a CSS-compatible string with higher opacity
-  return `rgba(${r}, ${g}, ${b}, 0.9)`;
+  // Return the color as a CSS-compatible string
+  return `rgba(${r}, ${g}, ${b}, 0.85)`;
 };
 
 const getFoodID = (food_name : string, foodList : Record<string, number>) => {
@@ -174,6 +176,7 @@ function Typewriter({ text, speed = 100, style } : {text : string, speed : numbe
 const cleanLocalStorage = () => {
   localStorage.getItem('access_token') ? localStorage.removeItem('access_token') : null;
   localStorage.getItem('foods') ? localStorage.removeItem('foods') : null;
+  localStorage.getItem('accountInfo') ? localStorage.removeItem('accountInfo') : null;
   localStorage.getItem('nutrients') ? localStorage.removeItem('nutrients') : null;
 }  
 

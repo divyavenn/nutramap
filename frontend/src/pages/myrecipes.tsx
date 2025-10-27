@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { request } from '../components/endpoints';
 import '../assets/css/myrecipes.css';
-import Trashcan from '../assets/images/trashcan.svg?react';
-import OkCheck from '../assets/images/checkmark.svg?react';
 import { Header } from '../components/Sections';
 import { Heading } from '../components/Title';
-import Account from '../assets/images/account.svg?react';
-import Dashboard from '../assets/images/dashboard.svg?react';
+import AccountIcon from '../assets/images/account.svg?react';
+import Utensils from '../assets/images/utensils-solid.svg?react'
+import DashboardIcon from '../assets/images/dashboard.svg?react';
+import FoodBowl from '../assets/images/food_bowl.svg?react';
 import { useRecoilValue } from 'recoil';
 import { firstNameAtom } from '../components/account_states';
 
@@ -88,80 +88,74 @@ function MyRecipes() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="myrecipes-page">
-        <Header linkIcons={[{to: '/account', img: <Account/>}, {to: '/dashboard', img: <Dashboard/>}]}/>
-        <Heading words={`${name}'s Recipes`} />
-        <div className="loading-message">Loading recipes...</div>
-      </div>
-    );
-  }
-
   return (
     <div className="myrecipes-page">
-      <Header linkIcons={[{to: '/account', img: <Account/>}, {to: '/dashboard', img: <Dashboard/>}]}/>
+      <Header linkIcons={[{to: "/dashboard", img: <DashboardIcon/>}, {to: '/account', img: <AccountIcon/>}, {to: '/myfoods', img: <Utensils/>}, {to: '/myrecipes', img: <FoodBowl/>}]}/>
       <Heading words={`${name}'s Recipes`} />
-      <div className="myrecipes-header">
-        <button
-          className="create-recipe-button"
-          onClick={() => setShowCreateModal(true)}
-        >
-          + Create New Recipe
-        </button>
-      </div>
 
-      {recipes.length === 0 ? (
-        <div className="no-recipes-message">
-          <p>You haven't created any recipes yet.</p>
-          <p>Start by logging a meal or creating a new recipe manually!</p>
-        </div>
-      ) : (
-        <div className="recipes-grid">
-          {recipes.map(recipe => (
-            <div
-              key={recipe.recipe_id}
-              className="recipe-card"
-              onClick={() => handleRecipeClick(recipe)}
+      { loading ?
+      (<div className="loading-message">Loading recipes...</div>)
+      :
+      ( <div className="myrecipes-container">
+          <div className="myrecipes-header">
+            <button
+              className="create-recipe-button"
+              onClick={() => setShowCreateModal(true)}
             >
-              <div className="recipe-card-header">
-                <h3 className="recipe-title">{recipe.description}</h3>
-                <div className="recipe-usage-count">
-                  Used {recipe.usage_count} {recipe.usage_count === 1 ? 'time' : 'times'}
-                </div>
-              </div>
-              <div className="recipe-ingredients-preview">
-                {recipe.ingredients.slice(0, 5).map((ing, idx) => (
-                  <div key={idx} className="ingredient-preview-item">
-                    {ing.amount} {ing.food_name || 'Unknown'}
-                  </div>
-                ))}
-                {recipe.ingredients.length > 5 && (
-                  <div className="more-ingredients">
-                    +{recipe.ingredients.length - 5} more
-                  </div>
-                )}
-              </div>
+                + Create New Recipe
+            </button>
+          </div>
+
+          {recipes.length === 0 ? (
+            <div className="no-recipes-message">
+              <p>You haven't created any recipes yet.</p>
+              <p>Start by logging a meal or creating a new recipe manually!</p>
             </div>
-          ))}
-        </div>
-      )}
+          ) : (
+            <div className="recipes-grid">
+              {recipes.map(recipe => (
+                <div
+                  key={recipe.recipe_id}
+                  className="recipe-card"
+                  onClick={() => handleRecipeClick(recipe)}
+                >
+                  <div className="recipe-card-header">
+                    <h3 className="recipe-title">{recipe.description}</h3>
+                    <div className="recipe-usage-count">
+                      Used {recipe.usage_count} {recipe.usage_count === 1 ? 'time' : 'times'}
+                    </div>
+                  </div>
+                  <div className="recipe-ingredients-preview">
+                    {recipe.ingredients.slice(0, 5).map((ing, idx) => (
+                      <div key={idx} className="ingredient-preview-item">
+                        {ing.amount} {ing.food_name || 'Unknown'}
+                      </div>
+                    ))}
+                    {recipe.ingredients.length > 5 && (
+                      <div className="more-ingredients">
+                        +{recipe.ingredients.length - 5} more
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
-      {selectedRecipe && (
-        <RecipeDetailModal
-          recipe={selectedRecipe}
-          onClose={handleCloseModal}
-          onDelete={handleDeleteRecipe}
-          onUpdate={fetchRecipes}
-        />
-      )}
+          {selectedRecipe && (
+            <RecipeDetailModal
+              recipe={selectedRecipe}
+              onClose={handleCloseModal}
+              onDelete={handleDeleteRecipe}
+              onUpdate={fetchRecipes}
+            />
+          )}
 
-      {showCreateModal && (
-        <CreateRecipeModal
-          onClose={() => setShowCreateModal(false)}
-          onCreate={fetchRecipes}
-        />
-      )}
+          {showCreateModal && (
+            <div/>
+          )}
+        </div> )
+    }
     </div>
   );
 }
@@ -175,13 +169,54 @@ interface RecipeDetailModalProps {
 
 function RecipeDetailModal({ recipe, onClose, onDelete, onUpdate }: RecipeDetailModalProps) {
   const [editedIngredients, setEditedIngredients] = useState(recipe.ingredients);
-  const [isSaving, setIsSaving] = useState(false);
   const [nutritionData, setNutritionData] = useState<NutrientData[]>([]);
   const [loadingNutrition, setLoadingNutrition] = useState(true);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState<number>(-1);
+  const [activeInputIndex, setActiveInputIndex] = useState<number | null>(null);
+
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchRecipeNutrition();
   }, [editedIngredients]);
+
+  // Reset selected suggestion index when suggestions change
+  useEffect(() => {
+    setSelectedSuggestionIndex(suggestions.length > 0 ? 0 : -1);
+  }, [suggestions]);
+
+  // Scroll selected suggestion into view
+  useEffect(() => {
+    if (selectedSuggestionIndex >= 0 && suggestionsRef.current) {
+      const suggestionsContainer = suggestionsRef.current;
+      const selectedElement = suggestionsContainer.querySelector(`.suggestion-item:nth-child(${selectedSuggestionIndex + 1})`) as HTMLElement;
+
+      if (selectedElement) {
+        const containerTop = suggestionsContainer.scrollTop;
+        const containerBottom = containerTop + suggestionsContainer.clientHeight;
+        const elementTop = selectedElement.offsetTop;
+        const elementBottom = elementTop + selectedElement.offsetHeight;
+
+        if (elementTop < containerTop) {
+          suggestionsContainer.scrollTop = elementTop;
+        } else if (elementBottom > containerBottom) {
+          suggestionsContainer.scrollTop = elementBottom - suggestionsContainer.clientHeight;
+        }
+      }
+    }
+  }, [selectedSuggestionIndex]);
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   const fetchRecipeNutrition = async () => {
     try {
@@ -231,6 +266,26 @@ function RecipeDetailModal({ recipe, onClose, onDelete, onUpdate }: RecipeDetail
     }
   };
 
+  const handleAutocomplete = async (value: string) => {
+    if (!value.trim()) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    try {
+      const response = await request('/match/autocomplete?prompt=' + value, 'POST', {}, 'JSON');
+      if (response.body) {
+        setSuggestions(response.body);
+        setShowSuggestions(value.length > 0 && response.body.length > 0);
+      }
+    } catch (error) {
+      console.error('Error fetching autocomplete suggestions:', error);
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
   const handleIngredientChange = (index: number, field: 'amount' | 'weight_in_grams' | 'food_name', value: string) => {
     const updated = [...editedIngredients];
     if (field === 'weight_in_grams') {
@@ -239,10 +294,34 @@ function RecipeDetailModal({ recipe, onClose, onDelete, onUpdate }: RecipeDetail
       updated[index][field] = value;
     }
     setEditedIngredients(updated);
+
+    // Handle autocomplete for food_name changes
+    if (field === 'food_name') {
+      setActiveInputIndex(index);
+
+      // Clear existing timer
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+
+      // Debounce the autocomplete request
+      debounceTimerRef.current = setTimeout(() => {
+        handleAutocomplete(value);
+      }, 300);
+    }
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    if (activeInputIndex !== null) {
+      const updated = [...editedIngredients];
+      updated[activeInputIndex].food_name = suggestion;
+      setEditedIngredients(updated);
+    }
+    setShowSuggestions(false);
+    setActiveInputIndex(null);
   };
 
   const handleSave = async () => {
-    setIsSaving(true);
     try {
       const data = {
         recipe_id: recipe.recipe_id,
@@ -254,8 +333,48 @@ function RecipeDetailModal({ recipe, onClose, onDelete, onUpdate }: RecipeDetail
       onClose();
     } catch (error) {
       console.error('Error updating recipe:', error);
-    } finally {
-      setIsSaving(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    // Handle suggestions keyboard navigation
+    if (showSuggestions) {
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          setSelectedSuggestionIndex(prev =>
+            prev < suggestions.length - 1 ? prev + 1 : prev
+          );
+          return;
+        case 'ArrowUp':
+          e.preventDefault();
+          setSelectedSuggestionIndex(prev =>
+            prev > 0 ? prev - 1 : prev
+          );
+          return;
+        case 'Tab':
+          e.preventDefault();
+          if (selectedSuggestionIndex >= 0) {
+            handleSuggestionClick(suggestions[selectedSuggestionIndex]);
+          }
+          return;
+        case 'Escape':
+          e.preventDefault();
+          setShowSuggestions(false);
+          return;
+        case 'Enter':
+          if (selectedSuggestionIndex >= 0) {
+            e.preventDefault();
+            handleSuggestionClick(suggestions[selectedSuggestionIndex]);
+            return;
+          }
+          break;
+      }
+    }
+
+    // Save on Enter if no suggestions
+    if (e.key === 'Enter') {
+      handleSave();
     }
   };
 
@@ -264,20 +383,22 @@ function RecipeDetailModal({ recipe, onClose, onDelete, onUpdate }: RecipeDetail
       <div className="recipe-detail-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{recipe.description}</h2>
-          <button className="close-button" onClick={onClose}>×</button>
         </div>
 
         <div className="modal-content">
           <div className="ingredients-section">
-            <h3>Ingredients</h3>
             {editedIngredients.length === 0 ? (
               <p className="nutrition-note">No ingredients found. This recipe may have been created before ingredients could be matched.</p>
             ) : (
               <div className="ingredients-list">
+                <div className="ingredient-edit-row">
+                  <div className="ingredient-name-display"> <label>Food</label> </div>
+                  <div className="ingredient-amount"> <label>Amount</label> </div>
+                  <div className="ingredient-weight"> <label>Weight</label> </div>
+                </div>
                 {editedIngredients.map((ingredient, index) => (
                   <div key={index} className="ingredient-edit-row">
                     <div className="ingredient-name-display">
-                      <label>Food</label>
                       {!ingredient.food_id? (
                         <input
                           type="text"
@@ -285,6 +406,7 @@ function RecipeDetailModal({ recipe, onClose, onDelete, onUpdate }: RecipeDetail
                           placeholder="Enter food name to match..."
                           value={ingredient.food_name || ''}
                           onChange={(e) => handleIngredientChange(index, 'food_name', e.target.value)}
+                          onKeyDown={handleKeyPress}
                         />
                       ) : (
                         <div className="ingredient-food-name">
@@ -293,23 +415,40 @@ function RecipeDetailModal({ recipe, onClose, onDelete, onUpdate }: RecipeDetail
                       )}
                     </div>
                     <div className="ingredient-amount">
-                      <label>Amount</label>
                       <input
                         type="text"
                         value={ingredient.amount}
                         onChange={(e) => handleIngredientChange(index, 'amount', e.target.value)}
+                        onKeyDown={handleKeyPress}
                       />
                     </div>
                     <div className="ingredient-weight">
-                      <label>Weight (g)</label>
                       <input
                         type="number"
                         value={ingredient.weight_in_grams}
                         onChange={(e) => handleIngredientChange(index, 'weight_in_grams', e.target.value)}
+                        onKeyDown={handleKeyPress}
                       />
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {showSuggestions && (
+              <div className="suggestions-container" ref={suggestionsRef}>
+                <ul className="suggestions-list">
+                  {suggestions.map((suggestion, index) => (
+                    <li
+                      key={suggestion}
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      className={`suggestion-item ${index === selectedSuggestionIndex ? 'selected' : ''}`}
+                      onMouseEnter={() => setSelectedSuggestionIndex(index)}
+                    >
+                      {suggestion}
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
           </div>
@@ -354,163 +493,14 @@ function RecipeDetailModal({ recipe, onClose, onDelete, onUpdate }: RecipeDetail
         </div>
 
         <div className="modal-footer">
-          <button className="delete-button" onClick={() => onDelete(recipe.recipe_id)} title="Delete Recipe">
-            <Trashcan />
+          <button className="delete-recipe-button" onClick={() => onDelete(recipe.recipe_id)} title="Delete Recipe">
+            Delete Recipe
           </button>
-          <div className="action-buttons">
-            <button className="cancel-button" onClick={onClose}>×</button>
-            <button className="save-button" onClick={handleSave} disabled={isSaving} title={isSaving ? 'Saving...' : 'Save Changes'}>
-              <OkCheck />
-            </button>
-          </div>
         </div>
       </div>
     </div>
   );
 }
 
-interface CreateRecipeModalProps {
-  onClose: () => void;
-  onCreate: () => void;
-}
-
-function CreateRecipeModal({ onClose, onCreate }: CreateRecipeModalProps) {
-  const [description, setDescription] = useState('');
-  const [ingredients, setIngredients] = useState<Array<{ food_name: string; amount: string; weight_in_grams: string }>>([
-    { food_name: '', amount: '', weight_in_grams: '' }
-  ]);
-  const [isCreating, setIsCreating] = useState(false);
-
-  const handleAddIngredient = () => {
-    setIngredients([...ingredients, { food_name: '', amount: '', weight_in_grams: '' }]);
-  };
-
-  const handleRemoveIngredient = (index: number) => {
-    setIngredients(ingredients.filter((_, i) => i !== index));
-  };
-
-  const handleIngredientChange = (index: number, field: string, value: string) => {
-    const updated = [...ingredients];
-    updated[index] = { ...updated[index], [field]: value };
-    setIngredients(updated);
-  };
-
-  const handleCreate = async () => {
-    if (!description.trim()) {
-      alert('Please enter a recipe description');
-      return;
-    }
-
-    if (ingredients.length === 0 || !ingredients[0].food_name) {
-      alert('Please add at least one ingredient');
-      return;
-    }
-
-    setIsCreating(true);
-    try {
-      const data = {
-        description: description,
-        ingredients: JSON.stringify(
-          ingredients
-            .filter(ing => ing.food_name.trim())
-            .map(ing => ({
-              food_name: ing.food_name,
-              amount: ing.amount,
-              weight_in_grams: ing.weight_in_grams ? parseFloat(ing.weight_in_grams) : undefined
-            }))
-        )
-      };
-
-      await request('/recipes/create', 'POST', data, 'URLencode');
-      onCreate();
-      onClose();
-    } catch (error) {
-      console.error('Error creating recipe:', error);
-      alert('Error creating recipe. Please try again.');
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="recipe-detail-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>Create New Recipe</h2>
-          <button className="close-button" onClick={onClose}>×</button>
-        </div>
-
-        <div className="modal-content">
-          <div className="recipe-description-input">
-            <label>Recipe Name</label>
-            <input
-              type="text"
-              placeholder="e.g., My Special Smoothie"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-
-          <div className="ingredients-section">
-            <h3>Ingredients</h3>
-            <div className="ingredients-list">
-              {ingredients.map((ingredient, index) => (
-                <div key={index} className="ingredient-create-row">
-                  <div className="ingredient-name">
-                    <label>Food Name</label>
-                    <input
-                      type="text"
-                      placeholder="e.g., Banana, raw"
-                      value={ingredient.food_name}
-                      onChange={(e) => handleIngredientChange(index, 'food_name', e.target.value)}
-                    />
-                  </div>
-                  <div className="ingredient-amount">
-                    <label>Amount</label>
-                    <input
-                      type="text"
-                      placeholder="e.g., 1 cup"
-                      value={ingredient.amount}
-                      onChange={(e) => handleIngredientChange(index, 'amount', e.target.value)}
-                    />
-                  </div>
-                  <div className="ingredient-weight">
-                    <label>Weight (g)</label>
-                    <input
-                      type="number"
-                      placeholder="Optional"
-                      value={ingredient.weight_in_grams}
-                      onChange={(e) => handleIngredientChange(index, 'weight_in_grams', e.target.value)}
-                    />
-                  </div>
-                  {ingredients.length > 1 && (
-                    <button
-                      className="remove-ingredient-button"
-                      onClick={() => handleRemoveIngredient(index)}
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-            <button className="add-ingredient-button" onClick={handleAddIngredient}>
-              + Add Ingredient
-            </button>
-          </div>
-        </div>
-
-        <div className="modal-footer">
-          <div className="action-buttons">
-            <button className="cancel-button" onClick={onClose}>Cancel</button>
-            <button className="save-button" onClick={handleCreate} disabled={isCreating}>
-              {isCreating ? 'Creating...' : 'Create Recipe'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default MyRecipes;

@@ -105,7 +105,7 @@
 }
 
 .delete-food-button:hover svg {
-  fill: #ff6b6b;
+  fill: #ffffff;
 }
 
 .food-details {
@@ -538,10 +538,12 @@ input, textarea {
 }
 
 .nutrient-unit {
-  font-family: 'Inconsolata', monospace;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
-  min-width: 30px;
+  font-family: 'Poppins';
+  text-justify: left;
+  font-size: 16px;
+  min-width: 20px;
+  color: rgb(255, 255, 255);
+  text-transform: lowercase;
 }
 
 .remove-nutrient-button {
@@ -555,14 +557,14 @@ input, textarea {
 }
 
 .remove-nutrient-button svg {
-  fill: rgba(255, 100, 100, 0.6);
+  fill: rgba(255, 255, 255, 0.6);
   width: 16px;
   height: 16px;
   transition: fill 0.2s ease;
 }
 
 .remove-nutrient-button:hover svg {
-  fill: rgba(255, 100, 100, 1);
+  fill: rgb(255, 255, 255);
 }
 
 .edit-actions {
@@ -607,27 +609,64 @@ input, textarea {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
-  background-color: rgba(102, 0, 255, 0.3);
-  border: 1px solid rgba(102, 0, 255, 0.5);
+  padding: 10px 15px;
+  background-color: rgba(96, 62, 146, 0.489);
+  border: none;
   border-radius: 20px;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-family: 'Ubuntu', sans-serif;
-  font-size: 14px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 20px;
   color: var(--white);
 }
 
 .food-tag:hover {
   background-color: rgba(102, 0, 255, 0.5);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 0, 255, 0.3);
 }
 
 .food-tag.selected {
   background-color: var(--purple);
   border-color: var(--purple);
   box-shadow: 0 4px 12px rgba(102, 0, 255, 0.4);
+}
+
+.food-tag.shimmer {
+  animation: shimmerAnimation 2s ease-in-out;
+  animation-fill-mode: forwards;
+}
+
+@keyframes shimmerAnimation {
+  0% {
+    background: linear-gradient(
+      90deg,
+      rgba(96, 62, 146, 0.489) 0%,
+      rgba(96, 62, 146, 0.489) 40%,
+      rgba(255, 255, 255, 0.6) 50%,
+      rgba(96, 62, 146, 0.489) 60%,
+      rgba(96, 62, 146, 0.489) 100%
+    );
+    background-size: 200% 100%;
+    background-position: 200% 0;
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(102, 0, 255, 0);
+  }
+  15% {
+    transform: scale(1.05);
+    box-shadow: 0 4px 20px rgba(102, 0, 255, 0.6);
+  }
+  30%, 70% {
+    background-position: -200% 0;
+    transform: scale(1.03);
+  }
+  85% {
+    transform: scale(1.02);
+  }
+  100% {
+    background: rgba(96, 62, 146, 0.489);
+    background-position: -200% 0;
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(102, 0, 255, 0);
+  }
 }
 
 .food-tag-name {
@@ -642,8 +681,7 @@ input, textarea {
   line-height: 1;
   cursor: pointer;
   padding: 0;
-  width: 20px;
-  height: 20px;
+  padding-left: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -651,7 +689,7 @@ input, textarea {
 }
 
 .food-tag-delete:hover {
-  color: rgba(255, 100, 100, 1);
+  color: rgb(255, 255, 255);
 }
 
 /* Modal Overlay */
@@ -710,6 +748,15 @@ input, textarea {
   font-weight: 300;
   text-transform: none;
   text-align: center;
+  margin-bottom: 20px;
+}
+
+.nutrient-panel-title{
+  font-family: 'Poppins', sans-serif;
+  font-size: 20px;
+  font-weight: 400;
+  color: var(--white);
+  margin: 0;
   margin-bottom: 20px;
 }
 

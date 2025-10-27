@@ -52,7 +52,7 @@ input[type="datetime-local"] {
   font-family: Inconsolata;
   border-radius: 5px;
   outline: none;
-  margin-top: 7px;
+  margin-top: 5px;
   height: var(--edit-log-input-height)
 }
 
@@ -330,7 +330,7 @@ input, textarea {
   background: none;
   color: inherit;
   border: none;
-  margin-top: 10px;
+  margin-top: 1px;
   font-family: Inconsolata;
   text-align: right; /* Align the date to the right */
   flex-shrink: 0;

@@ -20,13 +20,14 @@ function NewLogForm(){
 
   const [formData, setFormData] = useState({
     food_name : '',
-    amount_in_grams : '', 
+    amount_in_grams : '',
     date : new Date(),
   })
 
   const [suggestions, setSuggestions] = useState<string[]>([]); // State for filtered suggestions
   const [showSuggestions, setShowSuggestions] = useState(false); // Control the visibility of suggestions
   const [validInput, markValidInput] = useState(true)
+  const [isJiggling, setIsJiggling] = useState(false)
 
 
   const filteredFoods = useMemo(() => {
@@ -67,9 +68,10 @@ function NewLogForm(){
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault() // prevent automatic submission
+    setIsJiggling(true)
     await request(
       '/logs/new',
-      'POST', 
+      'POST',
       {
         food_id: (getFoodID(formData.food_name, foodList)),
         amount_in_grams: (formData.amount_in_grams),
@@ -77,6 +79,7 @@ function NewLogForm(){
       })
     setFormData({ food_name: '', amount_in_grams: '', date : new Date()})
     refreshLogs()
+    setIsJiggling(false)
   }
 
   return (
@@ -86,7 +89,7 @@ function NewLogForm(){
       <div className= 'input-food-name-wrapper'>
         <input
           name='food_name'
-          className = 'input-food-name'
+          className={`input-food-name ${isJiggling ? 'jiggle-text' : ''}`}
           placeholder='food'
           value = {formData.food_name}
           onChange={handleTyping}

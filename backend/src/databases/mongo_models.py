@@ -15,7 +15,7 @@ class LogComponent(BaseModel):
 class LogCreate(BaseModel):
     """New log structure - can represent a recipe or standalone food"""
     recipe_id: Optional[str] = None  # Links to user's saved recipe if exists
-    recipe_name: str  # Display name (recipe description or food name)
+    meal_name: str  # Display name (recipe description or food name)
     servings: float  # Number of servings consumed
     date: datetime
     components: List[LogComponent]  # Array of food items
@@ -24,7 +24,7 @@ class LogCreate(BaseModel):
         json_schema_extra = {
             'example': {
                 'recipe_id': 'abc-123',
-                'recipe_name': 'Hot chocolate with collagen',
+                'meal_name': 'Hot chocolate with collagen',
                 'servings': 1.0,
                 'date': "2024-10-16T10:15:30.000Z",
                 'components': [
@@ -48,7 +48,7 @@ class Log(BaseModel):
     log_id: str = Field(alias="_id")
     user_id: Optional[str]
     recipe_id: Optional[str] = None  # Links to saved recipe if exists
-    recipe_name: str  # Display name
+    meal_name: str  # Display name
     servings: float  # Number of servings consumed
     date: Optional[datetime]
     components: List[LogComponent]  # Array of food items
@@ -129,6 +129,7 @@ class User(BaseModel):
     email: EmailStr
     password_hash: str
     role: str
+    custom_foods: List[str] = Field(default_factory=list)  # List of custom food ObjectId strings
 
     @field_validator('user_id')
     def validate_objectid(cls, v):
