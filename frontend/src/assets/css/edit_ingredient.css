@@ -40,7 +40,6 @@ input, textarea {
 .edit-form-container {
   display: flex;
   margin-bottom: 20px;
-  justify-content: center;
   align-items: flex-start;
 }
 
@@ -353,7 +352,6 @@ input, textarea {
   display: flex;
   width: 40px;
   margin-right: 10px;
-  margin-left: -50px;
   margin-top: 20px;
   align-items: start; /* Vertically centers the button */
 }
