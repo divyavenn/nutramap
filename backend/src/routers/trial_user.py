@@ -37,112 +37,129 @@ DEFAULT_REQUIREMENTS = {
     "Vitamin K (phylloquinone)": 120,
 }
 
-def create_trial_user(db: Database) -> dict:
-    """Create a temporary trial user"""
-    trial_id = str(uuid.uuid4())
-    trial_email = f"trial_{trial_id}@nutramap.trial"
+# DEPRECATED: Old trial user creation functions
+# These are kept for reference but are no longer used
+# The system now uses a single permanent trial user
 
-    trial_user = {
-        "_id": ObjectId(),
-        "email": trial_email,
-        "first_name": "Trial",
-        "last_name": "User",
-        "role": "trial",
-        "password_hash": "",  # No password for trial users
-        "created_at": datetime.now(timezone.utc),
-        "is_trial": True,
-        "trial_id": trial_id,
-        "recipes": [],  # Initialize empty recipes array
-        "custom_foods": []  # Initialize empty custom foods list
-    }
+# def create_trial_user(db: Database) -> dict:
+#     """DEPRECATED: Create a temporary trial user"""
+#     ...
 
-    # Insert trial user into database
-    db.users.insert_one(trial_user)
-
-    return trial_user
-
-def create_trial_token(user_id: str, email: str, name: str, trial_id: str) -> str:
-    """Create a JWT token for trial user - same structure as regular user"""
-    SECRET_KEY, ALGORITHM = _get_jwt_config()
-
-    encode = {
-        'email': email,
-        '_id': str(user_id),
-        'role': 'user',  # Same role as regular users
-        'name': name,
-        'trial': True,  # Trial flag
-        'trial_id': trial_id,
-        'exp': datetime.now(timezone.utc) + timedelta(hours=24)  # Trial expires in 24 hours
-    }
-
-    return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
+# def create_trial_token(user_id: str, email: str, name: str, trial_id: str) -> str:
+#     """DEPRECATED: Create a JWT token for trial user"""
+#     ...
 
 @router.post("/create")
 async def create_trial_session(user_db: db):
-    """Create a new trial user session"""
+    """
+    Return the permanent trial user token.
+    This logs the user into a single shared trial account.
+    """
     try:
-        print("=== Starting trial user creation ===")
+        print("=== Trial login requested ===")
 
-        # Create trial user
-        print("Creating trial user in database...")
-        trial_user = create_trial_user(user_db)
-        user_id = trial_user["_id"]
-        print(f"Trial user created with ID: {user_id}")
+        # Get the permanent trial token from environment
+        trial_token = os.getenv("TRIAL_USER_TOKEN")
 
-        # Create default requirements for trial user
-        # First, get the nutrient IDs from the nutrients collection
-        nutrients_collection = user_db.nutrients
-        print(f"Looking up nutrients for {len(DEFAULT_REQUIREMENTS)} requirements...")
+        if not trial_token:
+            print("!!! ERROR: TRIAL_USER_TOKEN not found in environment")
+            print("Please run: python src/scripts/setup_trial_user.py")
+            raise HTTPException(
+                status_code=500,
+                detail="Trial user not configured. Please contact administrator."
+            )
 
-        requirements_created = 0
-        for nutrient_name, target_value in DEFAULT_REQUIREMENTS.items():
-            print(f"  Looking for nutrient: '{nutrient_name}'")
-            nutrient = nutrients_collection.find_one({"nutrient_name": nutrient_name})
-            if nutrient:
-                # Create requirement document (using same field names as regular requirements)
-                requirement = {
-                    "user_id": user_id,
-                    "nutrient_id": nutrient["_id"],
-                    "amt": target_value,  # Use "amt" not "target" to match regular requirements
-                    "should_exceed": True,  # Use "should_exceed" not "shouldExceed" to match regular requirements
-                    "created_at": datetime.now(timezone.utc)
-                }
-                user_db.requirements.insert_one(requirement)
-                requirements_created += 1
-                print(f"  ✓ Created requirement for {nutrient_name} (ID: {nutrient['_id']})")
-            else:
-                print(f"  ✗ WARNING: Nutrient '{nutrient_name}' not found in database!")
+        # Verify the trial user exists in database
+        trial_user = user_db.users.find_one({
+            "email": "trial@nutramap.app",
+            "is_permanent_trial": True
+        })
 
-        print(f"=== Trial user created with {requirements_created}/{len(DEFAULT_REQUIREMENTS)} requirements ===")
+        if not trial_user:
+            print("!!! ERROR: Trial user not found in database")
+            print("Please run: python src/scripts/setup_trial_user.py")
+            raise HTTPException(
+                status_code=500,
+                detail="Trial user not found. Please contact administrator."
+            )
 
-        # Create token - same format as regular login
-        # Use empty string for name so dashboard shows "Hello, you!" instead of "Hello, Trial"
-        token = create_trial_token(
-            str(user_id),
-            trial_user["email"],
-            "",  # Empty name for trial users
-            trial_user["trial_id"]
-        )
+        print(f"✓ Logging into trial account: {trial_user['email']}")
 
-        # Return same format as regular login
+        # Return the permanent token (same format as regular login)
         return JSONResponse(content={
-            "access_token": token,
+            "access_token": trial_token,
             "token_type": "bearer"
         }, status_code=200)
 
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"!!! ERROR creating trial user: {type(e).__name__}: {e}")
+        print(f"!!! ERROR in trial login: {type(e).__name__}: {e}")
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to create trial session: {str(e)}")
 
+@router.post("/reset")
+async def reset_trial_data(user_db: db):
+    """
+    Reset trial user data (delete all logs and custom foods).
+    This is for the permanent trial user - it clears their data but keeps the account.
+    """
+    try:
+        # Find the permanent trial user
+        trial_user = user_db.users.find_one({
+            "email": "trial@nutramap.app",
+            "is_permanent_trial": True
+        })
+
+        if not trial_user:
+            raise HTTPException(status_code=404, detail="Trial user not found")
+
+        user_id = trial_user["_id"]
+
+        # Delete all logs for trial user
+        deleted_logs = user_db.logs.delete_many({"user_id": user_id})
+
+        # Delete all custom foods for trial user
+        deleted_foods = user_db.custom_foods.delete_many({"user_id": user_id})
+
+        # Delete all custom recipes for trial user
+        deleted_recipes = user_db.recipes.delete_many({"user_id": user_id})
+
+        print(f"Reset trial user data: {deleted_logs.deleted_count} logs, {deleted_foods.deleted_count} custom foods, {deleted_recipes.deleted_count} recipes")
+
+        return {
+            "status": "success",
+            "deleted_logs": deleted_logs.deleted_count,
+            "deleted_custom_foods": deleted_foods.deleted_count,
+            "deleted_recipes": deleted_recipes.deleted_count,
+            "message": "Trial user data reset successfully"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error resetting trial user data: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Failed to reset trial user data")
+
 def _cleanup_trial_user_data(trial_id: str, user_db: Database):
-    """Internal function to cleanup trial user data"""
-    # Find the trial user
-    trial_user = user_db.users.find_one({"trial_id": trial_id, "is_trial": True})
+    """
+    DEPRECATED: Internal function to cleanup old trial user data.
+    This is kept for backward compatibility with old trial users.
+    The permanent trial user should NOT be cleaned up.
+    """
+    # Find the trial user (old-style trial users only)
+    trial_user = user_db.users.find_one({
+        "trial_id": trial_id,
+        "is_trial": True,
+        "is_permanent_trial": {"$ne": True}  # Don't cleanup permanent trial user!
+    })
 
     if not trial_user:
-        raise HTTPException(status_code=404, detail="Trial user not found")
+        # Silently ignore - might be permanent trial user or already cleaned up
+        return {"message": "No cleanup needed"}
 
     user_id = trial_user["_id"]
 
@@ -155,7 +172,7 @@ def _cleanup_trial_user_data(trial_id: str, user_db: Database):
     # Delete the trial user
     user_db.users.delete_one({"_id": user_id})
 
-    print(f"Cleaned up trial user {trial_id}: {deleted_logs.deleted_count} logs, {deleted_reqs.deleted_count} requirements")
+    print(f"Cleaned up old trial user {trial_id}: {deleted_logs.deleted_count} logs, {deleted_reqs.deleted_count} requirements")
 
     return {"message": "Trial user data cleaned up successfully"}
 

@@ -71,7 +71,7 @@ function MyRecipes() {
   return (
     <div className="myrecipes-page">
       <Header linkIcons={[{to: "/dashboard", img: <DashboardIcon/>}, {to: '/account', img: <AccountIcon/>}, {to: '/myfoods', img: <Utensils/>}, {to: '/myrecipes', img: <FoodBowl/>}]}/>
-      <Heading words={`${name}'s Recipes`} />
+      <Heading words={name ? `${name}'s Recipes` : 'Your Recipes'} />
 
       { loading ?
       (<div className="loading-message">Loading recipes...</div>)

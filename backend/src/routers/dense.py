@@ -72,6 +72,90 @@ async def update_foods_list(db=None, user=None, request: Request = None):
         
     return id_name_map
     
+def remove_from_faiss_index(food_id, request: Request = None):
+    """
+    Remove a single food from the FAISS index by its ID.
+    Works for both USDA foods (int IDs) and custom foods (string ObjectIds).
+    """
+    try:
+        # Get paths from environment
+        faiss_bin_path = os.getenv("FAISS_BIN", "./faiss_index.bin")
+        food_id_cache_path = os.getenv("FOOD_ID_CACHE", "./food_ids.pkl")
+
+        # Load the current FAISS index
+        if request and hasattr(request.app.state, 'faiss_index'):
+            index = request.app.state.faiss_index
+            id_list = request.app.state.id_list
+        else:
+            # Load from disk
+            if not os.path.exists(faiss_bin_path):
+                print(f"⚠ FAISS index file not found: {faiss_bin_path}")
+                return False
+
+            index = faiss.read_index(faiss_bin_path)
+
+            # Load id_list from pickle
+            with open(food_id_cache_path, "rb") as f:
+                id_name_map = pickle.load(f)
+            id_list = list(id_name_map.keys())
+
+        # Check if index supports removal (IndexIDMap)
+        if not isinstance(index, faiss.IndexIDMap):
+            print(f"⚠ FAISS index doesn't support removal (type: {type(index).__name__})")
+            print("  You'll need to rebuild the index instead")
+            return False
+
+        # Convert food_id to the ID used in FAISS
+        from bson import ObjectId
+        if isinstance(food_id, ObjectId):
+            # Custom food - use hash of ObjectId string representation
+            faiss_id = hash(str(food_id)) & 0x7FFFFFFFFFFFFFFF
+        elif isinstance(food_id, str):
+            # String representation of ObjectId
+            faiss_id = hash(food_id) & 0x7FFFFFFFFFFFFFFF
+        else:
+            # USDA food - use the integer ID directly
+            faiss_id = int(food_id)
+
+        # Remove from FAISS index
+        ids_to_remove = np.array([faiss_id], dtype=np.int64)
+        removed_count = index.remove_ids(ids_to_remove)
+
+        if removed_count > 0:
+            print(f"✓ Removed food_id {food_id} from FAISS index")
+
+            # Update id_list
+            if food_id in id_list:
+                id_list.remove(food_id)
+                if request:
+                    request.app.state.id_list = id_list
+
+            # Update pickle cache
+            if food_id_cache_path:
+                with open(food_id_cache_path, "rb") as f:
+                    id_name_map = pickle.load(f)
+                if food_id in id_name_map:
+                    del id_name_map[food_id]
+                with open(food_id_cache_path, "wb") as f:
+                    pickle.dump(id_name_map, f)
+                print(f"✓ Updated food ID cache")
+
+            # Save updated index to disk
+            faiss.write_index(index, faiss_bin_path)
+            print(f"✓ Updated FAISS .bin file")
+
+            return True
+        else:
+            print(f"⚠ Food ID {food_id} not found in FAISS index")
+            return False
+
+    except Exception as e:
+        print(f"Error removing from FAISS index: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
 async def update_faiss_index(db=None, user=None, request: Request = None):
     print("Updating FAISS indexes...")
 
@@ -159,10 +243,28 @@ async def update_faiss_index(db=None, user=None, request: Request = None):
             # Train the index
             index.train(embedding_matrix)
         else:
-            index = faiss.IndexFlatIP(dim)
+            # Use IndexIDMap to enable removal of individual vectors
+            base_index = faiss.IndexFlatIP(dim)
+            index = faiss.IndexIDMap(base_index)
 
-        # Add vectors to the index
-        index.add(embedding_matrix)
+        # Add vectors to the index with IDs
+        # Convert food_ids to numpy array of int64
+        # For custom foods (ObjectId), use hash as ID
+        from bson import ObjectId
+        ids = []
+        for food_id in food_ids:
+            if isinstance(food_id, ObjectId):
+                # Custom food - use hash of ObjectId string representation
+                ids.append(hash(str(food_id)) & 0x7FFFFFFFFFFFFFFF)  # Ensure positive int64
+            elif isinstance(food_id, str):
+                # Already a string (shouldn't happen, but handle it)
+                ids.append(hash(food_id) & 0x7FFFFFFFFFFFFFFF)
+            else:
+                # USDA food - use the integer ID directly
+                ids.append(int(food_id))
+
+        ids_array = np.array(ids, dtype=np.int64)
+        index.add_with_ids(embedding_matrix, ids_array)
 
         # update bin
         faiss.write_index(index, "faiss_index_update.bin")
@@ -373,19 +475,34 @@ async def _search_faiss_index(query_text: str, faiss_index, id_list, threshold: 
 
     D, I = faiss_index.search(query_embedding, k)
 
+    # Build reverse mapping: FAISS ID -> food ID
+    # This allows O(1) lookup instead of scanning id_list for each result
+    faiss_id_to_food_id = {}
+    for food_id in id_list:
+        if isinstance(food_id, str):
+            # Custom food - map hash to food_id
+            faiss_id = hash(food_id) & 0x7FFFFFFFFFFFFFFF
+            faiss_id_to_food_id[faiss_id] = food_id
+        elif isinstance(food_id, int):
+            # USDA food - direct mapping
+            faiss_id_to_food_id[food_id] = food_id
+
     # Process search results in parallel
     async def process_result(idx):
-        i = I[0][idx]
-        if 0 <= i < len(id_list):
-            result_id = id_list[i]
-            if result_id == -1:  # Filter out deleted items
-                return None
-            # Keep result_id as int for database lookup
-            similarity_score = float(D[0][idx])
-            # Convert to 0-100 scale
-            normalized_score = round(max(0, min(100, similarity_score * 100)))
-            if normalized_score >= threshold:
-                return (result_id, normalized_score)
+        faiss_id = int(I[0][idx])  # FAISS returns numpy int64
+
+        # With IndexIDMap, I contains the actual IDs we stored, not positions
+        result_id = faiss_id_to_food_id.get(faiss_id)
+
+        if result_id is None or result_id == -1:
+            return None
+
+        # Keep result_id as is for database lookup
+        similarity_score = float(D[0][idx])
+        # Convert to 0-100 scale
+        normalized_score = round(max(0, min(100, similarity_score * 100)))
+        if normalized_score >= threshold:
+            return (result_id, normalized_score)
         return None
 
     # Create a list of indices to process

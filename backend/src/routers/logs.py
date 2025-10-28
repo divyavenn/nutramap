@@ -143,13 +143,17 @@ async def add_log(user: user, log, db: db):
         for component in log_dict["components"]:
             food_id = component.get("food_id")
             if food_id:
-                food = db.foods.find_one({"_id": food_id})
+                # Convert string ObjectIds to ObjectId for custom foods
+                search_id = ObjectId(food_id) if isinstance(food_id, str) and len(str(food_id)) == 24 else food_id
+                food = db.foods.find_one({"_id": search_id})
                 if not food:
                     raise HTTPException(status_code=404, detail=f"Food not found: {food_id}")
     # Old format validation (for backward compatibility with /logs/new endpoint)
     elif "food_id" in log_dict:
         food_id = log_dict.get("food_id")
-        food = db.foods.find_one({"_id": food_id})
+        # Convert string ObjectIds to ObjectId for custom foods
+        search_id = ObjectId(food_id) if isinstance(food_id, str) and len(str(food_id)) == 24 else food_id
+        food = db.foods.find_one({"_id": search_id})
         if not food:
             raise HTTPException(status_code=404, detail="Food not found")
 

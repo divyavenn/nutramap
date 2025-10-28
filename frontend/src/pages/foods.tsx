@@ -186,7 +186,7 @@ function Foods() {
   return (
     <>
       <Header linkIcons={[{to: "/dashboard", img: <DashboardIcon/>}, {to: '/account', img: <AccountIcon/>}, {to: '/myfoods', img: <Utensils/>}, {to: '/myrecipes', img: <FoodBowl/>}]}/>
-      <Heading words={`${name}'s Foods`} />
+      <Heading words={name ? `${name}'s Foods` : 'Your Foods'} />
 
       <div className="foods-container">
         <NewFood />

@@ -39,7 +39,7 @@ function Header({linkIcons} : {linkIcons? : PageLinkIcon[]}) {
   return (
   <header>
     <section className="nutramap-header">
-      <Link className="header-logo-container" to="/">
+      <Link className="header-logo-container" to="/dashboard">
       <img src={nutramapLogo}
             loading="lazy" alt="" className = 'nutramap-logo'/>
       <div className="nutra header">nutramap</div>

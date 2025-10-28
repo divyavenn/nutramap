@@ -121,7 +121,14 @@ async def match_ingredient_to_food_id(ingredient_name: str, db: Database, user: 
         )
 
         if matches and len(matches) > 0:
-            matched_food_id = int(matches[0])
+            # Keep food_id as is - it could be int (USDA) or string (custom food)
+            matched_food_id = matches[0]
+            # Try to convert to int for USDA foods, but keep as string for custom foods
+            try:
+                matched_food_id = int(matched_food_id)
+            except (ValueError, TypeError):
+                # It's a custom food with ObjectId string, keep as is
+                pass
             matched_food_name = get_food_name(matched_food_id, db, None)
             print(f"  ✓ Matched '{ingredient_name}' to: {matched_food_name} (ID: {matched_food_id})")
             return matched_food_id

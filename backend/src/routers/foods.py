@@ -333,17 +333,17 @@ async def get_foods_list(db: Annotated[Database, Depends(get_data)] = None, user
   # Format the result as a dictionary
   return {food["_id"]: {"name": food["food_name"]} for food in foods}
 
-async def food_embedding_map(db: Annotated[Database, Depends(get_data)] = None, user: Annotated[dict, Depends(get_current_user)] = None): 
-  foods = []
-  async for food in db.foods.find(
+async def food_embedding_map(db: Annotated[Database, Depends(get_data)] = None, user: Annotated[dict, Depends(get_current_user)] = None):
+  # Use regular for loop since pymongo cursors are synchronous
+  foods = list(db.foods.find(
         {"$or": [{"source": "USDA"}, {"source": user["_id"]}]},  # Match source "USDA" or user ID
         {"_id": 1, "embedding": 1}  # Retrieve only `_id` and `embedding`
-    ).sort("_id", 1):
-      foods.append(food)
+    ).sort("_id", 1))
+
   if not foods:
       return JSONResponse(content={"message": "No data found."}, status_code=404)
 
-   # Format the result as a dictionary
+  # Format the result as a dictionary
   return {food["_id"]: food["embedding"] for food in foods}
 
 async def food_name_map(request: Request, db: Annotated[Database, Depends(get_data)] = None, user: Annotated[dict, Depends(get_current_user)] = None):
@@ -474,48 +474,18 @@ def delete_custom_food(
         except Exception as e:
             print(f"⚠ Warning: Could not remove from Typesense: {e}")
 
-        # For FAISS: Mark that a rebuild is needed
-        # FAISS IndexFlat doesn't support efficient deletion - need to rebuild the entire index
-        # Options:
-        # 1. Rebuild immediately (expensive for large indexes)
-        # 2. Mark as deleted and filter during search (implemented below)
-        # 3. Schedule periodic rebuilds
-
-        if request and hasattr(request.app.state, 'id_list'):
-            id_list = request.app.state.id_list
-            try:
-                # Custom foods use ObjectId strings, USDA foods use integers
-                # Check if this food_id is in the id_list (could be string or int)
-                if food_id in id_list:
-                    # We can't remove from FAISS directly, but we can update id_list
-                    # The position in FAISS stays, but we mark it as deleted
-                    idx = id_list.index(food_id)
-                    # Replace with -1 to mark as deleted (filter during search)
-                    id_list[idx] = -1
-                    request.app.state.id_list = id_list
-                    print(f"✓ Marked position {idx} as deleted in FAISS id_list")
-                else:
-                    print(f"⚠ Food ID {food_id} not found in FAISS id_list")
-
-                # Update pickle cache
-                food_id_cache_path = os.getenv("FOOD_ID_CACHE")
-                if food_id_cache_path:
-                    with open(food_id_cache_path, "rb") as f:
-                        id_name_map = pickle.load(f)
-                    # Remove using string key (works for both ObjectId strings and integer keys)
-                    if food_id in id_name_map:
-                        del id_name_map[food_id]
-                        print(f"✓ Removed from food ID cache")
-                    elif int(food_id) if food_id.isdigit() else None in id_name_map:
-                        # Fallback: try as integer if string lookup fails
-                        del id_name_map[int(food_id)]
-                        print(f"✓ Removed from food ID cache (as integer)")
-                    with open(food_id_cache_path, "wb") as f:
-                        pickle.dump(id_name_map, f)
-            except Exception as e:
-                print(f"⚠ Warning: Could not update FAISS mappings: {e}")
-                import traceback
-                traceback.print_exc()
+        # Remove from FAISS index incrementally using IndexIDMap
+        try:
+            from ..routers.dense import remove_from_faiss_index
+            success = remove_from_faiss_index(food_id, request)
+            if success:
+                print(f"✓ Removed food from FAISS index: {food_id}")
+            else:
+                print(f"⚠ Could not remove from FAISS index, may need rebuild")
+        except Exception as e:
+            print(f"⚠ Warning: Error removing from FAISS index: {e}")
+            import traceback
+            traceback.print_exc()
 
         print(f"✓ Deleted custom food: {food.get('food_name', food_id)}")
         return {"message": "Food deleted successfully"}
@@ -1093,11 +1063,15 @@ async def add_custom_food(
                     if not faiss_index.is_trained:
                         print(f"⚠ Warning: FAISS index not trained, skipping add")
                     else:
-                        # Add to FAISS index
-                        faiss_index.add(embedding_array)
-                        print(f"✓ Added embedding to FAISS index (new total: {faiss_index.ntotal})")
+                        # Add to FAISS index with ID (required for IndexIDMap)
+                        # Generate FAISS ID for this custom food (same logic as in dense.py)
+                        faiss_id = hash(food_id) & 0x7FFFFFFFFFFFFFFF  # Hash ObjectId string, ensure positive int64
+                        id_array = np.array([faiss_id], dtype=np.int64)
 
-                        # Add food_id to the id_list (this maps FAISS index positions to food IDs)
+                        faiss_index.add_with_ids(embedding_array, id_array)
+                        print(f"✓ Added embedding to FAISS index with ID {faiss_id} (new total: {faiss_index.ntotal})")
+
+                        # Add food_id to the id_list (this maps FAISS IDs to food IDs)
                         # Custom foods use ObjectId strings, so store as string
                         id_list.append(food_id)
                         request.app.state.id_list = id_list
@@ -1113,17 +1087,17 @@ async def add_custom_food(
                                 id_name_map[food_id] = {"name": name}
                                 with open(food_id_cache_path, "wb") as f:
                                     pickle.dump(id_name_map, f)
+                                print(f"✓ Updated food ID cache with {food_id}")
                         except Exception as cache_error:
                             print(f"⚠ Warning: Could not update food ID cache: {cache_error}")
 
-                        # Optionally persist to .bin file (can be done periodically instead)
+                        # Persist to .bin file for durability
                         try:
-                            faiss_bin_path = os.getenv("FAISS_BIN")
-                            if faiss_bin_path:
-                                faiss.write_index(faiss_index, faiss_bin_path)
-                                print(f"✓ Updated FAISS .bin file")
+                            faiss_bin_path = os.getenv("FAISS_BIN", "./faiss_index.bin")
+                            faiss.write_index(faiss_index, faiss_bin_path)
+                            print(f"✓ Persisted FAISS index to {faiss_bin_path}")
                         except Exception as bin_error:
-                            print(f"⚠ Warning: Could not update FAISS .bin: {bin_error}")
+                            print(f"⚠ Warning: Could not persist FAISS index: {bin_error}")
 
                         print(f"✓ Added custom food to FAISS index: {name} (index now has {faiss_index.ntotal} vectors)")
                 else:
@@ -1144,3 +1118,34 @@ async def add_custom_food(
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error adding custom food: {str(e)}")
+
+
+@router.post("/rebuild-index")
+async def rebuild_faiss_index(
+    request: Request,
+    user: Annotated[dict, Depends(get_current_user)],
+    db: Annotated[Database, Depends(get_data)]
+):
+    """
+    Rebuild the FAISS index from scratch.
+    Use this after deleting custom foods or when the index is out of sync.
+    """
+    try:
+        print("Rebuilding FAISS index...")
+
+        # Import the update function from dense router
+        from ..routers.dense import update_faiss_index
+
+        # Call the rebuild function
+        await update_faiss_index(db=db, user=user, request=request)
+
+        return {
+            "status": "success",
+            "message": "FAISS index rebuilt successfully"
+        }
+
+    except Exception as e:
+        print(f"Error rebuilding FAISS index: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error rebuilding index: {str(e)}")
