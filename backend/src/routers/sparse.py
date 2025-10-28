@@ -294,8 +294,14 @@ async def search_foods(query: str, limit: int = 50) -> Dict:
             food_id = hit['document'].get('id', '')
             if food_id:  # Only include if we have a valid food_id
                 similarity = round((hit.get('text_match', 0) / max_score) * 100) if max_score > 0 else 0
-                # Convert food_id from string to int for database lookup
-                results_dict[int(food_id)] = similarity
+                # Try to convert food_id from string to int for USDA foods
+                # Custom foods will remain as ObjectId strings
+                try:
+                    food_id_converted = int(food_id)
+                except ValueError:
+                    # Keep as string for custom foods (ObjectId)
+                    food_id_converted = food_id
+                results_dict[food_id_converted] = similarity
 
         return results_dict
         

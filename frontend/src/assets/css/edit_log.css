@@ -52,7 +52,7 @@ input[type="datetime-local"] {
   font-family: Inconsolata;
   border-radius: 5px;
   outline: none;
-  margin-top: 5px;
+  margin-top: 7px;
   height: var(--edit-log-input-height)
 }
 
@@ -146,13 +146,20 @@ input, textarea {
 
 .edit-entry-form-bubble {
   display: flex;
-  border-radius: 14px;
   width: var(--modal-width);
+  margin-bottom: 20px;
   flex-direction: row;
+  align-self: center;
   align-items: start;
+  font-family: Inconsolata;
+  -webkit-overflow-scrolling: touch; /* Enables smooth scrolling on mobile */
+  scrollbar-width: none; /* For Firefox */
+  border-radius: 14px;
+  background-color: var(--purple);
   color: var(--white);
-  justify-content: space-between;
+  justify-content: flex-start;
   transition: all 0.1s ease;
+  box-sizing: border-box;
 }
 
 .edit-entry-form-bubble.active{
@@ -228,7 +235,7 @@ input, textarea {
 /* The input for entering portion */
 .edit-input-portion {
   font-family: Inconsolata;
-  margin-top: 5px;
+  margin-top: 7px;
   height: var(--edit-log-input-height);
   width: 100%
 }
@@ -330,7 +337,7 @@ input, textarea {
   background: none;
   color: inherit;
   border: none;
-  margin-top: 1px;
+  margin-top: 10px;
   font-family: Inconsolata;
   text-align: right; /* Align the date to the right */
   flex-shrink: 0;

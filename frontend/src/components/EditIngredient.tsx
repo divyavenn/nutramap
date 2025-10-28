@@ -1,13 +1,9 @@
-import React, { useState, useEffect, useRef, KeyboardEvent } from 'react' 
+import React, { useState, useEffect, useRef, KeyboardEvent } from 'react'
 import {request} from './endpoints';
-import {HoverButton, ImageButton } from './Sections';
-import YesOk from '../assets/images/check_circle.svg?react'
-import IsOk from '../assets/images/checkmark.svg?react'
-import Trashcan from '../assets/images/trashcan.svg?react'
-import { CalendarDay} from './DateSelector';
 
-import '../assets/css/edit_ingredient.css'
+import '../assets/css/variables.css';
 import { useRefreshLogs } from './dashboard_states';
+import * as S from './EditIngredient.styled';
 
 interface Props {
   food_name: string;
@@ -33,7 +29,7 @@ function EditIngredientForm({food_name, amount, weight_in_grams, componentIndex,
 
   const refreshLogs = useRefreshLogs();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const debounceTimerRef = useRef<number | null>(null); // Timer for debouncing autocomplete
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null); // Timer for debouncing autocomplete
 
   const [suggestions, setSuggestions] = useState<string[]>([]); // State for filtered suggestions
   const [showSuggestions, setShowSuggestions] = useState(false); // Control the visibility of suggestions
@@ -336,9 +332,10 @@ useEffect(() => {
 
   return (
     !deleted ? (
-      <form
+      <S.FormContainer
         id="edit-log-form"
-        className={`edit-form-container ${showSuggestions ? 'active' : ''} ${isSubmitting ? 'submitting' : ''} ${isDeleting ? 'deleting' : ''}`}
+        $submitting={isSubmitting}
+        $deleting={isDeleting}
         onSubmit={handleSubmit}
         onMouseEnter={handleMouseEvent}
         onMouseLeave={handleMouseEvent}
@@ -346,85 +343,84 @@ useEffect(() => {
         onMouseMove={handleMouseEvent}
         onClick={handleMouseEvent}
       >
-        
-        <div className={`delete-log-button-container ${isSubmitting ? 'hide' : ''}`}>
-          <ImageButton
-                  type="button"
-                  onClick={handleDelete}
-                  className="delete-button"
-                  children={<Trashcan/>}>
-          </ImageButton>  
-        </div>
 
-        <div className="form-dropdown-wrapper">
-          <div className={`ingredient-bubble ${showSuggestions ? 'active' : ''}`}>
-            <div className='food-name-space'>
-              <textarea
+        <S.FormDropdownWrapper>
+          <S.IngredientBubble $active={showSuggestions}>
+            <S.FoodNameSpace>
+              <S.FoodNameInput
                 ref={textareaRef}
                 name='food_name'
-                className='edit-input-food-name textarea-auto-height'
                 placeholder='food'
                 value={formData.food_name}
                 onChange={handleTyping}
                 onKeyDown={handleTextareaKeyDown}
                 required
-              ></textarea>
-            </div>
+              />
+            </S.FoodNameSpace>
 
-            <div className="food-portion-space">
-              <input
+            <S.FoodPortionSpace>
+              <S.PortionInput
                 name='amount'
-                className='edit-input-portion'
                 type='text'
                 placeholder='1 cup'
                 value={formData.amount}
                 onChange={handleTyping}
                 onKeyDown={handleKeyDown}
                 required
-              ></input>
-            </div>
+              />
+            </S.FoodPortionSpace>
 
-            <div className='food-weight-space'>
-              {formData.weight_in_grams && (
-                <div className="edit-grams-display">
-                  {Math.round(Number(formData.weight_in_grams))}g
-                </div>
-              )}
-            </div>
+            <S.FoodWeightSpace>
+                <S.GramsDisplay
+                name='weight'
+                type='text'
+                placeholder='1 cup'
+                value={formData.weight_in_grams}
+                onChange={handleTyping}
+                onKeyDown={handleKeyDown}
+                required/>
+                <S.AlignedText> g </S.AlignedText>
+            </S.FoodWeightSpace>
 
-          </div>
+          </S.IngredientBubble>
 
           {showSuggestions && (
-            <div 
-              className="suggestions-container" 
-              ref={suggestionsRef}
-            >
-              <ul 
-                className="suggestions-list" 
+            <S.SuggestionsContainer ref={suggestionsRef}>
+              <S.SuggestionsList
                 onMouseEnter={handleMouseEvent}
                 onMouseLeave={handleMouseEvent}
                 onMouseOver={handleMouseEvent}
                 onMouseMove={handleMouseEvent}
               >
                 {suggestions.map((suggestion, index) => (
-                  <li key={suggestion}
-                      onClick={() => handleSuggestionClick(suggestion)}
-                      className={`suggestion-item ${index === selectedSuggestionIndex ? 'selected' : ''}`}
-                      onMouseEnter={() => setSelectedSuggestionIndex(index)}
+                  <S.SuggestionItem
+                    key={suggestion}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    $selected={index === selectedSuggestionIndex}
+                    onMouseEnter={() => setSelectedSuggestionIndex(index)}
                   >
                     {suggestion}
-                  </li>
+                  </S.SuggestionItem>
                 ))}
-              </ul>
-            </div>
+              </S.SuggestionsList>
+            </S.SuggestionsContainer>
           )}
-        </div>
-      </form>
-    ) :
-    <div>
+        </S.FormDropdownWrapper>
 
-      
-    </div>
+
+        <S.DeleteButtonContainer $hide={isSubmitting}>
+          <S.DeleteButton
+            type="button"
+            onClick={handleDelete}
+            aria-label="Delete ingredient"
+          >
+            ×
+          </S.DeleteButton>
+        </S.DeleteButtonContainer>
+        
+      </S.FormContainer>
+    ) :
+    <div></div>
   )
 
 }

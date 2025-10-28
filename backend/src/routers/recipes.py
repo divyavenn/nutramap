@@ -376,11 +376,11 @@ async def parse_meal(
             else:
                 # New recipe - generate UUID and create it
                 recipe_id = str(uuid.uuid4())
-                ingredients_to_log = recipe_data.get("ingredients", [])
+                ingredients_raw = recipe_data.get("ingredients", [])
                 matched_existing = False
 
                 # If no ingredients provided, generate them
-                if not ingredients_to_log:
+                if not ingredients_raw:
                     print(f"→ New recipe '{description}' - running ingredient matching...")
                     parsed_ingredients = await parse_recipe_into_ingredients(description)
                     ingredients_to_log = []
@@ -397,6 +397,29 @@ async def parse_meal(
                                 "amount": ing["amount"],
                                 "weight_in_grams": weight
                             })
+                else:
+                    # Ingredients provided by GPT - match them to food_ids and get actual food names
+                    print(f"→ Matching {len(ingredients_raw)} ingredients from GPT to database...")
+                    ingredients_to_log = []
+                    for ing in ingredients_raw:
+                        food_name_gpt = ing.get("food_name", "")
+                        amount = ing.get("amount", "")
+                        weight = ing.get("weight_in_grams", 0)
+
+                        # Match the GPT food name to a food_id
+                        food_id = await match_ingredient_to_food_id(food_name_gpt, db, user)
+                        if food_id:
+                            # Get the actual food name from the database
+                            matched_food_name = get_food_name(food_id, db, None)
+                            print(f"  ✓ Matched '{food_name_gpt}' to: {matched_food_name} (ID: {food_id})")
+                            ingredients_to_log.append({
+                                "food_id": food_id,
+                                "food_name": matched_food_name,  # Use database food name
+                                "amount": amount,
+                                "weight_in_grams": weight
+                            })
+                        else:
+                            print(f"  ✗ Could not match '{food_name_gpt}'")
 
                 # Generate embedding
                 embedding = await generate_recipe_embedding(description)

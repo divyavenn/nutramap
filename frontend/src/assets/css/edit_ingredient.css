@@ -37,17 +37,18 @@ input, textarea {
 
 /*--------------------------------------------CONTAINER----------------------------------*/
 
-.edit-form-container {
+.ingredient-form-container {
   display: flex;
   margin-bottom: 20px;
+  justify-content: center;
   align-items: flex-start;
 }
 
-.edit-form-container.submitting {
+.ingredient-form-container.submitting {
   pointer-events: none; /* Prevent interactions during animation */
 }
 
-.edit-form-container.deleting {
+.ingredient-form-container.deleting {
   animation: pixelate-out 0.4s ease-in forwards;
   pointer-events: none; /* Prevent interactions during animation */
 }
@@ -189,7 +190,7 @@ input, textarea {
 /* The input for entering portion */
 .edit-input-portion {
   font-family: Inconsolata;
-  margin-top: 5px;
+  margin-top: 14px;
   height: var(--ingredient-input-height);
   width: 100%
 }
@@ -348,21 +349,22 @@ input, textarea {
 
 
 
-.delete-log-button-container {
+.ingredient-delete-button-container {
   display: flex;
   width: 40px;
   margin-right: 10px;
+  margin-left: -50px;
   margin-top: 20px;
   align-items: start; /* Vertically centers the button */
 }
 
-.delete-log-button-container.hide {
+.ingredient-delete-button-container.hide {
   opacity: 0;
   transform: scale(0);
   transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
-.delete-log-button-container .delete-button {
+.ingredient-delete-button-container .delete-button {
   display: block;
   clear: none;
   background: transparent;
@@ -372,11 +374,11 @@ input, textarea {
   cursor: pointer;
 }
 
-.delete-log-button-container .delete-button svg {
+.ingredient-delete-button-container .delete-button svg {
   fill: #ffffff77; /* You can change the SVG color here */
   height: 20px;
 }
 
-.delete-log-button-container .delete-button:hover svg {
+.ingredient-delete-button-container .delete-button:hover svg {
   fill: #ffffff; /* Change the color on hover */
 }

@@ -407,9 +407,9 @@ useEffect(() => {
                 onKeyDown={handleKeyDown}
                 required
               ></input>
+              <span> servings </span>
             </div>
 
-            <span className = "edit-input-portion" > servings</span>
 
             <div className='food-date-space'>
                 <input
@@ -425,7 +425,7 @@ useEffect(() => {
 
             <div className='food-time-space'>
               <div className='edit-input-time-wrapper'>
-                <input className='edit-input-time-wrapper'
+                <input
                 name='time'
                 type='time'
                 onChange={handleTimeChange}
