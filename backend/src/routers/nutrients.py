@@ -1,12 +1,13 @@
 from typing_extensions import Annotated
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import JSONResponse
 from pymongo.database import Database
 import time
 
 
 from src.databases.mongo import get_data
-from .sparse_search_nutrients import sparse_search_nutrients, dense_search_nutrients, search_nutrients_by_name
+from .sparse_search_nutrients import sparse_search_nutrients, search_nutrients_by_name
+from .dense import find_dense_nutrient_matches
 
 __package__ = "nutramap.routers"
 
@@ -18,11 +19,8 @@ router = APIRouter(   # groups API endpoints together
 
 @router.get("/all")
 async def get_all_nutrients(db: db):
-    # Query the nutrients collection and exclude specified IDs
-    excluded_ids = [1062, 2047, 2048, 1141, 1142, 1238, 1240, 1006, 1066]
-    nutrients = list(db.nutrients.find(
-    {"_id": {"$nin": excluded_ids}},  # Filter to exclude nutrient IDs
-    ))
+    # Query the nutrients collection
+    nutrients = list(db.nutrients.find({}))
     if not nutrients:
         return JSONResponse(content={"message": "No data found."}, status_code=404)
 
@@ -92,12 +90,13 @@ async def test_sparse_nutrient_search(
 @router.get("/search/dense")
 async def test_dense_nutrient_search(
     nutrient_name: str = Query(..., description="Nutrient name to search for"),
-    threshold: float = Query(0.7, description="Minimum similarity threshold (0-1)", ge=0, le=1),
+    threshold: float = Query(70, description="Minimum similarity threshold (0-100)", ge=0, le=100),
     limit: int = Query(10, description="Maximum number of results", ge=1, le=50),
-    db: Database = Depends(get_data)
+    db: Database = Depends(get_data),
+    request: Request = None
 ):
     """
-    Test dense (semantic/embedding-based) nutrient search using OpenAI embeddings.
+    Test dense (semantic/embedding-based) nutrient search using FAISS embeddings.
     Uses cosine similarity to find nutrients with similar meanings.
 
     Example queries:
@@ -108,7 +107,7 @@ async def test_dense_nutrient_search(
     try:
         # Time the search
         start_time = time.perf_counter()
-        results = await dense_search_nutrients(nutrient_name, db, threshold, limit)
+        results = await find_dense_nutrient_matches(nutrient_name, db, request, threshold, limit)
         end_time = time.perf_counter()
         elapsed_ms = round((end_time - start_time) * 1000, 2)
 

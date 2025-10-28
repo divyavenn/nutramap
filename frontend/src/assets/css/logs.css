@@ -118,7 +118,7 @@
   align-items: start;
   font-family: Inconsolata;
   border-radius: 14px;
-  background-color: var(--log-bubble-color);
+  background-color: transparent;
   color: var(--white);
   justify-content: flex-start;
   transition: all 0.1s ease;

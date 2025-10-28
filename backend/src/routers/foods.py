@@ -268,23 +268,28 @@ def get_nutrient_details(db, nutrient_id: int):
 def get_food_name(food_id: int, db: Annotated[Database, Depends(get_data)] = None, request: Request = None):
     # Check app state first
     if request is not None and hasattr(request.app.state, 'id_name_map') and food_id in request.app.state.id_name_map:
-        return request.app.state.id_name_map[food_id]
-    
+        food_data = request.app.state.id_name_map[food_id]
+        # Handle both dict format {"name": "..."} and string format
+        return food_data["name"] if isinstance(food_data, dict) else food_data
+
     # Then check pickle
     try:
         with open(os.getenv("FOOD_ID_CACHE"), 'rb') as f:
             foods = pickle.load(f)
             if food_id in foods:
-                return foods[food_id]
-    except (FileNotFoundError, pickle.UnpicklingError):
-        pass
-    
+                food_data = foods[food_id]
+                # Handle both dict format {"name": "..."} and string format
+                return food_data["name"] if isinstance(food_data, dict) else food_data
+    except (FileNotFoundError, pickle.UnpicklingError) as e:
+        print(f"Warning: Failed to load pickle cache: {e}")
+
     # Finally, default to MongoDB query
     food = db.foods.find_one({"_id": food_id}, {"food_name": 1, "_id": 0})
-    
+
     if not food:
+        print(f"Warning: Food ID {food_id} not found in database")
         return "No data found."
-    
+
     return food["food_name"]
 
 def amount_by_weight(amt: float, grams: float):

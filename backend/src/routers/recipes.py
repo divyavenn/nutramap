@@ -16,7 +16,7 @@ from src.databases.mongo_models import UserRecipe, RecipeIngredient
 from src.routers.auth import get_current_user
 from src.routers.parse import estimate_grams
 from src.routers.logs import add_log
-from src.routers.match import get_matches, rrf_fusion
+from src.routers.match import rrf_fusion
 from src.routers.foods import get_food_name, get_user_custom_foods
 
 __package__ = "nutramap.routers"
@@ -101,25 +101,29 @@ async def match_ingredient_to_food_id(ingredient_name: str, db: Database, user: 
     """Match ingredient name to food_id using hybrid vector search (sparse + dense + RRF)"""
     try:
         print(f"Matching ingredient: '{ingredient_name}'")
-        # Use the hybrid search from match.py
-        sparse_results, dense_results = await get_matches(
-            {"food_name": ingredient_name},
-            db,
-            user,
-            request=None,  # No request object in this context
-            k=30
+        # Import search functions
+        from src.routers.match import get_sparse_index
+        from src.routers.dense import find_dense_matches
+
+        # Get sparse and dense results separately for debugging
+        sparse_results = await get_sparse_index(ingredient_name, db, user, 60, 50)
+        dense_results = await find_dense_matches(ingredient_name, db, user, None, 40, 50)
+
+        print(f"  Sparse results: {list(sparse_results.keys())[:5] if sparse_results else []}")
+        print(f"  Dense results: {list(dense_results.keys())[:5] if dense_results else []}")
+
+        # Use RRF fusion with food search functions
+        matches = await rrf_fusion(
+            get_sparse_index, [ingredient_name, db, user, 60, 50],
+            find_dense_matches, [ingredient_name, db, user, None, 40, 50],
+            k=30,
+            n=1
         )
-
-        print(f"  Sparse results: {len(sparse_results)} matches")
-        print(f"  Dense results: {len(dense_results)} matches")
-
-        # Get the top match using RRF
-        matches = await rrf_fusion(sparse_results, dense_results, k=30, n=1)
 
         if matches and len(matches) > 0:
             matched_food_id = int(matches[0])
             matched_food_name = get_food_name(matched_food_id, db, None)
-            print(f"  ✓ Matched to: {matched_food_name} (ID: {matched_food_id})")
+            print(f"  ✓ Matched '{ingredient_name}' to: {matched_food_name} (ID: {matched_food_id})")
             return matched_food_id
 
         print(f"  ✗ No match found for '{ingredient_name}'")
@@ -183,6 +187,7 @@ Examples:
 
 async def identify_recipes_from_meal(meal_description: str, user_recipes: List[dict], user_custom_foods: List[dict]) -> List[dict]:
     """Use GPT-4 to identify recipes in meal description and match to existing recipes"""
+    current_time = datetime.now()
     try:
         client = _get_client()
 
@@ -213,6 +218,7 @@ Instructions:
    b) A custom food from the user's custom foods list (exact or very close match) - set recipe_id to null, use the EXACT custom food name from the list as the description, and create ONE ingredient with that exact food name
    c) A new recipe - set recipe_id to null and estimate ingredients
 3. Estimate number of servings consumed
+4. Estimate when it was eaten based on description and current time.
 
 IMPORTANT: If you identify a custom food, you MUST:
 - Use the exact food name from the "User's custom foods" list
@@ -221,11 +227,19 @@ IMPORTANT: If you identify a custom food, you MUST:
 - Create exactly ONE ingredient with food_name matching the custom food name exactly
 - Estimate the weight_in_grams for that ingredient
 
+For timestamps:
+        - If a specific time is mentioned (e.g., "breakfast at 8am", "yesterday at 2pm"), include it
+        - If a relative time is mentioned (e.g., "yesterday", "this morning"), convert it to an absolute timestamp
+        - If no time is mentioned for a food, use the current time ({current_time.isoformat()})
+        - Use the current time ({current_time.isoformat()}) as reference for relative times
+        - Return timestamps in ISO format (YYYY-MM-DDTHH:MM:SS)
+
 Respond with ONLY a JSON object:
 {{
   "recipes": [
     {{
       "recipe_id": "uuid or null for new/custom recipes",
+      "timestamp: "YYYY-MM-DDTHH:MM:SS",
       "description": "recipe or custom food name",
       "recipe_servings": number (0.5 for half serving, 1 for full, etc.),
       "ingredients": [
@@ -240,7 +254,7 @@ Respond with ONLY a JSON object:
 }}
 
 Examples:
-Input: "half a pot of homemade daal, 1 mug hot chocolate with collagen, 2 slices veggie pizza from PiCo"
+Input: "today i ate half a pot of homemade daal, 1 mug hot chocolate with collagen. yesterday i ate 2 slices veggie pizza from PiCo"
 Output:
 {{
   "recipes": [
@@ -249,6 +263,7 @@ Output:
       "description": "homemade daal",
       "recipe_servings": 0.5,
       "ingredients": []
+      "timestamp": "2024-06-15T12:30:00"
     }},
     {{
       "recipe_id": null,
@@ -259,6 +274,7 @@ Output:
         {{"food_name": "Cocoa powder, unsweetened", "amount": "2 tablespoons", "weight_in_grams": 11}},
         {{"food_name": "Collagen peptides", "amount": "1 scoop", "weight_in_grams": 20}}
       ]
+      "timestamp": "2024-06-15T12:30:00"
     }},
     {{
       "recipe_id": null,
@@ -270,6 +286,7 @@ Output:
         {{"food_name": "Tomato sauce", "amount": "2 tablespoons", "weight_in_grams": 30}},
         {{"food_name": "Bell peppers, chopped", "amount": "1/4 cup", "weight_in_grams": 37}}
       ]
+      "timestamp": "2024-06-14T12:30:00"
     }}
   ]
 }}
@@ -336,6 +353,7 @@ async def parse_meal(
             recipe_id = recipe_data.get("recipe_id")
             description = recipe_data["description"]
             servings = recipe_data.get("recipe_servings", 1.0)
+            timestamp = recipe_data.get("timestamp", meal_date.isoformat())
 
             # Check if this matches an existing recipe
             if recipe_id:
@@ -389,7 +407,7 @@ async def parse_meal(
                     "description": description,
                     "embedding": embedding,
                     "ingredients": ingredients_to_log,
-                    "created_at": datetime.now(),
+                    "created_at": timestamp,
                     "updated_at": datetime.now()
                 }
 
@@ -639,6 +657,126 @@ async def update_recipe_ingredients(
         raise HTTPException(status_code=400, detail="Invalid ingredients JSON")
     except Exception as e:
         print(f"Error updating recipe: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/edit-ingredient")
+async def edit_recipe_ingredient(
+    user: user,
+    db: db,
+    recipe_id: str = Form(...),
+    component_index: int = Form(...),
+    food_name: str = Form(...),
+    amount: str = Form(...)
+):
+    """Edit a single ingredient in a recipe by index"""
+    try:
+        # Get the recipe
+        user_data = db.users.find_one(
+            {"_id": user["_id"], "recipes.recipe_id": recipe_id},
+            {"recipes.$": 1}
+        )
+
+        if not user_data or "recipes" not in user_data or len(user_data["recipes"]) == 0:
+            raise HTTPException(status_code=404, detail="Recipe not found")
+
+        recipe = user_data["recipes"][0]
+        ingredients = recipe.get("ingredients", [])
+
+        if component_index < 0 or component_index >= len(ingredients):
+            raise HTTPException(status_code=400, detail="Invalid ingredient index")
+
+        # Match the food_name to get food_id
+        food_id = await match_ingredient_to_food_id(food_name, db, user)
+        if not food_id:
+            raise HTTPException(status_code=404, detail=f"Could not match food: {food_name}")
+
+        # Parse the amount to get weight in grams
+        from src.routers.parse import estimate_grams
+        weight_in_grams = await estimate_grams(food_name, amount)
+
+        # Update the ingredient at the specified index
+        ingredients[component_index] = {
+            "food_id": food_id,
+            "food_name": food_name,
+            "amount": amount,
+            "weight_in_grams": weight_in_grams
+        }
+
+        # Update the recipe in the database
+        result = db.users.update_one(
+            {"_id": user["_id"], "recipes.recipe_id": recipe_id},
+            {
+                "$set": {
+                    "recipes.$.ingredients": ingredients,
+                    "recipes.$.updated_at": datetime.now()
+                }
+            }
+        )
+
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Recipe not found")
+
+        return {
+            "status": "success",
+            "weight_in_grams": weight_in_grams,
+            "food_name": food_name
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error editing recipe ingredient: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/delete-ingredient")
+def delete_recipe_ingredient(
+    user: user,
+    db: db,
+    recipe_id: str,
+    component_index: int
+):
+    """Delete a single ingredient from a recipe by index"""
+    try:
+        # Get the recipe
+        user_data = db.users.find_one(
+            {"_id": user["_id"], "recipes.recipe_id": recipe_id},
+            {"recipes.$": 1}
+        )
+
+        if not user_data or "recipes" not in user_data or len(user_data["recipes"]) == 0:
+            raise HTTPException(status_code=404, detail="Recipe not found")
+
+        recipe = user_data["recipes"][0]
+        ingredients = recipe.get("ingredients", [])
+
+        if component_index < 0 or component_index >= len(ingredients):
+            raise HTTPException(status_code=400, detail="Invalid ingredient index")
+
+        # Remove the ingredient at the specified index
+        ingredients.pop(component_index)
+
+        # Update the recipe in the database
+        result = db.users.update_one(
+            {"_id": user["_id"], "recipes.recipe_id": recipe_id},
+            {
+                "$set": {
+                    "recipes.$.ingredients": ingredients,
+                    "recipes.$.updated_at": datetime.now()
+                }
+            }
+        )
+
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Recipe not found")
+
+        return {"status": "success"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error deleting recipe ingredient: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

@@ -7,9 +7,9 @@ from datetime import timedelta, datetime
 
 from src.databases.mongo import get_data
 from src.databases.mongo_models import Log, LogEdit
-from src.routers.foods import get_food_name, get_total_nutrients, consolidate_amounts
+from src.routers.foods import get_food_name, consolidate_amounts
 from src.routers.auth import get_current_user
-from src.routers.parse import parse_meal_description, estimate_grams
+from src.routers.parse import estimate_grams
 from src.routers.trial_user import is_trial_user, can_create_log
 
 __package__ = "nutramap.routers"
@@ -300,37 +300,6 @@ def meets(startDate : datetime, endDate: datetime, user: user, db : db):
     
     return tally
 
-@router.post("/parse-meal")
-async def parse_meal(user: user, db: db, meal_description: str = Form(...)):
-    """
-    Parse a natural language meal description and create food logs.
-    Example: "I had 2 slices of whole wheat bread with 1 tablespoon of peanut butter for breakfast at 8am"
-    """
-    try:
-        
-        # Parse the meal using OpenAI
-        parsed_foods, timestamps = parse_meal_description(meal_description)
-        
-        # Create logs for each food
-        logs = []
-        current_time = datetime.now()
-        
-        for food in parsed_foods:
-            food_id = food["food_id"]
-            log = {
-                "food_id": ObjectId(food_id),
-                "weight_in_grams": float(food["weight_in_grams"]),
-                "date": timestamps.get(food_id, current_time),  # Use mentioned time or current time
-                "user_id": user["_id"]
-            }
-            result = await add_log(user, log, db)
-            logs.append(result)
-            
-        return {"status": "success", "logs": logs}
-
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
 
 @router.delete("/delete-old-logs")
 def delete_old_logs(user: user, db: db):
@@ -427,12 +396,16 @@ async def edit_component(
     if "components" not in target_log or component_index >= len(target_log["components"]):
         raise HTTPException(status_code=400, detail="Invalid component index.")
 
-    # Get the food_id from the food name
-    from src.routers.match import get_matches, rrf_fusion
-    sparse_results, dense_results = await get_matches(
-        {"food_name": food_name}, db, user, request=None, k=30
+    # Get the food_id from the food name using RRF fusion
+    from src.routers.match import rrf_fusion, get_sparse_index
+    from src.routers.dense import find_dense_matches
+
+    matches = await rrf_fusion(
+        get_sparse_index, [food_name, db, user, 60, 50],
+        find_dense_matches, [food_name, db, user, None, 40, 50],
+        k=30,
+        n=1
     )
-    matches = await rrf_fusion(sparse_results, dense_results, k=30, n=1)
 
     if not matches or len(matches) == 0:
         raise HTTPException(status_code=404, detail="Food not found")

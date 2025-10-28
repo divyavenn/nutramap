@@ -3,82 +3,11 @@ import os
 from dotenv import load_dotenv
 import typesense
 import asyncio
-from openai import OpenAI
-import numpy as np
 
 # Load environment variables
 load_dotenv()
 
-# Lazy Typesense client initialization
-_client = None
-_openai_client = None
 
-def _get_openai_client():
-    """Get OpenAI client, initializing if needed"""
-    global _openai_client
-    if _openai_client is None:
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            return None
-        _openai_client = OpenAI(api_key=api_key)
-    return _openai_client
-
-
-async def dense_search_nutrients(nutrient_name: str, db, threshold: float = 0.7, limit: int = 10) -> Dict[str, float]:
-    """
-    Search for nutrients using semantic (dense) search with embeddings.
-    Used as fallback when sparse search fails.
-    """
-    try:
-        openai_client = _get_openai_client()
-        if openai_client is None:
-            return {}
-
-        # Generate embedding for the query
-        response = openai_client.embeddings.create(
-            model="text-embedding-3-large",  # Must match what's in database
-            input=nutrient_name.lower().strip()
-        )
-        query_embedding = response.data[0].embedding
-        query_array = np.array([query_embedding], dtype=np.float32)
-
-        # Get all nutrients from database that have embeddings
-        nutrients = list(db.nutrients.find({"embedding": {"$exists": True}}))
-
-        if not nutrients:
-            print("No nutrients with embeddings found in database")
-            return {}
-
-        # Calculate cosine similarity with all nutrient embeddings
-        matches = {}
-        for nutrient in nutrients:
-            nutrient_embedding = np.array([nutrient["embedding"]], dtype=np.float32)
-
-            # Normalize vectors
-            query_norm = query_array / np.linalg.norm(query_array)
-            nutrient_norm = nutrient_embedding / np.linalg.norm(nutrient_embedding)
-
-            # Cosine similarity
-            similarity = float(np.dot(query_norm, nutrient_norm.T)[0][0])
-
-            # Convert to 0-100 scale and filter by threshold
-            score = similarity * 100
-            if score >= threshold * 100:
-                matches[str(nutrient["_id"])] = score
-
-        # Sort by score and return top results
-        sorted_matches = dict(sorted(matches.items(), key=lambda x: x[1], reverse=True)[:limit])
-
-        if sorted_matches:
-            print(f"✓ Dense search found {len(sorted_matches)} matches for '{nutrient_name}'")
-
-        return sorted_matches
-
-    except Exception as e:
-        print(f"Error in dense nutrient search: {e}")
-        import traceback
-        traceback.print_exc()
-        return {}
 
 
 async def sparse_search_nutrients(nutrient_name: str, threshold: float = 0.1, limit: int = 10) -> Dict[str, float]:
@@ -131,25 +60,45 @@ async def sparse_search_nutrients(nutrient_name: str, threshold: float = 0.1, li
         return {}
 
 
-async def search_nutrients_by_name(nutrient_name: str, db=None, threshold: float = 0.1, limit: int = 10) -> Dict[str, float]:
+async def search_nutrients_by_name(nutrient_name: str, db=None, request=None, threshold: float = 0.1, limit: int = 10) -> Dict[str, float]:
     """
-    Hybrid search for nutrients by name.
-    Tries sparse search first, falls back to dense search if no results found.
+    Hybrid search for nutrients by name using RRF fusion.
+    Combines sparse (Typesense) and dense (FAISS) search results.
     """
-    # Try sparse search first
-    sparse_results = await sparse_search_nutrients(nutrient_name, threshold, limit)
+    if db is None:
+        # Fallback to sparse-only search if no db provided
+        return await sparse_search_nutrients(nutrient_name, threshold, limit)
 
-    if sparse_results:
-        return sparse_results
+    try:
+        # Import search functions
+        from .dense import find_dense_nutrient_matches
+        from .match import rrf_fusion
 
-    # If sparse search found no results, try dense search as fallback
-    if db is not None:
-        print(f"⚠ Sparse search found no matches for '{nutrient_name}', trying dense search...")
-        dense_matches = await dense_search_nutrients(nutrient_name, db, threshold=0.7, limit=limit)
-        if dense_matches:
-            return dense_matches
+        # Use RRF fusion with nutrient search functions
+        # Returns list of nutrient IDs
+        matches = await rrf_fusion(
+            sparse_search_nutrients, [nutrient_name, threshold, limit],
+            find_dense_nutrient_matches, [nutrient_name, db, request, 70, limit],
+            k=30,
+            n=limit
+        )
 
-    return {}
+        # Convert list of IDs back to dict format for backward compatibility
+        # Get scores from sparse results for the matched IDs
+        sparse_results = await sparse_search_nutrients(nutrient_name, threshold, limit)
+        result_dict = {}
+        for nutrient_id in matches:
+            # Use sparse score if available, otherwise use a default score
+            result_dict[nutrient_id] = sparse_results.get(nutrient_id, 100.0)
+
+        return result_dict
+
+    except Exception as e:
+        print(f"Error in hybrid nutrient search: {e}")
+        import traceback
+        traceback.print_exc()
+        # Fallback to sparse-only search
+        return await sparse_search_nutrients(nutrient_name, threshold, limit)
 
 if __name__ == "__main__":
     # Test the function

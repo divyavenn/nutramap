@@ -21,7 +21,8 @@
   --log-weight-width: 10%;
   --log-date-width: 20%;
   --log-time-width: 10%;
-  
+  --button-from-top: "20px";
 
   --edit-log-input-height: 35px;
+  --ingredient-input-height: 20px;
 }

@@ -1,0 +1,384 @@
+
+
+/* Hide number input spinners in WebKit browsers (Chrome, Safari, Edge) */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+
+/* Hide number input spinners in Firefox */
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* When log-bubble is hovered, change input text and background color */
+.entry-form-bubble:hover input,
+.entry-form-bubble:hover textarea {
+  color: #1e002e; /* Change input text color to dark */
+  background-color: transparent; /* Ensure the background is transparent on hover */
+}
+
+
+
+
+input, textarea {
+  font-family: inherit;  /* Ensures input fields inherit the font-family of the parent */
+  font-size: inherit;
+  font-weight: inherit;
+  color: var(--white); /* Default text color */
+  background-color: transparent; /* Make sure the background is transparent initially */
+  border: none; /* Removes default borders */
+  outline: none; /* Removes outline when focused */
+  transition: color 0.1s ease, background-color 0.1s ease; /* Faster transition */
+}
+
+/*--------------------------------------------CONTAINER----------------------------------*/
+
+.edit-form-container {
+  display: flex;
+  margin-bottom: 20px;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.edit-form-container.submitting {
+  pointer-events: none; /* Prevent interactions during animation */
+}
+
+.edit-form-container.deleting {
+  animation: pixelate-out 0.4s ease-in forwards;
+  pointer-events: none; /* Prevent interactions during animation */
+}
+
+@keyframes pixelate-out {
+  0% {
+    opacity: 1;
+    filter: none;
+    transform: scale(1) translateY(0);
+  }
+  20% {
+    opacity: 0.9;
+    filter: blur(1px);
+    transform: scale(1) translateY(0);
+  }
+  40% {
+    opacity: 0.8;
+    filter: blur(2px) contrast(1.2);
+    transform: scale(0.98) translateY(0);
+  }
+  60% {
+    opacity: 0.6;
+    filter: blur(3px) contrast(1.4);
+    transform: scale(0.95) translateY(2px);
+  }
+  80% {
+    opacity: 0.4;
+    filter: blur(4px) contrast(1.6);
+    transform: scale(0.9) translateY(4px);
+  }
+  /* Pop effect at the end */
+  90% {
+    opacity: 0.2;
+    filter: blur(1px) contrast(2);
+    transform: scale(1.05) translateY(-2px);
+  }
+  95% {
+    opacity: 0.1;
+    filter: blur(0) brightness(1.5);
+    transform: scale(1.02) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(0);
+    transform: scale(0);
+  }
+}
+
+/*--------------------------------------------FORM----------------------------------*/
+
+.form-dropdown-wrapper {
+  display: flex;
+  background-color: none;
+  color: var(--white);
+  flex-direction: column;
+  border-radius: 14px;
+  width: 600px;
+  transition: all 0.1s ease;
+}
+
+.ingredient-bubble {
+  display: flex;
+  border-radius: 14px;
+  width: 600px;
+  flex-direction: row;
+  align-items: start;
+  background-color: transparent;
+  color: var(--white);
+  justify-content: space-between;
+  transition: all 0.1s ease;
+}
+
+.ingredient.active{
+  border-bottom-left-radius: 0px;
+  border-bottom-right-radius: 0px;
+}
+
+
+/* Activate suggestions dropdown */
+.form-elements-wrapper.active .suggestions-list {
+  opacity: .5;
+  transform: translateY(0);
+  pointer-events: all;
+}
+
+
+/*--------------------------------------------NAME----------------------------------*/
+
+
+/* Autocomplete suggestions styling */
+.edit-food-name{
+  border-radius: 2px;
+  width: 50px;
+  position: relative; /* This is to ensure the suggestions dropdown aligns with the input */
+  flex-grow: 0;
+  flex-shrink: 0;
+  display: flex; /* Use flexbox for alignment */
+  align-items: center; /* Center vertically */
+  padding-bottom: 5px;
+}
+
+
+.edit-food-name:hover {
+  color: none;
+}
+
+
+.edit-input-food-name {
+  background: none;
+  padding: 0;
+  font-family: Inconsolata;
+  color: inherit;
+  outline: none;
+  transition: background-color 0.1s ease, color 0.1s ease;
+  text-align: left;
+  height: auto;
+  word-wrap: break-word;
+  white-space: normal;
+  line-height: 1.2;
+  resize: none;
+  overflow: hidden;
+  box-sizing: border-box;
+  display: block;
+  margin-top: 15px;
+  margin-bottom: 15px;
+}
+
+
+/* ------------------------------------------AMOUNT-------------------------------------- */
+
+.edit-input-food-amt-wrapper {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+/* The input for entering portion */
+.edit-input-portion {
+  font-family: Inconsolata;
+  margin-top: 5px;
+  height: var(--ingredient-input-height);
+  width: 100%
+}
+
+.edit-input-portion:hover {
+  color: #000000;
+}
+
+/* Display grams below portion */
+.edit-grams-display {
+  font-family: Inconsolata;
+  font-size: inherit;
+  color: inherit;
+  opacity: 0.8;
+  padding-left: 10px;
+  margin-top: 5px;
+  text-align: left;
+  /* this is here to make it match the height of the input field */
+  padding-top: 5px;
+}
+
+/* Legacy: The input for entering food amount */
+.edit-input-food-amt {
+  width: 100%; /* Ensures the input takes full available space in the wrapper */
+  padding-right: 15px; /* Creates space for the "g" */
+  background: none;
+  margin-top: 5px;
+  border: none; /* Removes the default border */
+  font-family: Inconsolata;
+  text-align: right; /* Align the input text to the left */
+  color: inherit; /* Inherit the text color (useful for hover) */
+}
+
+.edit-input-food-amt:hover {
+  color: #000000;
+}
+
+/* Styling for the "g" unit */
+.edit-unit {
+  position: absolute;
+  right: 0px;
+  font-family: Inconsolata;
+  color: inherit; /* Inherit text color (important for hover) */
+  pointer-events: none; /* Ensure the span doesn't interfere with input focus */
+}
+
+
+
+
+
+/*-----------------------------------SUGGESTIONS------------------------------*/
+
+
+.suggestions-list {
+  list-style-type: none; 
+  padding-left: 0; /* Removes default padding */
+  margin-left: 0; /* Removes default margin */
+  margin: 0; /* Optionally set the entire margin to 0 */
+
+  width: 100%; /* Ensure the suggestions take up the full width of the input */
+  max-height: 300px; /* Optional: Limit height */
+  overflow-y: auto; /* Scrollable if suggestions overflow */
+  z-index: 999;
+  opacity: 1;
+  transition: opacity 0.1s ease, max-height 0.1s ease; /* Faster transition */
+  /* Hides scrollbar in WebKit browsers (Chrome, Safari, etc.) */
+  -webkit-overflow-scrolling: touch; /* Enables smooth scrolling on mobile */
+  scrollbar-width: none; /* For Firefox */
+  }
+
+.suggestions-list::-webkit-scrollbar {
+  display: none; /* Hides scrollbar for WebKit browsers */
+  }
+
+/* Individual suggestion items */
+.suggestion-item {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  padding-left: 27px;
+  padding-right: 40px;
+  font-family: Inconsolata;
+  background-color: none;
+  color: var(--white);
+
+  cursor: pointer;
+  transition: background-color 0.1s ease, color 0.1s ease; /* Faster transition */
+}
+
+/* Hover effect for suggestions */
+.suggestion-item:hover {
+  background-color: #ffffffa1;
+  color: #1e002e;
+}
+
+/* Selected suggestion item for keyboard navigation */
+.suggestion-item.selected {
+  background-color: #ffffffa1;
+  color: #1e002e;
+}
+
+
+
+.edit-log-submit-container {
+  display: flex; /* Enables flexbox on the container */
+  width: 40px;
+  justify-content: flex-end; /* Pushes content to the right side */
+  padding-top: 8px;
+  align-items: start; /* Vertically centers the button */
+  margin-left: 5px;
+  margin-top: 20px;
+  margin-right: 5px;
+  padding-left: 20px;
+
+}
+
+.edit-log-submit {
+  background: none;
+  margin-left: 10px;
+  cursor: pointer;
+  order: 1;
+}
+
+.edit-log-submit.confirming {
+  animation: confirm-animation 1.2s ease-in-out;
+}
+
+@keyframes confirm-animation {
+  0% {
+    transform: scale(1);
+  }
+  20% {
+    transform: scale(1.2);
+  }
+  40% {
+    transform: scale(0.9);
+  }
+  60% {
+    transform: scale(1.1);
+  }
+  80% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.edit-log-submit svg {
+  fill: #ffffffa8; /* You can change the SVG color here */
+  height: 25px;
+}
+
+.edit-log-submit:hover svg {
+  fill: #ffffff; /* You can change the SVG color here */
+}
+
+
+
+.delete-log-button-container {
+  display: flex;
+  width: 40px;
+  margin-right: 10px;
+  margin-left: -50px;
+  margin-top: 20px;
+  align-items: start; /* Vertically centers the button */
+}
+
+.delete-log-button-container.hide {
+  opacity: 0;
+  transform: scale(0);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.delete-log-button-container .delete-button {
+  display: block;
+  clear: none;
+  background: transparent;
+  border: none;
+  font-size: 10px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.delete-log-button-container .delete-button svg {
+  fill: #ffffff77; /* You can change the SVG color here */
+  height: 20px;
+}
+
+.delete-log-button-container .delete-button:hover svg {
+  fill: #ffffff; /* Change the color on hover */
+}

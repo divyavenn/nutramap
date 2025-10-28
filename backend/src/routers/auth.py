@@ -133,9 +133,34 @@ async def handle_login(request: Request, background_tasks: BackgroundTasks, user
                 async def check_and_update_indexes():
                     tasks = []
 
-                    # Add sparse index update task
-                    tasks.append(update_sparse_index(db=db, user=user))
-                    
+                    # Check Typesense collections - only update if they don't exist
+                    from src.routers.sparse import _get_client as get_typesense_client
+                    typesense_client = get_typesense_client()
+                    needs_typesense_update = False
+
+                    if typesense_client:
+                        try:
+                            # Check if 'foods' collection exists
+                            foods_collection = typesense_client.collections['foods'].retrieve()
+                            print(f"✓ Typesense 'foods' collection exists with {foods_collection.get('num_documents', 0)} documents")
+                        except Exception:
+                            print("⚠ Typesense 'foods' collection not found, will create it")
+                            needs_typesense_update = True
+
+                        try:
+                            # Check if 'nutrients' collection exists
+                            nutrients_collection = typesense_client.collections['nutrients'].retrieve()
+                            print(f"✓ Typesense 'nutrients' collection exists with {nutrients_collection.get('num_documents', 0)} documents")
+                        except Exception:
+                            print("⚠ Typesense 'nutrients' collection not found, will create it")
+                            needs_typesense_update = True
+                    else:
+                        print("⚠ Typesense client not configured")
+
+                    # Only update Typesense if needed
+                    if needs_typesense_update:
+                        tasks.append(update_sparse_index(db=db, user=user))
+
                     # Check FAISS index
                     faiss_path = os.getenv("FAISS_BIN")
                     if not (faiss_path and os.path.exists(faiss_path) and os.path.getsize(faiss_path) > 0):

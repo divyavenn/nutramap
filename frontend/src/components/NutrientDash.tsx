@@ -153,7 +153,14 @@ const NutrientStats = ({requirements} : {requirements : RequirementData[]}) => {
   }, [average]);
 
   const removeTextWithinBrackets = (str : string) => {
-    return str.replace(/\[.*?\]|\(.*?\)|\{.*?\}/g, '').trim();
+    // Remove text within brackets
+    let cleaned = str.replace(/\[.*?\]|\(.*?\)|\{.*?\}/g, '').trim();
+    // Truncate at first comma
+    const commaIndex = cleaned.indexOf(',');
+    if (commaIndex !== -1) {
+      cleaned = cleaned.substring(0, commaIndex).trim();
+    }
+    return cleaned;
   }
 
   return (

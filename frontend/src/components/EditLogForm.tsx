@@ -40,7 +40,7 @@ function EditLogForm({food_name, date, amount, weight_in_grams, _id, componentIn
 
   const refreshLogs = useRefreshLogs();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null); // Timer for debouncing autocomplete
+  const debounceTimerRef = useRef<number | null>(null); // Timer for debouncing autocomplete
 
   const [suggestions, setSuggestions] = useState<string[]>([]); // State for filtered suggestions
   const [showSuggestions, setShowSuggestions] = useState(false); // Control the visibility of suggestions

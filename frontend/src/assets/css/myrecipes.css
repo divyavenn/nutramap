@@ -107,6 +107,32 @@
 }
 
 /* Modal Styles */
+.modal-close-x {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: none;
+  border: none;
+  color: var(--white);
+  font-size: 36px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.modal-close-x:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  transform: rotate(90deg);
+}
+
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -122,6 +148,7 @@
 }
 
 .recipe-detail-modal {
+  position: relative;
   background: linear-gradient(135deg, #2a0042 0%, #150020 100%);
   border-radius: 16px;
   max-width: 800px;
@@ -227,6 +254,30 @@
   display: flex;
   flex-direction: column;
   gap: 0px;
+}
+
+.ingredient-display-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 120px;
+  gap: 16px;
+  padding: 8px 0;
+  margin-bottom: 8px;
+}
+
+.ingredient-display-row label {
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-weight: 400;
+}
+
+.ingredient-name-col,
+.ingredient-amount-col,
+.ingredient-weight-col {
+  display: flex;
+  align-items: center;
 }
 
 .ingredient-edit-row {

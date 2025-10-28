@@ -1,4 +1,4 @@
-/* External styles.css */
+
 
 /* Hide number input spinners in WebKit browsers (Chrome, Safari, Edge) */
 input[type="number"]::-webkit-outer-spin-button,
@@ -399,7 +399,9 @@ input, textarea {
   width: 40px;
   justify-content: flex-end; /* Pushes content to the right side */
   padding-top: 8px;
+  align-items: start; /* Vertically centers the button */
   margin-left: 5px;
+  margin-top: 20px;
   margin-right: 5px;
   padding-left: 20px;
 
@@ -447,11 +449,13 @@ input, textarea {
 }
 
 
+
 .delete-log-button-container {
   display: flex; 
   width: 40px;
   margin-right: 10px;
-  align-items: center; /* Vertically centers the button */
+  margin-top: 20px;
+  align-items: start; /* Vertically centers the button */
 }
 
 .delete-log-button-container.hide {

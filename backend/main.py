@@ -46,6 +46,32 @@ async def lifespan(fastapi_app: FastAPI):
             print(f"✓ Loaded food ID list with {len(fastapi_app.state.id_list)} entries")
         else:
             print(f"⚠ Food ID cache not found at: {food_id_cache_path}")
+            # Regenerate the pickle cache from MongoDB
+            print("Regenerating food ID cache from database...")
+            from src.databases.mongo import get_data
+
+            db = get_data()
+            if db is not None:
+                # Get all foods from MongoDB, sorted by _id to match FAISS index order
+                foods = list(db.foods.find({}, {"_id": 1, "food_name": 1}).sort("_id", 1))
+                id_name_map = {}
+                skipped = 0
+                for food in foods:
+                    # Skip foods without food_name field
+                    if "food_name" not in food or not food["food_name"]:
+                        skipped += 1
+                        continue
+                    id_name_map[food["_id"]] = {"name": food["food_name"]}
+
+                # Save to pickle cache
+                with open(food_id_cache_path, "wb") as f:
+                    pickle.dump(id_name_map, f)
+
+                fastapi_app.state.id_list = list(id_name_map.keys())
+                print(f"✓ Regenerated and saved food ID cache with {len(fastapi_app.state.id_list)} entries" +
+                      (f" (skipped {skipped} foods without names)" if skipped > 0 else ""))
+            else:
+                print("⚠ Could not connect to database to regenerate cache")
     except Exception as e:
         print(f"⚠ Failed to load food ID cache: {e}")
 

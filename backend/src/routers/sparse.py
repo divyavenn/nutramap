@@ -1,19 +1,17 @@
-from typing import Dict, List
+from typing import Dict
 from typing_extensions import Annotated
 from fastapi import Depends
 from pymongo.database import Database
 import typesense
 from dotenv import load_dotenv
 import os
-import json
 import asyncio
 
 # When running as a module within the application, use relative imports
 try:
     from ..databases.mongo import get_data
     from ..routers.auth import get_current_user
-    from ..routers.foods import get_foods_list 
-    from ..routers.parallel import parallel_process
+    from ..routers.foods import get_foods_list
 # When running this file directly, use absolute imports
 except ImportError:
     import sys
@@ -22,7 +20,6 @@ except ImportError:
     from src.databases.mongo import get_data
     from src.routers.auth import get_current_user
     from src.routers.foods import get_foods_list
-    from src.routers.parallel import parallel_process
     
 
 # Load environment variables
@@ -147,16 +144,16 @@ async def update_sparse_index(db = None, user = None):
             print(f"Error indexing batch: {e}")
     
     print(f"Finished indexing {total_foods} foods")
-    
+
     # Verify document count after indexing
     try:
         # Wait a moment for indexing to complete
         import time
         time.sleep(1)
-        
+
         stats = client.collections['foods'].retrieve()
         print(f"Collection now has {stats.get('num_documents', 0)} documents")
-        
+
         # Try to get a sample document to verify
         search_result = client.collections['foods'].documents.search({
             'q': '*',
@@ -169,6 +166,82 @@ async def update_sparse_index(db = None, user = None):
             print("Warning: Could not retrieve any documents with wildcard search")
     except Exception as e:
         print(f"Error verifying document count: {e}")
+
+    # ========================================
+    # INDEX NUTRIENTS
+    # ========================================
+    print("\n" + "="*50)
+    print("Indexing nutrients...")
+    print("="*50)
+
+    # Get all nutrients from MongoDB
+    nutrients = list(db.nutrients.find(
+        {},
+        {"_id": 1, "nutrient_name": 1}
+    ).sort("_id", 1))
+
+    if not nutrients:
+        print("No nutrients found in database")
+        return {"status": "error", "message": "No nutrients found"}
+
+    nutrients_schema = {
+        'name': 'nutrients',
+        'fields': [
+            {'name': 'name', 'type': 'string', 'optional': False, 'facet': False}
+        ]
+    }
+
+    # Force delete and recreate the nutrients collection
+    try:
+        try:
+            client.collections['nutrients'].delete()
+            print("Deleted existing 'nutrients' collection")
+        except typesense.exceptions.ObjectNotFound:
+            print("Collection 'nutrients' does not exist yet")
+
+        client.collections.create(nutrients_schema)
+        print("Created 'nutrients' collection with schema:", nutrients_schema)
+    except Exception as e:
+        print(f"Error creating nutrients collection: {e}")
+        return {"status": "error", "message": str(e)}
+
+    # Add nutrient documents in batches
+    total_nutrients = len(nutrients)
+    print(f"Preparing to index {total_nutrients} nutrients")
+
+    for i in range(0, total_nutrients, batch_size):
+        batch = nutrients[i:i+batch_size]
+        documents = []
+        for nutrient in batch:
+            doc = {
+                'id': str(nutrient['_id']),
+                'name': nutrient['nutrient_name']
+            }
+            documents.append(doc)
+
+        try:
+            import_response = client.collections['nutrients'].documents.import_(
+                documents,
+                {'action': 'create'}
+            )
+
+            # Check for errors
+            if isinstance(import_response, list):
+                error_count = 0
+                for idx, item in enumerate(import_response):
+                    if item.get('success') is False:
+                        error_count += 1
+                        if error_count <= 3:
+                            print(f"Import error for nutrient {idx} in batch {i//batch_size + 1}: {item}")
+
+                if error_count > 0:
+                    print(f"Warning: {error_count} nutrients failed to import in batch {i//batch_size + 1}")
+
+            print(f"Indexed {len(documents)} nutrients (batch {i//batch_size + 1}/{(total_nutrients+batch_size-1)//batch_size})")
+        except Exception as e:
+            print(f"Error indexing nutrient batch: {e}")
+
+    print(f"Finished indexing {total_nutrients} nutrients")
 
 async def search_foods(query: str, limit: int = 50) -> Dict:
     client = _get_client()
@@ -221,7 +294,8 @@ async def search_foods(query: str, limit: int = 50) -> Dict:
             food_id = hit['document'].get('id', '')
             if food_id:  # Only include if we have a valid food_id
                 similarity = round((hit.get('text_match', 0) / max_score) * 100) if max_score > 0 else 0
-                results_dict[food_id] = similarity
+                # Convert food_id from string to int for database lookup
+                results_dict[int(food_id)] = similarity
 
         return results_dict
         
@@ -236,10 +310,6 @@ async def get_sparse_index(
     threshold: float = 40,
     limit: int = 50
 ):
-    """
-    Search for foods using the sparse index (Typesense)
-    Returns a dictionary of food_id -> score
-    """
     
     # Search for foods
     search_results = await search_foods(query, limit)
@@ -253,9 +323,6 @@ async def get_sparse_index(
     return filtered_matches
 
 def pretty_print_matches(matches):
-    """
-    Print matches in a readable format
-    """
     for food_id, score in matches.items():
         print(f"{food_id}: {score}")
 
@@ -275,9 +342,6 @@ if __name__ == "__main__":
     
     # Mock user for testing
     mock_user = {"_id": "test_user_id"}
-    
-    #asyncio.run(update_sparse_index(mongo_db, mock_user))
-    
     food = "butter"
     
     result = asyncio.run(get_sparse_index(food, mongo_db, mock_user))
