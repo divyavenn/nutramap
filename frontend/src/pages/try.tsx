@@ -9,7 +9,7 @@ import NewSmartLog from '../components/NewSmartLog'
 import { NutrientDashboard} from '../components/NutrientDash'
 import { useRefreshData } from '../components/dashboard_states'
 import { useRefreshAccountInfo} from '../components/account_states'
-import { initializeTrialUserIfNeeded, setupTrialUserCleanup } from '../components/trialUser'
+import { request } from '../components/endpoints'
 import {RecoilRoot} from 'recoil';
 import Utensils from '../assets/images/utensils-solid.svg?react'
 import FoodBowl from '../assets/images/food_bowl.svg?react'
@@ -28,11 +28,22 @@ function TryNutramap(){
   useEffect(() => {
     const initializeTrialDashboard = async () => {
       try {
-        // Initialize trial user (always creates a new one if none exists)
-        await initializeTrialUserIfNeeded();
+        // Check if already logged in with valid token
+        const token = localStorage.getItem('access_token');
 
-        // Setup cleanup for trial users when browser closes
-        setupTrialUserCleanup();
+        if (!token || isTokenExpired(token)) {
+          // Login to trial account
+          const response = await request('/trial/create', 'POST', null, 'JSON', false);
+
+          if (response.status === 200) {
+            const data = response.body;
+            localStorage.setItem('access_token', data.access_token);
+
+            // Load foods and nutrients
+            localStorage.setItem('foods', JSON.stringify(await (await request('/food/all', 'GET')).body));
+            localStorage.setItem('nutrients', JSON.stringify(await (await request('/nutrients/all', 'GET')).body));
+          }
+        }
 
         // Load data for trial user
         await refreshData();
@@ -47,6 +58,18 @@ function TryNutramap(){
 
     initializeTrialDashboard();
   }, []);
+
+  // Helper function to check if token is expired
+  const isTokenExpired = (token: string): boolean => {
+    try {
+      const [, payloadBase64] = token.split('.');
+      const payload = JSON.parse(atob(payloadBase64));
+      const currentTime = Math.floor(Date.now() / 1000);
+      return payload.exp && payload.exp < currentTime;
+    } catch {
+      return true;
+    }
+  };
 
   if (!isReady) {
     return (

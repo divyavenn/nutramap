@@ -2,6 +2,8 @@ import nutramapLogo from '../assets/images/nutramap_logo.png'
 import '../assets/css/buttons.css'
 import React, { useState } from 'react';
 import {Link, useLocation} from 'react-router-dom';
+import { useRecoilValue } from 'recoil';
+import { isTrialUserAtom } from './account_states';
 
 // 3 rules of JSX
 // (1) return a single root elem (wrap in div or React Fragment <>...</>)
@@ -35,6 +37,15 @@ type PageLinkIcon = {
 
 function Header({linkIcons} : {linkIcons? : PageLinkIcon[]}) {
   const location = useLocation();
+  const isTrial = useRecoilValue(isTrialUserAtom);
+
+  // Filter out account page link for trial users
+  const filteredLinkIcons = linkIcons?.filter(link => {
+    if (isTrial && link.to === '/account') {
+      return false; // Hide account link for trial users
+    }
+    return true;
+  });
 
   return (
   <header>
@@ -45,8 +56,8 @@ function Header({linkIcons} : {linkIcons? : PageLinkIcon[]}) {
       <div className="nutra header">nutramap</div>
       </Link>
       <div style = {{width : '80%'}} ></div>
-      {linkIcons &&
-        linkIcons.map((link) => {
+      {filteredLinkIcons &&
+        filteredLinkIcons.map((link) => {
           const isActive = location.pathname === link.to;
           return (
           <Link key={link.to}

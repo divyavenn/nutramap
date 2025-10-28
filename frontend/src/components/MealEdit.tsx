@@ -398,7 +398,7 @@ useEffect(() => {
 
             <div className="food-portion-space">
               <input
-                name='amount'
+                name='servings'
                 className='edit-input-portion'
                 type='text'
                 placeholder='1 cup'
@@ -407,7 +407,7 @@ useEffect(() => {
                 onKeyDown={handleKeyDown}
                 required
               ></input>
-              <span> servings </span>
+              <div style={{marginLeft: '-30px', marginTop: '11px', marginRight: '10px'}}> servings </div>
             </div>
 
 

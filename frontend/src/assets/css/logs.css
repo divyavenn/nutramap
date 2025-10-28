@@ -41,7 +41,7 @@
 
 .food-time-space{
   display: flex;
-  width: var(--log-time-width);
+  width: 10%;
   padding-top: 10px;
   padding-bottom: 10px;
   justify-content: flex-end;
