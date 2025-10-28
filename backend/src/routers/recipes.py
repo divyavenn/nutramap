@@ -49,17 +49,56 @@ response_format = {"type": "json_object"}
 
 
 async def generate_recipe_embedding(description: str) -> List[float]:
-    """Generate OpenAI embedding for recipe description"""
+    """Generate embedding for recipe description using GPU if available"""
+    use_gpu = os.getenv("USE_GPU_EMBEDDINGS", "true").lower() == "true"
+
     try:
-        client = _get_client()
-        response = client.embeddings.create(
-            model="text-embedding-3-small",
-            input=description.lower().strip()
-        )
-        return response.data[0].embedding
+        if use_gpu:
+            # Use GPU-accelerated local embedding model
+            from sentence_transformers import SentenceTransformer
+            import torch
+
+            # Load model (cached after first load)
+            model = SentenceTransformer("BAAI/bge-large-en-v1.5")
+
+            # Move to GPU if available
+            if torch.cuda.is_available():
+                model = model.to('cuda')
+
+            # Generate embedding
+            embedding = model.encode(
+                description.lower().strip(),
+                convert_to_numpy=True,
+                normalize_embeddings=True
+            )
+
+            return embedding.tolist()
+        else:
+            # Fall back to OpenAI API
+            client = _get_client()
+            response = client.embeddings.create(
+                model="text-embedding-3-small",
+                input=description.lower().strip()
+            )
+            return response.data[0].embedding
+
     except Exception as e:
         print(f"Error generating embedding: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to generate embedding: {str(e)}")
+        # Fall back to OpenAI if GPU fails
+        if use_gpu:
+            print("GPU embedding failed, falling back to OpenAI API...")
+            try:
+                client = _get_client()
+                response = client.embeddings.create(
+                    model="text-embedding-3-small",
+                    input=description.lower().strip()
+                )
+                return response.data[0].embedding
+            except Exception as e2:
+                print(f"OpenAI fallback also failed: {e2}")
+                raise HTTPException(status_code=500, detail=f"Failed to generate embedding: {str(e2)}")
+        else:
+            raise HTTPException(status_code=500, detail=f"Failed to generate embedding: {str(e)}")
 
 
 def cosine_similarity(embedding1: List[float], embedding2: List[float]) -> float:

@@ -164,12 +164,15 @@ function LoginForm() {
               </HoverButton>
         </form>
         <div>
-              {redirect && (  
+              {redirect && (
                 <div className = 'form-field'>
                 <Link style = {{textAlign: 'center'}}to={redirect.url}> {redirect.message}</Link>
                 {/* <PageLink url = {"/create-account"} text = {"sign up"} className = {'form-field'} />  */}
                 </div>
               )}
+              <div className = 'form-field'>
+                <Link style = {{textAlign: 'center'}} to="/hello">create account</Link>
+              </div>
         </div>
         </div>
     </div>

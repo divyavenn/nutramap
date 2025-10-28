@@ -124,15 +124,6 @@ function NewNutrientForm({ original }: { original?: Nutrient }): React.ReactNode
     <form
       id="new-nutrient-form" className = {`new-nutrient-wrapper ${showSuggestions ? 'active' : ''}`} onSubmit={handleSubmit}>
       <div className={`nutrient-form-bubble ${showSuggestions ? 'active' : ''}`}>
-      <div className = 'delete-requirement-button-container'>
-      {original && (
-        <ImageButton
-                type= "button"
-                onClick= {handleDelete}
-                className= "delete-button"
-                children= {<Trashcan/>}>
-        </ImageButton> )}
-      </div>
       
       <div className= 'new-nutrient-name-wrapper'>
         <input
@@ -171,15 +162,15 @@ function NewNutrientForm({ original }: { original?: Nutrient }): React.ReactNode
       </div>
 
       
-      <div className = 'new-nutrient-button-container'>
-      {(formData.nutrient_name && formData.requirement && validInput) && (
-      <HoverButton
-              type="submit"
-              className="new-nutrient-button"
-              childrenOn={<Ok/>}
-              childrenOff={<OkOk/>}>
-      </HoverButton>)}
-      </div> 
+      <div className = 'delete-requirement-button-container'>
+      {original && (
+        <ImageButton
+                type= "button"
+                onClick= {handleDelete}
+                className= "delete-button"
+                children= {<Trashcan/>}>
+        </ImageButton> )}
+      </div>
   
 
       </div>

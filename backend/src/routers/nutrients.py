@@ -24,10 +24,12 @@ async def get_all_nutrients(db: db):
     if not nutrients:
         return JSONResponse(content={"message": "No data found."}, status_code=404)
 
+    # Filter out kJ energy (ID: 1062) - we only want kcal energy (ID: 1008)
     # Format the result as a dictionary
     return {
         nutrient["nutrient_name"]: {"id": nutrient["_id"], "unit": nutrient["unit"]}
         for nutrient in nutrients
+        if nutrient["_id"] != 1062  # Skip kJ Energy
     }
 
 @router.get("/search/sparse")

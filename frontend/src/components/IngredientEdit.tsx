@@ -6,12 +6,12 @@ import { useRefreshLogs } from './dashboard_states';
 import * as S from './IngredientEdit.styled';
 
 interface Props {
-  food_name: string;
-  amount: string;
-  weight_in_grams: number;
+  food_name?: string;
+  amount?: string;
+  weight_in_grams?: number;
   food_id?: string | number; // Optional: food ID to avoid re-matching
   componentIndex?: number; // Optional: index of component being edited
-  recipeId?: string; // Optional: recipe ID if this component belongs to a recipe
+  recipeId: string; 
   onSave?: () => void; // Optional: callback when save is successful
   onDelete?: () => void; // Optional: callback when delete is successful
   onCancel?: () => void; // Optional: callback when editing is cancelled
@@ -22,8 +22,8 @@ function EditIngredientForm({food_name, amount, weight_in_grams, food_id, compon
   const [deleted, setDeleted] = useState(false)
   const [formData, setFormData] = useState({
     food_name : food_name,
-    amount: amount || `${weight_in_grams}g`,
-    weight_in_grams : String(weight_in_grams),
+    amount: amount || '' || `${weight_in_grams}g`,
+    weight_in_grams : String(weight_in_grams) || '',
     food_id: food_id ? String(food_id) : undefined, // Track the food_id
   })
   const [isSubmitting, setIsSubmitting] = useState(false); // Track submission animation state
@@ -128,7 +128,7 @@ useEffect(() => {
     
     if (e.key === 'Enter' && e.shiftKey) {
       e.preventDefault();
-      handleAdvancedSearch(formData.food_name);
+      handleAdvancedSearch(formData.food_name || '');
       return;
     }
     
@@ -258,7 +258,7 @@ useEffect(() => {
       const formDataObj = new FormData();
       formDataObj.append('recipe_id', recipeId);
       formDataObj.append('component_index', String(componentIndex));
-      formDataObj.append('food_name', formData.food_name);
+      formDataObj.append('food_name', formData.food_name || '');
       formDataObj.append('amount', formData.amount);
       formDataObj.append('weight_in_grams', formData.weight_in_grams);
       if (formData.food_id) {
@@ -306,7 +306,7 @@ useEffect(() => {
     // Add a delay to show the animation before submitting
     setTimeout(async () => {
       const formDataObj = new FormData();
-      formDataObj.append('food_name', formData.food_name);
+      formDataObj.append('food_name', formData.food_name || '');
       formDataObj.append('amount', formData.amount);
       formDataObj.append('weight_in_grams', formData.weight_in_grams);
       if (formData.food_id) {

@@ -112,6 +112,15 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate }: RecipeCardProps) {
                   />
                 ))}
           </div>
+          <EditIngredientForm
+              food_name={''}
+              amount={''}
+              weight_in_grams={0}
+              recipeId={recipe.recipe_id}
+              onSave={handleIngredientSave}
+              onDelete={handleIngredientDelete}
+              onCancel={() => setEditingIndex(null)}
+          />
 
           <div className="nutrition-section">
             <h3>Nutrition Facts (Per Recipe)</h3>

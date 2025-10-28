@@ -1,4 +1,5 @@
 import os
+import shutil
 from openai import OpenAI
 from dotenv import load_dotenv
 from typing_extensions import Annotated
@@ -9,6 +10,30 @@ import numpy as np
 import faiss
 import math
 import pickle
+
+# GPU support for FAISS
+_gpu_resources = None
+_use_gpu = False
+
+def _init_gpu_resources():
+    """Initialize GPU resources for FAISS if available."""
+    global _gpu_resources, _use_gpu
+    if _gpu_resources is not None:
+        return _gpu_resources, _use_gpu
+
+    try:
+        import torch
+        if torch.cuda.is_available():
+            # Initialize GPU resources
+            _gpu_resources = faiss.StandardGpuResources()
+            _use_gpu = True
+            print(f"✓ FAISS GPU acceleration enabled on {torch.cuda.get_device_name(0)}")
+            return _gpu_resources, _use_gpu
+    except (ImportError, AttributeError, RuntimeError) as e:
+        print(f"⚠ FAISS GPU not available, using CPU: {e}")
+
+    _use_gpu = False
+    return None, False
 
 # When running as a module within the application, use relative imports
 try:
@@ -230,6 +255,9 @@ async def update_faiss_index(db=None, user=None, request: Request = None):
         faiss.normalize_L2(embedding_matrix)
         dim = embedding_matrix.shape[1]
 
+        # Initialize GPU resources if available
+        gpu_resources, use_gpu = _init_gpu_resources()
+
         # product quantizers have to be trained our data. we're not using it bc our data is too small, leading to suboptimal results
         if pq:
             nlist = min(int(4 * math.sqrt(len(embeddings))), 100)  # number of clusters
@@ -242,9 +270,20 @@ async def update_faiss_index(db=None, user=None, request: Request = None):
 
             # Train the index
             index.train(embedding_matrix)
+
+            # Move to GPU if available
+            if use_gpu and gpu_resources:
+                index = faiss.index_cpu_to_gpu(gpu_resources, 0, index)
+                print("✓ FAISS PQ index moved to GPU")
         else:
             # Use IndexIDMap to enable removal of individual vectors
             base_index = faiss.IndexFlatIP(dim)
+
+            # Move base index to GPU if available
+            if use_gpu and gpu_resources:
+                base_index = faiss.index_cpu_to_gpu(gpu_resources, 0, base_index)
+                print("✓ FAISS base index moved to GPU")
+
             index = faiss.IndexIDMap(base_index)
 
         # Add vectors to the index with IDs
@@ -269,13 +308,9 @@ async def update_faiss_index(db=None, user=None, request: Request = None):
         # update bin
         faiss.write_index(index, "faiss_index_update.bin")
 
-        # Delete old bin file if it exists
+        # Move to final location (handles cross-filesystem moves)
         old_bin_path = os.getenv("FAISS_BIN")
-        if os.path.exists(old_bin_path):
-            os.remove(old_bin_path)
-
-        # rename the update bin to the name specified in .env
-        os.rename("faiss_index_update.bin", old_bin_path)
+        shutil.move("faiss_index_update.bin", old_bin_path)
 
         if request is not None:
             request.app.state.faiss_index = index
@@ -291,8 +326,9 @@ async def update_faiss_index(db=None, user=None, request: Request = None):
         print("="*50)
 
         # Get all nutrients with embeddings from MongoDB
+        # Exclude kJ Energy (ID: 1062) - we only want kcal Energy (ID: 1008)
         nutrients = list(db.nutrients.find(
-            {"embedding": {"$exists": True}},
+            {"embedding": {"$exists": True}, "_id": {"$ne": 1062}},
             {"_id": 1, "nutrient_name": 1, "embedding": 1}
         ).sort("_id", 1))
 
@@ -325,6 +361,12 @@ async def update_faiss_index(db=None, user=None, request: Request = None):
 
             # Create nutrient index (using same settings as foods)
             nutrient_index = faiss.IndexFlatIP(nutrient_dim)
+
+            # Move to GPU if available
+            if use_gpu and gpu_resources:
+                nutrient_index = faiss.index_cpu_to_gpu(gpu_resources, 0, nutrient_index)
+                print("✓ Nutrient FAISS index moved to GPU")
+
             nutrient_index.add(nutrient_embedding_matrix)
 
             # Save nutrient index to separate bin file
@@ -345,6 +387,25 @@ async def update_faiss_index(db=None, user=None, request: Request = None):
                 print(f"✓ Stored nutrient FAISS index in app.state ({nutrient_index.ntotal} vectors)")
 
             print(f"✓ Finished building FAISS index for nutrients ({nutrient_index.ntotal} vectors)")
+
+        # Commit changes to Modal volume (if running on Modal)
+        try:
+            # Check if FAISS_BIN path starts with /data/ (indicates Modal deployment)
+            faiss_bin_path = os.getenv("FAISS_BIN", "")
+            if faiss_bin_path.startswith("/data/"):
+                print("Attempting to commit changes to Modal persistent volume...")
+                import modal
+                volume = modal.Volume.from_name("nutramap-indexes")
+                volume.commit()
+                print("✓ Committed FAISS indexes to persistent volume")
+            else:
+                print("Local deployment detected - skipping volume commit")
+        except ImportError:
+            print("Modal not available - skipping volume commit")
+        except Exception as e:
+            print(f"⚠ Failed to commit to volume: {e}")
+            import traceback
+            traceback.print_exc()
 
         return index, id_name_map.keys()
 
@@ -475,24 +536,38 @@ async def _search_faiss_index(query_text: str, faiss_index, id_list, threshold: 
 
     D, I = faiss_index.search(query_embedding, k)
 
-    # Build reverse mapping: FAISS ID -> food ID
+    # Check if we're using IndexIDMap (foods) or plain IndexFlatIP (nutrients)
+    # IndexIDMap returns custom IDs, IndexFlatIP returns sequential positions
+    is_id_map = hasattr(faiss_index, 'id_map') or 'IDMap' in str(type(faiss_index))
+
+    # Build reverse mapping: FAISS ID -> food ID (for IndexIDMap only)
     # This allows O(1) lookup instead of scanning id_list for each result
     faiss_id_to_food_id = {}
-    for food_id in id_list:
-        if isinstance(food_id, str):
-            # Custom food - map hash to food_id
-            faiss_id = hash(food_id) & 0x7FFFFFFFFFFFFFFF
-            faiss_id_to_food_id[faiss_id] = food_id
-        elif isinstance(food_id, int):
-            # USDA food - direct mapping
-            faiss_id_to_food_id[food_id] = food_id
+    if is_id_map:
+        for food_id in id_list:
+            if isinstance(food_id, str):
+                # Custom food - map hash to food_id
+                faiss_id = hash(food_id) & 0x7FFFFFFFFFFFFFFF
+                faiss_id_to_food_id[faiss_id] = food_id
+            elif isinstance(food_id, int):
+                # USDA food - direct mapping
+                faiss_id_to_food_id[food_id] = food_id
 
     # Process search results in parallel
     async def process_result(idx):
-        faiss_id = int(I[0][idx])  # FAISS returns numpy int64
+        faiss_result = int(I[0][idx])  # FAISS returns numpy int64
 
-        # With IndexIDMap, I contains the actual IDs we stored, not positions
-        result_id = faiss_id_to_food_id.get(faiss_id)
+        # Determine the actual ID based on index type
+        if is_id_map:
+            # IndexIDMap: I contains the actual IDs we stored
+            result_id = faiss_id_to_food_id.get(faiss_result)
+        else:
+            # Plain IndexFlatIP: I contains sequential positions (0, 1, 2...)
+            # Use position to look up ID in id_list
+            if 0 <= faiss_result < len(id_list):
+                result_id = id_list[faiss_result]
+            else:
+                result_id = None
 
         if result_id is None or result_id == -1:
             return None

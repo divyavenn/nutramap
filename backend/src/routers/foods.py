@@ -330,7 +330,9 @@ def get_food_name(food_id: int, db: Annotated[Database, Depends(get_data)] = Non
         print(f"Warning: Failed to load pickle cache: {e}")
 
     # Finally, default to MongoDB query
-    food = db.foods.find_one({"_id": food_id}, {"food_name": 1, "_id": 0})
+    # Convert string IDs to ObjectId for custom foods
+    query_id = ObjectId(food_id) if isinstance(food_id, str) else food_id
+    food = db.foods.find_one({"_id": query_id}, {"food_name": 1, "_id": 0})
 
     if not food:
         print(f"Warning: Food ID {food_id} not found in database")
@@ -1033,16 +1035,54 @@ async def add_custom_food(
 
         # Generate embedding for the custom food name
         embedding = None
+        use_gpu = os.getenv("USE_GPU_EMBEDDINGS", "true").lower() == "true"
+
         try:
-            client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-            response = client.embeddings.create(
-                model="text-embedding-3-large",  # Must match FAISS index dimension
-                input=name.lower().strip()
-            )
-            embedding = response.data[0].embedding
-            print(f"✓ Generated embedding for custom food: {name}")
+            if use_gpu:
+                # Use GPU-accelerated local embedding model
+                from sentence_transformers import SentenceTransformer
+                import torch
+
+                # Load model (cached after first load)
+                model = SentenceTransformer("BAAI/bge-large-en-v1.5")
+
+                # Move to GPU if available
+                if torch.cuda.is_available():
+                    model = model.to('cuda')
+
+                # Generate embedding
+                embedding_array = model.encode(
+                    name.lower().strip(),
+                    convert_to_numpy=True,
+                    normalize_embeddings=True
+                )
+                embedding = embedding_array.tolist()
+                print(f"✓ Generated GPU embedding for custom food: {name}")
+            else:
+                # Fall back to OpenAI API
+                client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+                response = client.embeddings.create(
+                    model="text-embedding-3-large",  # Must match FAISS index dimension
+                    input=name.lower().strip()
+                )
+                embedding = response.data[0].embedding
+                print(f"✓ Generated OpenAI embedding for custom food: {name}")
+
         except Exception as e:
             print(f"⚠ Warning: Could not generate embedding for custom food '{name}': {e}")
+            # Try OpenAI fallback if GPU failed
+            if use_gpu:
+                try:
+                    print("GPU embedding failed, trying OpenAI fallback...")
+                    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+                    response = client.embeddings.create(
+                        model="text-embedding-3-large",
+                        input=name.lower().strip()
+                    )
+                    embedding = response.data[0].embedding
+                    print(f"✓ Generated OpenAI fallback embedding for custom food: {name}")
+                except Exception as e2:
+                    print(f"⚠ OpenAI fallback also failed: {e2}")
             # Continue without embedding - food will still be added but won't appear in dense search
 
         # Create custom food document
@@ -1169,29 +1209,133 @@ async def add_custom_food(
 @router.post("/rebuild-index")
 async def rebuild_faiss_index(
     request: Request,
-    user: Annotated[dict, Depends(get_current_user)],
     db: Annotated[Database, Depends(get_data)]
 ):
     """
-    Rebuild the FAISS index from scratch.
+    Rebuild both food and nutrient FAISS indexes from scratch.
+    Updates all bin files and .pkl caches, then verifies with test queries.
     Use this after deleting custom foods or when the index is out of sync.
+
+    No authentication required - this is a system maintenance endpoint.
     """
     try:
-        print("Rebuilding FAISS index...")
+        print("\n" + "="*70)
+        print("REBUILDING FAISS INDEXES (FOODS + NUTRIENTS)")
+        print("="*70)
 
-        # Import the update function from dense router
-        from ..routers.dense import update_faiss_index
+        # Import the update function and search functions from dense router
+        from ..routers.dense import update_faiss_index, find_dense_matches, find_dense_nutrient_matches
 
-        # Call the rebuild function
-        await update_faiss_index(db=db, user=user, request=request)
+        # Rebuild both food and nutrient indexes
+        # This function already:
+        # - Builds food index and saves to FAISS_BIN
+        # - Builds nutrient index and saves to NUTRIENT_FAISS_BIN
+        # - Updates food ID cache (FOOD_ID_CACHE .pkl)
+        # - Updates nutrient ID cache (NUTRIENT_ID_CACHE .pkl)
+        # - Updates app.state for both indexes
+        food_index, _ = await update_faiss_index(db=db, user=None, request=request)
+
+        if food_index is None:
+            raise Exception("Failed to build FAISS indexes")
+
+        print("\n" + "="*70)
+        print("VERIFYING REBUILD WITH TEST QUERIES")
+        print("="*70)
+
+        # Test query 1: Search for "bagel" in foods
+        print("\n[TEST 1] Searching for 'bagel' in foods...")
+        bagel_results = await find_dense_matches(
+            text="bagel",
+            db=db,
+            user=None,
+            request=request,
+            threshold=40,
+            limit=5
+        )
+
+        bagel_success = len(bagel_results) > 0
+        bagel_top_match = None
+        if bagel_success:
+            # Get the top match details
+            top_id = max(bagel_results, key=bagel_results.get)
+            top_score = bagel_results[top_id]
+            food_doc = db.foods.find_one({"_id": top_id}, {"food_name": 1})
+            bagel_top_match = {
+                "id": str(top_id),
+                "name": food_doc.get("food_name", "Unknown") if food_doc else "Unknown",
+                "score": top_score
+            }
+            print(f"✓ Found {len(bagel_results)} results. Top match: '{bagel_top_match['name']}' (score: {top_score})")
+        else:
+            print("✗ No results found for 'bagel'")
+
+        # Test query 2: Search for "protein" in nutrients
+        print("\n[TEST 2] Searching for 'protein' in nutrients...")
+        protein_results = await find_dense_nutrient_matches(
+            text="protein",
+            db=db,
+            request=request,
+            threshold=30,  # Lower threshold for better matches
+            limit=5
+        )
+
+        protein_success = len(protein_results) > 0
+        protein_top_match = None
+        if protein_success:
+            # Get the top match details
+            top_id = max(protein_results, key=protein_results.get)
+            top_score = protein_results[top_id]
+            nutrient_doc = db.nutrients.find_one({"_id": int(top_id)}, {"nutrient_name": 1})
+            protein_top_match = {
+                "id": str(top_id),
+                "name": nutrient_doc.get("nutrient_name", "Unknown") if nutrient_doc else "Unknown",
+                "score": top_score
+            }
+            print(f"✓ Found {len(protein_results)} results. Top match: '{protein_top_match['name']}' (score: {top_score})")
+        else:
+            print("✗ No results found for 'protein'")
+
+        # Overall verification status
+        verification_passed = bagel_success and protein_success
+
+        print("\n" + "="*70)
+        if verification_passed:
+            print("✓ ALL TESTS PASSED - INDEXES REBUILT AND VERIFIED SUCCESSFULLY")
+        else:
+            print("⚠ VERIFICATION INCOMPLETE - Some tests failed")
+        print("="*70 + "\n")
 
         return {
-            "status": "success",
-            "message": "FAISS index rebuilt successfully"
+            "status": "success" if verification_passed else "partial_success",
+            "message": "FAISS indexes rebuilt successfully" if verification_passed else "Indexes rebuilt but verification had issues",
+            "indexes_rebuilt": {
+                "food_index": {
+                    "vectors": food_index.ntotal,
+                    "bin_file": os.getenv("FAISS_BIN", "faiss_index.bin"),
+                    "cache_file": os.getenv("FOOD_ID_CACHE", "food_ids.pkl")
+                },
+                "nutrient_index": {
+                    "bin_file": os.getenv("NUTRIENT_FAISS_BIN", "nutrient_faiss_index.bin"),
+                    "cache_file": os.getenv("NUTRIENT_ID_CACHE", "nutrient_ids.pkl")
+                }
+            },
+            "verification": {
+                "overall_passed": verification_passed,
+                "bagel_test": {
+                    "passed": bagel_success,
+                    "results_count": len(bagel_results),
+                    "top_match": bagel_top_match
+                },
+                "protein_test": {
+                    "passed": protein_success,
+                    "results_count": len(protein_results),
+                    "top_match": protein_top_match
+                }
+            }
         }
 
     except Exception as e:
-        print(f"Error rebuilding FAISS index: {e}")
+        print(f"Error rebuilding FAISS indexes: {e}")
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error rebuilding index: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error rebuilding indexes: {str(e)}")

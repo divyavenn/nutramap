@@ -174,9 +174,10 @@ async def update_sparse_index(db = None, user = None):
     print("Indexing nutrients...")
     print("="*50)
 
-    # Get all nutrients from MongoDB
+    # Get all nutrients from MongoDB, excluding kJ Energy (ID: 1062)
+    # We only want kcal Energy (ID: 1008)
     nutrients = list(db.nutrients.find(
-        {},
+        {"_id": {"$ne": 1062}},  # Exclude kJ Energy
         {"_id": 1, "nutrient_name": 1}
     ).sort("_id", 1))
 

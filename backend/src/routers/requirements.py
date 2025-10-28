@@ -55,8 +55,12 @@ def requirement_info(user: user, db: db):
     # }
 
     # Build the response object by enriching requirements with nutrient details
+    # Filter out kJ energy (ID: 1062) - we only want kcal energy (ID: 1008)
     info = {}
     for r in requirements:
+        # Skip the kJ energy nutrient
+        if r["nutrient_id"] == 1062:
+            continue
         info[r["nutrient_id"]] = {
             "target": r["amt"],
             "should_exceed": r["should_exceed"],
