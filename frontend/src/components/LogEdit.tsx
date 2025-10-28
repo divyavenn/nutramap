@@ -6,7 +6,7 @@ import IsOk from '../assets/images/checkmark.svg?react'
 import Trashcan from '../assets/images/trashcan.svg?react'
 import { CalendarDay} from './DateSelector';
 import { getFoodID } from './utlis';
-import { tolocalDateString } from '../components/utlis'
+import { tolocalDateString } from './utlis'
 import { useRecoilValue } from 'recoil';
 
 import '../assets/css/edit_log.css'

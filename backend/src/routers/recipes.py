@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Form
 from pymongo.database import Database
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Union
 from typing_extensions import Annotated
 from bson import ObjectId
 from datetime import datetime
@@ -97,7 +97,7 @@ async def find_similar_recipes(
     return matches
 
 
-async def match_ingredient_to_food_id(ingredient_name: str, db: Database, user: dict) -> Optional[int]:
+async def match_ingredient_to_food_id(ingredient_name: str, db: Database, user: dict) -> Optional[Union[int, str]]:
     """Match ingredient name to food_id using hybrid vector search (sparse + dense + RRF)"""
     try:
         print(f"Matching ingredient: '{ingredient_name}'")
@@ -697,7 +697,9 @@ async def edit_recipe_ingredient(
     recipe_id: str = Form(...),
     component_index: int = Form(...),
     food_name: str = Form(...),
-    amount: str = Form(...)
+    amount: str = Form(...),
+    weight_in_grams: Optional[float] = Form(None),
+    food_id: Optional[str] = Form(None)
 ):
     """Edit a single ingredient in a recipe by index"""
     try:
@@ -716,14 +718,24 @@ async def edit_recipe_ingredient(
         if component_index < 0 or component_index >= len(ingredients):
             raise HTTPException(status_code=400, detail="Invalid ingredient index")
 
-        # Match the food_name to get food_id
-        food_id = await match_ingredient_to_food_id(food_name, db, user)
-        if not food_id:
-            raise HTTPException(status_code=404, detail=f"Could not match food: {food_name}")
+        # Use provided food_id if available, otherwise match the food_name
+        if food_id is None:
+            print(f"No food_id provided, matching '{food_name}' using RRF...")
+            food_id = await match_ingredient_to_food_id(food_name, db, user)
+            if not food_id:
+                raise HTTPException(status_code=404, detail=f"Could not match food: {food_name}")
+        else:
+            # Convert to appropriate type (int for USDA, keep string for custom foods)
+            try:
+                food_id = int(food_id)
+            except (ValueError, TypeError):
+                pass  # Keep as string for custom foods
+            print(f"Using provided food_id: {food_id}")
 
-        # Parse the amount to get weight in grams
-        from src.routers.parse import estimate_grams
-        weight_in_grams = await estimate_grams(food_name, amount)
+        # Use provided weight_in_grams if given, otherwise estimate from amount
+        if weight_in_grams is None:
+            from src.routers.parse import estimate_grams
+            weight_in_grams = await estimate_grams(food_name, amount)
 
         # Update the ingredient at the specified index
         ingredients[component_index] = {

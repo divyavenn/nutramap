@@ -169,6 +169,52 @@ def get_total_nutrients(db, user_id: str, start_date: datetime, end_date: dateti
 
     return tally
 
+@router.get("/nutrients", response_model=None)
+async def get_food_nutrients(
+    food_id: str,
+    amount_in_grams: float,
+    db: Annotated[Database, Depends(get_data)] = None
+):
+    """
+    Get nutrients for a specific food with a given amount in grams.
+    Supports both USDA foods (integer IDs) and custom foods (ObjectId strings).
+    """
+    try:
+        # Convert string ObjectIds to ObjectId for custom foods, keep integers for USDA foods
+        if isinstance(food_id, str) and len(food_id) == 24:
+            # Custom food with ObjectId
+            search_id = ObjectId(food_id)
+        else:
+            # USDA food with integer ID
+            try:
+                search_id = int(food_id)
+            except ValueError:
+                # If it's not a valid int or ObjectId, return empty
+                return {}
+
+        # Query the food
+        food = db.foods.find_one({"_id": search_id}, {"nutrients": 1, "_id": 0})
+
+        if not food or "nutrients" not in food:
+            return {}
+
+        # Calculate prorated amounts (nutrients are per 100g)
+        proration_factor = amount_in_grams / 100
+        result = {}
+
+        for nutrient in food["nutrients"]:
+            prorated_amount = nutrient["amt"] * proration_factor
+            if prorated_amount > 0:
+                result[nutrient["nutrient_id"]] = prorated_amount
+
+        return result
+
+    except Exception as e:
+        print(f"Error getting food nutrients: {e}")
+        import traceback
+        traceback.print_exc()
+        return {}
+
 @router.get("/panel", response_model=None)
 async def get_nutrient_panel(log_id: str, db: Annotated[Database, Depends(get_data)] = None):
     # Check if log_id is actually a component ID (format: "log_id-component_index")

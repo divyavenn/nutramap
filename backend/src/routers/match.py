@@ -14,7 +14,7 @@
 from fastapi import APIRouter, Depends, Request, Body, Query
 from fastapi.responses import JSONResponse
 from fastapi import BackgroundTasks
-from typing import Dict, List
+from typing import Dict
 import asyncio
 import time
 
@@ -266,7 +266,7 @@ async def process_logs(user, db, request, parsed_foods, timestamps):
         traceback.print_exc()
 
 
-@router.post("/autocomplete", response_model=List[str])
+@router.post("/autocomplete")
 async def autocomplete(user : user, db : db, request : Request, prompt: str):
     try:
         # Find matches using RRF fusion
@@ -280,13 +280,16 @@ async def autocomplete(user : user, db : db, request : Request, prompt: str):
         print(f"Match IDs: {matches[:5]}")  # Print first 5 IDs
 
         output = []
-        async def add_names( match_id, output, db, request):
+        async def add_food_data(match_id, output, db, request):
             food_name = get_food_name(match_id, db, request)
-            output.append(food_name)
+            output.append({
+                "food_id": str(match_id),  # Convert to string for consistency
+                "food_name": food_name
+            })
 
-        await parallel_process(matches, add_names, [output, db, request])
+        await parallel_process(matches, add_food_data, [output, db, request])
 
-        print(f"Autocomplete results: {output[:3]}")  # Print first 3 results
+        print(f"Autocomplete results: {[item['food_name'] for item in output[:3]]}")  # Print first 3 results
 
         return output
 

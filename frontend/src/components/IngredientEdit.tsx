@@ -3,12 +3,13 @@ import {request} from './endpoints';
 
 import '../assets/css/variables.css';
 import { useRefreshLogs } from './dashboard_states';
-import * as S from './EditIngredient.styled';
+import * as S from './IngredientEdit.styled';
 
 interface Props {
   food_name: string;
   amount: string;
   weight_in_grams: number;
+  food_id?: string | number; // Optional: food ID to avoid re-matching
   componentIndex?: number; // Optional: index of component being edited
   recipeId?: string; // Optional: recipe ID if this component belongs to a recipe
   onSave?: () => void; // Optional: callback when save is successful
@@ -16,13 +17,14 @@ interface Props {
   onCancel?: () => void; // Optional: callback when editing is cancelled
 }
 
-function EditIngredientForm({food_name, amount, weight_in_grams, componentIndex, recipeId, onSave, onDelete, onCancel} : Props){
+function EditIngredientForm({food_name, amount, weight_in_grams, food_id, componentIndex, recipeId, onSave, onDelete, onCancel} : Props){
 
   const [deleted, setDeleted] = useState(false)
   const [formData, setFormData] = useState({
     food_name : food_name,
     amount: amount || `${weight_in_grams}g`,
     weight_in_grams : String(weight_in_grams),
+    food_id: food_id ? String(food_id) : undefined, // Track the food_id
   })
   const [isSubmitting, setIsSubmitting] = useState(false); // Track submission animation state
   const [isDeleting, setIsDeleting] = useState(false); // Track deletion animation state
@@ -31,7 +33,7 @@ function EditIngredientForm({food_name, amount, weight_in_grams, componentIndex,
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null); // Timer for debouncing autocomplete
 
-  const [suggestions, setSuggestions] = useState<string[]>([]); // State for filtered suggestions
+  const [suggestions, setSuggestions] = useState<Array<{food_id: string, food_name: string}>>([]); // State for filtered suggestions
   const [showSuggestions, setShowSuggestions] = useState(false); // Control the visibility of suggestions
   const [showCalendar, setShowCalendar] = useState(false)
   const [validInput, markValidInput] = useState(true)
@@ -109,7 +111,8 @@ useEffect(() => {
       if (response.body) {
         setSuggestions(response.body);
         setShowSuggestions(value.length > 0 && response.body.length > 0);
-        markValidInput(response.body.includes(value));
+        // Check if any suggestion matches the input value exactly
+        markValidInput(response.body.some((item: any) => item.food_name === value));
       }
     } catch (error) {
       console.error('Error fetching autocomplete suggestions:', error);
@@ -165,13 +168,7 @@ useEffect(() => {
         // Allow these to work normally for cursor movement
         break;
     }
-  };
 
-  // Prevent Enter key from creating new lines in textarea
-  const handleTextareaKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    // Call the general key handler first
-    handleKeyDown(e);
-    
     // Prevent Enter from creating a new line
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -188,6 +185,29 @@ useEffect(() => {
     }
   };
 
+  // Prevent Enter key from creating new lines in textarea
+  const handleTextareaKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    // Call the general key handler first
+    handleKeyDown(e);
+
+    // Prevent Enter from creating a new line
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+
+      // If no suggestions are shown or none selected, submit the form
+      if (!showSuggestions || selectedSuggestionIndex < 0) {
+        handleSubmit(e as any);
+      }
+    }
+  };
+
+  // Handle Enter key on regular input fields
+  const handleInputKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSubmit(e as any);
+    }
+  };
 
   const handleTyping = async (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -218,7 +238,8 @@ useEffect(() => {
           if (response.body) {
             setSuggestions(response.body);
             setShowSuggestions(value.length > 0 && response.body.length > 0);
-            markValidInput(response.body.includes(value));
+            // Check if any suggestion matches the input value exactly
+            markValidInput(response.body.some((item: any) => item.food_name === value));
           }
         } catch (error) {
           console.error('Error fetching autocomplete suggestions:', error);
@@ -230,12 +251,46 @@ useEffect(() => {
     }
   };
 
-  const handleSuggestionClick = (suggestion: string) => {
+  // Handle blur event on weight input to trigger update
+  const handleWeightBlur = async () => {
+    // Only submit if we have a valid recipe context
+    if (recipeId && componentIndex !== undefined) {
+      const formDataObj = new FormData();
+      formDataObj.append('recipe_id', recipeId);
+      formDataObj.append('component_index', String(componentIndex));
+      formDataObj.append('food_name', formData.food_name);
+      formDataObj.append('amount', formData.amount);
+      formDataObj.append('weight_in_grams', formData.weight_in_grams);
+      if (formData.food_id) {
+        formDataObj.append('food_id', formData.food_id); // Send food_id to skip RRF matching
+      }
+
+      try {
+        const response = await request('/recipes/edit-ingredient', 'POST', formDataObj);
+
+        if (response.status === 200 && response.body) {
+          // Update with the confirmed weight from backend
+          setFormData(prev => ({
+            ...prev,
+            weight_in_grams: String(response.body.weight_in_grams)
+          }));
+
+          // Refresh logs to update the UI
+          refreshLogs();
+        }
+      } catch (error) {
+        console.error('Error updating weight:', error);
+      }
+    }
+  };
+
+  const handleSuggestionClick = (suggestion: {food_id: string, food_name: string}) => {
     markValidInput(true)
-    // Update the formData with the selected suggestion
+    // Update the formData with the selected suggestion, including the food_id
     setFormData({
       ...formData,
-      food_name: suggestion,
+      food_name: suggestion.food_name,
+      food_id: suggestion.food_id, // Store the food_id to avoid re-matching
     });
     setShowSuggestions(false); // Hide suggestions after selection
   };
@@ -253,22 +308,18 @@ useEffect(() => {
       const formDataObj = new FormData();
       formDataObj.append('food_name', formData.food_name);
       formDataObj.append('amount', formData.amount);
+      formDataObj.append('weight_in_grams', formData.weight_in_grams);
+      if (formData.food_id) {
+        formDataObj.append('food_id', formData.food_id); // Send food_id to skip RRF matching
+      }
 
-      let response;
+      let response: any = undefined;
 
-      // Check if we're editing a recipe ingredient or a log component
-      if (recipeId) {
-        // Editing a recipe ingredient
+      // Editing a recipe ingredient
+      if (recipeId && componentIndex !== undefined) {
         formDataObj.append('recipe_id', recipeId);
         formDataObj.append('component_index', String(componentIndex));
         response = await request('/recipes/edit-ingredient', 'POST', formDataObj);
-      } else if (componentIndex !== undefined) {
-        // Editing a component within a log
-        formDataObj.append('component_index', String(componentIndex));
-        response = await request('/logs/edit-component', 'POST', formDataObj);
-      } else {
-        // Updating the entire log portion (legacy behavior)
-        response = await request('/logs/update-portion', 'POST', formDataObj);
       }
 
       // If successful, update the grams in local state
@@ -292,6 +343,8 @@ useEffect(() => {
       }, 500);
     }, 800); // Delay before actual submission
   }
+
+
 
   const handleDelete = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault() // prevent automatic submission
@@ -365,19 +418,20 @@ useEffect(() => {
                 placeholder='1 cup'
                 value={formData.amount}
                 onChange={handleTyping}
-                onKeyDown={handleKeyDown}
+                onKeyDown={handleInputKeyDown}
                 required
               />
             </S.FoodPortionSpace>
 
             <S.FoodWeightSpace>
                 <S.GramsDisplay
-                name='weight'
+                name='weight_in_grams'
                 type='text'
-                placeholder='1 cup'
+                placeholder='0'
                 value={formData.weight_in_grams}
                 onChange={handleTyping}
-                onKeyDown={handleKeyDown}
+                onBlur={handleWeightBlur}
+                onKeyDown={handleInputKeyDown}
                 required/>
                 <S.AlignedText> g </S.AlignedText>
             </S.FoodWeightSpace>
@@ -394,12 +448,12 @@ useEffect(() => {
               >
                 {suggestions.map((suggestion, index) => (
                   <S.SuggestionItem
-                    key={suggestion}
+                    key={suggestion.food_id}
                     onClick={() => handleSuggestionClick(suggestion)}
                     $selected={index === selectedSuggestionIndex}
                     onMouseEnter={() => setSelectedSuggestionIndex(index)}
                   >
-                    {suggestion}
+                    {suggestion.food_name}
                   </S.SuggestionItem>
                 ))}
               </S.SuggestionsList>

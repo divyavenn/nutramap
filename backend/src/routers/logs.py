@@ -414,7 +414,14 @@ async def edit_component(
     if not matches or len(matches) == 0:
         raise HTTPException(status_code=404, detail="Food not found")
 
-    new_food_id = int(matches[0])
+    # Keep food_id as is - it could be int (USDA) or string (custom food)
+    new_food_id = matches[0]
+    # Try to convert to int for USDA foods, but keep as string for custom foods
+    try:
+        new_food_id = int(new_food_id)
+    except (ValueError, TypeError):
+        # It's a custom food with ObjectId string, keep as is
+        pass
 
     # Estimate grams for the new amount
     from src.routers.parse import estimate_grams

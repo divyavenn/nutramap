@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { request } from './endpoints';
-import { EditIngredientForm } from './EditIngredient';
+import { EditIngredientForm } from './IngredientEdit';
 import type { Recipe, RecipeIngredient } from './RecipeBlurb';
 import '../assets/css/myrecipes.css';
 
@@ -36,7 +36,7 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate }: RecipeCardProps) {
         .map(async (ingredient) => {
           try {
             const response = await request(
-              `/foods/nutrients?food_id=${ingredient.food_id}&amount_in_grams=${ingredient.weight_in_grams}`,
+              `/food/nutrients?food_id=${ingredient.food_id}&amount_in_grams=${ingredient.weight_in_grams}`,
               'GET'
             );
             return response.body || [];
@@ -103,6 +103,7 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate }: RecipeCardProps) {
                     food_name={ingredient.food_name || ''}
                     amount={ingredient.amount}
                     weight_in_grams={ingredient.weight_in_grams}
+                    food_id={ingredient.food_id}
                     componentIndex={index}
                     recipeId={recipe.recipe_id}
                     onSave={handleIngredientSave}

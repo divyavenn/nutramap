@@ -5,7 +5,7 @@ import { DateSelector} from '../components/DateSelector'
 
 import {Heading} from '../components/Title'
 import { MainSection, Header} from '../components/Sections'
-import NewSmartLog from '../components/NewSmartLog'
+import NewSmartLog from '../components/MealNew'
 import { NutrientDashboard} from '../components/NutrientDash'
 import { useRefreshData } from '../components/dashboard_states'
 import { useRefreshAccountInfo} from '../components/account_states'

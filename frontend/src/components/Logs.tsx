@@ -3,7 +3,7 @@ import 'react-date-range/dist/styles.css'; // main style file
 import 'react-date-range/dist/theme/default.css';
 
 import {useState, useRef, useEffect} from 'react'
-import { EditLogForm } from './EditLogForm';
+import { EditLogForm } from './LogEdit';
 import { MealEdit } from './MealEdit';
 import { MealDisplay } from './MealDisplay';
 import { formatTime } from './utlis';
