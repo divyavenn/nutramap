@@ -360,7 +360,15 @@ async def parse_meal(
             recipe_id = recipe_data.get("recipe_id")
             description = recipe_data["description"]
             servings = recipe_data.get("recipe_servings", 1.0)
-            timestamp = recipe_data.get("timestamp", meal_date.isoformat())
+            timestamp_str = recipe_data.get("timestamp", meal_date.isoformat())
+
+            # Parse the timestamp from GPT response
+            try:
+                timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+            except (ValueError, AttributeError):
+                timestamp = meal_date
+
+            print(f"Recipe '{description}': using timestamp {timestamp}")
 
             # Check if this matches an existing recipe
             if recipe_id:
@@ -437,7 +445,7 @@ async def parse_meal(
                     "description": description,
                     "embedding": embedding,
                     "ingredients": ingredients_to_log,
-                    "created_at": timestamp,
+                    "created_at": timestamp,  # Use GPT-parsed timestamp
                     "updated_at": datetime.now()
                 }
 
@@ -476,7 +484,7 @@ async def parse_meal(
                     "recipe_id": recipe_id,  # Always store recipe_id (for both new and existing recipes)
                     "meal_name": description,
                     "servings": servings,
-                    "date": meal_date,
+                    "date": timestamp,  # Use the timestamp parsed from GPT response
                     "components": components,
                     "user_id": user["_id"],
                     "_id": ObjectId()

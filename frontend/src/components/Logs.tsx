@@ -11,11 +11,12 @@ import { LogProps, DisplayLogProps, LogComponent } from './structures';
 import {useRecoilValue, useSetRecoilState, useRecoilState} from 'recoil'
 import { logsAtom, currentDayAtom, hoveredLogAtom, useRefreshLogs, pendingFoodsAtom, PendingFood } from './dashboard_states';
 import { motion } from 'framer-motion';
-import { MealDivider } from './MealDivider';
+import { MealLoading} from './MealLoading';
 
 function LogList (){
   const logs = useRecoilValue(logsAtom)
   const pendingFoods = useRecoilValue(pendingFoodsAtom)
+  console.log('LogList: pendingFoods =', pendingFoods);
   // Track which log is being hovered
   const [hoveredLog, setHoveredLog] = useRecoilState(hoveredLogAtom);
   // Track if an animation is currently playing
@@ -70,6 +71,7 @@ function LogList (){
   // Add pending foods to groups
   pendingFoods.forEach(food => {
     const dateKey = new Date(food.timestamp).toDateString();
+    console.log('Adding pending food to date group:', dateKey, food);
     if (!groupedByDate.has(dateKey)) {
       groupedByDate.set(dateKey, {logs: [], pending: []});
     }
@@ -133,7 +135,6 @@ function LogList (){
             {datePending.map((pendingFood, index) => (
               <div key={`pending-${index}`} className="log-wrapper">
                 <motion.div
-                  className="log-bubble pending-food-item"
                   initial={{
                     opacity: 0.7,
                     filter: 'blur(4px)',
@@ -151,15 +152,10 @@ function LogList (){
                     }
                   }}
                 >
-                  <div className="entry-food-name">{pendingFood.name}</div>
-                  <div className="entry-food-amt">
-                    -- <div className="log-unit">g</div>
-                  </div>
-                  <div className="entry-date">{formatTime(new Date(pendingFood.timestamp))}</div>
+                  <MealLoading/>
                 </motion.div>
               </div>
             ))}
-
             {/* Render each log (each log is a recipe/meal entry) */}
             {sortedLogs.map((log) => {
               // Skip logs without components array (old format)

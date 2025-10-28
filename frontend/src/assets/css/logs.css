@@ -144,6 +144,25 @@
   box-sizing: border-box;
 }
 
+.loading-recipe-bubble {
+  display: flex;
+  width: var(--modal-width);
+  margin-bottom: 20px;
+  flex-direction: row;
+  align-self: center;
+  align-items: start;
+  font-family: Inconsolata;
+  -webkit-overflow-scrolling: touch; /* Enables smooth scrolling on mobile */
+  scrollbar-width: none; /* For Firefox */
+  border-radius: 14px;
+  background-color: var(--purple);
+  color: var(--white);
+  justify-content: flex-start;
+  transition: all 0.1s ease;
+  box-sizing: border-box;
+}
+
+
 .recipe-bubble::-webkit-scrollbar {
   display: none; /* Hides scrollbar for WebKit browsers */
 }

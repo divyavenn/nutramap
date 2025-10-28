@@ -45,6 +45,18 @@ function NewSmartLog() {
     setIsSubmitting(true);
     setIsJiggling(true);
 
+    // Add to pending foods immediately
+    const pendingMeal: PendingFood = {
+      name: mealDescription,
+      timestamp: new Date().toISOString()
+    };
+    console.log('Adding pending meal:', pendingMeal);
+    setPendingFoods(prev => {
+      const updated = [...prev, pendingMeal];
+      console.log('Updated pending foods:', updated);
+      return updated;
+    });
+
     // Use the new recipe parsing endpoint
     try {
       const data = {
@@ -63,31 +75,16 @@ function NewSmartLog() {
       setIsJiggling(false);
       setIsSubmitting(false);
 
-      if (response && response.body && response.body.recipes) {
-        // Extract all recipe descriptions for pending state
-        const pendingRecipes: PendingFood[] = response.body.recipes.flatMap((recipe: any) =>
-          recipe.ingredients.map((ing: any) => ({
-            name: recipe.description + ' - ' + (ing.food_name || 'ingredient'),
-            timestamp: new Date().toISOString()
-          }))
-        );
-
-        // Set pending foods to show blur effect
-        setPendingFoods(pendingRecipes);
-
-        // Refresh logs after a short delay to show the new recipe-grouped logs
-        setTimeout(() => {
-          setPendingFoods([]);
-          refreshLogs();
-        }, 1000);
-      } else {
-        // Fallback to immediate refresh
-        refreshLogs();
-      }
+      // Remove from pending and refresh logs
+      setPendingFoods(prev => prev.filter(p => p.timestamp !== pendingMeal.timestamp));
+      refreshLogs();
     } catch (error) {
       console.error('Error parsing meal:', error);
       setIsJiggling(false);
       setIsSubmitting(false);
+
+      // Remove from pending on error
+      setPendingFoods(prev => prev.filter(p => p.timestamp !== pendingMeal.timestamp));
       // Still refresh to show any partial results
       refreshLogs();
     }

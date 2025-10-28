@@ -5,7 +5,7 @@ function MealLoading({} : {}) {
 
   return (
     <div
-      className='recipe-bubble'
+      className='loading-recipe-bubble'
     >
       <span className='food-name-space'>
         <AnimatedText text="Loading..." />
