@@ -39,12 +39,12 @@ function Header({linkIcons} : {linkIcons? : PageLinkIcon[]}) {
   const location = useLocation();
   const isTrial = useRecoilValue(isTrialUserAtom);
 
-  // Filter out account page link for trial users
-  const filteredLinkIcons = linkIcons?.filter(link => {
+  // For trial users, redirect account link to login page
+  const processedLinkIcons = linkIcons?.map(link => {
     if (isTrial && link.to === '/account') {
-      return false; // Hide account link for trial users
+      return { ...link, to: '/login' }; // Redirect account icon to login page for trial users
     }
-    return true;
+    return link;
   });
 
   return (
@@ -56,8 +56,8 @@ function Header({linkIcons} : {linkIcons? : PageLinkIcon[]}) {
       <div className="nutra header">nutramap</div>
       </Link>
       <div style = {{width : '80%'}} ></div>
-      {filteredLinkIcons &&
-        filteredLinkIcons.map((link) => {
+      {processedLinkIcons &&
+        processedLinkIcons.map((link) => {
           const isActive = location.pathname === link.to;
           return (
           <Link key={link.to}
