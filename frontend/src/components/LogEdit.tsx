@@ -31,6 +31,7 @@ function EditLogForm({food_name, date, amount, weight_in_grams, _id, componentIn
   const [deleted, setDeleted] = useState(false)
   const [formData, setFormData] = useState({
     food_name : food_name,
+    food_id: null as string | null, // Store the food_id from autocomplete
     amount: amount || `${weight_in_grams}g`,
     weight_in_grams : String(weight_in_grams),
     date : date,
@@ -42,7 +43,7 @@ function EditLogForm({food_name, date, amount, weight_in_grams, _id, componentIn
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null); // Timer for debouncing autocomplete
 
-  const [suggestions, setSuggestions] = useState<string[]>([]); // State for filtered suggestions
+  const [suggestions, setSuggestions] = useState<Array<{food_id: string, food_name: string}>>([]); // State for filtered suggestions
   const [showSuggestions, setShowSuggestions] = useState(false); // Control the visibility of suggestions
   const [showCalendar, setShowCalendar] = useState(false)
   const [validInput, markValidInput] = useState(true)
@@ -120,7 +121,7 @@ useEffect(() => {
       if (response.body) {
         setSuggestions(response.body);
         setShowSuggestions(value.length > 0 && response.body.length > 0);
-        markValidInput(response.body.includes(value));
+        markValidInput(response.body.some((item: {food_id: string, food_name: string}) => item.food_name === value));
       }
     } catch (error) {
       console.error('Error fetching autocomplete suggestions:', error);
@@ -297,7 +298,7 @@ useEffect(() => {
           if (response.body) {
             setSuggestions(response.body);
             setShowSuggestions(value.length > 0 && response.body.length > 0);
-            markValidInput(response.body.includes(value));
+            markValidInput(response.body.some((item: {food_id: string, food_name: string}) => item.food_name === value));
           }
         } catch (error) {
           console.error('Error fetching autocomplete suggestions:', error);
@@ -309,12 +310,13 @@ useEffect(() => {
     }
   };
 
-  const handleSuggestionClick = (suggestion: string) => {
+  const handleSuggestionClick = (suggestion: {food_id: string, food_name: string}) => {
     markValidInput(true)
-    // Update the formData with the selected suggestion
+    // Update the formData with the selected suggestion, including the food_id
     setFormData({
       ...formData,
-      food_name: suggestion,
+      food_name: suggestion.food_name,
+      food_id: suggestion.food_id, // Store the food_id from autocomplete
     });
     setShowSuggestions(false); // Hide suggestions after selection
   };
@@ -337,6 +339,11 @@ useEffect(() => {
       formDataObj.append('log_id', _id);
       formDataObj.append('food_name', formData.food_name);
       formDataObj.append('amount', formData.amount);
+
+      // If we have a food_id from autocomplete, pass it to the backend
+      if (formData.food_id) {
+        formDataObj.append('food_id', formData.food_id);
+      }
 
       let response;
 
@@ -508,12 +515,12 @@ useEffect(() => {
                 onMouseMove={handleMouseEvent}
               >
                 {suggestions.map((suggestion, index) => (
-                  <li key={suggestion}
+                  <li key={suggestion.food_id}
                       onClick={() => handleSuggestionClick(suggestion)}
                       className={`suggestion-item ${index === selectedSuggestionIndex ? 'selected' : ''}`}
                       onMouseEnter={() => setSelectedSuggestionIndex(index)}
                   >
-                    {suggestion}
+                    {suggestion.food_name}
                   </li>
                 ))}
               </ul>

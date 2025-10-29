@@ -383,12 +383,13 @@ async def edit_component(
     log_id: str = Form(...),
     component_index: int = Form(...),
     food_name: str = Form(...),
-    amount: str = Form(...)
+    amount: str = Form(...),
+    food_id: str = Form(None)  # Optional: food_id from autocomplete
 ):
     """
     Edit a specific component within a log.
     Updates the food and/or amount for that component.
-    If the log has a recipe_id, also update that recipe.
+    Unlinks from recipe if recipe_id exists.
     """
     # Check if the log exists and belongs to the user
     target_log = db.logs.find_one({"_id": ObjectId(log_id), "user_id": ObjectId(user["_id"])})
@@ -400,30 +401,51 @@ async def edit_component(
     if "components" not in target_log or component_index >= len(target_log["components"]):
         raise HTTPException(status_code=400, detail="Invalid component index.")
 
-    # Get the food_id from the food name using RRF fusion
-    from src.routers.match import rrf_fusion, get_sparse_index
-    from src.routers.dense import find_dense_matches
+    # Get the original component
+    original_component = target_log["components"][component_index]
 
-    matches = await rrf_fusion(
-        get_sparse_index, [food_name, db, user, 60, 50],
-        find_dense_matches, [food_name, db, user, None, 40, 50],
-        k=30,
-        n=1
-    )
+    # Determine the new food_id
+    if food_id:
+        # Food ID was provided from autocomplete, use it directly
+        new_food_id = food_id
+        # Try to convert to int for USDA foods, but keep as string for custom foods
+        try:
+            new_food_id = int(new_food_id)
+        except (ValueError, TypeError):
+            # It's a custom food with ObjectId string, keep as is
+            pass
+    else:
+        # No food_id provided, check if food name changed
+        from src.routers.foods import get_food_name
+        original_food_name = get_food_name(original_component["food_id"], db, None)
+        food_changed = food_name.strip().lower() != original_food_name.strip().lower()
 
-    if not matches or len(matches) == 0:
-        raise HTTPException(status_code=404, detail="Food not found")
+        if food_changed:
+            # Search for the new food_id
+            from src.routers.match import rrf_fusion, get_sparse_index
+            from src.routers.dense import find_dense_matches
 
-    # Keep food_id as is - it could be int (USDA) or string (custom food)
-    new_food_id = matches[0]
-    # Try to convert to int for USDA foods, but keep as string for custom foods
-    try:
-        new_food_id = int(new_food_id)
-    except (ValueError, TypeError):
-        # It's a custom food with ObjectId string, keep as is
-        pass
+            matches = await rrf_fusion(
+                get_sparse_index, [food_name, db, user, 60, 50],
+                find_dense_matches, [food_name, db, user, None, 40, 50],
+                k=30,
+                n=1
+            )
 
-    # Estimate grams for the new amount
+            if not matches or len(matches) == 0:
+                raise HTTPException(status_code=404, detail="Food not found")
+
+            new_food_id = matches[0]
+            # Try to convert to int for USDA foods
+            try:
+                new_food_id = int(new_food_id)
+            except (ValueError, TypeError):
+                pass
+        else:
+            # Food didn't change, keep the same food_id
+            new_food_id = original_component["food_id"]
+
+    # Always recalculate grams based on the amount
     from src.routers.parse import estimate_grams
     weight_in_grams = await estimate_grams(food_name, amount)
 
@@ -435,42 +457,22 @@ async def edit_component(
         "weight_in_grams": weight_in_grams
     }
 
+    # Prepare the update data
+    update_data = {"components": updated_components}
+
+    # If this log has a recipe_id, unlink it from the recipe
+    # When a user edits a component, they're customizing the meal, so it should no longer be linked to the recipe
+    if target_log.get("recipe_id"):
+        update_data["recipe_id"] = None
+
     # Update the log
     result = db.logs.update_one(
         {"_id": target_log["_id"]},
-        {"$set": {"components": updated_components}}
+        {"$set": update_data}
     )
 
     if result.matched_count == 0:
         raise HTTPException(status_code=500, detail="Something went wrong; component not updated.")
-
-    # If this log has a recipe_id, also update that recipe
-    if target_log.get("recipe_id"):
-        recipe_id = target_log["recipe_id"]
-        user_doc = db.users.find_one(
-            {"_id": user["_id"], "recipes.recipe_id": recipe_id}
-        )
-
-        if user_doc:
-            # Find the recipe and update the corresponding ingredient
-            for recipe in user_doc.get("recipes", []):
-                if recipe["recipe_id"] == recipe_id:
-                    if component_index < len(recipe.get("ingredients", [])):
-                        # Update the recipe ingredient
-                        update_result = db.users.update_one(
-                            {
-                                "_id": user["_id"],
-                                "recipes.recipe_id": recipe_id
-                            },
-                            {
-                                "$set": {
-                                    f"recipes.$.ingredients.{component_index}.food_id": new_food_id,
-                                    f"recipes.$.ingredients.{component_index}.food_name": food_name,
-                                    f"recipes.$.ingredients.{component_index}.amount": amount,
-                                    f"recipes.$.ingredients.{component_index}.weight_in_grams": weight_in_grams / target_log.get("servings", 1.0)
-                                }
-                            }
-                        )
 
     return {
         "status": "success",
