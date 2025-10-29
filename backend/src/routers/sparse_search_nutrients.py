@@ -43,7 +43,9 @@ async def sparse_search_nutrients(nutrient_name: str, threshold: float = 0.1, li
         for hit in search_results['hits']:
             nutrient_id = hit['document']['id']
             score = hit['text_match']
-            matches[nutrient_id] = score
+            # Exclude kJ Energy (ID: 1062) - we only want kcal Energy (ID: 1008)
+            if nutrient_id != '1062':
+                matches[nutrient_id] = score
 
         # Filter results by threshold
         filtered_matches = {nutrient_id: score for nutrient_id, score in matches.items() if score >= threshold}

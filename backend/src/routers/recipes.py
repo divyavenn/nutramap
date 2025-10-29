@@ -819,6 +819,86 @@ async def edit_recipe_ingredient(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/add-ingredient")
+async def add_recipe_ingredient(
+    user: user,
+    db: db,
+    recipe_id: str = Form(...),
+    food_name: str = Form(...),
+    amount: str = Form(...),
+    weight_in_grams: Optional[float] = Form(None),
+    food_id: Optional[str] = Form(None)
+):
+    """Add a new ingredient to a recipe"""
+    try:
+        # Get the recipe
+        user_data = db.users.find_one(
+            {"_id": user["_id"], "recipes.recipe_id": recipe_id},
+            {"recipes.$": 1}
+        )
+
+        if not user_data or "recipes" not in user_data or len(user_data["recipes"]) == 0:
+            raise HTTPException(status_code=404, detail="Recipe not found")
+
+        recipe = user_data["recipes"][0]
+        ingredients = recipe.get("ingredients", [])
+
+        # Use provided food_id if available, otherwise match the food_name
+        if food_id is None:
+            print(f"No food_id provided, matching '{food_name}' using RRF...")
+            food_id = await match_ingredient_to_food_id(food_name, db, user)
+            if not food_id:
+                raise HTTPException(status_code=404, detail=f"Could not match food: {food_name}")
+        else:
+            # Convert to appropriate type (int for USDA, keep string for custom foods)
+            try:
+                food_id = int(food_id)
+            except (ValueError, TypeError):
+                pass  # Keep as string for custom foods
+            print(f"Using provided food_id: {food_id}")
+
+        # Use provided weight_in_grams if given, otherwise estimate from amount
+        if weight_in_grams is None:
+            from src.routers.parse import estimate_grams
+            weight_in_grams = await estimate_grams(food_name, amount)
+
+        # Append the new ingredient to the list
+        new_ingredient = {
+            "food_id": food_id,
+            "food_name": food_name,
+            "amount": amount,
+            "weight_in_grams": weight_in_grams
+        }
+        ingredients.append(new_ingredient)
+
+        # Update the recipe in the database
+        result = db.users.update_one(
+            {"_id": user["_id"], "recipes.recipe_id": recipe_id},
+            {
+                "$set": {
+                    "recipes.$.ingredients": ingredients,
+                    "recipes.$.updated_at": datetime.now()
+                }
+            }
+        )
+
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Recipe not found")
+
+        return {
+            "status": "success",
+            "weight_in_grams": weight_in_grams,
+            "food_name": food_name,
+            "component_index": len(ingredients) - 1  # Return the index of the new ingredient
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error adding recipe ingredient: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.delete("/delete-ingredient")
 def delete_recipe_ingredient(
     user: user,

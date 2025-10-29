@@ -28,6 +28,21 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate }: RecipeCardProps) {
     fetchRecipeNutrition();
   }, [editedIngredients]);
 
+  const refreshRecipeData = async () => {
+    try {
+      // Fetch updated recipe data from the backend
+      const response = await request('/recipes/list', 'GET');
+      if (response.body && response.body.recipes) {
+        const updatedRecipe = response.body.recipes.find((r: Recipe) => r.recipe_id === recipe.recipe_id);
+        if (updatedRecipe) {
+          setEditedIngredients(updatedRecipe.ingredients);
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing recipe data:', error);
+    }
+  };
+
   const fetchRecipeNutrition = async () => {
     try {
       setLoadingNutrition(true);
@@ -75,12 +90,14 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate }: RecipeCardProps) {
     }
   };
 
-  const handleIngredientSave = () => {
+  const handleIngredientSave = async () => {
+    await refreshRecipeData();
     onUpdate();
     setEditingIndex(null);
   };
 
-  const handleIngredientDelete = () => {
+  const handleIngredientDelete = async () => {
+    await refreshRecipeData();
     onUpdate();
     setEditingIndex(null);
   };
@@ -111,16 +128,16 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate }: RecipeCardProps) {
                     onCancel={() => setEditingIndex(null)}
                   />
                 ))}
+              <EditIngredientForm
+                food_name={''}
+                amount={''}
+                weight_in_grams={0}
+                recipeId={recipe.recipe_id}
+                onSave={handleIngredientSave}
+                onDelete={handleIngredientDelete}
+                onCancel={() => setEditingIndex(null)}
+              />
           </div>
-          <EditIngredientForm
-              food_name={''}
-              amount={''}
-              weight_in_grams={0}
-              recipeId={recipe.recipe_id}
-              onSave={handleIngredientSave}
-              onDelete={handleIngredientDelete}
-              onCancel={() => setEditingIndex(null)}
-          />
 
           <div className="nutrition-section">
             <h3>Nutrition Facts (Per Recipe)</h3>

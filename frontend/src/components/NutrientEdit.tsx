@@ -1,4 +1,4 @@
-import React, {useState } from 'react' 
+import React, {useState, useEffect, useRef } from 'react' 
 import {request } from './endpoints';
 import '../assets/css/new_nutrient.css'
 import '../assets/css/buttons.css'
@@ -27,17 +27,95 @@ function NewNutrientForm({ original }: { original?: Nutrient }): React.ReactNode
   const [showSuggestions, setShowSuggestions] = useState(false); // Control the visibility of suggestions
   const [validInput, markValidInput] = useState(true)
   const [isDeleted, setIsDeleted] = useState(false)
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState<number>(-1);
   const refreshRequirements = useRefreshRequirements()
+  const suggestionsRef = useRef<HTMLUListElement>(null);
 
-  // Handle key down events for inputs
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // If Enter is pressed and not in the middle of selecting a suggestion
-    if (e.key === 'Enter' && (!showSuggestions || suggestions.length === 0)) {
+  // Reset selected suggestion index when suggestions change
+  useEffect(() => {
+    setSelectedSuggestionIndex(suggestions.length > 0 ? 0 : -1);
+  }, [suggestions]);
+
+  // Scroll selected suggestion into view when selection changes
+  useEffect(() => {
+    if (selectedSuggestionIndex >= 0 && suggestionsRef.current) {
+      const suggestionsContainer = suggestionsRef.current;
+      const selectedElement = suggestionsContainer.querySelector(`.nutrient-suggestion-item:nth-child(${selectedSuggestionIndex + 1})`) as HTMLElement;
+
+      if (selectedElement) {
+        // Calculate if the element is outside the visible area
+        const containerTop = suggestionsContainer.scrollTop;
+        const containerBottom = containerTop + suggestionsContainer.clientHeight;
+        const elementTop = selectedElement.offsetTop;
+        const elementBottom = elementTop + selectedElement.offsetHeight;
+
+        // Scroll if the element is not fully visible
+        if (elementTop < containerTop) {
+          // Element is above visible area
+          suggestionsContainer.scrollTop = elementTop;
+        } else if (elementBottom > containerBottom) {
+          // Element is below visible area
+          suggestionsContainer.scrollTop = elementBottom - suggestionsContainer.clientHeight;
+        }
+      }
+    }
+  }, [selectedSuggestionIndex]);
+
+  // Handle keyboard navigation for nutrient name input
+  const handleNutrientNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showSuggestions) {
+      // No suggestions showing, just submit on Enter
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (formData.nutrient_name && formData.requirement && validInput) {
+          submitForm();
+        }
+      }
+      return;
+    }
+
+    // Handle navigation when suggestions are showing
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setSelectedSuggestionIndex(prev =>
+          prev < suggestions.length - 1 ? prev + 1 : prev
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setSelectedSuggestionIndex(prev =>
+          prev > 0 ? prev - 1 : prev
+        );
+        break;
+      case 'Tab':
+        e.preventDefault();
+        if (selectedSuggestionIndex >= 0) {
+          handleSuggestionClick(suggestions[selectedSuggestionIndex]);
+        }
+        break;
+      case 'Enter':
+        e.preventDefault();
+        // If a suggestion is selected, use it
+        if (selectedSuggestionIndex >= 0) {
+          handleSuggestionClick(suggestions[selectedSuggestionIndex]);
+        } else if (validInput && formData.requirement) {
+          // Otherwise, submit if valid
+          submitForm();
+        }
+        break;
+      case 'Escape':
+        e.preventDefault();
+        setShowSuggestions(false);
+        break;
+    }
+  };
+
+  // Handle Enter key on requirement input
+  const handleRequirementKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
       e.preventDefault();
-      
-      // Check if form is valid before submitting
       if (formData.nutrient_name && formData.requirement && validInput) {
-        // Call the submission logic directly
         submitForm();
       }
     }
@@ -74,10 +152,10 @@ function NewNutrientForm({ original }: { original?: Nutrient }): React.ReactNode
       [name] : value, // this works because the form variables match the names of the input fields
     })
 
-    //for the food name input
-    if (name === 'nutrient_name') { 
+    //for the nutrient name input
+    if (name === 'nutrient_name') {
       markValidInput(value in nutrientList)
-      // Filter the foodList to match the input value
+      // Filter the nutrientList to match the input value
       const filteredNutrients = Object.keys(nutrientList).filter(n =>
         n.toLowerCase().includes(value.toLowerCase())
       );
@@ -132,7 +210,7 @@ function NewNutrientForm({ original }: { original?: Nutrient }): React.ReactNode
           placeholder='nutrient'
           value = {formData.nutrient_name}
           onChange={handleTyping}
-          onKeyDown={handleKeyDown}
+          onKeyDown={handleNutrientNameKeyDown}
           required
         ></input>
       </div>
@@ -153,7 +231,7 @@ function NewNutrientForm({ original }: { original?: Nutrient }): React.ReactNode
           placeholder='0'
           value = {formData.requirement}
           onChange={handleTyping}
-          onKeyDown={handleKeyDown}
+          onKeyDown={handleRequirementKeyDown}
           required
         ></input>
         <span className="nutrient-unit">
@@ -175,11 +253,12 @@ function NewNutrientForm({ original }: { original?: Nutrient }): React.ReactNode
 
       </div>
       {showSuggestions && (
-            <ul className="nutrient-suggestions-list">
-              {suggestions.map(suggestion => (
+            <ul className="nutrient-suggestions-list" ref={suggestionsRef}>
+              {suggestions.map((suggestion, index) => (
                 <li key={suggestion}
-                    className="nutrient-suggestion-item"
-                    onClick={() => handleSuggestionClick(suggestion)}>
+                    className={`nutrient-suggestion-item ${index === selectedSuggestionIndex ? 'selected' : ''}`}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    onMouseEnter={() => setSelectedSuggestionIndex(index)}>
                   {suggestion}
                 </li>
               ))}

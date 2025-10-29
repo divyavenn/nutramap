@@ -86,6 +86,12 @@
   color: #1e002e;
 }
 
+/* Selected suggestion (keyboard navigation) */
+.nutrient-suggestion-item.selected {
+  background-color: #ffffffa1;
+  color: #1e002e;
+}
+
 .new-nutrient-name-wrapper {
   position: relative;
   display: block;

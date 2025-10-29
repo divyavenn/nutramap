@@ -1,5 +1,5 @@
 import React from "react"
-
+import { motion } from 'framer-motion';
 
 interface WordsProps{
   words : string
@@ -7,15 +7,8 @@ interface WordsProps{
 
 function Title() {
   return (
-  <div className="nutramap-title-staggered">
-    <div className="nutra">nutra</div>
-    <div className="map">map</div>
-  </div>
+  <div className="nutra">nutrachat</div>
   )
-}
-
-function Subtitle() {
-  return (<div className="nutramap-subtitle">effortlessly track what you eat.</div>)
 }
 
 function Heading({words} : WordsProps) {
@@ -25,4 +18,4 @@ function Heading({words} : WordsProps) {
   )
 }
 
-export {Subtitle, Title, Heading}
+export {Title, Heading}

@@ -35,12 +35,20 @@ function EditIngredientForm({food_name, amount, weight_in_grams, food_id, compon
 
   const [suggestions, setSuggestions] = useState<Array<{food_id: string, food_name: string}>>([]); // State for filtered suggestions
   const [showSuggestions, setShowSuggestions] = useState(false); // Control the visibility of suggestions
-  const [showCalendar, setShowCalendar] = useState(false)
-  const [validInput, markValidInput] = useState(true)
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState<number>(-1); // Track selected suggestion
 
   // Create a ref for the suggestions container
   const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  // Sync form state with props when they change (e.g., after parent refreshes data)
+  useEffect(() => {
+    setFormData({
+      food_name: food_name,
+      amount: amount || '' || `${weight_in_grams}g`,
+      weight_in_grams: String(weight_in_grams) || '',
+      food_id: food_id ? String(food_id) : undefined,
+    });
+  }, [food_name, amount, weight_in_grams, food_id]);
 
   // Auto-adjust textarea height based on content
   useEffect(() => {
@@ -111,14 +119,11 @@ useEffect(() => {
       if (response.body) {
         setSuggestions(response.body);
         setShowSuggestions(value.length > 0 && response.body.length > 0);
-        // Check if any suggestion matches the input value exactly
-        markValidInput(response.body.some((item: any) => item.food_name === value));
       }
     } catch (error) {
       console.error('Error fetching autocomplete suggestions:', error);
       setSuggestions([]);
       setShowSuggestions(false);
-      markValidInput(false);
     }
   };
   
@@ -209,6 +214,15 @@ useEffect(() => {
     }
   };
 
+  // Handle Enter key on weight field - submit with manual weight
+  const handleWeightKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      // Trigger blur to save the manual weight
+      (e.target as HTMLInputElement).blur();
+    }
+  };
+
   const handleTyping = async (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
 
@@ -227,7 +241,6 @@ useEffect(() => {
       if (!value.trim()) {
         setSuggestions([]);
         setShowSuggestions(false);
-        markValidInput(false);
         return;
       }
 
@@ -238,14 +251,11 @@ useEffect(() => {
           if (response.body) {
             setSuggestions(response.body);
             setShowSuggestions(value.length > 0 && response.body.length > 0);
-            // Check if any suggestion matches the input value exactly
-            markValidInput(response.body.some((item: any) => item.food_name === value));
           }
         } catch (error) {
           console.error('Error fetching autocomplete suggestions:', error);
           setSuggestions([]);
           setShowSuggestions(false);
-          markValidInput(false);
         }
       }, 300); // 300ms debounce delay
     }
@@ -285,7 +295,6 @@ useEffect(() => {
   };
 
   const handleSuggestionClick = (suggestion: {food_id: string, food_name: string}) => {
-    markValidInput(true)
     // Update the formData with the selected suggestion, including the food_id
     setFormData({
       ...formData,
@@ -308,34 +317,48 @@ useEffect(() => {
       const formDataObj = new FormData();
       formDataObj.append('food_name', formData.food_name || '');
       formDataObj.append('amount', formData.amount);
-      formDataObj.append('weight_in_grams', formData.weight_in_grams);
+      // Don't send weight_in_grams - let the backend estimate it from amount
+      // The weight field is only used for display and manual blur updates
       if (formData.food_id) {
         formDataObj.append('food_id', formData.food_id); // Send food_id to skip RRF matching
       }
 
       let response: any = undefined;
 
-      // Editing a recipe ingredient
-      if (recipeId && componentIndex !== undefined) {
+      // Editing or adding a recipe ingredient
+      if (recipeId) {
         formDataObj.append('recipe_id', recipeId);
-        formDataObj.append('component_index', String(componentIndex));
-        response = await request('/recipes/edit-ingredient', 'POST', formDataObj);
+
+        if (componentIndex !== undefined) {
+          // Editing existing ingredient
+          formDataObj.append('component_index', String(componentIndex));
+          response = await request('/recipes/edit-ingredient', 'POST', formDataObj);
+        } else {
+          // Adding new ingredient
+          response = await request('/recipes/add-ingredient', 'POST', formDataObj);
+        }
       }
 
       // If successful, update the grams in local state
-      if (response.status === 200 && response.body) {
-        setFormData(prev => ({
-          ...prev,
-          weight_in_grams: String(response.body.weight_in_grams)
-        }));
+      if (response && response.status === 200 && response.body) {
+        // Call optional onSave callback FIRST to refresh parent component
+        if (onSave) {
+          await onSave();
+        }
+
+        // For new ingredients, clear the form
+        // For existing ingredients, the parent refresh will update the display
+        if (componentIndex === undefined) {
+          setFormData({
+            food_name: '',
+            amount: '',
+            weight_in_grams: '',
+            food_id: undefined
+          });
+        }
       }
 
       refreshLogs();
-
-      // Call optional onSave callback if provided
-      if (onSave) {
-        onSave();
-      }
 
       // Reset the submission state after a short delay to show the animation
       setTimeout(() => {
@@ -431,7 +454,7 @@ useEffect(() => {
                 value={formData.weight_in_grams}
                 onChange={handleTyping}
                 onBlur={handleWeightBlur}
-                onKeyDown={handleInputKeyDown}
+                onKeyDown={handleWeightKeyDown}
                 required/>
                 <S.AlignedText> g </S.AlignedText>
             </S.FoodWeightSpace>

@@ -1698,7 +1698,7 @@ label {
   margin-top: 0;
   padding-top: 0;
   padding-bottom: 0;
-  font-family: Georgia, Times, Times New Roman, serif;
+  font-family: Geist Mono;
   font-size: 80px;
   font-weight: 400;
 }
@@ -1716,6 +1716,7 @@ label {
   font-family: Georgia, Times, Times New Roman, serif;
   font-size: 30px;
 }
+
 .link {
   grid-column-gap: 0px;
   grid-row-gap: 0px;
