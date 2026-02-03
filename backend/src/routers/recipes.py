@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Form
+from fastapi import APIRouter, Depends, HTTPException, Form, BackgroundTasks
 from pymongo.database import Database
 from typing import List, Dict, Optional, Tuple, Union
 from typing_extensions import Annotated
@@ -355,16 +355,168 @@ Output:
         raise HTTPException(status_code=500, detail=f"Failed to identify recipes: {str(e)}")
 
 
+async def process_recipes_in_background(
+    identified_recipes: List[dict],
+    user_id: ObjectId,
+    user_recipes: List[dict],
+    meal_date: datetime,
+    db: Database
+):
+    """
+    Process recipes in the background: match ingredients, generate embeddings, create logs.
+    This is the heavy lifting that happens after returning to the user.
+    """
+    try:
+        print(f"=== Background processing started for {len(identified_recipes)} recipes ===")
+
+        for recipe_data in identified_recipes:
+            recipe_id = recipe_data.get("recipe_id")
+            description = recipe_data["description"]
+            servings = recipe_data.get("recipe_servings", 1.0)
+            timestamp_str = recipe_data.get("timestamp", meal_date.isoformat())
+
+            # Parse the timestamp from GPT response
+            try:
+                timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+            except (ValueError, AttributeError):
+                timestamp = meal_date
+
+            print(f"Processing recipe '{description}': using timestamp {timestamp}")
+
+            # Check if this matches an existing recipe
+            if recipe_id:
+                # Find the existing recipe
+                existing_recipe = next(
+                    (r for r in user_recipes if r["recipe_id"] == recipe_id),
+                    None
+                )
+
+                if existing_recipe:
+                    # Use existing recipe's ingredients (no need to run RRF again!)
+                    ingredients_to_log = existing_recipe["ingredients"]
+                    print(f"✓ Using cached recipe '{description}' with {len(ingredients_to_log)} ingredients")
+                else:
+                    # Recipe ID not found, treat as new
+                    recipe_id = None
+                    ingredients_to_log = recipe_data.get("ingredients", [])
+            else:
+                # New recipe - generate UUID and create it
+                recipe_id = str(uuid.uuid4())
+                ingredients_raw = recipe_data.get("ingredients", [])
+
+                # If no ingredients provided, generate them
+                if not ingredients_raw:
+                    print(f"→ New recipe '{description}' - running ingredient matching...")
+                    parsed_ingredients = await parse_recipe_into_ingredients(description)
+                    ingredients_to_log = []
+
+                    for ing in parsed_ingredients:
+                        food_id = await match_ingredient_to_food_id(ing["food_name"], db, {"_id": user_id})
+                        if food_id:
+                            weight = await estimate_grams(ing["food_name"], ing["amount"])
+                            matched_food_name = get_food_name(food_id, db, None)
+                            ingredients_to_log.append({
+                                "food_id": food_id,
+                                "food_name": matched_food_name,
+                                "amount": ing["amount"],
+                                "weight_in_grams": weight
+                            })
+                else:
+                    # Ingredients provided by GPT - match them to food_ids
+                    print(f"→ Matching {len(ingredients_raw)} ingredients from GPT to database...")
+                    ingredients_to_log = []
+                    for ing in ingredients_raw:
+                        food_name_gpt = ing.get("food_name", "")
+                        amount = ing.get("amount", "")
+                        weight = ing.get("weight_in_grams", 0)
+
+                        food_id = await match_ingredient_to_food_id(food_name_gpt, db, {"_id": user_id})
+                        if food_id:
+                            matched_food_name = get_food_name(food_id, db, None)
+                            print(f"  ✓ Matched '{food_name_gpt}' to: {matched_food_name} (ID: {food_id})")
+                            ingredients_to_log.append({
+                                "food_id": food_id,
+                                "food_name": matched_food_name,
+                                "amount": amount,
+                                "weight_in_grams": weight
+                            })
+                        else:
+                            print(f"  ✗ Could not match '{food_name_gpt}'")
+
+                # Generate embedding
+                embedding = await generate_recipe_embedding(description)
+
+                # Create new recipe in user's recipes
+                new_recipe = {
+                    "recipe_id": recipe_id,
+                    "description": description,
+                    "embedding": embedding,
+                    "ingredients": ingredients_to_log,
+                    "created_at": timestamp,
+                    "updated_at": datetime.now()
+                }
+
+                # Add to user's recipes
+                db.users.update_one(
+                    {"_id": user_id},
+                    {"$push": {"recipes": new_recipe}}
+                )
+
+            # Create a single log entry with all ingredients as components
+            print(f"Creating log for recipe '{description}' with {len(ingredients_to_log)} ingredients")
+
+            # Prepare components with actual amounts based on servings
+            components = []
+            for ingredient in ingredients_to_log:
+                food_id = ingredient.get("food_id")
+                if not food_id and "food_name" in ingredient:
+                    food_id = await match_ingredient_to_food_id(ingredient["food_name"], db, {"_id": user_id})
+
+                if food_id:
+                    actual_weight = ingredient["weight_in_grams"] * servings
+                    from src.routers.parse import scale_portion_text
+                    scaled_amount = scale_portion_text(ingredient["amount"], servings)
+                    components.append({
+                        "food_id": food_id,
+                        "amount": scaled_amount,
+                        "weight_in_grams": actual_weight
+                    })
+                    print(f"  Component: food_id={food_id}, amount={scaled_amount}, weight={actual_weight}")
+
+            # Only create log if we have at least one valid component
+            if components:
+                log_dict = {
+                    "recipe_id": recipe_id,
+                    "meal_name": description,
+                    "servings": servings,
+                    "date": timestamp,
+                    "components": components,
+                    "user_id": user_id,
+                    "_id": ObjectId()
+                }
+
+                print(f"Creating log: recipe_id={recipe_id}, {len(components)} components, {servings} servings")
+                await add_log({"_id": user_id}, log_dict, db)
+
+        print(f"=== Background processing completed successfully ===")
+
+    except Exception as e:
+        import traceback
+        print(f"Error in background recipe processing: {e}")
+        print(f"Traceback: {traceback.format_exc()}")
+
+
 @router.post("/parse-meal")
 async def parse_meal(
     user: user,
     db: db,
+    background_tasks: BackgroundTasks,
     meal_description: str = Form(...),
     date: str = Form(None)
 ):
     """
     Parse a meal description into recipes and their ingredients.
-    Creates logs for all ingredients.
+    Returns immediately with recipe info, then processes ingredients in background.
     """
     try:
         print(f"=== parse_meal called ===")
@@ -387,167 +539,37 @@ async def parse_meal(
         user_recipes = user_doc.get("recipes", []) if user_doc else []
 
         # Get user's custom foods
-        user_custom_foods = await get_user_custom_foods(db, user) 
+        user_custom_foods = await get_user_custom_foods(db, user)
 
-        # Identify recipes in the meal
+        # Identify recipes in the meal (this is fast - just GPT parsing)
         identified_recipes = await identify_recipes_from_meal(meal_description, user_recipes, user_custom_foods)
         print(f"identified_recipes: {identified_recipes}")
 
-        result_recipes = []
-
-        for recipe_data in identified_recipes:
-            recipe_id = recipe_data.get("recipe_id")
-            description = recipe_data["description"]
-            servings = recipe_data.get("recipe_servings", 1.0)
-            timestamp_str = recipe_data.get("timestamp", meal_date.isoformat())
-
-            # Parse the timestamp from GPT response
-            try:
-                timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-            except (ValueError, AttributeError):
-                timestamp = meal_date
-
-            print(f"Recipe '{description}': using timestamp {timestamp}")
-
-            # Check if this matches an existing recipe
-            if recipe_id:
-                # Find the existing recipe
-                existing_recipe = next(
-                    (r for r in user_recipes if r["recipe_id"] == recipe_id),
-                    None
-                )
-
-                if existing_recipe:
-                    # Use existing recipe's ingredients (no need to run RRF again!)
-                    ingredients_to_log = existing_recipe["ingredients"]
-                    matched_existing = True
-                    print(f"✓ Using cached recipe '{description}' with {len(ingredients_to_log)} ingredients")
-                else:
-                    # Recipe ID not found, treat as new
-                    recipe_id = None
-                    ingredients_to_log = recipe_data.get("ingredients", [])
-                    matched_existing = False
-            else:
-                # New recipe - generate UUID and create it
-                recipe_id = str(uuid.uuid4())
-                ingredients_raw = recipe_data.get("ingredients", [])
-                matched_existing = False
-
-                # If no ingredients provided, generate them
-                if not ingredients_raw:
-                    print(f"→ New recipe '{description}' - running ingredient matching...")
-                    parsed_ingredients = await parse_recipe_into_ingredients(description)
-                    ingredients_to_log = []
-
-                    for ing in parsed_ingredients:
-                        food_id = await match_ingredient_to_food_id(ing["food_name"], db, user)
-                        if food_id:
-                            weight = await estimate_grams(ing["food_name"], ing["amount"])
-                            # Get the actual food name from the database for the matched food_id
-                            matched_food_name = get_food_name(food_id, db, None)
-                            ingredients_to_log.append({
-                                "food_id": food_id,
-                                "food_name": matched_food_name,
-                                "amount": ing["amount"],
-                                "weight_in_grams": weight
-                            })
-                else:
-                    # Ingredients provided by GPT - match them to food_ids and get actual food names
-                    print(f"→ Matching {len(ingredients_raw)} ingredients from GPT to database...")
-                    ingredients_to_log = []
-                    for ing in ingredients_raw:
-                        food_name_gpt = ing.get("food_name", "")
-                        amount = ing.get("amount", "")
-                        weight = ing.get("weight_in_grams", 0)
-
-                        # Match the GPT food name to a food_id
-                        food_id = await match_ingredient_to_food_id(food_name_gpt, db, user)
-                        if food_id:
-                            # Get the actual food name from the database
-                            matched_food_name = get_food_name(food_id, db, None)
-                            print(f"  ✓ Matched '{food_name_gpt}' to: {matched_food_name} (ID: {food_id})")
-                            ingredients_to_log.append({
-                                "food_id": food_id,
-                                "food_name": matched_food_name,  # Use database food name
-                                "amount": amount,
-                                "weight_in_grams": weight
-                            })
-                        else:
-                            print(f"  ✗ Could not match '{food_name_gpt}'")
-
-                # Generate embedding
-                embedding = await generate_recipe_embedding(description)
-
-                # Create new recipe in user's recipes
-                new_recipe = {
-                    "recipe_id": recipe_id,
-                    "description": description,
-                    "embedding": embedding,
-                    "ingredients": ingredients_to_log,
-                    "created_at": timestamp,  # Use GPT-parsed timestamp
-                    "updated_at": datetime.now()
-                }
-
-                # Add to user's recipes
-                db.users.update_one(
-                    {"_id": user["_id"]},
-                    {"$push": {"recipes": new_recipe}}
-                )
-
-            # Create a single log entry with all ingredients as components
-            print(f"Creating log for recipe '{description}' with {len(ingredients_to_log)} ingredients")
-
-            # Prepare components with actual amounts based on servings
-            components = []
-            for ingredient in ingredients_to_log:
-                # Match food_id if not already present
-                food_id = ingredient.get("food_id")
-                if not food_id and "food_name" in ingredient:
-                    food_id = await match_ingredient_to_food_id(ingredient["food_name"], db, user)
-
-                if food_id:
-                    # Calculate actual amount based on servings
-                    actual_weight = ingredient["weight_in_grams"] * servings
-                    components.append({
-                        "food_id": food_id,
-                        "amount": ingredient["amount"],
-                        "weight_in_grams": actual_weight
-                    })
-                    print(f"  Component: food_id={food_id}, amount={ingredient['amount']}, weight={actual_weight}")
-                else:
-                    print(f"  Skipping ingredient (no food_id found): {ingredient}")
-
-            # Only create log if we have at least one valid component
-            if components:
-                log_dict = {
-                    "recipe_id": recipe_id,  # Always store recipe_id (for both new and existing recipes)
-                    "meal_name": description,
-                    "servings": servings,
-                    "date": timestamp,  # Use the timestamp parsed from GPT response
-                    "components": components,
-                    "user_id": user["_id"],
-                    "_id": ObjectId()
-                }
-
-                print(f"Creating log: recipe_id={recipe_id}, {len(components)} components, {servings} servings")
-                await add_log(user, log_dict, db)
-
-            result_recipes.append({
-                "recipe_id": recipe_id,
-                "description": description,
-                "matched_existing": matched_existing,
-                "recipe_servings": servings,
-                "components": components
-            })
-
+        # Return immediately with recipe count and info
         response_data = {
-            "status": "success",
-            "recipes": result_recipes,
-            "created_logs_count": len(result_recipes),  # Now one log per recipe
-            "new_recipes_count": sum(1 for r in result_recipes if not r["matched_existing"])
+            "status": "processing",
+            "recipe_count": len(identified_recipes),
+            "recipes": [
+                {
+                    "description": r["description"],
+                    "servings": r.get("recipe_servings", 1.0),
+                    "matched_existing": r.get("recipe_id") is not None
+                }
+                for r in identified_recipes
+            ]
         }
-        print(f"=== parse_meal completed successfully ===")
-        print(f"Response: {response_data}")
+
+        # Queue background processing for ingredient matching and logging
+        background_tasks.add_task(
+            process_recipes_in_background,
+            identified_recipes,
+            user["_id"],
+            user_recipes,
+            meal_date,
+            db
+        )
+
+        print(f"=== parse_meal returning immediately (processing in background) ===")
         return response_data
 
     except Exception as e:

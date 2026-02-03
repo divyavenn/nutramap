@@ -72,9 +72,9 @@ function Foods() {
       fetchFoods();
     };
 
-    document.addEventListener('food-added', handleFoodAdded);
+    window.addEventListener('food-added', handleFoodAdded);
     return () => {
-      document.removeEventListener('food-added', handleFoodAdded);
+      window.removeEventListener('food-added', handleFoodAdded);
     };
   }, []);
 

@@ -73,3 +73,57 @@ async def estimate_grams(food_name: str, portion: str) -> float:
         # Return a default value as fallback
         return 100.0
 
+
+def scale_portion_text(portion: str, multiplier: float) -> str:
+    """Scale a portion text by a multiplier (e.g., "1/2 cup" * 0.5 = "1/4 cup")"""
+    from fractions import Fraction
+    import re
+
+    try:
+        # Handle simple cases
+        if multiplier == 1.0:
+            return portion
+
+        # Parse the portion text to find numbers (including fractions)
+        # Match patterns like: "1/2", "1", "2.5", etc. followed by a unit
+        pattern = r'([\d./]+)\s*(.+)'
+        match = re.match(pattern, portion.strip())
+
+        if match:
+            amount_str = match.group(1)
+            unit = match.group(2)
+
+            # Convert to fraction and multiply
+            try:
+                # Handle fractions like "1/2" or decimals like "2.5"
+                if '/' in amount_str:
+                    amount = float(Fraction(amount_str))
+                else:
+                    amount = float(amount_str)
+
+                scaled_amount = amount * multiplier
+
+                # Convert back to a nice fraction if possible
+                fraction = Fraction(scaled_amount).limit_denominator(16)
+
+                # Format nicely
+                if fraction.denominator == 1:
+                    return f"{fraction.numerator} {unit}"
+                else:
+                    # If there's a whole part, show it
+                    if fraction.numerator > fraction.denominator:
+                        whole = fraction.numerator // fraction.denominator
+                        remainder = Fraction(fraction.numerator % fraction.denominator, fraction.denominator)
+                        return f"{whole} {remainder} {unit}"
+                    else:
+                        return f"{fraction} {unit}"
+            except:
+                pass
+
+        # Fallback: just show the weight in grams instead
+        return portion
+
+    except Exception as e:
+        print(f"Error scaling portion text: {e}")
+        return portion
+

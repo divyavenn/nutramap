@@ -1012,11 +1012,11 @@ async def process_food_images(
 
 @router.post("/add_custom_food")
 async def add_custom_food(
+    request: Request,
     name: str = Form(...),
     nutrients: str = Form("[]"),
     user: dict = Depends(get_current_user),
-    db: Database = Depends(get_data),
-    request: Request = None
+    db: Database = Depends(get_data)
 ):
     """
     Add a custom food with optional nutrition data.
@@ -1034,55 +1034,21 @@ async def add_custom_food(
             nutrients_list = []
 
         # Generate embedding for the custom food name
+        # Using OpenAI embeddings (3072 dims) to match FAISS index
         embedding = None
-        use_gpu = os.getenv("USE_GPU_EMBEDDINGS", "true").lower() == "true"
 
         try:
-            if use_gpu:
-                # Use GPU-accelerated local embedding model
-                from sentence_transformers import SentenceTransformer
-                import torch
-
-                # Load model (cached after first load)
-                model = SentenceTransformer("BAAI/bge-large-en-v1.5")
-
-                # Move to GPU if available
-                if torch.cuda.is_available():
-                    model = model.to('cuda')
-
-                # Generate embedding
-                embedding_array = model.encode(
-                    name.lower().strip(),
-                    convert_to_numpy=True,
-                    normalize_embeddings=True
-                )
-                embedding = embedding_array.tolist()
-                print(f"✓ Generated GPU embedding for custom food: {name}")
-            else:
-                # Fall back to OpenAI API
-                client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-                response = client.embeddings.create(
-                    model="text-embedding-3-large",  # Must match FAISS index dimension
-                    input=name.lower().strip()
-                )
-                embedding = response.data[0].embedding
-                print(f"✓ Generated OpenAI embedding for custom food: {name}")
+            # Use OpenAI API (3072 dimensions) - matches FAISS index
+            client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            response = client.embeddings.create(
+                model="text-embedding-3-large",
+                input=name.lower().strip()
+            )
+            embedding = response.data[0].embedding
+            print(f"✓ Generated OpenAI embedding for custom food: {name} ({len(embedding)} dims)")
 
         except Exception as e:
             print(f"⚠ Warning: Could not generate embedding for custom food '{name}': {e}")
-            # Try OpenAI fallback if GPU failed
-            if use_gpu:
-                try:
-                    print("GPU embedding failed, trying OpenAI fallback...")
-                    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-                    response = client.embeddings.create(
-                        model="text-embedding-3-large",
-                        input=name.lower().strip()
-                    )
-                    embedding = response.data[0].embedding
-                    print(f"✓ Generated OpenAI fallback embedding for custom food: {name}")
-                except Exception as e2:
-                    print(f"⚠ OpenAI fallback also failed: {e2}")
             # Continue without embedding - food will still be added but won't appear in dense search
 
         # Create custom food document
@@ -1140,6 +1106,12 @@ async def add_custom_food(
                 if request and hasattr(request.app.state, 'faiss_index') and request.app.state.faiss_index is not None:
                     faiss_index = request.app.state.faiss_index
                     id_list = request.app.state.id_list if hasattr(request.app.state, 'id_list') else []
+
+                    # Validate embedding dimension matches FAISS index
+                    if len(embedding) != faiss_index.d:
+                        print(f"⚠ Warning: Embedding dimension mismatch! Embedding: {len(embedding)} dims, FAISS index: {faiss_index.d} dims")
+                        print(f"⚠ Skipping FAISS index add. Food will be searchable via Typesense only.")
+                        raise ValueError(f"Dimension mismatch: {len(embedding)} != {faiss_index.d}")
 
                     # Prepare embedding as numpy array
                     embedding_array = np.array([embedding], dtype=np.float32)

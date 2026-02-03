@@ -154,7 +154,7 @@ try:
         gpu="L4",  # L4 is cost-effective for embedding workloads
         image=image,
         secrets=[modal.Secret.from_name("nutramap-secrets")],
-        scaledown_window=300,
+        container_idle_timeout=60,  # Scale down after 60 seconds of inactivity
     )
     class EmbeddingModel:
         """GPU-accelerated embedding model using sentence-transformers.
@@ -234,7 +234,7 @@ try:
         cpu=8,
         image=image,
         secrets=[modal.Secret.from_name("nutramap-secrets")],
-        scaledown_window=300,
+        container_idle_timeout=60,  # Scale down after 60 seconds of inactivity
     )
     class BatchProcessor:
         """GPU-accelerated batch processing for compute-intensive operations.
@@ -276,13 +276,12 @@ try:
 
             return embeddings.tolist()
 
-    # Load secrets from Modal and add GPU support
+    # Main web server (CPU only - GPU classes called on-demand)
     @app.function(
         image=image,
         secrets=[modal.Secret.from_name("nutramap-secrets")],
-        gpu="L4",  # Add GPU for FAISS operations
         volumes={"/data": volume},  # Mount persistent volume
-        min_containers=1,
+        container_idle_timeout=60,  # Scale down after 60 seconds of inactivity
         timeout=1200,  # 10 minutes - FAISS index rebuild can take 5+ minutes
     )
     @modal.asgi_app()

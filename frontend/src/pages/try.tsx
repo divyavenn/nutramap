@@ -1,5 +1,5 @@
 /// <reference types="vite-plugin-svgr/client" />
-import { StrictMode, useEffect, useState } from 'react'
+import { StrictMode, useEffect } from 'react'
 import { LogList} from '../components/Logs'
 import { DateSelector} from '../components/DateSelector'
 
@@ -21,7 +21,6 @@ function TryNutramapRoot(){
 }
 
 function TryNutramap(){
-  const [isReady, setIsReady] = useState(false);
   const refreshAccountInfo = useRefreshAccountInfo();
   const refreshData = useRefreshData();
 
@@ -39,48 +38,36 @@ function TryNutramap(){
             const data = response.body;
             localStorage.setItem('access_token', data.access_token);
 
-            // Load foods and nutrients
-            localStorage.setItem('foods', JSON.stringify(await (await request('/food/all', 'GET')).body));
-            localStorage.setItem('nutrients', JSON.stringify(await (await request('/nutrients/all', 'GET')).body));
+            // Load foods and nutrients in parallel (don't block rendering)
+            Promise.all([
+              request('/food/all', 'GET').then(res => localStorage.setItem('foods', JSON.stringify(res.body))),
+              request('/nutrients/all', 'GET').then(res => localStorage.setItem('nutrients', JSON.stringify(res.body)))
+            ]);
           }
         }
 
-        // Load data for trial user
-        await refreshData();
-        await refreshAccountInfo();
-
-        // Mark as ready to render dashboard
-        setIsReady(true);
+        // Load data in background (fire-and-forget, like regular dashboard)
+        refreshData();
+        refreshAccountInfo();
       } catch (error) {
         console.error('Error initializing trial dashboard:', error);
       }
     }
 
+    // Helper function to check if token is expired
+    const isTokenExpired = (token: string): boolean => {
+      try {
+        const [, payloadBase64] = token.split('.');
+        const payload = JSON.parse(atob(payloadBase64));
+        const currentTime = Math.floor(Date.now() / 1000);
+        return payload.exp && payload.exp < currentTime;
+      } catch {
+        return true;
+      }
+    };
+
     initializeTrialDashboard();
   }, []);
-
-  // Helper function to check if token is expired
-  const isTokenExpired = (token: string): boolean => {
-    try {
-      const [, payloadBase64] = token.split('.');
-      const payload = JSON.parse(atob(payloadBase64));
-      const currentTime = Math.floor(Date.now() / 1000);
-      return payload.exp && payload.exp < currentTime;
-    } catch {
-      return true;
-    }
-  };
-
-  if (!isReady) {
-    return (
-      <StrictMode>
-        <Header linkIcons = {[{to : '/myfoods', img : <Utensils/>}, {to : '/myrecipes', img : <FoodBowl/>}]}/>
-        <MainSection>
-          <Heading words = "Loading..."/>
-        </MainSection>
-      </StrictMode>
-    );
-  }
 
   return(
   <StrictMode>
