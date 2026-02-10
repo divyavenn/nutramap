@@ -669,6 +669,13 @@ input, textarea {
   }
 }
 
+.food-tag.pending {
+  background-color: rgba(96, 62, 146, 0.3);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  cursor: default;
+}
+
 .food-tag-name {
   flex: 1;
 }

@@ -32,11 +32,37 @@ function MyRecipes() {
     }
   };
 
-  const fetchRecipes = async () => {
+  const fetchRecipes = async (forceRefresh = false) => {
     try {
+      // Check cache first (unless forced refresh)
+      if (!forceRefresh) {
+        try {
+          const cached = localStorage.getItem('recipes_cache');
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed)) {
+              setRecipes(parsed);
+              setLoading(false);
+              return;
+            } else {
+              localStorage.removeItem('recipes_cache');
+            }
+          }
+        } catch (storageError) {
+          // localStorage not available - continue to fetch from API
+        }
+      }
+
+      // Cache miss - fetch from API
       const response = await request('/recipes/list', 'GET');
-      if (response && response.body && response.body.recipes) {
-        setRecipes(response.body.recipes);
+      if (response && response.body && Array.isArray(response.body.recipes)) {
+        const recipes = response.body.recipes;
+        setRecipes(recipes);
+        try {
+          localStorage.setItem('recipes_cache', JSON.stringify(recipes));
+        } catch (storageError) {
+          // localStorage not available - skip caching
+        }
       }
       setLoading(false);
     } catch (error) {
@@ -54,17 +80,41 @@ function MyRecipes() {
   };
 
   const handleDeleteRecipe = async (recipeId: string) => {
+    console.log('handleDeleteRecipe called with recipeId:', recipeId);
+
     if (!confirm('Are you sure you want to delete this recipe?')) {
+      console.log('Delete cancelled by user');
       return;
     }
 
+    console.log('User confirmed delete, sending request...');
+
     try {
-      await request(`/recipes/delete?recipe_id=${recipeId}`, 'DELETE');
+      const response = await request(`/recipes/delete?recipe_id=${recipeId}`, 'DELETE');
+      console.log('Delete response:', response);
+
+      // Invalidate cache regardless of result to sync with backend
+      try { localStorage.removeItem('recipes_cache'); } catch (e) {}
+
+      if (response.status !== 200) {
+        console.error('Delete failed with status:', response.status, response.body);
+        alert(`Failed to delete recipe: ${response.body?.detail || 'Unknown error'}`);
+        // Force refresh to sync with backend state
+        await fetchRecipes(true);
+        return;
+      }
+
+      console.log('Delete successful, updating state');
+
       // Remove from local state
       setRecipes(recipes.filter(r => r.recipe_id !== recipeId));
       setSelectedRecipe(null);
     } catch (error) {
       console.error('Error deleting recipe:', error);
+      alert('Failed to delete recipe. Please try again.');
+      // Force refresh to sync with backend state
+      try { localStorage.removeItem('recipes_cache'); } catch (e) {}
+      await fetchRecipes(true);
     }
   };
 
@@ -108,7 +158,11 @@ function MyRecipes() {
               recipe={selectedRecipe}
               onClose={handleCloseModal}
               onDelete={handleDeleteRecipe}
-              onUpdate={fetchRecipes}
+              onUpdate={() => {
+                // Invalidate cache and force refresh after recipe updates
+                try { localStorage.removeItem('recipes_cache'); } catch (e) {}
+                fetchRecipes(true);
+              }}
             />
           )}
 

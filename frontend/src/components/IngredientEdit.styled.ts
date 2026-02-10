@@ -204,6 +204,26 @@ export const GramsDisplay = styled.input`
 
 
 
+export const AnimatedFoodName = styled.div`
+  font-family: 'Inconsolata', monospace;
+  font-size: var(--recipe-card-font-size);
+  color: var(--white);
+  min-height: var(--ingredient-input-height);
+  line-height: 1;
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+`;
+
+export const AnimatedWeightText = styled.div`
+  font-family: 'Inconsolata', monospace;
+  font-size: var(--recipe-card-font-size);
+  color: rgba(255, 255, 255, 0.6);
+  min-height: var(--ingredient-input-height);
+  display: flex;
+  align-items: center;
+`;
+
 export const SuggestionsContainer = styled.div`
   position: relative;
   width: 100%;

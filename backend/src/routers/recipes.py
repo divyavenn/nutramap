@@ -136,22 +136,437 @@ async def find_similar_recipes(
     return matches
 
 
+def calculate_name_similarity(name1: str, name2: str) -> float:
+    """
+    Calculate similarity between two food names.
+    Returns a score between 0 and 1.
+    Handles USDA's verbose naming (e.g., "Lentils, mature seeds, cooked, boiled, without salt").
+    """
+    import re
+
+    # Normalize: lowercase, strip, remove punctuation for comparison
+    def normalize(s):
+        return re.sub(r'[^\w\s]', '', s.lower().strip())
+
+    # Simple stemming for common food plurals
+    def stem_word(word):
+        if word.endswith('ies'):
+            return word[:-3] + 'y'  # berries -> berry
+        if word.endswith('es') and len(word) > 3:
+            return word[:-2]  # tomatoes -> tomato
+        if word.endswith('s') and len(word) > 2 and not word.endswith('ss'):
+            return word[:-1]  # bagels -> bagel
+        return word
+
+    def stem_words(words):
+        return {stem_word(w) for w in words}
+
+    n1 = normalize(name1)
+    n2 = normalize(name2)
+
+    # Exact match
+    if n1 == n2:
+        return 1.0
+
+    # Get the PRIMARY food name (first part before comma in USDA names)
+    # USDA format: "Primary food, qualifier1, qualifier2"
+    def get_primary(original_name):
+        parts = original_name.lower().split(',')
+        return normalize(parts[0]) if parts else normalize(original_name)
+
+    primary1 = get_primary(name1)
+    primary2 = get_primary(name2)
+
+    # Check if search term matches the PRIMARY food (with stemming)
+    # "milk" matches "Milk, whole", "bagel" matches "Bagels, plain"
+    stemmed_n1 = ' '.join(stem_words(n1.split()))
+    stemmed_primary2 = ' '.join(stem_words(primary2.split()))
+    stemmed_n2 = ' '.join(stem_words(n2.split()))
+    stemmed_primary1 = ' '.join(stem_words(primary1.split()))
+
+    if stemmed_n1 == stemmed_primary2 or stemmed_n2 == stemmed_primary1:
+        return 0.85
+
+    if stemmed_primary1 == stemmed_primary2:
+        return 0.8
+
+    # One contains the other at the START (primary position)
+    if stemmed_n2.startswith(stemmed_n1) or stemmed_n1.startswith(stemmed_n2):
+        return 0.75
+
+    # Word overlap with stemming
+    words1 = stem_words(n1.split())
+    words2 = stem_words(n2.split())
+
+    if not words1 or not words2:
+        return 0.0
+
+    # Check if all words from shorter name appear in longer name
+    shorter, longer = (words1, words2) if len(words1) <= len(words2) else (words2, words1)
+    if shorter.issubset(longer):
+        return 0.7
+
+    # Check overlap relative to the SHORTER name
+    overlap = len(words1 & words2)
+    coverage = overlap / len(shorter)
+
+    # Also check traditional Jaccard
+    jaccard = overlap / len(words1 | words2)
+
+    return max(coverage * 0.6, jaccard)
+
+
+async def find_high_confidence_match(ingredient_name: str, db: Database, user: dict) -> Optional[dict]:
+    """
+    Find a high-confidence match for an ingredient using RRF fusion.
+    Returns {"id": food_id, "name": food_name, "confidence": score} if found, None otherwise.
+    """
+    from src.routers.match import get_sparse_index, rrf_fusion
+    from src.routers.dense import find_dense_matches
+
+    # FIRST: Check sparse results for exact name match (custom foods priority)
+    sparse_results = await get_sparse_index(ingredient_name, db, user, 40, 50)
+    if sparse_results:
+        for food_id, score in sparse_results.items():
+            food_name = get_food_name(food_id, db, None)
+            if food_name and food_name.lower().strip() == ingredient_name.lower().strip():
+                return {
+                    "id": food_id,
+                    "name": food_name,
+                    "confidence": 1.0,
+                    "is_base": False,
+                    "exact_match": True
+                }
+
+    # Use RRF to get best match
+    matches = await rrf_fusion(
+        get_sparse_index, [ingredient_name, db, user, 40, 50],
+        find_dense_matches, [ingredient_name, db, user, None, 40, 50],
+        k=30,
+        n=5  # Get top 5 to find best primary match
+    )
+
+    if not matches:
+        print(f"    🔍 No RRF matches found for '{ingredient_name}'")
+        return None
+
+    # Check top results and pick the one with best similarity
+    # This handles cases where RRF returns "Crackers, milk" before "Milk, whole"
+    best_result = None
+    best_similarity = 0
+
+    for match_id in matches:
+        try:
+            match_id = int(match_id)
+        except (ValueError, TypeError):
+            pass
+
+        matched_name = get_food_name(match_id, db, None)
+        if not matched_name:
+            continue
+
+        similarity = calculate_name_similarity(ingredient_name, matched_name)
+
+        if similarity > best_similarity:
+            best_similarity = similarity
+            best_result = {
+                "id": match_id,
+                "name": matched_name,
+                "similarity": similarity
+            }
+
+    if not best_result:
+        print(f"    🔍 Could not get food names for any matches")
+        return None
+
+    is_base = _is_likely_base_ingredient(ingredient_name)
+    print(f"    🔍 Best match for '{ingredient_name}': '{best_result['name']}' (similarity={best_similarity:.2f}, is_base={is_base})")
+
+    # High confidence requires BOTH:
+    # 1. Reasonable name similarity (>= 0.3 minimum)
+    # 2. Either good similarity (>= 0.5) OR it's a known base ingredient
+    if best_similarity >= 0.3 and (best_similarity >= 0.5 or is_base):
+        return {
+            "id": best_result["id"],
+            "name": best_result["name"],
+            "confidence": best_similarity,
+            "is_base": is_base
+        }
+
+    print(f"    🔍 Rejected: similarity {best_similarity:.2f} < 0.5 and is_base={is_base}")
+    return None
+
+
+def _is_likely_base_ingredient(name: str) -> bool:
+    """Check if this is likely a base ingredient vs a composite dish."""
+    name_lower = name.lower().strip()
+
+    # ALWAYS base ingredients - check these FIRST (spices, powders, leaves, pastes)
+    always_base_patterns = [
+        'powder', 'paste', 'leaves', 'leaf', 'seeds', 'seed',
+        'spice', 'seasoning', 'extract', 'oil', 'flour'
+    ]
+    for pattern in always_base_patterns:
+        if pattern in name_lower:
+            return True
+
+    # Composite dish indicators
+    dish_keywords = [
+        # South Asian dishes (but NOT when followed by powder/paste/leaves)
+        'sambar', 'chutney', 'curry', 'biryani', 'pulao', 'masala',
+        'idli', 'dosa', 'uttapam', 'vada', 'upma', 'pongal', 'rasam',
+        'korma', 'tikka', 'tandoori', 'pakora', 'bhaji', 'paratha', 'naan',
+        'dal', 'daal', 'sabzi', 'raita', 'paneer',
+        # Western dishes
+        'gravy', 'sauce', 'soup', 'stew', 'casserole', 'salad',
+        'sandwich', 'burger', 'pizza', 'wrap', 'roll', 'taco', 'burrito',
+        'pasta', 'lasagna', 'risotto', 'gnocchi',
+        # Asian dishes
+        'stir fry', 'fried rice', 'noodles', 'ramen', 'pho', 'sushi', 'tempura',
+        # General composite indicators
+        'with', 'and', 'style', 'homemade', 'recipe'
+    ]
+
+    # Check if it's a composite dish
+    for keyword in dish_keywords:
+        if keyword in name_lower:
+            return False
+
+    # Common base ingredients (single foods that exist in USDA)
+    base_keywords = [
+        # Proteins
+        'chicken', 'beef', 'pork', 'fish', 'egg', 'shrimp', 'tofu', 'turkey', 'lamb',
+        'salmon', 'tuna', 'bacon', 'sausage', 'ham',
+        # Dairy
+        'milk', 'butter', 'cheese', 'cream', 'yogurt', 'curd',
+        # Grains & breads
+        'rice', 'bread', 'bagel', 'tortilla', 'oat', 'barley', 'wheat', 'flour',
+        'noodle', 'pasta', 'cereal', 'cracker', 'muffin', 'croissant',
+        # Legumes
+        'lentil', 'bean', 'pea', 'chickpea', 'legume',
+        # Vegetables
+        'tomato', 'onion', 'garlic', 'ginger', 'potato', 'carrot', 'celery',
+        'spinach', 'lettuce', 'cucumber', 'broccoli', 'pepper', 'corn',
+        'vegetable', 'sprout', 'cabbage', 'kale', 'mushroom', 'squash',
+        # Fruits
+        'apple', 'banana', 'orange', 'mango', 'berry', 'grape', 'fruit',
+        'lemon', 'lime', 'avocado', 'peach', 'pear',
+        # Nuts & seeds
+        'coconut', 'almond', 'cashew', 'nuts', 'peanut', 'walnut',
+        # Condiments & basics
+        'sugar', 'salt', 'honey', 'syrup', 'vinegar', 'broth', 'stock',
+        # Spices
+        'tamarind', 'turmeric', 'cumin', 'coriander', 'mustard', 'chili', 'basil', 'cilantro',
+        # Descriptors that indicate base foods
+        'cooked', 'raw', 'dried', 'fresh', 'frozen', 'canned', 'whole', 'sliced',
+        'ground', 'chopped', 'minced', 'steamed', 'grilled', 'baked', 'fried'
+    ]
+
+    # Check if it's a known base ingredient
+    for keyword in base_keywords:
+        if keyword in name_lower:
+            return True
+
+    # Default: NOT a base ingredient (safer to decompose if unsure)
+    return False
+
+
+async def decompose_ingredient_to_base(ingredient_name: str, amount: str, weight: float) -> List[dict]:
+    """
+    Use GPT to decompose a composite ingredient into base ingredients.
+    Example: "sambar" -> [{"food_name": "toor dal", "amount": "1/4 cup", ...}, ...]
+    """
+    try:
+        client = _get_client()
+
+        prompt = f"""Decompose this food/dish into its base ingredients that would exist in a nutrition database (like USDA).
+
+Food: {ingredient_name}
+Amount: {amount}
+Total weight: {weight}g
+
+Return ONLY base ingredients that are:
+- Single foods (not dishes or recipes)
+- Common names found in nutrition databases
+- Examples of base ingredients: rice, lentils, tomatoes, onions, oil, salt, chicken, eggs, milk, flour, sugar, butter
+
+Do NOT return:
+- Dish names (sambar, chutney, curry, biryani, pasta sauce)
+- Brand names
+- Vague terms
+
+Respond with JSON:
+{{
+  "ingredients": [
+    {{"food_name": "ingredient name", "amount": "portion", "weight_in_grams": number}},
+    ...
+  ]
+}}
+
+Example - "sambar" (1 cup, 200g):
+{{
+  "ingredients": [
+    {{"food_name": "Lentils, pigeon peas, cooked", "amount": "1/3 cup", "weight_in_grams": 65}},
+    {{"food_name": "Tomatoes, raw", "amount": "1/4 cup", "weight_in_grams": 40}},
+    {{"food_name": "Onions, raw", "amount": "2 tbsp", "weight_in_grams": 20}},
+    {{"food_name": "Tamarind", "amount": "1 tsp", "weight_in_grams": 5}},
+    {{"food_name": "Vegetable oil", "amount": "1 tbsp", "weight_in_grams": 14}}
+  ]
+}}
+"""
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": f"Decompose: {ingredient_name} ({amount}, {weight}g)"}
+            ],
+            response_format={"type": "json_object"}
+        )
+
+        result = json.loads(response.choices[0].message.content)
+        return result.get("ingredients", [])
+
+    except Exception as e:
+        print(f"Error decomposing ingredient '{ingredient_name}': {e}")
+        return []
+
+
+def find_matching_recipe(ingredient_name: str, user_recipes: List[dict]) -> Optional[dict]:
+    """
+    Check if ingredient name matches an existing user recipe.
+    Returns the recipe if found, None otherwise.
+    """
+    name_lower = ingredient_name.lower().strip()
+
+    for recipe in user_recipes:
+        recipe_name = recipe.get("description", "").lower().strip()
+        # Exact match or close match
+        if recipe_name == name_lower:
+            return recipe
+        # Check if one contains the other
+        if name_lower in recipe_name or recipe_name in name_lower:
+            # Only accept if substantial overlap
+            if len(name_lower) >= 3 and len(recipe_name) >= 3:
+                return recipe
+
+    return None
+
+
+async def classify_ingredient(
+    ingredient_name: str,
+    amount: str,
+    weight: float,
+    db: Database,
+    user: dict,
+    user_recipes: List[dict] = None
+) -> dict:
+    """
+    Classify an ingredient as one of:
+    - "recipe": matches an existing user recipe (log separately)
+    - "food": matches a food in database (include as ingredient)
+    - "decompose": no match found (create new recipe from decomposition)
+
+    Returns:
+    {
+        "type": "recipe" | "food" | "decompose",
+        "data": recipe_dict | food_dict | decomposed_ingredients_list
+    }
+    """
+    print(f"  Classifying: '{ingredient_name}'")
+
+    # 1. Check if it matches an existing recipe → log as that recipe
+    if user_recipes:
+        matching_recipe = find_matching_recipe(ingredient_name, user_recipes)
+        if matching_recipe:
+            print(f"  ✓ RECIPE match: '{matching_recipe['description']}'")
+            return {
+                "type": "recipe",
+                "name": ingredient_name,
+                "amount": amount,
+                "weight": weight,
+                "data": matching_recipe
+            }
+
+    # 2. Check for high-confidence food match → include as ingredient
+    match = await find_high_confidence_match(ingredient_name, db, user)
+    if match:
+        conf_str = f"confidence: {match['confidence']:.2f}"
+        if match.get('exact_match'):
+            conf_str = "exact match"
+        print(f"  ✓ FOOD match: '{match['name']}' ({conf_str})")
+        return {
+            "type": "food",
+            "name": ingredient_name,
+            "amount": amount,
+            "weight": weight,
+            "data": {
+                "food_id": match["id"],
+                "food_name": match["name"],
+                "amount": amount,
+                "weight_in_grams": weight
+            }
+        }
+
+    # 3. No match → decompose and create new recipe
+    print(f"  ✗ No match for '{ingredient_name}', will decompose into new recipe")
+    base_ingredients = await decompose_ingredient_to_base(ingredient_name, amount, weight)
+
+    if not base_ingredients:
+        print(f"  ⚠ Could not decompose '{ingredient_name}'")
+        return {"type": "none", "name": ingredient_name, "data": None}
+
+    # Recursively match each base ingredient (these should all become foods)
+    matched_ingredients = []
+    for base_ing in base_ingredients:
+        base_match = await find_high_confidence_match(base_ing["food_name"], db, user)
+        if base_match:
+            matched_ingredients.append({
+                "food_id": base_match["id"],
+                "food_name": base_match["name"],
+                "amount": base_ing["amount"],
+                "weight_in_grams": base_ing["weight_in_grams"]
+            })
+        else:
+            print(f"    ⚠ Could not match base ingredient: '{base_ing['food_name']}'")
+
+    print(f"  → Decomposed into {len(matched_ingredients)} ingredients for new recipe")
+    return {
+        "type": "decompose",
+        "name": ingredient_name,
+        "amount": amount,
+        "weight": weight,
+        "data": matched_ingredients
+    }
+
+
 async def match_ingredient_to_food_id(ingredient_name: str, db: Database, user: dict) -> Optional[Union[int, str]]:
-    """Match ingredient name to food_id using hybrid vector search (sparse + dense + RRF)"""
+    """
+    Match ingredient name to food_id using hybrid vector search (sparse + dense + RRF).
+    This is a simplified version that returns just the food_id for backwards compatibility.
+    For new code, prefer using classify_ingredient() instead.
+    """
     try:
         print(f"Matching ingredient: '{ingredient_name}'")
-        # Import search functions
         from src.routers.match import get_sparse_index
         from src.routers.dense import find_dense_matches
 
-        # Get sparse and dense results separately for debugging
+        # Get sparse results first - check for exact matches
         sparse_results = await get_sparse_index(ingredient_name, db, user, 60, 50)
-        dense_results = await find_dense_matches(ingredient_name, db, user, None, 40, 50)
-
         print(f"  Sparse results: {list(sparse_results.keys())[:5] if sparse_results else []}")
+
+        # PRIORITY: Check if sparse found an exact name match (case-insensitive)
+        if sparse_results:
+            for food_id, score in sparse_results.items():
+                food_name = get_food_name(food_id, db, None)
+                if food_name and food_name.lower().strip() == ingredient_name.lower().strip():
+                    print(f"  ✓ EXACT MATCH found: '{food_name}' (ID: {food_id})")
+                    return food_id
+
+        # No exact match - use RRF fusion
+        dense_results = await find_dense_matches(ingredient_name, db, user, None, 40, 50)
         print(f"  Dense results: {list(dense_results.keys())[:5] if dense_results else []}")
 
-        # Use RRF fusion with food search functions
         matches = await rrf_fusion(
             get_sparse_index, [ingredient_name, db, user, 60, 50],
             find_dense_matches, [ingredient_name, db, user, None, 40, 50],
@@ -160,13 +575,10 @@ async def match_ingredient_to_food_id(ingredient_name: str, db: Database, user: 
         )
 
         if matches and len(matches) > 0:
-            # Keep food_id as is - it could be int (USDA) or string (custom food)
             matched_food_id = matches[0]
-            # Try to convert to int for USDA foods, but keep as string for custom foods
             try:
                 matched_food_id = int(matched_food_id)
             except (ValueError, TypeError):
-                # It's a custom food with ObjectId string, keep as is
                 pass
             matched_food_name = get_food_name(matched_food_id, db, None)
             print(f"  ✓ Matched '{ingredient_name}' to: {matched_food_name} (ID: {matched_food_id})")
@@ -250,89 +662,146 @@ async def identify_recipes_from_meal(meal_description: str, user_recipes: List[d
             for idx, food in enumerate(user_custom_foods[:30], 1):
                 custom_foods_context += f"{idx}. {food['food_name']}\n"
 
-        prompt = f"""Parse this meal description into separate recipes/dishes.
+        prompt = f"""Parse this meal description into SEPARATE food items.
 
 {recipes_context}
 {custom_foods_context}
 
 Meal description: {meal_description}
 
-Instructions:
-1. Identify distinct recipes/dishes in the meal
-2. For each recipe, determine if it matches:
-   a) An existing recipe from the user's list (high similarity) - use the recipe_id and leave ingredients empty
-   b) A custom food from the user's custom foods list (exact or very close match) - set recipe_id to null, use the EXACT custom food name from the list as the description, and create ONE ingredient with that exact food name
-   c) A new recipe - set recipe_id to null and estimate ingredients
-3. Estimate number of servings consumed
-4. Estimate when it was eaten based on description and current time.
+CRITICAL INSTRUCTIONS:
+1. Split the meal into INDIVIDUAL food items - do NOT combine them into one recipe
+2. Each distinct food (idli, sambar, chutney, rice, dal, etc.) should be its OWN separate entry
+3. For EACH item, match the WHOLE ITEM NAME in this order:
+   a) FIRST: Does the item name match an existing RECIPE? (e.g., "matcha latte" matches recipe "Matcha latte")
+      → Use that recipe_id, leave ingredients EMPTY
+   b) SECOND: Does the item name match a CUSTOM FOOD exactly? (e.g., "idli" matches custom food "Idli")
+      → recipe_id=null, ONE ingredient with the exact custom food name
+   c) THIRD: No match found?
+      → recipe_id=null, decompose into base ingredients
 
-IMPORTANT: If you identify a custom food, you MUST:
-- Use the exact food name from the "User's custom foods" list
-- Set recipe_id to null
-- Set description to the exact custom food name
-- Create exactly ONE ingredient with food_name matching the custom food name exactly
-- Estimate the weight_in_grams for that ingredient
+IMPORTANT: Match the WHOLE item name, not its ingredients!
+- "matcha latte" → matches RECIPE "Matcha latte" (use recipe_id, empty ingredients)
+- "idli" → matches CUSTOM FOOD "Idli" (recipe_id=null, 1 ingredient)
+- "chicken curry" → no match, decompose into base ingredients
+
+PRIORITY when same name exists as both recipe AND custom food:
+- Custom food takes priority (user explicitly created it)
+
+IMPORTANT RULES:
+- "idli sambar chutney" = THREE separate entries, NOT one combined recipe
+- Recipe match = use recipe_id from list, ingredients array MUST be EMPTY []
+- Custom food match = recipe_id: null, ONE ingredient with the exact custom food name
+- No match = recipe_id: null, decomposed base ingredients
 
 For timestamps:
-        - If a specific time is mentioned (e.g., "breakfast at 8am", "yesterday at 2pm"), include it
-        - If a relative time is mentioned (e.g., "yesterday", "this morning"), convert it to an absolute timestamp
-        - If no time is mentioned for a food, use the current time ({current_time.isoformat()})
-        - Use the current time ({current_time.isoformat()}) as reference for relative times
-        - Return timestamps in ISO format (YYYY-MM-DDTHH:MM:SS)
+- Current time is: {current_time.isoformat()}
+- PARSE RELATIVE DATES: "yesterday" = subtract 1 day, "last night" = previous day evening, "this morning" = today AM, "2 days ago" = subtract 2 days, etc.
+- If no time mentioned, use reasonable defaults (breakfast=8am, lunch=12pm, dinner=6pm)
+- Return timestamps in ISO format (YYYY-MM-DDTHH:MM:SS)
 
 Respond with ONLY a JSON object:
 {{
   "recipes": [
     {{
-      "recipe_id": "uuid or null for new/custom recipes",
-      "timestamp: "YYYY-MM-DDTHH:MM:SS",
-      "description": "recipe or custom food name",
-      "recipe_servings": number (0.5 for half serving, 1 for full, etc.),
+      "recipe_id": "existing-id or null",
+      "timestamp": "YYYY-MM-DDTHH:MM:SS",
+      "description": "food item name",
+      "recipe_servings": number,
       "ingredients": [
-        {{
-          "food_name": "ingredient name (must match custom food name exactly if custom food)",
-          "amount": "portion size",
-          "weight_in_grams": estimated_weight
-        }}
-      ] (empty array ONLY if matched existing recipe, must have ingredients for custom foods and new recipes)
+        {{"food_name": "name", "amount": "portion", "weight_in_grams": number}}
+      ]
     }}
   ]
 }}
 
-Examples:
-Input: "today i ate half a pot of homemade daal, 1 mug hot chocolate with collagen. yesterday i ate 2 slices veggie pizza from PiCo"
+EXAMPLES:
+
+Input: "eggs and toast for breakfast" (user has custom food "Sourdough bread")
 Output:
 {{
   "recipes": [
     {{
-      "recipe_id": "123-existing-id",
+      "recipe_id": null,
+      "timestamp": "2024-06-15T08:00:00",
+      "description": "Eggs",
+      "recipe_servings": 1,
+      "ingredients": [
+        {{"food_name": "Eggs, scrambled", "amount": "2 eggs", "weight_in_grams": 100}}
+      ]
+    }},
+    {{
+      "recipe_id": null,
+      "timestamp": "2024-06-15T08:00:00",
+      "description": "Sourdough bread",
+      "recipe_servings": 1,
+      "ingredients": [
+        {{"food_name": "Sourdough bread", "amount": "2 slices", "weight_in_grams": 60}}
+      ]
+    }}
+  ]
+}}
+
+Input: "chicken curry with rice" (user has NO custom foods for these)
+Output:
+{{
+  "recipes": [
+    {{
+      "recipe_id": null,
+      "timestamp": "2024-06-15T12:00:00",
+      "description": "Chicken curry",
+      "recipe_servings": 1,
+      "ingredients": [
+        {{"food_name": "Chicken, breast, cooked", "amount": "4 oz", "weight_in_grams": 113}},
+        {{"food_name": "Onions, raw", "amount": "1/4 cup", "weight_in_grams": 40}},
+        {{"food_name": "Tomatoes, raw", "amount": "1/4 cup", "weight_in_grams": 45}},
+        {{"food_name": "Vegetable oil", "amount": "1 tbsp", "weight_in_grams": 14}},
+        {{"food_name": "Coconut milk", "amount": "1/4 cup", "weight_in_grams": 60}}
+      ]
+    }},
+    {{
+      "recipe_id": null,
+      "timestamp": "2024-06-15T12:00:00",
+      "description": "Rice",
+      "recipe_servings": 1,
+      "ingredients": [
+        {{"food_name": "Rice, white, cooked", "amount": "1 cup", "weight_in_grams": 158}}
+      ]
+    }}
+  ]
+}}
+
+Input: "half a pot of homemade daal" (user has existing recipe "homemade daal" with ID "abc-123")
+Output:
+{{
+  "recipes": [
+    {{
+      "recipe_id": "abc-123",
+      "timestamp": "2024-06-15T12:00:00",
       "description": "homemade daal",
       "recipe_servings": 0.5,
       "ingredients": []
-      "timestamp": "2024-06-15T12:30:00"
-    }},
+    }}
+  ]
+}}
+
+Input: "matcha latte and pho" (user has recipe "Matcha latte" ID "latte-456", recipe "Vegetarian pho" ID "pho-789")
+Output:
+{{
+  "recipes": [
     {{
-      "recipe_id": null,
-      "description": "hot chocolate with collagen peptides",
+      "recipe_id": "latte-456",
+      "timestamp": "2024-06-15T08:00:00",
+      "description": "Matcha latte",
       "recipe_servings": 1,
-      "ingredients": [
-        {{"food_name": "Milk, whole, 3.25%", "amount": "1 cup", "weight_in_grams": 244}},
-        {{"food_name": "Cocoa powder, unsweetened", "amount": "2 tablespoons", "weight_in_grams": 11}},
-        {{"food_name": "Collagen peptides", "amount": "1 scoop", "weight_in_grams": 20}}
-      ]
-      "timestamp": "2024-06-15T12:30:00"
+      "ingredients": []
     }},
     {{
-      "recipe_id": null,
-      "description": "PiCo veggie pizza",
-      "recipe_servings": 0.17,
-      "ingredients": [
-        {{"food_name": "Pizza dough", "amount": "2 slices", "weight_in_grams": 150}},
-        {{"food_name": "Mozzarella cheese, shredded", "amount": "1/4 cup", "weight_in_grams": 28}},
-        {{"food_name": "Tomato sauce", "amount": "2 tablespoons", "weight_in_grams": 30}},
-        {{"food_name": "Bell peppers, chopped", "amount": "1/4 cup", "weight_in_grams": 37}}
-      ]
-      "timestamp": "2024-06-14T12:30:00"
+      "recipe_id": "pho-789",
+      "timestamp": "2024-06-15T12:00:00",
+      "description": "Vegetarian pho",
+      "recipe_servings": 1,
+      "ingredients": []
     }}
   ]
 }}
@@ -364,146 +833,250 @@ async def process_recipes_in_background(
 ):
     """
     Process recipes in the background: match ingredients, generate embeddings, create logs.
-    This is the heavy lifting that happens after returning to the user.
+
+    GPT now returns SEPARATE entries for each food item:
+    - Custom food: 1 ingredient with same name as description → standalone food log
+    - Decomposed dish: multiple base ingredients → create new recipe + log
+    - Existing recipe: recipe_id set → log using existing recipe
     """
     try:
-        print(f"=== Background processing started for {len(identified_recipes)} recipes ===")
+        print(f"=== Background processing started for {len(identified_recipes)} items ===")
 
-        for recipe_data in identified_recipes:
-            recipe_id = recipe_data.get("recipe_id")
-            description = recipe_data["description"]
-            servings = recipe_data.get("recipe_servings", 1.0)
-            timestamp_str = recipe_data.get("timestamp", meal_date.isoformat())
+        for item in identified_recipes:
+            recipe_id = item.get("recipe_id")
+            description = item["description"]
+            servings = item.get("recipe_servings", 1.0)
+            timestamp_str = item.get("timestamp", meal_date.isoformat())
+            ingredients = item.get("ingredients", [])
 
-            # Parse the timestamp from GPT response
+            # Parse the timestamp
             try:
                 timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
             except (ValueError, AttributeError):
                 timestamp = meal_date
 
-            print(f"Processing recipe '{description}': using timestamp {timestamp}")
+            print(f"\nProcessing '{description}': {len(ingredients)} ingredients, servings={servings}")
 
-            # Check if this matches an existing recipe
+            # CASE 1: Existing recipe match
             if recipe_id:
-                # Find the existing recipe
                 existing_recipe = next(
                     (r for r in user_recipes if r["recipe_id"] == recipe_id),
                     None
                 )
-
                 if existing_recipe:
-                    # Use existing recipe's ingredients (no need to run RRF again!)
-                    ingredients_to_log = existing_recipe["ingredients"]
-                    print(f"✓ Using cached recipe '{description}' with {len(ingredients_to_log)} ingredients")
-                else:
-                    # Recipe ID not found, treat as new
-                    recipe_id = None
-                    ingredients_to_log = recipe_data.get("ingredients", [])
-            else:
-                # New recipe - generate UUID and create it
-                recipe_id = str(uuid.uuid4())
-                ingredients_raw = recipe_data.get("ingredients", [])
+                    print(f"  → Existing recipe match")
+                    await _create_log_for_recipe(
+                        recipe_id, description, servings, timestamp,
+                        existing_recipe["ingredients"], user_id, db
+                    )
+                    continue
 
-                # If no ingredients provided, generate them
-                if not ingredients_raw:
-                    print(f"→ New recipe '{description}' - running ingredient matching...")
-                    parsed_ingredients = await parse_recipe_into_ingredients(description)
-                    ingredients_to_log = []
+            # CASE 2: Single ingredient matching description → standalone food log
+            if len(ingredients) == 1:
+                ing = ingredients[0]
+                ing_name = ing.get("food_name", "")
 
-                    for ing in parsed_ingredients:
-                        food_id = await match_ingredient_to_food_id(ing["food_name"], db, {"_id": user_id})
-                        if food_id:
-                            weight = await estimate_grams(ing["food_name"], ing["amount"])
-                            matched_food_name = get_food_name(food_id, db, None)
-                            ingredients_to_log.append({
-                                "food_id": food_id,
-                                "food_name": matched_food_name,
-                                "amount": ing["amount"],
-                                "weight_in_grams": weight
-                            })
-                else:
-                    # Ingredients provided by GPT - match them to food_ids
-                    print(f"→ Matching {len(ingredients_raw)} ingredients from GPT to database...")
-                    ingredients_to_log = []
-                    for ing in ingredients_raw:
-                        food_name_gpt = ing.get("food_name", "")
-                        amount = ing.get("amount", "")
-                        weight = ing.get("weight_in_grams", 0)
+                # Check if this is a custom food (ingredient name matches description)
+                if ing_name.lower().strip() == description.lower().strip():
+                    print(f"  → Custom food match: '{ing_name}'")
+                    # Find the food_id for this custom food
+                    food_match = await find_high_confidence_match(ing_name, db, {"_id": user_id})
+                    if food_match:
+                        await _create_log_for_food(
+                            food_match["name"],
+                            servings,
+                            timestamp,
+                            {
+                                "food_id": food_match["id"],
+                                "food_name": food_match["name"],
+                                "amount": ing.get("amount", ""),
+                                "weight_in_grams": ing.get("weight_in_grams", 0)
+                            },
+                            user_id,
+                            db
+                        )
+                        continue
+                    else:
+                        print(f"  ⚠ Could not find food match for '{ing_name}'")
 
-                        food_id = await match_ingredient_to_food_id(food_name_gpt, db, {"_id": user_id})
-                        if food_id:
-                            matched_food_name = get_food_name(food_id, db, None)
-                            print(f"  ✓ Matched '{food_name_gpt}' to: {matched_food_name} (ID: {food_id})")
-                            ingredients_to_log.append({
-                                "food_id": food_id,
-                                "food_name": matched_food_name,
-                                "amount": amount,
-                                "weight_in_grams": weight
-                            })
-                        else:
-                            print(f"  ✗ Could not match '{food_name_gpt}'")
+            # CASE 3: Multiple ingredients → create new recipe + log
+            print(f"  → Creating new recipe with {len(ingredients)} ingredients")
 
-                # Generate embedding
-                embedding = await generate_recipe_embedding(description)
+            # Match each ingredient to a food_id
+            matched_ingredients = []
+            for ing in ingredients:
+                ing_name = ing.get("food_name", "")
+                if not ing_name:
+                    continue
 
-                # Create new recipe in user's recipes
-                new_recipe = {
-                    "recipe_id": recipe_id,
-                    "description": description,
-                    "embedding": embedding,
-                    "ingredients": ingredients_to_log,
-                    "created_at": timestamp,
-                    "updated_at": datetime.now()
-                }
-
-                # Add to user's recipes
-                db.users.update_one(
-                    {"_id": user_id},
-                    {"$push": {"recipes": new_recipe}}
-                )
-
-            # Create a single log entry with all ingredients as components
-            print(f"Creating log for recipe '{description}' with {len(ingredients_to_log)} ingredients")
-
-            # Prepare components with actual amounts based on servings
-            components = []
-            for ingredient in ingredients_to_log:
-                food_id = ingredient.get("food_id")
-                if not food_id and "food_name" in ingredient:
-                    food_id = await match_ingredient_to_food_id(ingredient["food_name"], db, {"_id": user_id})
-
-                if food_id:
-                    actual_weight = ingredient["weight_in_grams"] * servings
-                    from src.routers.parse import scale_portion_text
-                    scaled_amount = scale_portion_text(ingredient["amount"], servings)
-                    components.append({
-                        "food_id": food_id,
-                        "amount": scaled_amount,
-                        "weight_in_grams": actual_weight
+                food_match = await find_high_confidence_match(ing_name, db, {"_id": user_id})
+                if food_match:
+                    matched_ingredients.append({
+                        "food_id": food_match["id"],
+                        "food_name": food_match["name"],
+                        "amount": ing.get("amount", ""),
+                        "weight_in_grams": ing.get("weight_in_grams", 0)
                     })
-                    print(f"  Component: food_id={food_id}, amount={scaled_amount}, weight={actual_weight}")
+                    print(f"    ✓ '{ing_name}' → '{food_match['name']}'")
+                else:
+                    print(f"    ✗ No match for '{ing_name}'")
 
-            # Only create log if we have at least one valid component
-            if components:
-                log_dict = {
-                    "recipe_id": recipe_id,
-                    "meal_name": description,
-                    "servings": servings,
-                    "date": timestamp,
-                    "components": components,
-                    "user_id": user_id,
-                    "_id": ObjectId()
-                }
+            if not matched_ingredients:
+                print(f"  ⚠ No valid ingredients for '{description}', skipping")
+                continue
 
-                print(f"Creating log: recipe_id={recipe_id}, {len(components)} components, {servings} servings")
-                await add_log({"_id": user_id}, log_dict, db)
+            # Create the new recipe
+            new_recipe_id = str(uuid.uuid4())
+            embedding = await generate_recipe_embedding(description)
 
-        print(f"=== Background processing completed successfully ===")
+            new_recipe = {
+                "recipe_id": new_recipe_id,
+                "description": description,
+                "embedding": embedding,
+                "ingredients": matched_ingredients,
+                "created_at": timestamp,
+                "updated_at": datetime.now()
+            }
+
+            db.users.update_one(
+                {"_id": user_id},
+                {"$push": {"recipes": new_recipe}}
+            )
+            user_recipes.append(new_recipe)
+
+            print(f"  ✓ Created recipe '{description}' with {len(matched_ingredients)} ingredients")
+
+            # Create log for this new recipe
+            await _create_log_for_recipe(
+                new_recipe_id,
+                description,
+                servings,
+                timestamp,
+                matched_ingredients,
+                user_id,
+                db
+            )
+
+        print(f"\n=== Background processing completed ===")
 
     except Exception as e:
         import traceback
         print(f"Error in background recipe processing: {e}")
         print(f"Traceback: {traceback.format_exc()}")
+
+
+def _estimate_servings_from_weight(weight: float, recipe: dict) -> float:
+    """Estimate servings based on consumed weight vs recipe total weight."""
+    if not recipe or "ingredients" not in recipe:
+        return 1.0
+
+    # Calculate total recipe weight
+    total_recipe_weight = sum(
+        ing.get("weight_in_grams", 0) for ing in recipe.get("ingredients", [])
+    )
+
+    if total_recipe_weight <= 0:
+        return 1.0
+
+    return weight / total_recipe_weight
+
+
+def _estimate_servings_from_weight_simple(weight: float) -> float:
+    """Estimate servings based on typical serving sizes."""
+    # Typical serving is around 150-200g
+    if weight <= 0:
+        return 1.0
+    return max(0.25, weight / 175.0)  # Minimum 0.25 servings
+
+
+async def _create_log_for_food(
+    food_name: str,
+    servings: float,
+    timestamp: datetime,
+    food_data: dict,
+    user_id: ObjectId,
+    db: Database
+):
+    """Create a standalone log entry for a single food (no recipe)."""
+    from src.routers.parse import scale_portion_text
+
+    food_id = food_data.get("food_id")
+    if not food_id:
+        food_id = await match_ingredient_to_food_id(food_name, db, {"_id": user_id})
+
+    if not food_id:
+        print(f"⚠ Could not find food_id for '{food_name}', skipping")
+        return
+
+    base_weight = food_data.get("weight_in_grams", 0)
+    actual_weight = base_weight * servings
+    base_amount = food_data.get("amount", "")
+    scaled_amount = scale_portion_text(base_amount, servings) if base_amount else ""
+
+    log_dict = {
+        "recipe_id": None,  # No recipe - standalone food log
+        "meal_name": food_name,
+        "servings": servings,
+        "date": timestamp,
+        "components": [{
+            "food_id": food_id,
+            "amount": scaled_amount,
+            "weight_in_grams": actual_weight
+        }],
+        "user_id": user_id,
+        "_id": ObjectId()
+    }
+
+    print(f"Creating standalone food log: '{food_name}', {actual_weight}g, {servings} servings")
+    await add_log({"_id": user_id}, log_dict, db)
+
+
+async def _create_log_for_recipe(
+    recipe_id: str,
+    meal_name: str,
+    servings: float,
+    timestamp: datetime,
+    ingredients: List[dict],
+    user_id: ObjectId,
+    db: Database
+):
+    """Create a log entry for a recipe with its ingredients as components."""
+    from src.routers.parse import scale_portion_text
+
+    components = []
+    for ingredient in ingredients:
+        food_id = ingredient.get("food_id")
+        if not food_id and "food_name" in ingredient:
+            food_id = await match_ingredient_to_food_id(ingredient["food_name"], db, {"_id": user_id})
+
+        if food_id:
+            base_weight = ingredient.get("weight_in_grams", 0)
+            actual_weight = base_weight * servings
+            base_amount = ingredient.get("amount", "")
+            scaled_amount = scale_portion_text(base_amount, servings) if base_amount else ""
+
+            components.append({
+                "food_id": food_id,
+                "amount": scaled_amount,
+                "weight_in_grams": actual_weight
+            })
+
+    if not components:
+        print(f"⚠ No valid components for log '{meal_name}', skipping")
+        return
+
+    log_dict = {
+        "recipe_id": recipe_id,
+        "meal_name": meal_name,
+        "servings": servings,
+        "date": timestamp,
+        "components": components,
+        "user_id": user_id,
+        "_id": ObjectId()
+    }
+
+    print(f"Creating log: recipe_id={recipe_id}, meal='{meal_name}', {len(components)} components, {servings} servings")
+    await add_log({"_id": user_id}, log_dict, db)
 
 
 @router.post("/parse-meal")
@@ -538,8 +1111,20 @@ async def parse_meal(
         user_doc = db.users.find_one({"_id": user["_id"]})
         user_recipes = user_doc.get("recipes", []) if user_doc else []
 
+        # Debug: print all existing recipe names and IDs
+        print(f"=== User has {len(user_recipes)} existing recipes ===")
+        for r in user_recipes:
+            print(f"  - '{r.get('description')}' (ID: {r.get('recipe_id')})")
+
         # Get user's custom foods
         user_custom_foods = await get_user_custom_foods(db, user)
+
+        # Debug: print all custom foods
+        print(f"=== User has {len(user_custom_foods)} custom foods ===")
+        for f in user_custom_foods[:10]:  # Limit to first 10
+            print(f"  - '{f.get('food_name')}'")
+        if len(user_custom_foods) > 10:
+            print(f"  ... and {len(user_custom_foods) - 10} more")
 
         # Identify recipes in the meal (this is fast - just GPT parsing)
         identified_recipes = await identify_recipes_from_meal(meal_description, user_recipes, user_custom_foods)
@@ -691,13 +1276,26 @@ def list_recipes(user: user, db: db):
     user_doc = db.users.find_one({"_id": user["_id"]})
     recipes = user_doc.get("recipes", []) if user_doc else []
 
-    # Calculate usage count for each recipe
+    # Calculate usage counts for ALL recipes in a single aggregation query
+    # This replaces the N+1 query problem (was making 1 query per recipe)
+    usage_counts = {}
+    if recipes:
+        pipeline = [
+            {"$match": {
+                "user_id": user["_id"],
+                "recipe_id": {"$exists": True}
+            }},
+            {"$group": {
+                "_id": "$recipe_id",
+                "count": {"$sum": 1}
+            }}
+        ]
+        usage_results = list(db.logs.aggregate(pipeline))
+        usage_counts = {result["_id"]: result["count"] for result in usage_results}
+
+    # Add usage counts to recipes (O(1) lookup instead of N database queries)
     for recipe in recipes:
-        usage_count = db.logs.count_documents({
-            "user_id": user["_id"],
-            "recipe_id": recipe["recipe_id"]
-        })
-        recipe["usage_count"] = usage_count
+        recipe["usage_count"] = usage_counts.get(recipe["recipe_id"], 0)
 
     # Sort alphabetically by description
     recipes.sort(key=lambda r: r["description"].lower())
@@ -756,6 +1354,37 @@ async def update_recipe_ingredients(
         raise HTTPException(status_code=400, detail="Invalid ingredients JSON")
     except Exception as e:
         print(f"Error updating recipe: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/rename")
+async def rename_recipe(
+    user: user,
+    db: db,
+    recipe_id: str = Form(...),
+    description: str = Form(...)
+):
+    """Rename a recipe"""
+    try:
+        result = db.users.update_one(
+            {"_id": user["_id"], "recipes.recipe_id": recipe_id},
+            {
+                "$set": {
+                    "recipes.$.description": description,
+                    "recipes.$.updated_at": datetime.now()
+                }
+            }
+        )
+
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Recipe not found")
+
+        return {"status": "success", "description": description}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error renaming recipe: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -974,20 +1603,30 @@ def delete_recipe_ingredient(
 @router.delete("/delete")
 def delete_recipe(user: user, db: db, recipe_id: str):
     """Delete a recipe and unlink its logs"""
+    print(f"🗑️ Delete recipe request - user_id: {user['_id']}, recipe_id: {recipe_id}")
+
     # Remove recipe from user's recipes
     result = db.users.update_one(
         {"_id": user["_id"]},
         {"$pull": {"recipes": {"recipe_id": recipe_id}}}
     )
 
+    print(f"🗑️ Delete result - matched: {result.matched_count}, modified: {result.modified_count}")
+
     if result.modified_count == 0:
-        raise HTTPException(status_code=404, detail="Recipe not found")
+        # Check if recipe exists to give better error message
+        user_data = db.users.find_one({"_id": user["_id"]}, {"recipes.recipe_id": 1})
+        existing_ids = [r.get("recipe_id") for r in user_data.get("recipes", [])] if user_data else []
+        print(f"🗑️ Recipe not found. Existing recipe IDs: {existing_ids}")
+        raise HTTPException(status_code=404, detail=f"Recipe not found. Requested: {recipe_id}")
 
     # Unlink all logs with this recipe_id
     unlink_result = db.logs.update_many(
         {"user_id": user["_id"], "recipe_id": recipe_id},
         {"$set": {"recipe_id": None, "recipe_servings": None}}
     )
+
+    print(f"🗑️ Unlinked {unlink_result.modified_count} logs")
 
     return {
         "status": "success",

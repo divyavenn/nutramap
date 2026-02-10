@@ -5,10 +5,8 @@ import Arrow from '../assets/images/arrow.svg?react';
 import IsOk from '../assets/images/checkmark.svg?react';
 import ImageIcon from '../assets/images/image.svg?react';
 import '../assets/css/foods.css';
-import '../assets/css/confirm_modal.css';
 import { useSetRecoilState } from 'recoil';
 import { foodsAtom } from './account_states';
-import { AnimatedText } from './AnimatedText';
 
 /**
  * NewFood component for adding custom foods
@@ -145,11 +143,15 @@ function NewFood() {
     const filesToProcess = [...imageFiles];
 
     // Clear UI immediately (before async operations)
+    const pendingName = descriptionToProcess.trim() || 'new food';
     setFoodDescription('');
     clearAllImages();
 
     setIsProcessing(true);
     setIsJiggling(true);
+
+    // Notify foods page to show a pending tag
+    window.dispatchEvent(new CustomEvent('food-processing', { detail: { name: pendingName } }));
 
     try {
       // Create form data for multipart/form-data request
@@ -212,6 +214,7 @@ function NewFood() {
     } catch (error) {
       console.error('Error processing food:', error);
       alert('Error processing food. Please try again.');
+      window.dispatchEvent(new CustomEvent('food-processing-done'));
     } finally {
       setIsProcessing(false);
       setIsJiggling(false);
@@ -293,30 +296,6 @@ function NewFood() {
 
       </form>
 
-      {/* Processing Modal */}
-      {isProcessing && (
-        <div className="confirm-section" style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          zIndex: 1000
-        }}>
-          <div className="confirm-modal" style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '40px'
-          }}>
-            <AnimatedText text="adding food" className="text-3xl font-mono" />
-          </div>
-        </div>
-      )}
     </>
   );
 }

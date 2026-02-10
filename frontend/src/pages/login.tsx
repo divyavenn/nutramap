@@ -4,7 +4,7 @@ import { Graphic } from '../components/Graphics'
 import {Header, MainSection } from '../components/Sections'
 import {LottieAnimation} from '../components/Graphics'
 import bowl from '../assets/images/vegan.svg'
-import nutramapLogo from '../assets/images/nutramap_logo.png'
+import foodPanelLogo from '../assets/images/nutramap_logo.png'
 import { motion } from 'framer-motion';
 import styled from 'styled-components';
 
@@ -32,8 +32,8 @@ function Login(){
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.8, delay: 0.6 }}
         >
-          <img src={nutramapLogo}
-         loading="lazy" alt="" className = 'nutramap-logo-large'/>
+          <img src={foodPanelLogo}
+         loading="lazy" alt="foodPanelAI logo" className = 'nutramap-logo-large'/>
         </IconLogoContainer>
 
   </MainSection>

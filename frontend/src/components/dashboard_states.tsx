@@ -140,20 +140,43 @@ const requirementsAtom = atom<{[key: string]: any}>({
   default: {}
 })
 
+// Cached panel data to prevent duplicate API calls
+let panelCache: { logId: string | null; data: {[key: string]: number} | null } = { logId: null, data: null };
+
 const dayIntake = selector<{[key: string]: number}>({
   key: 'dayIntake',
   get: async ({get}) => {
     const day = get(currentDayAtom)
     const logs = get(logsAtom)
-    const log = get(hoveredLogAtom)
     // Add requirements as dependency so intake recalculates when requirements change
     const requirements = get(requirementsAtom)
-    let endpoint = '/logs/day_intake?date='
-    + tolocalDateString(day)
-    if (log) {
-      endpoint = '/food/panel?log_id=' + log[0]
-    }
+    let endpoint = '/logs/day_intake?date=' + tolocalDateString(day)
     let response = await request(endpoint)
+    return response.body;
+  }
+})
+
+// Separate selector for hovered log panel data with caching
+const hoveredLogPanelData = selector<{[key: string]: number} | null>({
+  key: 'hoveredLogPanelData',
+  get: async ({get}) => {
+    const log = get(hoveredLogAtom)
+
+    if (!log) {
+      panelCache = { logId: null, data: null };
+      return null;
+    }
+
+    const logId = log[0];
+
+    // Return cached data if same log
+    if (panelCache.logId === logId && panelCache.data !== null) {
+      return panelCache.data;
+    }
+
+    // Fetch new data
+    const response = await request('/food/panel?log_id=' + logId);
+    panelCache = { logId, data: response.body };
     return response.body;
   }
 })
@@ -225,8 +248,13 @@ const rowData = selector<Array<NutrientStatsProps>>({
   get: ({get}) => {
 
     const requirements = get(requirementsAtom);
-    const dailyValues = get(dayIntake);
+    const hoveredLog = get(hoveredLogAtom);
+    const hoveredPanelData = get(hoveredLogPanelData);
+    const dayIntakeData = get(dayIntake);
     const avgValues = get(averageIntake);
+
+    // Use hovered panel data if a log is hovered, otherwise use day intake
+    const dailyValues = hoveredLog && hoveredPanelData ? hoveredPanelData : dayIntakeData;
 
     const nutrientDetails = get(nutrientDetailsByIDAtom);
 
@@ -270,11 +298,11 @@ const rowData = selector<Array<NutrientStatsProps>>({
   },
 });
 
-export {dateRangeAtom, 
-  currentDayAtom, 
-  useRefreshLogs, 
-  useRefreshData, 
-  useRefreshRequirements, 
+export {dateRangeAtom,
+  currentDayAtom,
+  useRefreshLogs,
+  useRefreshData,
+  useRefreshRequirements,
   logsAtom,
   rangeTypeAtom,
   RequirementData,
@@ -283,6 +311,7 @@ export {dateRangeAtom,
   rowData,
   averageIntake,
   dayIntake,
+  hoveredLogPanelData,
   pendingFoodsAtom,
   hoveredLogAtom
 }

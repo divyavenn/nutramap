@@ -7,7 +7,7 @@ import { RecoilRoot } from 'recoil';
 import { CopyReelFeature } from '../components/CopyReel';
 import { motion } from 'framer-motion';
 import styled from 'styled-components';
-import nutramapLogo from '../assets/images/nutramap_logo.png'
+import foodPanelLogo from '../assets/images/nutramap_logo.png'
 
 
 const IconLogoContainer = styled(motion.div)`
@@ -41,8 +41,8 @@ function Home(){
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.8, delay: 0.6 }}
     >
-          <img src={nutramapLogo}
-         loading="lazy" alt="" className = 'nutramap-logo-large'/>
+          <img src={foodPanelLogo}
+         loading="lazy" alt="foodPanelAI logo" className = 'nutramap-logo-large'/>
      </IconLogoContainer>
      <CopyReelFeature features={features} />
   </MainSection>

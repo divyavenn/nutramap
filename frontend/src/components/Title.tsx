@@ -7,7 +7,7 @@ interface WordsProps{
 
 function Title() {
   return (
-  <div className="nutra">nutrachat</div>
+  <div className="nutra">foodPanelAI</div>
   )
 }
 

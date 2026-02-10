@@ -5,7 +5,7 @@ import AddLogButton from '../assets/images/plus.svg?react'
 import { NewNutrientForm } from './NutrientEdit';
 import '../assets/css/NutrientStats.css'; // Import your CSS file for styling
 import {useRecoilValue, useRecoilValueLoadable} from 'recoil'
-import { currentDayAtom, hoveredLogAtom, rowData} from './dashboard_states';
+import { currentDayAtom, hoveredLogAtom, hoveredLogPanelData } from './dashboard_states';
 import { requirementsAtom, RequirementData, requirementsDataAtom, dayIntake, averageIntake } from './dashboard_states';
 
 
@@ -113,8 +113,6 @@ function NutrientDashboardTitle(){
 
 
 const NutrientStats = ({requirements} : {requirements : RequirementData[]}) => {
-  const hoveredLog = useRecoilValue(hoveredLogAtom);
-  
   function initialize(): { [key: string]: number } {
     return requirements.reduce((acc, requirement) => {
       acc[requirement.id] = 0; // Initialize each requirement ID with 0
@@ -122,6 +120,8 @@ const NutrientStats = ({requirements} : {requirements : RequirementData[]}) => {
     }, {} as { [key: string]: number });
   }
 
+  const hoveredLog = useRecoilValue(hoveredLogAtom);
+  const hoveredPanel = useRecoilValueLoadable(hoveredLogPanelData);
   const day = useRecoilValueLoadable(dayIntake);
   const [dailyValues, setDailyValues] = useState<{[key: string]: number}>(
     () => initialize() // Initialize dailyValues
@@ -132,15 +132,22 @@ const NutrientStats = ({requirements} : {requirements : RequirementData[]}) => {
     () => initialize() // Initialize dailyValues
   ));
 
+  // Update daily values - use hovered panel data if available, otherwise day intake
   useEffect(() => {
-    if (day.state === 'hasValue') {
+    if (hoveredLog && hoveredPanel.state === 'hasValue' && hoveredPanel.contents) {
+      // Use hovered log's nutrient data
       startTransition(() => {
-        setDailyValues(day.contents); // Update state with loaded data
+        setDailyValues(hoveredPanel.contents);
+      });
+    } else if (day.state === 'hasValue') {
+      // Use day intake when not hovering
+      startTransition(() => {
+        setDailyValues(day.contents);
       });
     } else if (day.state === 'hasError') {
       console.error('Error loading daily values data:', day.contents);
     }
-  }, [day, hoveredLog]);
+  }, [day, hoveredLog, hoveredPanel]);
 
   useEffect(() => {
     if (average.state === 'hasValue') {

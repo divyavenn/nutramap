@@ -33,7 +33,7 @@ function MealDisplay ({ meal_name, date, servings, recipe_id, recipe_exists, onC
       style={{ cursor: onClick ? 'pointer' : 'default' }}
     >
       <span className='food-name-space'>{meal_name}</span>
-      <span className='food-portion-space'> {servings} servings</span>
+      <span className='food-portion-space'> {Number.isInteger(servings) ? servings : servings.toFixed(1)} servings</span>
       <div className='food-weight-space'></div>
       <div className='food-date-space'></div>
       <span className='food-time-space' >{formatTime(new Date(date))}</span>

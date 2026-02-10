@@ -2,7 +2,7 @@ import '../assets/css/logs.css'
 import 'react-date-range/dist/styles.css'; // main style file
 import 'react-date-range/dist/theme/default.css';
 
-import {useState, useRef, useEffect} from 'react'
+import {useState, useRef, useEffect, useCallback} from 'react'
 import { EditLogForm } from './LogEdit';
 import { MealEdit } from './MealEdit';
 import { MealDisplay } from './MealDisplay';
@@ -25,6 +25,17 @@ function LogList (){
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
   // Track which component is being edited (format: "logId-componentIndex")
   const [editingComponentId, setEditingComponentId] = useState<string | null>(null);
+  // Debounce timer ref for hover
+  const hoverDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (hoverDebounceRef.current) {
+        clearTimeout(hoverDebounceRef.current);
+      }
+    };
+  }, []);
 
   // Handle click outside to close edit mode
   useEffect(() => {
@@ -49,64 +60,35 @@ function LogList (){
     };
   }, [editingLogId, editingComponentId]);
 
-
-  if (logs.length === 0 && pendingFoods.length === 0) {
-    return <div className="log-list">
-      <div className = 'no-logs-message'> no logs in this time.</div> </div>;
-      // Display this when logs array is empty
-  }
-
-  // Group logs and pending foods by date
-  const groupedByDate = new Map<string, {logs: LogProps[], pending: PendingFood[]}>();
-  
-  // Add regular logs to groups
-  logs.forEach(log => {
-    const dateKey = new Date(log.date).toDateString();
-    if (!groupedByDate.has(dateKey)) {
-      groupedByDate.set(dateKey, {logs: [], pending: []});
+  // Handle mouse enter for a specific log - debounced to prevent jitter
+  // NOTE: These hooks MUST be before any conditional returns
+  const handleLogMouseEnter = useCallback((logId: string, blurb: string) => {
+    // Clear any pending leave timeout
+    if (hoverDebounceRef.current) {
+      clearTimeout(hoverDebounceRef.current);
+      hoverDebounceRef.current = null;
     }
-    groupedByDate.get(dateKey)!.logs.push(log);
-  });
-  
-  // Add pending foods to groups
-  pendingFoods.forEach(food => {
-    const dateKey = new Date(food.timestamp).toDateString();
-    console.log('Adding pending food to date group:', dateKey, food);
-    if (!groupedByDate.has(dateKey)) {
-      groupedByDate.set(dateKey, {logs: [], pending: []});
-    }
-    groupedByDate.get(dateKey)!.pending.push(food);
-  });
-  
-  // Convert to array and sort by date (newest first)
-  const sortedDates = Array.from(groupedByDate.entries())
-    .sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime());
 
-  
-  const formatLogDescription = (components: LogComponent[]): string => {
-    if (components.length === 0) return 'No components';
-    if (components.length === 1) {
-      const comp = components[0];
-      return `${Math.round(comp.weight_in_grams)} g of ${comp.food_name.split(',')[0]}`;
-    }
-    return `${components.length} components`;
-  };
-
-  // Handle mouse enter for a specific log - immediate response
-  const handleLogMouseEnter = (logId: string, blurb: string) => {
-    // Only change the hovered log if no animation is playing
-    if (!animationLock) {
+    // Only change the hovered log if no animation is playing AND it's a different log
+    if (!animationLock && (!hoveredLog || hoveredLog[0] !== logId)) {
       setHoveredLog([logId, blurb]);
     }
-  };
+  }, [animationLock, hoveredLog, setHoveredLog]);
 
-  // Handle mouse leave for a specific log - immediate response
-  const handleLogMouseLeave = () => {
-    // Only change the hovered log if no animation is playing
-    if (!animationLock) {
-      setHoveredLog(null);
+  // Handle mouse leave for a specific log - debounced to prevent jitter
+  const handleLogMouseLeave = useCallback(() => {
+    // Debounce the leave to prevent jitter when moving between elements
+    if (hoverDebounceRef.current) {
+      clearTimeout(hoverDebounceRef.current);
     }
-  };
+
+    hoverDebounceRef.current = setTimeout(() => {
+      if (!animationLock) {
+        setHoveredLog(null);
+      }
+      hoverDebounceRef.current = null;
+    }, 100); // 100ms debounce
+  }, [animationLock, setHoveredLog]);
 
   // Function to handle animation start
   const handleAnimationStart = () => {
@@ -116,6 +98,47 @@ function LogList (){
   // Function to handle animation end
   const handleAnimationEnd = () => {
     setAnimationLock(false);
+  };
+
+  // Early return AFTER all hooks
+  if (logs.length === 0 && pendingFoods.length === 0) {
+    return <div className="log-list">
+      <div className = 'no-logs-message'> no logs in this time.</div> </div>;
+  }
+
+  // Group logs and pending foods by date
+  const groupedByDate = new Map<string, {logs: LogProps[], pending: PendingFood[]}>();
+
+  // Add regular logs to groups
+  logs.forEach(log => {
+    const dateKey = new Date(log.date).toDateString();
+    if (!groupedByDate.has(dateKey)) {
+      groupedByDate.set(dateKey, {logs: [], pending: []});
+    }
+    groupedByDate.get(dateKey)!.logs.push(log);
+  });
+
+  // Add pending foods to groups
+  pendingFoods.forEach(food => {
+    const dateKey = new Date(food.timestamp).toDateString();
+    console.log('Adding pending food to date group:', dateKey, food);
+    if (!groupedByDate.has(dateKey)) {
+      groupedByDate.set(dateKey, {logs: [], pending: []});
+    }
+    groupedByDate.get(dateKey)!.pending.push(food);
+  });
+
+  // Convert to array and sort by date (newest first)
+  const sortedDates = Array.from(groupedByDate.entries())
+    .sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime());
+
+  const formatLogDescription = (components: LogComponent[]): string => {
+    if (components.length === 0) return 'No components';
+    if (components.length === 1) {
+      const comp = components[0];
+      return `${Math.round(comp.weight_in_grams)} g of ${comp.food_name.split(',')[0]}`;
+    }
+    return `${components.length} components`;
   };
 
   return (
@@ -164,33 +187,37 @@ function LogList (){
               }
 
               const isEditing = editingLogId === log._id;
+              // Standalone food log: no recipe_id and single component
+              const isStandaloneFood = !log.recipe_id && log.components.length === 1;
 
               return (
                 <div key={log._id} >
-                  {/* Meal header - show edit form if editing, otherwise show normal header */}
-                  {isEditing ? (
-                    <div className="log-wrapper">
-                      <MealEdit
+                  {/* Meal header - only show for recipe logs, not standalone foods */}
+                  {!isStandaloneFood && (
+                    isEditing ? (
+                      <div className="log-wrapper">
+                        <MealEdit
+                          meal_name={log.meal_name}
+                          servings={log.servings}
+                          date={new Date(log.date)}
+                          _id={log._id}
+                          onCancel={() => setEditingLogId(null)}
+                          onAnimationStart={handleAnimationStart}
+                          onAnimationEnd={handleAnimationEnd}
+                        />
+                      </div>
+                    ) : (
+                      <MealDisplay
                         meal_name={log.meal_name}
                         servings={log.servings}
                         date={new Date(log.date)}
-                        _id={log._id}
-                        onCancel={() => setEditingLogId(null)}
-                        onAnimationStart={handleAnimationStart}
-                        onAnimationEnd={handleAnimationEnd}
+                        recipe_id={log.recipe_id}
+                        recipe_exists={log.recipe_exists}
+                        onClick={() => setEditingLogId(log._id)}
+                        onMouseEnter={() => !isEditing && handleLogMouseEnter(log._id, `${log.meal_name} (${Number.isInteger(log.servings) ? log.servings : log.servings.toFixed(1)} servings)`)}
+                        onMouseLeave={handleLogMouseLeave}
                       />
-                    </div>
-                  ) : (
-                    <MealDisplay
-                      meal_name={log.meal_name}
-                      servings={log.servings}
-                      date={new Date(log.date)}
-                      recipe_id={log.recipe_id}
-                      recipe_exists={log.recipe_exists}
-                      onClick={() => setEditingLogId(log._id)}
-                      onMouseEnter={() => !isEditing && handleLogMouseEnter(log._id, `${log.meal_name} (${log.servings} servings)`)}
-                      onMouseLeave={handleLogMouseLeave}
-                    />
+                    )
                   )}
 
                   {/* Render each component */}

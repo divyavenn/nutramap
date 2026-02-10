@@ -14,13 +14,13 @@ import {RecoilRoot} from 'recoil';
 import Utensils from '../assets/images/utensils-solid.svg?react'
 import FoodBowl from '../assets/images/food_bowl.svg?react'
 
-function TryNutramapRoot(){
+function TryFoodPanelRoot(){
   return (<RecoilRoot>
-          <TryNutramap/>
+          <TryFoodPanel/>
           </RecoilRoot>)
 }
 
-function TryNutramap(){
+function TryFoodPanel(){
   const refreshAccountInfo = useRefreshAccountInfo();
   const refreshData = useRefreshData();
 
@@ -94,4 +94,4 @@ function TryNutramap(){
 }
 
 
-export default TryNutramapRoot
+export default TryFoodPanelRoot

@@ -75,9 +75,30 @@ function NewSmartLog() {
       setIsJiggling(false);
       setIsSubmitting(false);
 
-      // Remove from pending and refresh logs
-      setPendingFoods(prev => prev.filter(p => p.timestamp !== pendingMeal.timestamp));
-      refreshLogs();
+      // Invalidate recipes cache since parse-meal can create new recipes
+      try { localStorage.removeItem('recipes_cache'); } catch (e) {}
+
+      // Background processing takes time - poll for new logs
+      // The endpoint returns immediately but logs are created asynchronously
+      const maxPolls = 8;
+      let pollCount = 0;
+
+      const pollInterval = setInterval(async () => {
+        pollCount++;
+        await refreshLogs();
+
+        if (pollCount >= maxPolls) {
+          clearInterval(pollInterval);
+          // Remove pending food after max attempts
+          setPendingFoods(prev => prev.filter(p => p.timestamp !== pendingMeal.timestamp));
+        }
+      }, 1500);
+
+      // Also remove pending food after timeout as fallback
+      setTimeout(() => {
+        clearInterval(pollInterval);
+        setPendingFoods(prev => prev.filter(p => p.timestamp !== pendingMeal.timestamp));
+      }, 15000);
     } catch (error) {
       console.error('Error parsing meal:', error);
       setIsJiggling(false);

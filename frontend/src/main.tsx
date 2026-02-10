@@ -5,7 +5,7 @@ import './assets/css/divya-venkat.webflow.css'
 import Login from './pages/login';
 import Home from './pages/home';
 import DashboardRoot from './pages/dashboard';
-import TryNutramapRoot from './pages/try';
+import TryFoodPanelRoot from './pages/try';
 import AccountRoot from './pages/account'
 import { DeleteAccount } from './pages/goodbye';
 import NewAccount from './pages/hello';
@@ -47,7 +47,7 @@ if (rootElem) {
         <Router>
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/try" element={<TryNutramapRoot/>} />
+            <Route path="/try" element={<TryFoodPanelRoot/>} />
             <Route path="/login" element={<Login />} />
             <Route path="/dashboard" element={<DashboardRoot/>} />
             <Route path="/account" element={<AccountRoot/>}  />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { request } from './endpoints';
 import { EditIngredientForm } from './IngredientEdit';
 import type { Recipe, RecipeIngredient } from './RecipeBlurb';
@@ -23,6 +23,9 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate }: RecipeCardProps) {
   const [nutritionData, setNutritionData] = useState<NutrientData[]>([]);
   const [loadingNutrition, setLoadingNutrition] = useState(true);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [recipeName, setRecipeName] = useState(recipe.description);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchRecipeNutrition();
@@ -40,6 +43,40 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate }: RecipeCardProps) {
       }
     } catch (error) {
       console.error('Error refreshing recipe data:', error);
+    }
+  };
+
+  const handleNameBlur = async () => {
+    setIsEditingName(false);
+    const trimmed = recipeName.trim();
+    if (!trimmed || trimmed === recipe.description) {
+      setRecipeName(recipe.description);
+      return;
+    }
+    try {
+      const formData = new FormData();
+      formData.append('recipe_id', recipe.recipe_id);
+      formData.append('description', trimmed);
+      const response = await request('/recipes/rename', 'POST', formData);
+      if (response.status === 200) {
+        onUpdate();
+      } else {
+        setRecipeName(recipe.description);
+      }
+    } catch (error) {
+      console.error('Error renaming recipe:', error);
+      setRecipeName(recipe.description);
+    }
+  };
+
+  const handleNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      nameInputRef.current?.blur();
+    }
+    if (e.key === 'Escape') {
+      setRecipeName(recipe.description);
+      setIsEditingName(false);
     }
   };
 
@@ -109,7 +146,21 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate }: RecipeCardProps) {
           ×
         </button>
         <div className="modal-header">
-          <h2>{recipe.description}</h2>
+          {isEditingName ? (
+            <input
+              ref={nameInputRef}
+              className="recipe-name-display"
+              value={recipeName}
+              onChange={(e) => setRecipeName(e.target.value)}
+              onBlur={handleNameBlur}
+              onKeyDown={handleNameKeyDown}
+              autoFocus
+            />
+          ) : (
+            <h2 onClick={() => setIsEditingName(true)} className="recipe-name-display">
+              {recipeName}
+            </h2>
+          )}
         </div>
 
         <div className="modal-content">

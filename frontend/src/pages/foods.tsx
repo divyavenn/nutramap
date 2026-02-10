@@ -14,6 +14,7 @@ import NewFood from '../components/NewFood';
 import FoodBowl from '../assets/images/food_bowl.svg?react'
 import {RecoilRoot} from 'recoil';
 import { NutrientPanel } from '../components/NutrientPanel';
+import { AnimatedText } from '../components/AnimatedText';
 
 interface NutrientInfo {
   nutrient_id: number;
@@ -36,7 +37,7 @@ function Foods() {
   const [foods, setFoods] = useState<Food[]>([]);
   const [selectedFood, setSelectedFood] = useState<string | null>(null);
   const [nutrientsDetails, setNutrientsDetails] = useState<NutrientInfo[]>([]);
-  const [newlyAddedFoodId, setNewlyAddedFoodId] = useState<string | null>(null);
+  const [pendingFoodName, setPendingFoodName] = useState<string | null>(null);
   const refreshAccountInfo = useRefreshAccountInfo();
   const navigate = useNavigate();
   const name = useRecoilValue(firstNameAtom);
@@ -55,34 +56,67 @@ function Foods() {
     fetchFoods();
   }, []);
 
-  // Listen for food added event
+  // Listen for food processing and food added events
   useEffect(() => {
+    const handleFoodProcessing = (e: Event) => {
+      const customEvent = e as CustomEvent<{ name: string }>;
+      setPendingFoodName(customEvent.detail?.name || 'new food');
+    };
+
     const handleFoodAdded = (e: Event) => {
       const customEvent = e as CustomEvent<{ foodId: string }>;
       const foodId = customEvent.detail?.foodId;
 
-      if (foodId) {
-        setNewlyAddedFoodId(foodId);
-        // Remove shimmer animation after 2 seconds
-        setTimeout(() => {
-          setNewlyAddedFoodId(null);
-        }, 2000);
-      }
+      setPendingFoodName(null);
 
-      fetchFoods();
+      try { localStorage.removeItem('custom_foods_cache'); } catch (e) {}
+      fetchFoods(true);
     };
 
+    const handleFoodProcessingDone = () => {
+      setPendingFoodName(null);
+    };
+
+    window.addEventListener('food-processing', handleFoodProcessing);
     window.addEventListener('food-added', handleFoodAdded);
+    window.addEventListener('food-processing-done', handleFoodProcessingDone);
     return () => {
+      window.removeEventListener('food-processing', handleFoodProcessing);
       window.removeEventListener('food-added', handleFoodAdded);
+      window.removeEventListener('food-processing-done', handleFoodProcessingDone);
     };
   }, []);
 
-  const fetchFoods = async () => {
+  const fetchFoods = async (forceRefresh = false) => {
     try {
+      // Check cache first (unless forced refresh)
+      if (!forceRefresh) {
+        try {
+          const cached = localStorage.getItem('custom_foods_cache');
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed)) {
+              setFoods(parsed);
+              return;
+            } else {
+              localStorage.removeItem('custom_foods_cache');
+            }
+          }
+        } catch (storageError) {
+          // localStorage not available - continue to fetch from API
+        }
+      }
+
+      // Cache miss - fetch from API
       const response = await request('/food/custom-foods', 'GET');
-      if (response.body) {
-        setFoods(response.body);
+      if (response.body && Array.isArray(response.body)) {
+        const foods = response.body;
+        setFoods(foods);
+        try {
+          localStorage.setItem('custom_foods_cache', JSON.stringify(foods));
+        } catch (storageError) {
+          // localStorage not available - skip caching
+        }
       }
     } catch (error) {
       console.error('Error fetching custom foods:', error);
@@ -129,6 +163,9 @@ function Foods() {
     if (!selectedFood) return;
 
     try {
+      // Invalidate cache since we're updating nutrients
+      try { localStorage.removeItem('custom_foods_cache'); } catch (e) {}
+
       const response = await request(`/food/custom_foods/${selectedFood}`, 'GET');
       const updatedFood = response.body;
 
@@ -169,6 +206,9 @@ function Foods() {
     try {
       await request(`/food/custom_foods/${foodId}`, 'DELETE');
 
+      // Invalidate cache
+      try { localStorage.removeItem('custom_foods_cache'); } catch (e) {}
+
       // Update local state
       setFoods(foods.filter(food => food._id !== foodId));
 
@@ -191,7 +231,7 @@ function Foods() {
       <div className="foods-container">
         <NewFood />
 
-        {foods.length === 0 ? (
+        {foods.length === 0 && !pendingFoodName ? (
           <div className="no-foods-message">
             You haven't created any custom foods yet.
           </div>
@@ -200,7 +240,7 @@ function Foods() {
             {foods.map(food => (
               <div
                 key={food._id}
-                className={`food-tag ${selectedFood === food._id ? 'selected' : ''} ${newlyAddedFoodId === food._id ? 'shimmer' : ''}`}
+                className={`food-tag ${selectedFood === food._id ? 'selected' : ''}`}
                 onClick={() => handleFoodClick(food._id)}
               >
                 <span className="food-tag-name">{food.name}</span>
@@ -213,6 +253,11 @@ function Foods() {
                 </button>
               </div>
             ))}
+            {pendingFoodName && (
+              <div className="food-tag pending">
+                <AnimatedText text={pendingFoodName} />
+              </div>
+            )}
           </div>
         )}
       </div>

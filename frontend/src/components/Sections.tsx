@@ -1,4 +1,4 @@
-import nutramapLogo from '../assets/images/nutramap_logo.png'
+import foodPanelLogo from '../assets/images/nutramap_logo.png'
 import '../assets/css/buttons.css'
 import React, { useState } from 'react';
 import {Link, useLocation} from 'react-router-dom';
@@ -51,9 +51,9 @@ function Header({linkIcons} : {linkIcons? : PageLinkIcon[]}) {
   <header>
     <section className="nutramap-header">
       <Link className="header-logo-container" to="/dashboard">
-      <img src={nutramapLogo}
-            loading="lazy" alt="" className = 'nutramap-logo'/>
-      <div className="nutra header">nutrachat</div>
+      <img src={foodPanelLogo}
+            loading="lazy" alt="foodPanelAI logo" className = 'nutramap-logo'/>
+      <div className="nutra header">foodPanelAI</div>
       </Link>
       <div style = {{width : '80%'}} ></div>
       {processedLinkIcons &&

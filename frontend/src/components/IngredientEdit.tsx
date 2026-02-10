@@ -4,6 +4,7 @@ import {request} from './endpoints';
 import '../assets/css/variables.css';
 import { useRefreshLogs } from './dashboard_states';
 import * as S from './IngredientEdit.styled';
+import { AnimatedText } from './AnimatedText';
 
 interface Props {
   food_name?: string;
@@ -28,6 +29,7 @@ function EditIngredientForm({food_name, amount, weight_in_grams, food_id, compon
   })
   const [isSubmitting, setIsSubmitting] = useState(false); // Track submission animation state
   const [isDeleting, setIsDeleting] = useState(false); // Track deletion animation state
+  const [isSavingWeight, setIsSavingWeight] = useState(false); // Track weight save animation
 
   const refreshLogs = useRefreshLogs();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -265,6 +267,7 @@ useEffect(() => {
   const handleWeightBlur = async () => {
     // Only submit if we have a valid recipe context
     if (recipeId && componentIndex !== undefined) {
+      setIsSavingWeight(true);
       const formDataObj = new FormData();
       formDataObj.append('recipe_id', recipeId);
       formDataObj.append('component_index', String(componentIndex));
@@ -290,6 +293,8 @@ useEffect(() => {
         }
       } catch (error) {
         console.error('Error updating weight:', error);
+      } finally {
+        setIsSavingWeight(false);
       }
     }
   };
@@ -423,15 +428,21 @@ useEffect(() => {
         <S.FormDropdownWrapper>
           <S.IngredientBubble $active={showSuggestions}>
             <S.FoodNameSpace>
-              <S.FoodNameInput
-                ref={textareaRef}
-                name='food_name'
-                placeholder='food'
-                value={formData.food_name}
-                onChange={handleTyping}
-                onKeyDown={handleTextareaKeyDown}
-                required
-              />
+              {isSubmitting ? (
+                <S.AnimatedFoodName>
+                  <AnimatedText text={formData.food_name || ''} />
+                </S.AnimatedFoodName>
+              ) : (
+                <S.FoodNameInput
+                  ref={textareaRef}
+                  name='food_name'
+                  placeholder='food'
+                  value={formData.food_name}
+                  onChange={handleTyping}
+                  onKeyDown={handleTextareaKeyDown}
+                  required
+                />
+              )}
             </S.FoodNameSpace>
 
             <S.FoodPortionSpace>
@@ -447,16 +458,24 @@ useEffect(() => {
             </S.FoodPortionSpace>
 
             <S.FoodWeightSpace>
-                <S.GramsDisplay
-                name='weight_in_grams'
-                type='text'
-                placeholder='0'
-                value={formData.weight_in_grams}
-                onChange={handleTyping}
-                onBlur={handleWeightBlur}
-                onKeyDown={handleWeightKeyDown}
-                required/>
-                <S.AlignedText> g </S.AlignedText>
+                {isSavingWeight ? (
+                  <S.AnimatedWeightText>
+                    <AnimatedText text={`${formData.weight_in_grams} g`} />
+                  </S.AnimatedWeightText>
+                ) : (
+                  <>
+                    <S.GramsDisplay
+                      name='weight_in_grams'
+                      type='text'
+                      placeholder='0'
+                      value={formData.weight_in_grams}
+                      onChange={handleTyping}
+                      onBlur={handleWeightBlur}
+                      onKeyDown={handleWeightKeyDown}
+                      required/>
+                    <S.AlignedText> g </S.AlignedText>
+                  </>
+                )}
             </S.FoodWeightSpace>
 
           </S.IngredientBubble>
