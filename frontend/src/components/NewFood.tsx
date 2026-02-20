@@ -7,6 +7,7 @@ import ImageIcon from '../assets/images/image.svg?react';
 import '../assets/css/foods.css';
 import { useSetRecoilState } from 'recoil';
 import { foodsAtom } from './account_states';
+import { tutorialEvent } from './TryTutorial';
 
 /**
  * NewFood component for adding custom foods
@@ -209,6 +210,7 @@ function NewFood() {
         // Dispatch event with the new food ID so Foods page can refresh and animate
         const event = new CustomEvent('food-added', { detail: { foodId } });
         window.dispatchEvent(event);
+        tutorialEvent('tutorial:food-created');
       }
 
     } catch (error) {

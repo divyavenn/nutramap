@@ -282,19 +282,12 @@ async def find_high_confidence_match(ingredient_name: str, db: Database, user: d
     is_base = _is_likely_base_ingredient(ingredient_name)
     print(f"    🔍 Best match for '{ingredient_name}': '{best_result['name']}' (similarity={best_similarity:.2f}, is_base={is_base})")
 
-    # High confidence requires BOTH:
-    # 1. Reasonable name similarity (>= 0.3 minimum)
-    # 2. Either good similarity (>= 0.5) OR it's a known base ingredient
-    if best_similarity >= 0.3 and (best_similarity >= 0.5 or is_base):
-        return {
-            "id": best_result["id"],
-            "name": best_result["name"],
-            "confidence": best_similarity,
-            "is_base": is_base
-        }
-
-    print(f"    🔍 Rejected: similarity {best_similarity:.2f} < 0.5 and is_base={is_base}")
-    return None
+    return {
+        "id": best_result["id"],
+        "name": best_result["name"],
+        "confidence": best_similarity,
+        "is_base": is_base
+    }
 
 
 def _is_likely_base_ingredient(name: str) -> bool:
@@ -1379,6 +1372,12 @@ async def rename_recipe(
         if result.matched_count == 0:
             raise HTTPException(status_code=404, detail="Recipe not found")
 
+        # Update meal_name on all linked logs
+        db.logs.update_many(
+            {"user_id": user["_id"], "recipe_id": recipe_id},
+            {"$set": {"meal_name": description}}
+        )
+
         return {"status": "success", "description": description}
 
     except HTTPException:
@@ -1740,3 +1739,60 @@ def unlink_log_from_recipe(user: user, db: db, log_id: str = Form(...)):
         raise HTTPException(status_code=404, detail="Log not found")
 
     return {"status": "success"}
+
+
+@router.post("/sync-logs")
+def sync_logs_to_recipe(user: user, db: db, recipe_id: str = Form(...)):
+    """Update all linked logs to match the current recipe ingredients"""
+    # Fetch recipe from user's recipes
+    user_data = db.users.find_one(
+        {"_id": user["_id"], "recipes.recipe_id": recipe_id},
+        {"recipes.$": 1}
+    )
+
+    if not user_data or not user_data.get("recipes"):
+        raise HTTPException(status_code=404, detail="Recipe not found")
+
+    recipe = user_data["recipes"][0]
+    ingredients = recipe.get("ingredients", [])
+
+    # Find all logs linked to this recipe
+    linked_logs = list(db.logs.find(
+        {"user_id": user["_id"], "recipe_id": recipe_id}
+    ))
+
+    if not linked_logs:
+        return {"status": "success", "updated_count": 0}
+
+    updated_count = 0
+    for log in linked_logs:
+        servings = log.get("servings", 1.0)
+
+        # Rebuild components from recipe ingredients scaled by servings
+        new_components = []
+        for ing in ingredients:
+            new_components.append({
+                "food_id": ing["food_id"],
+                "amount": ing.get("amount", ""),
+                "weight_in_grams": ing["weight_in_grams"] * servings
+            })
+
+        result = db.logs.update_one(
+            {"_id": log["_id"]},
+            {"$set": {"components": new_components}}
+        )
+        if result.modified_count > 0:
+            updated_count += 1
+
+    return {"status": "success", "updated_count": updated_count}
+
+
+@router.post("/unlink-all-logs")
+def unlink_all_logs_from_recipe(user: user, db: db, recipe_id: str = Form(...)):
+    """Unlink all logs from a recipe without deleting the recipe"""
+    result = db.logs.update_many(
+        {"user_id": user["_id"], "recipe_id": recipe_id},
+        {"$set": {"recipe_id": None, "recipe_servings": None}}
+    )
+
+    return {"status": "success", "unlinked_count": result.modified_count}

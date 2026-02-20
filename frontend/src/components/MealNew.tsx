@@ -6,6 +6,7 @@ import { useRefreshLogs, pendingFoodsAtom, PendingFood } from './dashboard_state
 import IsOk from '../assets/images/checkmark.svg?react'
 import '../assets/css/new_log.css';
 import { useSetRecoilState } from 'recoil';
+import { tutorialEvent } from './TryTutorial';
 
 /**
  * NewSmartLog component for natural language meal logging
@@ -74,6 +75,7 @@ function NewSmartLog() {
       setMealDescription('');
       setIsJiggling(false);
       setIsSubmitting(false);
+      tutorialEvent('tutorial:log-created');
 
       // Invalidate recipes cache since parse-meal can create new recipes
       try { localStorage.removeItem('recipes_cache'); } catch (e) {}
@@ -86,6 +88,12 @@ function NewSmartLog() {
       const pollInterval = setInterval(async () => {
         pollCount++;
         await refreshLogs();
+        // Wait a tick for React to render, then check if recipe bubble exists
+        requestAnimationFrame(() => {
+          if (document.querySelector('.recipe-bubble')) {
+            tutorialEvent('tutorial:log-ready');
+          }
+        });
 
         if (pollCount >= maxPolls) {
           clearInterval(pollInterval);

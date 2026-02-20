@@ -88,12 +88,7 @@ const firstNameAtom = selector<string>({
   }
 })
 
-const isTrialUserAtom = selector<boolean>({
-  key: 'isTrialUser',
-  get: ({get}) => {
-    return get(accountInfoAtom).isTrial || false;
-  }
-})
+
 
 const useResetAccountAtoms = () => { 
   const resetAccountInfo = useResetRecoilState(accountInfoAtom);
@@ -175,7 +170,6 @@ function useFetchAutoFillData(){
 
 export {accountInfoAtom,
         firstNameAtom,
-        isTrialUserAtom,
         nutrientDetailsByIDAtom,
         nutrientDetailsByNameAtom,
         foodsAtom,

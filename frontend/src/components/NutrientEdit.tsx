@@ -12,6 +12,7 @@ import Ok from '../assets/images/check_circle.svg?react'
 import OkOk from '../assets/images/checkmark.svg?react'
 import { nutrientDetailsByNameAtom } from './account_states';
 import { useRecoilValue } from 'recoil';
+import { tutorialEvent } from './TryTutorial';
 
 function NewNutrientForm({ original }: { original?: Nutrient }): React.ReactNode{
 
@@ -130,6 +131,7 @@ function NewNutrientForm({ original }: { original?: Nutrient }): React.ReactNode
     }
     let response = await request('/requirements/new','POST', requestData, 'JSON')
     refreshRequirements();
+    tutorialEvent('tutorial:nutrient-added');
   }
 
   // Handler for the comparison select element

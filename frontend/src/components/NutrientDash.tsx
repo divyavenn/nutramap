@@ -7,6 +7,7 @@ import '../assets/css/NutrientStats.css'; // Import your CSS file for styling
 import {useRecoilValue, useRecoilValueLoadable} from 'recoil'
 import { currentDayAtom, hoveredLogAtom, hoveredLogPanelData } from './dashboard_states';
 import { requirementsAtom, RequirementData, requirementsDataAtom, dayIntake, averageIntake } from './dashboard_states';
+import { tutorialEvent } from './TryTutorial';
 
 
 interface NutrientStatsProps {
@@ -56,7 +57,7 @@ function NutrientDashboard(){
     }
   }
 
-  const toggleEditing = () =>  {setEditing(!editing)}
+  const toggleEditing = () =>  { setEditing(!editing); tutorialEvent('tutorial:editing-panel'); }
 
   return (
     <div className="nutrient-dashboard">

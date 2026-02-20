@@ -12,25 +12,10 @@ import { request } from './endpoints';
 import { tolocalDateString } from './utlis';
 import { nutrientDetailsByIDAtom } from './account_states';
 
-// Shallow comparison helper for arrays
-function arraysEqual<T>(a: T[], b: T[]): boolean {
-  if (a.length !== b.length) return false;
-  return a.every((val, idx) => {
-    if (typeof val === 'object' && val !== null && typeof b[idx] === 'object' && b[idx] !== null) {
-      return shallowEqual(val as Record<string, any>, b[idx] as Record<string, any>);
-    }
-    return val === b[idx];
-  });
-}
-
-// Shallow comparison helper for objects
-function shallowEqual(obj1: Record<string, any>, obj2: Record<string, any>): boolean {
-  const keys1 = Object.keys(obj1);
-  const keys2 = Object.keys(obj2);
-
-  if (keys1.length !== keys2.length) return false;
-
-  return keys1.every(key => obj1[key] === obj2[key]);
+// Deep comparison using JSON serialization
+// Works well for log/requirement data (dozens of items, not thousands)
+function deepEqual(a: any, b: any): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
 }
 
 // Define a type for pending foods with timestamps
@@ -82,11 +67,11 @@ function useRefreshData(){
     ]);
 
     // Only update if data has actually changed
-    if (!arraysEqual(currentLogs, logData.body)) {
+    if (!deepEqual(currentLogs, logData.body)) {
       set(logsAtom, logData.body);
     }
 
-    if (!shallowEqual(currentRequirements, requirementsData.body)) {
+    if (!deepEqual(currentRequirements, requirementsData.body)) {
       set(requirementsAtom, requirementsData.body);
     }
   }, []);
@@ -106,7 +91,7 @@ function useRefreshLogs() {
       + tolocalDateString(dateRange.end) + '');
 
     // Only update if data has actually changed
-    if (!arraysEqual(currentLogs, data.body)) {
+    if (!deepEqual(currentLogs, data.body)) {
       set(logsAtom, data.body);
     }
   }, []);
@@ -122,7 +107,7 @@ function useRefreshRequirements() {
     const data = await request('/requirements/all');
 
     // Only update if data has actually changed
-    if (!shallowEqual(currentRequirements, data.body)) {
+    if (!deepEqual(currentRequirements, data.body)) {
       set(requirementsAtom, data.body);
     }
   }, []);

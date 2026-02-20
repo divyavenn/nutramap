@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { request } from './endpoints';
 import { EditIngredientForm } from './IngredientEdit';
+import { Confirm } from './Confirm';
 import type { Recipe, RecipeIngredient } from './RecipeBlurb';
+import { tutorialEvent } from './TryTutorial';
 import '../assets/css/myrecipes.css';
 
 interface NutrientData {
@@ -25,6 +27,8 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate }: RecipeCardProps) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [recipeName, setRecipeName] = useState(recipe.description);
   const [isEditingName, setIsEditingName] = useState(false);
+  const [hasEdits, setHasEdits] = useState(false);
+  const [showSyncConfirm, setShowSyncConfirm] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -129,20 +133,58 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate }: RecipeCardProps) {
 
   const handleIngredientSave = async () => {
     await refreshRecipeData();
-    onUpdate();
+    setHasEdits(true);
     setEditingIndex(null);
+    tutorialEvent('tutorial:ingredient-edited');
   };
 
   const handleIngredientDelete = async () => {
     await refreshRecipeData();
-    onUpdate();
+    setHasEdits(true);
     setEditingIndex(null);
   };
 
+  const handleClose = () => {
+    if (hasEdits) {
+      setShowSyncConfirm(true);
+      tutorialEvent('tutorial:sync-shown');
+    } else {
+      onClose();
+    }
+  };
+
+  const handleSyncLogs = async () => {
+    try {
+      const formData = new FormData();
+      formData.append('recipe_id', recipe.recipe_id);
+      await request('/recipes/sync-logs', 'POST', formData);
+    } catch (error) {
+      console.error('Error syncing logs:', error);
+    }
+    setShowSyncConfirm(false);
+    onUpdate();
+    onClose();
+    tutorialEvent('tutorial:recipe-synced');
+  };
+
+  const handleUnlinkLogs = async () => {
+    try {
+      const formData = new FormData();
+      formData.append('recipe_id', recipe.recipe_id);
+      await request('/recipes/unlink-all-logs', 'POST', formData);
+    } catch (error) {
+      console.error('Error unlinking logs:', error);
+    }
+    setShowSyncConfirm(false);
+    onUpdate();
+    tutorialEvent('tutorial:recipe-synced');
+    onClose();
+  };
+
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={handleClose}>
       <div className="recipe-detail-modal" onClick={(e) => e.stopPropagation()}>
-        <button className="modal-close-x" onClick={onClose} aria-label="Close">
+        <button className="modal-close-x" onClick={handleClose} aria-label="Close">
           ×
         </button>
         <div className="modal-header">
@@ -235,6 +277,16 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate }: RecipeCardProps) {
           </button>
         </div>
       </div>
+
+      {showSyncConfirm && (
+        <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
+          <Confirm
+            message="update all previous meals using this recipe?"
+            ifYesDo={handleSyncLogs}
+            ifNoDo={handleUnlinkLogs}
+          />
+        </div>
+      )}
     </div>
   );
 }

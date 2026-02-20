@@ -1,0 +1,77 @@
+@import url('./variables.css');
+
+.tutorial-dim {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.65);
+  z-index: 2000;
+}
+
+.tutorial-text {
+  position: fixed;
+  max-width: 420px;
+  width: 85vw;
+  z-index: 2001;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tutorial-text.centered {
+  top: 20%;
+  right: 5%;
+  left: auto;
+  transform: none;
+}
+
+.tutorial-message {
+  font-family: 'Inconsolata', monospace;
+  font-size: 20px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.tutorial-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.tutorial-prev-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  font-family: 'Ubuntu', sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 6px 12px;
+  transition: color 0.2s ease;
+}
+
+.tutorial-prev-btn:hover {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.tutorial-prev-btn:disabled {
+  color: rgba(255, 255, 255, 0.15);
+  cursor: default;
+}
+
+.tutorial-next-btn {
+  background: none;
+  border: none;
+  color: rgba(168, 85, 247, 0.9);
+  font-family: 'Ubuntu', sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 6px 12px;
+  transition: color 0.2s ease;
+}
+
+.tutorial-next-btn:hover {
+  color: rgba(192, 132, 252, 1);
+}

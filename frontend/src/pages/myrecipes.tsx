@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { request } from '../components/endpoints';
 import '../assets/css/myrecipes.css';
 import { Header } from '../components/Sections';
@@ -12,12 +12,15 @@ import { firstNameAtom } from '../components/account_states';
 import { RecipeBlurb } from '../components/RecipeBlurb';
 import { RecipeCard } from '../components/RecipeCard';
 import type { Recipe } from '../components/RecipeBlurb';
+import { tutorialEvent } from '../components/TryTutorial';
 
 function MyRecipes() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newRecipeName, setNewRecipeName] = useState('');
+  const [creating, setCreating] = useState(false);
   const name = useRecoilValue(firstNameAtom);
 
   useEffect(() => {
@@ -73,10 +76,38 @@ function MyRecipes() {
 
   const handleRecipeClick = (recipe: Recipe) => {
     setSelectedRecipe(recipe);
+    tutorialEvent('tutorial:recipe-opened');
   };
 
   const handleCloseModal = () => {
     setSelectedRecipe(null);
+  };
+
+  const handleCreateRecipe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = newRecipeName.trim();
+    if (!trimmed || creating) return;
+
+    setCreating(true);
+    try {
+      const formData = new FormData();
+      formData.append('description', trimmed);
+      formData.append('ingredients', '[]');
+      const response = await request('/recipes/create', 'POST', formData);
+
+      if (response.status === 200 && response.body?.recipe) {
+        try { localStorage.removeItem('recipes_cache'); } catch (e) {}
+        await fetchRecipes(true);
+        setShowCreateModal(false);
+        setNewRecipeName('');
+        // Auto-open the newly created recipe for editing
+        setSelectedRecipe(response.body.recipe);
+      }
+    } catch (error) {
+      console.error('Error creating recipe:', error);
+    } finally {
+      setCreating(false);
+    }
   };
 
   const handleDeleteRecipe = async (recipeId: string) => {
@@ -167,7 +198,45 @@ function MyRecipes() {
           )}
 
           {showCreateModal && (
-            <div/>
+            <div className="modal-overlay" onClick={() => { setShowCreateModal(false); setNewRecipeName(''); }}>
+              <div className="recipe-detail-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+                <button className="modal-close-x" onClick={() => { setShowCreateModal(false); setNewRecipeName(''); }} aria-label="Close">
+                  ×
+                </button>
+                <div className="modal-header">
+                  <h2 className="recipe-name-display">New Recipe</h2>
+                </div>
+                <div className="modal-content">
+                  <form onSubmit={handleCreateRecipe} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <input
+                      type="text"
+                      value={newRecipeName}
+                      onChange={(e) => setNewRecipeName(e.target.value)}
+                      placeholder="Recipe name"
+                      autoFocus
+                      style={{
+                        padding: '10px 14px',
+                        fontSize: '16px',
+                        background: 'rgba(255,255,255,0.08)',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        borderRadius: '8px',
+                        color: 'bisque',
+                        fontFamily: 'Inconsolata',
+                        outline: 'none',
+                      }}
+                    />
+                    <button
+                      type="submit"
+                      className="create-recipe-button"
+                      disabled={creating || !newRecipeName.trim()}
+                      style={{ opacity: creating || !newRecipeName.trim() ? 0.5 : 1 }}
+                    >
+                      {creating ? 'Creating...' : 'Create'}
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
           )}
         </div> )
     }

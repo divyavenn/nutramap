@@ -18,6 +18,7 @@ import { useRecoilState } from 'recoil';
 import { useRefreshLogs, useRefreshRequirements } from './dashboard_states';
 import { isLoginExpired } from './utlis';
 import { LoginPrompt } from './LoginPrompt';
+import { tutorialEvent } from './TryTutorial';
 
 
 function formatDateRange(startDate: Date, endDate: Date) {
@@ -264,6 +265,7 @@ function DateSelector() {
     const { startDate, endDate } = ranges.selection;
     setRangeType(RangeType.custom);
     setDateRange(new TimePeriod(startDate, endDate));
+    tutorialEvent('tutorial:range-changed');
   };
 
   const handleTodayClick = () => {
@@ -273,6 +275,7 @@ function DateSelector() {
     }
     setRangeType(RangeType.default);
     setDateRange(getCurrentPeriod());
+    tutorialEvent('tutorial:range-changed');
   };
 
   return (

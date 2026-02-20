@@ -288,7 +288,11 @@ useEffect(() => {
             weight_in_grams: String(response.body.weight_in_grams)
           }));
 
-          // Refresh logs to update the UI
+          // Notify parent so it refreshes recipe data
+          if (onSave) {
+            await onSave();
+          }
+
           refreshLogs();
         }
       } catch (error) {

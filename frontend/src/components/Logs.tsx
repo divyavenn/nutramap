@@ -12,6 +12,10 @@ import {useRecoilValue, useSetRecoilState, useRecoilState} from 'recoil'
 import { logsAtom, currentDayAtom, hoveredLogAtom, useRefreshLogs, pendingFoodsAtom, PendingFood } from './dashboard_states';
 import { motion } from 'framer-motion';
 import { MealLoading} from './MealLoading';
+import { RecipeCard } from './RecipeCard';
+import { request } from './endpoints';
+import type { Recipe } from './RecipeBlurb';
+import { tutorialEvent } from './TryTutorial';
 
 function LogList (){
   const logs = useRecoilValue(logsAtom)
@@ -25,6 +29,9 @@ function LogList (){
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
   // Track which component is being edited (format: "logId-componentIndex")
   const [editingComponentId, setEditingComponentId] = useState<string | null>(null);
+  // Recipe card modal
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const refreshLogs = useRefreshLogs();
   // Debounce timer ref for hover
   const hoverDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -72,6 +79,7 @@ function LogList (){
     // Only change the hovered log if no animation is playing AND it's a different log
     if (!animationLock && (!hoveredLog || hoveredLog[0] !== logId)) {
       setHoveredLog([logId, blurb]);
+      tutorialEvent('tutorial:log-hovered');
     }
   }, [animationLock, hoveredLog, setHoveredLog]);
 
@@ -98,6 +106,54 @@ function LogList (){
   // Function to handle animation end
   const handleAnimationEnd = () => {
     setAnimationLock(false);
+  };
+
+  // Fetch recipes from cache or API, then find recipe by ID
+  const handleRecipeClick = useCallback(async (recipeId: string) => {
+    try {
+      // Try localStorage cache first
+      const cached = localStorage.getItem('recipes_cache');
+      if (cached) {
+        const recipes: Recipe[] = JSON.parse(cached);
+        const recipe = recipes.find(r => r.recipe_id === recipeId);
+        if (recipe) {
+          setSelectedRecipe(recipe);
+
+          return;
+        }
+      }
+
+      // Cache miss — fetch from API
+      const response = await request('/recipes/list', 'GET');
+      if (response.body?.recipes && Array.isArray(response.body.recipes)) {
+        const recipes: Recipe[] = response.body.recipes;
+        try { localStorage.setItem('recipes_cache', JSON.stringify(recipes)); } catch (e) {}
+        const recipe = recipes.find(r => r.recipe_id === recipeId);
+        if (recipe) {
+          setSelectedRecipe(recipe);
+
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching recipe:', error);
+    }
+  }, []);
+
+  const handleDeleteRecipe = async (recipeId: string) => {
+    if (!confirm('Are you sure you want to delete this recipe?')) return;
+    try {
+      await request(`/recipes/delete?recipe_id=${recipeId}`, 'DELETE');
+      try { localStorage.removeItem('recipes_cache'); } catch (e) {}
+      setSelectedRecipe(null);
+      refreshLogs();
+    } catch (error) {
+      console.error('Error deleting recipe:', error);
+    }
+  };
+
+  const handleRecipeUpdate = () => {
+    try { localStorage.removeItem('recipes_cache'); } catch (e) {}
+    refreshLogs();
   };
 
   // Early return AFTER all hooks
@@ -213,7 +269,8 @@ function LogList (){
                         date={new Date(log.date)}
                         recipe_id={log.recipe_id}
                         recipe_exists={log.recipe_exists}
-                        onClick={() => setEditingLogId(log._id)}
+                        onNameClick={() => log.recipe_exists && log.recipe_id ? handleRecipeClick(log.recipe_id) : setEditingLogId(log._id)}
+                        onEditClick={() => setEditingLogId(log._id)}
                         onMouseEnter={() => !isEditing && handleLogMouseEnter(log._id, `${log.meal_name} (${Number.isInteger(log.servings) ? log.servings : log.servings.toFixed(1)} servings)`)}
                         onMouseLeave={handleLogMouseLeave}
                       />
@@ -264,6 +321,15 @@ function LogList (){
           </div>
         );
       })}
+
+      {selectedRecipe && (
+        <RecipeCard
+          recipe={selectedRecipe}
+          onClose={() => setSelectedRecipe(null)}
+          onDelete={handleDeleteRecipe}
+          onUpdate={handleRecipeUpdate}
+        />
+      )}
     </div>
   );
 }
@@ -295,8 +361,8 @@ function DateDivider({date} : {date : Date}) {
   const setCurrentDay = useSetRecoilState(currentDayAtom)
   return (
     <div className = 'date-divider'>
-      <button className = 'day' 
-        onClick = {() => setCurrentDay(date)}>
+      <button className = 'day'
+        onClick = {() => { setCurrentDay(date); tutorialEvent('tutorial:day-changed'); }}>
         {date.toLocaleDateString('en-US', 
         { weekday: 'long', 
           month: 'long', 

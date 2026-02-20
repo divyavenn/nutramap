@@ -25,6 +25,7 @@ function TryFoodPanel(){
   const refreshData = useRefreshData();
 
   useEffect(() => {
+    sessionStorage.setItem('isTrial', 'true');
     const initializeTrialDashboard = async () => {
       try {
         // Check if already logged in with valid token
@@ -67,6 +68,12 @@ function TryFoodPanel(){
     };
 
     initializeTrialDashboard();
+
+    // Auto-start tutorial for trial users
+    const timer = setTimeout(() => {
+      window.dispatchEvent(new Event('start-tutorial'));
+    }, 1500);
+    return () => clearTimeout(timer);
   }, []);
 
   return(
