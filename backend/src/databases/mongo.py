@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 
 __package__ = "nutramap.databases"
+MAILING_LIST_COLLECTION = "mailing list"
 
 # Load environment variables from .env file (for local development)
 load_dotenv()
@@ -33,6 +34,7 @@ def _init_db():
 
     # Ensure the unique index on email
     _db.users.create_index([("email", ASCENDING)], unique=True)
+    _db[MAILING_LIST_COLLECTION].create_index([("email", ASCENDING)], unique=True)
 
     _db.requirements.create_index(
         [("nutrient_id", ASCENDING), ("user_id", ASCENDING)],

@@ -124,13 +124,18 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  transition: all 0.2s ease;
+  transition: color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
   z-index: 10;
+}
+
+.modal-close-icon {
+  width: 24px;
+  height: 24px;
+  opacity: 0.88;
 }
 
 .modal-close-x:hover {
   background-color: rgba(255, 255, 255, 0.1);
-  transform: rotate(90deg);
 }
 
 .modal-overlay {
@@ -153,7 +158,7 @@
   border-radius: 16px;
   max-width: 800px;
   width: 100%;
-  padding: 20px;
+  padding: 20px 20px 72px 20px;
   
   max-height: 90vh;
   -webkit-overflow-scrolling: touch; /* Enables smooth scrolling on mobile */
@@ -439,10 +444,12 @@
 }
 
 .modal-footer {
+  position: absolute;
+  right: 35px;
+  bottom: 35px;
   display: flex;
-  justify-content: center;
   align-items: center;
-  padding: 24px 32px 32px 32px;
+  padding: 0;
 }
 
 .action-buttons {
@@ -467,6 +474,25 @@
 .delete-recipe-button:hover {
   background-color: rgba(200, 50, 50, 1);
   transform: translateY(-2px);
+}
+
+.delete-recipe-icon-button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0;
+}
+
+.delete-recipe-icon {
+  width: 20px;
+  height: 20px;
+  fill: rgba(255, 255, 255, 0.88);
 }
 
 .delete-button,

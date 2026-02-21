@@ -21,6 +21,58 @@
   transition: background-color 0.3s ease, transform 0.3s ease;
 }
 
+.nutrient-edit-button{
+  margin-top: 16px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  padding: 6px;
+  cursor: pointer;
+  transition: transform 0.18s ease, background-color 0.18s ease;
+}
+
+.nutrient-edit-button img {
+  width: 34px;
+  height: 34px;
+  display: block;
+  opacity: 0.9;
+  animation: nutrientEditIdle 2.6s ease-in-out infinite;
+}
+
+.nutrient-edit-button:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  transform: translateY(-1px);
+}
+
+.nutrient-edit-button:hover img {
+  opacity: 1;
+  animation: nutrientEditHover 0.22s ease-out forwards;
+}
+
+.nutrient-edit-button:active {
+  transform: translateY(0) scale(0.96);
+}
+
+@keyframes nutrientEditIdle {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(-3deg);
+  }
+}
+
+@keyframes nutrientEditHover {
+  0% {
+    transform: rotate(-4deg) scale(1);
+  }
+  60% {
+    transform: rotate(7deg) scale(1.08);
+  }
+  100% {
+    transform: rotate(0deg) scale(1.03);
+  }
+}
 .requirement-edit-wrapper{
   width: 100%;
   display: flex;

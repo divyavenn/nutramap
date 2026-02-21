@@ -1,324 +1,541 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, useRef, type CSSProperties } from 'react';
 import { motion } from 'framer-motion';
-import Joyride, {
-  ACTIONS,
-  EVENTS,
-  STATUS,
-  type CallBackProps,
-  type Step,
-} from 'react-joyride';
+import { Typewriter } from 'motion-plus/react';
+import { computePosition, flip, offset, shift } from '@floating-ui/dom';
+import { useLocation } from 'react-router-dom';
+import { useRecoilState } from 'recoil';
+import {
+  TutorialStep,
+  canAdvanceManually as canAdvanceManuallyForStep,
+  getCompiledStep,
+  lockedInteractionSelector,
+  reduceTutorialState,
+  tutorialMachineAtom,
+  type TutorialMachineAction,
+} from './tutorial_machine';
+import { request } from './endpoints';
+import '../assets/css/tutorial.css';
 import nutritionLabelUrl from '../assets/images/nutrition_label.png';
 
-type TutorialStep = [ReactNode, string | null, string | null];
-
-const TUTORIAL_ACTIVE_ATTR = 'data-tutorial-active';
-const START_TUTORIAL_EVENT = 'start-tutorial';
-
-// [message/content, css selector, event to advance]
-// null selector = centered step, null event = advance on target click or next/prev buttons
 const steps: TutorialStep[] = [
-  ['You can see all your recipes here.', 'a[href="/myrecipes"]', null],
-  ['Now go back the main page...', '.tutorial-home-link', null],
-  ['type what you ate in natural language. anything from \'I ate goldfish yesterday\' to \'today I ate 500 grams of chocolate and 2 scoops of collagen powder.\'', '.form-elements-wrapper', 'tutorial:log-created'],
-  ['most people have go-to meals they eat over and over. we break down what you ate into recipes and automatically store them.', '.log-list', null],
-  ['other nutrition trackers ask you to enter everything manually...', null, null],
-  ['or make a lot of hidden assumptions about how things are made.', null, null],
-  ['click a meal to see the linked recipe card', '.recipe-bubble', null],
-  ['every recipe is a combination of food items whose nutrition info is verified by the USDA.', null, null],
-  ['You can easily edit ingredients, amounts, even exact weight conversions.', '.recipe-detail-modal', 'tutorial:ingredient-edited'],
-  ['Now close the recipe to save your changes.', '.recipe-detail-modal', 'tutorial:sync-shown'],
-  ['Either update all previous times you used the recipe or only use the new version going forward.', '.confirm-modal', 'tutorial:recipe-synced'],
-  ['You can see all your recipes here.', 'a[href="/myrecipes"]', null],
-  ['Now go back the main page...', '.tutorial-home-link', null],
-  ['and type in one cup matcha latte.', '.form-elements-wrapper', 'tutorial:log-created'],
-  ['You\'ll see it identifies and uses the recipe instantly.', '.log-list', null],
-  ['you can also add custom foods by typing in a description or uploading a picture of a nutrition label.', 'a[href="/myfoods"]', null],
-  ['try typing in a food name and pressing Command+V.', '.form-elements-wrapper', 'tutorial:food-created'],
-  ['this makes it easy to also log any supplements you may take.', 'a[href="/myfoods"]', null],
-  ['most nutrition trackers don\'t let you log supplements, but getting too much of a nutrient can be just as damaging as getting not enough.', 'a[href="/myfoods"]', null],
-  ['our nutrition dashboard makes it easy to see if you\'re on track with your nutrition goals. it shows what you\'ve eaten today as well as your monthly average.', '.nutrient-dashboard', null],
-  ['you can easily see the nutrition data for a different day...', '.dashboard-menu', 'tutorial:day-changed'],
-  ['or a specific food.', '.log-list', 'tutorial:log-hovered'],
-  ['or change the time period the average is calculated over.', '.dashboard-menu', 'tutorial:range-changed'],
-  ['you can adjust your nutritional goals clicking the edit button on the panel.', '.nutrient-dashboard', 'tutorial:editing-panel'],
-  ['Try adding a nutrient to track.', '.nutrient-edit-list-wrapper', 'tutorial:nutrient-added'],
-  ['we have 72+ nutrients you can track, everything from protein to PUFAs.', '.nutrient-dashboard', null],
-  ['foodPanelAI is currently just a proof of concept. if you\'d like to see it on the App Store, enter your email!', null, null],
+  new TutorialStep({
+    message: 'or change the time period the average is calculated over.',
+    selector: '.dashboard-menu',
+    eventName: 'tutorial:range-changed',
+  }),
+  new TutorialStep({
+    message: 'foodPanelAI is currently just a proof of concept. if you\'d like to see it on the App Store, enter your email!',
+  }),
 ];
 
+const TUTORIAL_ACTIVE_ATTR = 'data-tutorial-active';
+const TUTORIAL_APP_EVENT = 'tutorial:app-event';
+
 // Step index of the "try pressing Command+V" step
-const PASTE_STEP = steps.findIndex(
-  ([content]) => typeof content === 'string' && content.includes('Command+V')
-);
+const PASTE_STEP = steps.findIndex((s) => s.message.includes('Command+V'));
+
+type TutorialMediaAsset =
+  | { type: 'image'; src: string; alt: string }
+  | {
+      type: 'video';
+      src: string;
+      poster?: string;
+      autoPlay?: boolean;
+      loop?: boolean;
+      muted?: boolean;
+      controls?: boolean;
+    };
+
+const tutorialMediaByStep: Record<number, TutorialMediaAsset> = {};
+if (PASTE_STEP >= 0) {
+  tutorialMediaByStep[PASTE_STEP] = {
+    type: 'image',
+    src: nutritionLabelUrl,
+    alt: 'Sample nutrition label',
+  };
+}
 
 /** Load the sample nutrition label image and copy it to the clipboard */
 async function copyNutritionLabelToClipboard() {
   try {
     const response = await fetch(nutritionLabelUrl);
     const blob = await response.blob();
+    // Ensure it's typed as image/png for the Clipboard API
     const pngBlob = new Blob([blob], { type: 'image/png' });
     await navigator.clipboard.write([
-      new ClipboardItem({ 'image/png': pngBlob }),
+      new ClipboardItem({ 'image/png': pngBlob })
     ]);
   } catch (err) {
     console.warn('Could not copy nutrition label to clipboard:', err);
   }
 }
 
-function TypewriterText({ text }: { text: string }) {
-  const [displayedText, setDisplayedText] = useState('');
-
-  useEffect(() => {
-    setDisplayedText('');
-    let index = 0;
-    const interval = setInterval(() => {
-      if (index < text.length) {
-        setDisplayedText(text.slice(0, index + 1));
-        index += 1;
-      } else {
-        clearInterval(interval);
-      }
-    }, 12);
-
-    return () => clearInterval(interval);
-  }, [text]);
-
-  return (
-    <span>
-      {displayedText}
-      <motion.span
-        animate={{ opacity: [1, 0] }}
-        transition={{ repeat: Infinity, duration: 0.7, ease: 'easeInOut' }}
-        style={{ color: 'rgba(168, 85, 247, 0.9)' }}
-      >
-        |
-      </motion.span>
-    </span>
-  );
-}
-
-function renderStepContent(content: ReactNode) {
-  if (typeof content === 'string') {
-    return <TypewriterText text={content} />;
-  }
-  if (typeof content === 'number') {
-    return <TypewriterText text={String(content)} />;
-  }
-  return content;
-}
-
 /** Dispatch a tutorial event only if the tutorial is currently active */
 export function tutorialEvent(name: string) {
   if (document.body.getAttribute(TUTORIAL_ACTIVE_ATTR) === 'true') {
+    window.dispatchEvent(new CustomEvent(TUTORIAL_APP_EVENT, { detail: { name } }));
     window.dispatchEvent(new Event(name));
   }
 }
 
 export default function TryTutorial() {
-  const [isActive, setIsActive] = useState(false);
-  const [currentStep, setCurrentStep] = useState(0);
-  const isActiveRef = useRef(false);
+  const location = useLocation();
+  const [machineState, setMachineState] = useRecoilState(tutorialMachineAtom);
+  const currentStep = Math.max(0, Math.min(machineState.stepIndex, steps.length - 1));
+  const isActive = machineState.isActive;
+  const currentCompiledStep = getCompiledStep(steps, currentStep);
+  const currentSelector = currentCompiledStep.selector;
+  const canAdvanceManually = canAdvanceManuallyForStep(currentCompiledStep);
+  const interactionLockSelector = lockedInteractionSelector(currentCompiledStep);
+  const currentMedia = tutorialMediaByStep[currentStep] ?? null;
+  const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
+  const [cardStyle, setCardStyle] = useState<CSSProperties>({});
+  const [anchorReady, setAnchorReady] = useState(false);
+  const [mailingEmail, setMailingEmail] = useState('');
+  const [mailingStatus, setMailingStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const machineRef = useRef(machineState);
+  const cardRef = useRef<HTMLDivElement | null>(null);
+
+  const dispatchMachine = useCallback((action: TutorialMachineAction) => {
+    setMachineState((prev) => reduceTutorialState(prev, action, steps));
+  }, [setMachineState]);
+
+  // Keep ref in sync with state for event handlers with stable subscriptions.
+  useEffect(() => { machineRef.current = machineState; }, [machineState]);
 
   useEffect(() => {
-    isActiveRef.current = isActive;
-  }, [isActive]);
+    dispatchMachine({ type: 'ROUTE_CHANGED', path: location.pathname });
+  }, [dispatchMachine, location.pathname]);
 
-  const finish = useCallback(() => {
-    setIsActive(false);
-    setCurrentStep(0);
-  }, []);
-
-  const next = useCallback(() => {
-    setCurrentStep((prev) => {
-      if (prev >= steps.length - 1) {
-        setIsActive(false);
-        return prev;
-      }
-      return prev + 1;
-    });
-  }, []);
-
-  const joyrideSteps = useMemo<Step[]>(
-    () =>
-      steps.map(([content, selector]) => ({
-        target: selector ?? 'body',
-        content: renderStepContent(content),
-        disableBeacon: true,
-        ...(selector ? {} : { placement: 'center' as const }),
-      })),
-    []
-  );
-
-  // Keep a stable DOM flag so non-tutorial components can emit progression events safely.
   useEffect(() => {
     if (isActive) {
       document.body.setAttribute(TUTORIAL_ACTIVE_ATTR, 'true');
     } else {
       document.body.removeAttribute(TUTORIAL_ACTIVE_ATTR);
     }
+
     return () => {
       document.body.removeAttribute(TUTORIAL_ACTIVE_ATTR);
     };
   }, [isActive]);
 
-  // Listen for 'start-tutorial' event from anywhere in the app.
   useEffect(() => {
-    const handler = () => {
-      if (isActiveRef.current) {
-        return;
-      }
-      setCurrentStep(0);
-      setIsActive(true);
-    };
-    window.addEventListener(START_TUTORIAL_EVENT, handler);
-    return () => window.removeEventListener(START_TUTORIAL_EVENT, handler);
+    if (!isActive) {
+      setAnchorReady(false);
+      return;
+    }
+    setAnchorReady(!currentSelector);
+  }, [isActive, currentStep, currentSelector]);
+
+  const getStepElement = useCallback((selector: string | null) => {
+    if (!selector) return null;
+    const candidates = Array.from(document.querySelectorAll(selector)) as HTMLElement[];
+    return candidates.find((el) => el.getClientRects().length > 0) ?? null;
   }, []);
 
-  // Copy a sample nutrition label to clipboard at the paste step.
+  const computeCardPosition = useCallback(async () => {
+    const cardEl = cardRef.current;
+    if (!cardEl) return;
+
+    if (!currentSelector) {
+      setCardStyle({});
+      setAnchorReady(true);
+      return;
+    }
+
+    const targetEl = getStepElement(currentSelector);
+    if (!targetEl) {
+      setCardStyle({});
+      setAnchorReady(false);
+      return;
+    }
+
+    const cardWidth = Math.min(360, window.innerWidth * 0.4);
+    cardEl.style.width = `${cardWidth}px`;
+
+    const isHeaderIcon = currentSelector.includes('.tutorial-home-link') || currentSelector.includes('a[href="/');
+    const placement = isHeaderIcon ? 'bottom-end' : 'right';
+    const fallbackPlacements = isHeaderIcon
+      ? ['bottom', 'left', 'top', 'right']
+      : ['left', 'bottom', 'top', 'right'];
+
+    const { x, y } = await computePosition(targetEl, cardEl, {
+      strategy: 'fixed',
+      placement,
+      middleware: [
+        offset(30),
+        flip({ fallbackPlacements }),
+        shift({ padding: 12 }),
+      ],
+    });
+
+    setCardStyle({
+      width: cardWidth,
+      left: x,
+      top: y,
+      right: 'auto',
+      transform: 'none',
+    });
+    setAnchorReady(true);
+  }, [currentSelector, getStepElement]);
+
+  const computeRect = useCallback(() => {
+    if (!currentSelector) {
+      setTargetRect(null);
+      void computeCardPosition();
+      return;
+    }
+    const el = getStepElement(currentSelector);
+    if (el) {
+      setTargetRect(el.getBoundingClientRect());
+    } else {
+      setTargetRect(null);
+    }
+    void computeCardPosition();
+  }, [computeCardPosition, currentSelector, getStepElement]);
+
+  // Listen for 'start-tutorial' event from anywhere in the app
+  useEffect(() => {
+    const handler = () => {
+      if (machineRef.current.isActive) return;
+      dispatchMachine({ type: 'START' });
+    };
+    window.addEventListener('start-tutorial', handler);
+    return () => window.removeEventListener('start-tutorial', handler);
+  }, [dispatchMachine]);
+
+  // Copy a sample nutrition label to clipboard at the paste step
   useEffect(() => {
     if (isActive && currentStep === PASTE_STEP && PASTE_STEP >= 0) {
       copyNutritionLabelToClipboard();
     }
   }, [isActive, currentStep]);
 
-  const activeStep = steps[currentStep];
-  const currentSelector = activeStep?.[1] ?? null;
-  const currentEvent = activeStep?.[2] ?? null;
-
-  // Advance when a target is clicked on click-driven steps.
+  // Recompute tooltip placement after each step render.
   useEffect(() => {
-    if (!isActive || !currentSelector || currentEvent) {
-      return;
-    }
+    if (!isActive) return;
+    void computeCardPosition();
+  }, [isActive, currentStep, computeCardPosition]);
 
-    const handleClick = (event: MouseEvent) => {
-      const target = event.target as Element | null;
-      if (!target) {
+  // Keep the active target above the dim overlay (no cutout).
+  useEffect(() => {
+    if (!isActive) return;
+    if (!currentSelector) return;
+
+    const lifted: Array<{ node: HTMLElement; position: string; zIndex: string }> = [];
+    const overlayZ = 2000;
+    let retryTimer: number | null = null;
+
+    const resetLift = () => {
+      for (const item of lifted) {
+        item.node.style.position = item.position;
+        item.node.style.zIndex = item.zIndex;
+      }
+      lifted.length = 0;
+    };
+
+    const lift = (node: HTMLElement, ensurePosition: boolean) => {
+      lifted.push({
+        node,
+        position: node.style.position,
+        zIndex: node.style.zIndex,
+      });
+
+      const computed = getComputedStyle(node);
+      if (ensurePosition && computed.position === 'static') {
+        node.style.position = 'relative';
+      }
+      node.style.zIndex = String(overlayZ + 1);
+    };
+
+    const createsStackingContext = (node: HTMLElement) => {
+      const style = getComputedStyle(node);
+      if (style.position === 'fixed' || style.position === 'sticky') return true;
+      if (style.zIndex !== 'auto' && style.position !== 'static') return true;
+      if (style.opacity !== '1') return true;
+      if (style.transform !== 'none') return true;
+      if (style.filter !== 'none') return true;
+      if (style.perspective !== 'none') return true;
+      if (style.isolation === 'isolate') return true;
+      if (style.mixBlendMode !== 'normal') return true;
+      return false;
+    };
+
+    const applyLift = (attempt = 0) => {
+      resetLift();
+
+      const el = getStepElement(currentSelector);
+      if (!el) {
+        if (attempt < 12) {
+          retryTimer = window.setTimeout(() => applyLift(attempt + 1), 120);
+        }
         return;
       }
-      let matched: Element | null = null;
-      try {
-        matched = target.closest(currentSelector);
-      } catch {
-        return;
-      }
-      if (matched) {
-        next();
+
+      lift(el, true);
+
+      let parent = el.parentElement;
+      while (parent && parent !== document.body) {
+        if (createsStackingContext(parent)) {
+          lift(parent, false);
+        }
+        parent = parent.parentElement;
       }
     };
 
-    document.addEventListener('click', handleClick, true);
+    applyLift();
+
     return () => {
-      document.removeEventListener('click', handleClick, true);
+      if (retryTimer !== null) {
+        window.clearTimeout(retryTimer);
+      }
+      resetLift();
     };
-  }, [isActive, currentSelector, currentEvent, next]);
+  }, [currentSelector, getStepElement, isActive, location.pathname, targetRect]);
 
-  // Advance when a step-specific tutorial event fires.
+  // Advance on click when step has a selector but no event.
+  // Defer step changes so route-changing link handlers run first.
   useEffect(() => {
-    if (!isActive || !currentEvent) {
-      return;
-    }
-    const handler = () => next();
-    window.addEventListener(currentEvent, handler);
-    return () => window.removeEventListener(currentEvent, handler);
-  }, [isActive, currentEvent, next]);
+    if (!isActive) return;
+    if (currentCompiledStep.kind !== 'target_click' || !currentSelector) return;
+    const handler = (e: MouseEvent) => {
+      const clickTarget = e.target as Element | null;
+      if (!clickTarget) return;
+      if (!clickTarget.closest(currentSelector)) return;
 
-  // Keep Enter-to-advance behavior from the previous tutorial implementation.
+      // Let link/navigation handlers run first so route-changing steps still navigate.
+      window.setTimeout(() => {
+        dispatchMachine({ type: 'TARGET_CLICK', matchesCurrentTarget: true });
+      }, 0);
+    };
+
+    window.addEventListener('click', handler);
+    return () => window.removeEventListener('click', handler);
+  }, [currentCompiledStep.kind, currentSelector, dispatchMachine, isActive]);
+
+  // Advance when the app emits tutorial events.
   useEffect(() => {
-    if (!isActive) {
-      return;
-    }
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Enter') {
-        next();
+    if (!isActive) return;
+    const handler = (e: Event) => {
+      const custom = e as CustomEvent<{ name?: string }>;
+      const eventName = custom.detail?.name;
+      if (!eventName) return;
+      dispatchMachine({ type: 'APP_EVENT', name: eventName });
+    };
+    window.addEventListener(TUTORIAL_APP_EVENT, handler as EventListener);
+    return () => window.removeEventListener(TUTORIAL_APP_EVENT, handler as EventListener);
+  }, [dispatchMachine, isActive]);
+
+  // Interactivity rule: if a step has both selector + event, only the selected
+  // element can be interacted with until the event is emitted.
+  useEffect(() => {
+    if (!isActive) return;
+    if (!interactionLockSelector) return;
+
+    const block = (e: Event) => {
+      const target = e.target as Element | null;
+      if (target && target.closest(interactionLockSelector)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if ('stopImmediatePropagation' in e && typeof e.stopImmediatePropagation === 'function') {
+        e.stopImmediatePropagation();
+      }
+    };
+
+    document.addEventListener('pointerdown', block, true);
+    document.addEventListener('click', block, true);
+    document.addEventListener('focusin', block, true);
+
+    return () => {
+      document.removeEventListener('pointerdown', block, true);
+      document.removeEventListener('click', block, true);
+      document.removeEventListener('focusin', block, true);
+    };
+  }, [interactionLockSelector, isActive]);
+
+  // Scroll target into view then compute rect (retry if element not yet mounted)
+  useEffect(() => {
+    if (!isActive) return;
+    if (!currentSelector) { computeRect(); return; }
+
+    let cancelled = false;
+    let attempts = 0;
+    const tryFind = () => {
+      if (cancelled) return;
+      const el = getStepElement(currentSelector);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(computeRect, 400);
+      } else if (attempts < 10) {
+        attempts++;
+        setTimeout(tryFind, 200);
+      }
+    };
+    tryFind();
+    return () => { cancelled = true; };
+  }, [computeRect, currentSelector, getStepElement, isActive, location.pathname]);
+
+  // Recalculate on resize/scroll
+  useEffect(() => {
+    if (!isActive) return;
+    window.addEventListener('resize', computeRect);
+    window.addEventListener('scroll', computeRect, true);
+    return () => {
+      window.removeEventListener('resize', computeRect);
+      window.removeEventListener('scroll', computeRect, true);
+    };
+  }, [isActive, computeRect]);
+
+  // Pressing Enter attempts manual progression for narrative steps.
+  useEffect(() => {
+    if (!isActive) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as Element | null;
+      if (target && target.closest('.tutorial-email-form')) return;
+      if (e.key === 'Enter') {
+        dispatchMachine({ type: 'NEXT_MANUAL' });
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isActive, next]);
+  }, [dispatchMachine, isActive]);
 
-  const handleJoyrideCallback = useCallback(
-    (data: CallBackProps) => {
-      const { action, index, status, type } = data;
+  const prev = () => {
+    dispatchMachine({ type: 'PREV' });
+  };
 
-      if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
-        finish();
-        return;
+  const next = () => {
+    if (
+      isLastStep &&
+      mailingEmail.trim() &&
+      mailingStatus !== 'success' &&
+      mailingStatus !== 'submitting'
+    ) {
+      void submitMailingEmail();
+      return;
+    }
+    dispatchMachine({ type: 'NEXT_MANUAL' });
+  };
+
+  const submitMailingEmail = async () => {
+    if (!mailingEmail.trim() || mailingStatus === 'submitting') return;
+    setMailingStatus('submitting');
+    try {
+      const response = await request(
+        '/user/mailing-list/subscribe',
+        'POST',
+        { email: mailingEmail.trim() },
+        'JSON',
+        false
+      );
+      if (response.status >= 200 && response.status < 300) {
+        setMailingStatus('success');
+      } else {
+        setMailingStatus('error');
       }
+    } catch (error) {
+      setMailingStatus('error');
+    }
+  };
 
-      if (type !== EVENTS.STEP_AFTER) {
-        return;
-      }
+  const handleMailingSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    void submitMailingEmail();
+  };
 
-      if (action === ACTIONS.PREV) {
-        setCurrentStep(Math.max(index - 1, 0));
-      }
+  if (!isActive) return null;
 
-      if (action === ACTIONS.NEXT) {
-        setCurrentStep(Math.min(index + 1, steps.length - 1));
-      }
-    },
-    [finish]
-  );
+  const isLastStep = currentStep === steps.length - 1;
+  const hideUntilAnchored = Boolean(currentSelector) && !anchorReady;
+  const tutorialCardStyle: CSSProperties = hideUntilAnchored
+    ? { ...cardStyle, visibility: 'hidden' }
+    : cardStyle;
 
   return (
-    <Joyride
-      callback={handleJoyrideCallback}
-      continuous
-      disableOverlayClose
-      hideCloseButton
-      locale={{
-        back: 'previous',
-        close: 'done',
-        last: 'done',
-        next: 'next',
-      }}
-      run={isActive}
-      scrollToFirstStep
-      showBackButton
-      showSkipButton={false}
-      spotlightClicks
-      stepIndex={currentStep}
-      steps={joyrideSteps}
-      styles={{
-        options: {
-          arrowColor: 'transparent',
-          backgroundColor: 'transparent',
-          overlayColor: 'rgba(0, 0, 0, 0.65)',
-          primaryColor: 'rgba(168, 85, 247, 0.9)',
-          textColor: 'rgba(255, 255, 255, 0.9)',
-          width: 420,
-          zIndex: 2001,
-        },
-        buttonBack: {
-          background: 'none',
-          border: 'none',
-          color: 'rgba(255, 255, 255, 0.4)',
-          fontFamily: 'Ubuntu, sans-serif',
-          fontSize: '13px',
-          padding: '6px 12px',
-        },
-        buttonNext: {
-          background: 'none',
-          border: 'none',
-          color: 'rgba(168, 85, 247, 0.9)',
-          fontFamily: 'Ubuntu, sans-serif',
-          fontSize: '13px',
-          padding: '6px 12px',
-        },
-        tooltip: {
-          backgroundColor: 'transparent',
-          borderRadius: 0,
-          boxShadow: 'none',
-        },
-        tooltipContainer: {
-          fontFamily: 'Inconsolata, monospace',
-          fontSize: '20px',
-          lineHeight: 1.5,
-          padding: '16px 16px 8px',
-          textAlign: 'left',
-        },
-      }}
-    />
+    <>
+      <div className="tutorial-dim" />
+
+      <motion.div
+        ref={cardRef}
+        key={currentStep}
+        className={`tutorial-text${currentSelector ? '' : ' centered'}`}
+        style={tutorialCardStyle}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
+        <div className="tutorial-message">
+          <Typewriter
+            speed="fast"
+            variance="natural"
+            play={!hideUntilAnchored}
+            replace="all"
+            cursorClassName="tutorial-typewriter-cursor"
+            textClassName="tutorial-typewriter-text"
+            aria-label={currentCompiledStep.message}
+          >
+            {hideUntilAnchored ? '' : currentCompiledStep.message}
+          </Typewriter>
+        </div>
+        {isLastStep && (
+          <form className="tutorial-email-form" onSubmit={handleMailingSubmit}>
+            <input
+              className="tutorial-email-input"
+              type="email"
+              placeholder="you@example.com"
+              value={mailingEmail}
+              onChange={(e) => {
+                setMailingEmail(e.target.value);
+                if (mailingStatus !== 'idle') setMailingStatus('idle');
+              }}
+              required
+            />
+            <button className="tutorial-email-submit" type="submit" disabled={mailingStatus === 'submitting'}>
+              {mailingStatus === 'submitting' ? 'saving...' : 'submit'}
+            </button>
+            {mailingStatus === 'success' && <div className="tutorial-email-feedback">thanks! you are on the list.</div>}
+            {mailingStatus === 'error' && <div className="tutorial-email-feedback error">could not save email. try again.</div>}
+          </form>
+        )}
+        {currentMedia && (
+          <div className="tutorial-media">
+            {currentMedia.type === 'image' ? (
+              <img
+                src={currentMedia.src}
+                alt={currentMedia.alt}
+                className="tutorial-media-asset"
+              />
+            ) : (
+              <video
+                src={currentMedia.src}
+                poster={currentMedia.poster}
+                autoPlay={currentMedia.autoPlay ?? true}
+                loop={currentMedia.loop ?? true}
+                muted={currentMedia.muted ?? true}
+                controls={currentMedia.controls ?? false}
+                playsInline
+                className="tutorial-media-asset"
+              />
+            )}
+          </div>
+        )}
+        <div className="tutorial-nav">
+          <button
+            className="tutorial-prev-btn"
+            onClick={prev}
+            disabled={currentStep === 0}
+          >
+            previous
+          </button>
+          <button
+            className="tutorial-next-btn"
+            onClick={next}
+            disabled={!canAdvanceManually}
+          >
+            {isLastStep ? 'done' : 'next'}
+          </button>
+        </div>
+      </motion.div>
+    </>
   );
 }

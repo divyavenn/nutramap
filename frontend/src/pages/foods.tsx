@@ -15,6 +15,7 @@ import FoodBowl from '../assets/images/food_bowl.svg?react'
 import {RecoilRoot} from 'recoil';
 import { NutrientPanel } from '../components/NutrientPanel';
 import { AnimatedText } from '../components/AnimatedText';
+import { tutorialEvent } from '../components/TryTutorial';
 
 interface NutrientInfo {
   nutrient_id: number;
@@ -131,6 +132,7 @@ function Foods() {
     }
 
     setSelectedFood(foodId);
+    tutorialEvent('tutorial:food-tag-clicked');
 
     // Get nutrient details for this food from cache
     const food = foods.find(f => f._id === foodId);
@@ -264,7 +266,7 @@ function Foods() {
 
       {selectedFood && (
         <div className="food-modal-overlay" onClick={() => { setSelectedFood(null); setNutrientsDetails([]); }}>
-          <div onClick={(e) => e.stopPropagation()}>
+          <div className="tutorial-food-detail-modal" onClick={(e) => e.stopPropagation()}>
             <NutrientPanel
               itemId={selectedFood}
               itemType="food"

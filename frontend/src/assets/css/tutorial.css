@@ -6,7 +6,8 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgba(0, 0, 0, 0.65);
+  background-color: rgba(0, 0, 0, 0.52);
+  pointer-events: none;
   z-index: 2000;
 }
 
@@ -34,11 +35,79 @@
   color: rgba(255, 255, 255, 0.9);
 }
 
+.tutorial-typewriter-text {
+  color: inherit;
+}
+
+.tutorial-typewriter-cursor {
+  background-color: rgba(168, 85, 247, 0.92) !important;
+}
+
 .tutorial-nav {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-top: 4px;
+}
+
+.tutorial-media {
+  margin-top: 4px;
+}
+
+.tutorial-media-asset {
+  width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: rgba(15, 15, 30, 0.6);
+}
+
+.tutorial-email-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tutorial-email-input {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: rgba(9, 9, 20, 0.8);
+  color: rgba(255, 255, 255, 0.92);
+  font-family: 'Inconsolata', monospace;
+  font-size: 16px;
+  padding: 10px 12px;
+}
+
+.tutorial-email-input:focus {
+  outline: none;
+  border-color: rgba(168, 85, 247, 0.8);
+}
+
+.tutorial-email-submit {
+  align-self: flex-end;
+  border: none;
+  background: none;
+  color: rgba(168, 85, 247, 0.95);
+  font-family: 'Ubuntu', sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.tutorial-email-submit:disabled {
+  color: rgba(168, 85, 247, 0.45);
+  cursor: default;
+}
+
+.tutorial-email-feedback {
+  font-family: 'Ubuntu', sans-serif;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.tutorial-email-feedback.error {
+  color: rgba(255, 133, 133, 0.95);
 }
 
 .tutorial-prev-btn {
@@ -74,4 +143,9 @@
 
 .tutorial-next-btn:hover {
   color: rgba(192, 132, 252, 1);
+}
+
+.tutorial-next-btn:disabled {
+  color: rgba(168, 85, 247, 0.35);
+  cursor: default;
 }

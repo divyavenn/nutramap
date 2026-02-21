@@ -12,7 +12,9 @@ interface DisplayMealProps {
   onMouseLeave?: () => void;
 }
 
-function MealDisplay ({ meal_name, date, servings, recipe_id, recipe_exists, onNameClick, onEditClick, onMouseEnter, onMouseLeave } : DisplayMealProps) {
+function MealDisplay ({ meal_name, date, servings, recipe_id, onNameClick, onEditClick, onMouseEnter, onMouseLeave } : DisplayMealProps) {
+  const canOpenRecipe = Boolean(recipe_id);
+
   const handleMouseEnter = () => {
     if (onMouseEnter) {
       onMouseEnter();
@@ -33,7 +35,16 @@ function MealDisplay ({ meal_name, date, servings, recipe_id, recipe_exists, onN
       onClick={onEditClick}
       style={{ cursor: 'pointer' }}
     >
-      <span className='food-name-space' onClick={(e) => { e.stopPropagation(); onNameClick?.(); }}>{meal_name}</span>
+      <span
+        className={`food-name-space${canOpenRecipe ? ' tutorial-recipe-name-link' : ''}`}
+        onClick={(e) => {
+          if (!canOpenRecipe) return;
+          e.stopPropagation();
+          onNameClick?.();
+        }}
+      >
+        {meal_name}
+      </span>
       <span className='food-portion-space'> {Number.isInteger(servings) ? servings : servings.toFixed(1)} servings</span>
       <div className='food-weight-space'></div>
       <div className='food-date-space'></div>

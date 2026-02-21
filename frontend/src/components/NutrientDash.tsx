@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, startTransition} from 'react';
 import { calculateColor, formatDayForFrontend} from './utlis';
 import { ImageButton } from './Sections';
-import AddLogButton from '../assets/images/plus.svg?react'
+import addIcon from '../assets/images/add.svg'
 import { NewNutrientForm } from './NutrientEdit';
 import '../assets/css/NutrientStats.css'; // Import your CSS file for styling
 import {useRecoilValue, useRecoilValueLoadable} from 'recoil'
@@ -85,8 +85,9 @@ function NutrientDashboard(){
 
       {!editing && (
         <ImageButton
+        className="nutrient-edit-button tutorial-nutrient-edit-button"
         onClick = {toggleEditing}>
-          <AddLogButton/>
+          <img src={addIcon} alt="Edit nutrients" width="30" height="30" />
         </ImageButton>
       )} 
     </div>

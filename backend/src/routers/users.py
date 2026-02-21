@@ -1,11 +1,12 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from pymongo.database import Database
 from pymongo.errors import DuplicateKeyError
 from typing import List
+from pydantic import BaseModel, EmailStr
 from typing_extensions import Annotated
 
-from src.databases.mongo import get_data
+from src.databases.mongo import MAILING_LIST_COLLECTION, get_data
 from src.databases.mongo_models import User, UserCreate
 from src.routers.auth import hash_password, get_current_user, authenticate_user, create_access_token
 from fastapi.responses import JSONResponse
@@ -20,6 +21,10 @@ router = APIRouter(
 
 user_dependency = Annotated[dict, Depends(get_current_user)]
 user_db_dependency = Annotated[Database, Depends(get_data)]
+
+
+class MailingListSignup(BaseModel):
+    email: EmailStr
 
 #--------------------------------------end points------------------------------------------------------# 
 
@@ -53,6 +58,38 @@ def create_user(user: UserCreate, user_db : user_db_dependency):
     
     
     return user_dict
+
+
+@router.post("/mailing-list/subscribe")
+def subscribe_to_mailing_list(payload: MailingListSignup, user_db: user_db_dependency):
+    now = datetime.utcnow()
+    update_result = user_db[MAILING_LIST_COLLECTION].update_one(
+        {"email": payload.email},
+        {"$setOnInsert": {"email": payload.email, "created_at": now}},
+        upsert=True,
+    )
+    if update_result.upserted_id is not None:
+        return {"message": "Subscribed"}
+    return {"message": "Already subscribed"}
+
+
+@router.get("/mailing-list")
+def get_mailing_list(
+    user: user_dependency,
+    user_db: user_db_dependency,
+    limit: int = 200,
+):
+    if user is None or user.get("role") != "admin":
+        raise HTTPException(status_code=401, detail="Invalid credentials; must be administrator")
+
+    safe_limit = max(1, min(limit, 2000))
+    docs = list(
+        user_db[MAILING_LIST_COLLECTION]
+        .find({}, {"_id": 0, "email": 1, "created_at": 1})
+        .sort("created_at", -1)
+        .limit(safe_limit)
+    )
+    return {"count": len(docs), "emails": docs}
 
 
 @router.post("/check-password")

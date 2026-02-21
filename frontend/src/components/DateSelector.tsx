@@ -223,6 +223,7 @@ function DateSelector() {
         new Date(dateRange.start.getFullYear(), dateRange.start.getMonth() + 1, 1),
         new Date(dateRange.start.getFullYear(), dateRange.start.getMonth() + 2, 0)
       ));
+      tutorialEvent('tutorial:range-changed');
     }
     else if (rangeType === RangeType.custom) {
       // Calculate the difference between the start and end dates in milliseconds
@@ -232,6 +233,7 @@ function DateSelector() {
         new Date(dateRange.start.getTime() + rangeDuration),
         new Date(dateRange.end.getTime() + rangeDuration)
       ));
+      tutorialEvent('tutorial:range-changed');
     }
   };
   
@@ -246,6 +248,7 @@ function DateSelector() {
         start: new Date(dateRange.start.getFullYear(), dateRange.start.getMonth() - 1, 1),
         end: new Date(dateRange.start.getFullYear(), dateRange.start.getMonth(), 0)
       });
+      tutorialEvent('tutorial:range-changed');
     } else if (rangeType === RangeType.custom) {
       // Calculate the difference between the start and end dates in milliseconds
       const rangeDuration = dateRange.end.getTime() - dateRange.start.getTime();
@@ -253,6 +256,7 @@ function DateSelector() {
       setDateRange(new TimePeriod(
         new Date(dateRange.start.getTime() - rangeDuration),
         new Date(dateRange.end.getTime() - rangeDuration)));
+      tutorialEvent('tutorial:range-changed');
     }
   };
 
@@ -263,9 +267,18 @@ function DateSelector() {
       return;
     }
     const { startDate, endDate } = ranges.selection;
+    const didChange =
+      startDate.getTime() !== dateRange.start.getTime() ||
+      endDate.getTime() !== dateRange.end.getTime();
+    const hasCompletedRange = startDate.getTime() !== endDate.getTime();
+
+    if (!didChange) return;
+
     setRangeType(RangeType.custom);
     setDateRange(new TimePeriod(startDate, endDate));
-    tutorialEvent('tutorial:range-changed');
+    if (hasCompletedRange) {
+      tutorialEvent('tutorial:range-changed');
+    }
   };
 
   const handleTodayClick = () => {
@@ -273,8 +286,16 @@ function DateSelector() {
       setShowLoginPrompt(true);
       return;
     }
+    const current = getCurrentPeriod();
+    const didChange =
+      rangeType !== RangeType.default ||
+      current.start.getTime() !== dateRange.start.getTime() ||
+      current.end.getTime() !== dateRange.end.getTime();
+
+    if (!didChange) return;
+
     setRangeType(RangeType.default);
-    setDateRange(getCurrentPeriod());
+    setDateRange(current);
     tutorialEvent('tutorial:range-changed');
   };
 

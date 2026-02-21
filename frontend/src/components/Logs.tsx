@@ -17,6 +17,30 @@ import { request } from './endpoints';
 import type { Recipe } from './RecipeBlurb';
 import { tutorialEvent } from './TryTutorial';
 
+const getTimestamp = (value: unknown): number => {
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === 'number') return value;
+  if (typeof value !== 'string') return Number.NEGATIVE_INFINITY;
+
+  const normalized = value.includes(' ') && !value.includes('T')
+    ? value.replace(' ', 'T')
+    : value;
+
+  let parsed = Date.parse(normalized);
+  if (Number.isNaN(parsed)) {
+    parsed = Date.parse(normalized.replace(/(\.\d{3})\d+/, '$1'));
+  }
+
+  return Number.isNaN(parsed) ? Number.NEGATIVE_INFINITY : parsed;
+};
+
+const getDayStart = (value: unknown): number => {
+  const timestamp = getTimestamp(value);
+  if (!Number.isFinite(timestamp)) return Number.NEGATIVE_INFINITY;
+  const date = new Date(timestamp);
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+};
+
 function LogList (){
   const logs = useRecoilValue(logsAtom)
   const pendingFoods = useRecoilValue(pendingFoodsAtom)
@@ -118,6 +142,7 @@ function LogList (){
         const recipe = recipes.find(r => r.recipe_id === recipeId);
         if (recipe) {
           setSelectedRecipe(recipe);
+          tutorialEvent('tutorial:recipe-opened');
 
           return;
         }
@@ -131,6 +156,7 @@ function LogList (){
         const recipe = recipes.find(r => r.recipe_id === recipeId);
         if (recipe) {
           setSelectedRecipe(recipe);
+          tutorialEvent('tutorial:recipe-opened');
 
         }
       }
@@ -162,31 +188,32 @@ function LogList (){
       <div className = 'no-logs-message'> no logs in this time.</div> </div>;
   }
 
-  // Group logs and pending foods by date
-  const groupedByDate = new Map<string, {logs: LogProps[], pending: PendingFood[]}>();
+  // Group logs and pending foods by day (newest day first)
+  const groupedByDay = new Map<number, {logs: LogProps[], pending: PendingFood[]}>();
 
   // Add regular logs to groups
   logs.forEach(log => {
-    const dateKey = new Date(log.date).toDateString();
-    if (!groupedByDate.has(dateKey)) {
-      groupedByDate.set(dateKey, {logs: [], pending: []});
+    const dayStart = getDayStart(log.date);
+    if (!Number.isFinite(dayStart)) return;
+    if (!groupedByDay.has(dayStart)) {
+      groupedByDay.set(dayStart, {logs: [], pending: []});
     }
-    groupedByDate.get(dateKey)!.logs.push(log);
+    groupedByDay.get(dayStart)!.logs.push(log);
   });
 
   // Add pending foods to groups
   pendingFoods.forEach(food => {
-    const dateKey = new Date(food.timestamp).toDateString();
-    console.log('Adding pending food to date group:', dateKey, food);
-    if (!groupedByDate.has(dateKey)) {
-      groupedByDate.set(dateKey, {logs: [], pending: []});
+    const dayStart = getDayStart(food.timestamp);
+    if (!Number.isFinite(dayStart)) return;
+    console.log('Adding pending food to date group:', new Date(dayStart).toDateString(), food);
+    if (!groupedByDay.has(dayStart)) {
+      groupedByDay.set(dayStart, {logs: [], pending: []});
     }
-    groupedByDate.get(dateKey)!.pending.push(food);
+    groupedByDay.get(dayStart)!.pending.push(food);
   });
 
-  // Convert to array and sort by date (newest first)
-  const sortedDates = Array.from(groupedByDate.entries())
-    .sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime());
+  const sortedDays = Array.from(groupedByDay.entries())
+    .sort((a, b) => b[0] - a[0]);
 
   const formatLogDescription = (components: LogComponent[]): string => {
     if (components.length === 0) return 'No components';
@@ -199,19 +226,26 @@ function LogList (){
 
   return (
     <div className="log-list">
-      {sortedDates.map(([dateKey, { logs: dateLogs, pending: datePending }]) => {
-        // Sort logs by time (newest first)
-        const sortedLogs = [...dateLogs].sort((a, b) =>
-          new Date(b.date).getTime() - new Date(a.date).getTime()
+      {sortedDays.map(([dayStart, { logs: dateLogs, pending: datePending }], dayIndex) => {
+        // Sort logs by time (newest first); break ties by id for stable ordering.
+        const sortedLogs = [...dateLogs].sort((a, b) => {
+          const timeDelta = getTimestamp(b.date) - getTimestamp(a.date);
+          if (timeDelta !== 0) return timeDelta;
+          return b._id.localeCompare(a._id);
+        });
+        const sortedPending = [...datePending].sort(
+          (a, b) => getTimestamp(b.timestamp) - getTimestamp(a.timestamp)
         );
 
+        const isTutorialDayTarget = dayIndex === 1 || (dayIndex === 0 && sortedDays.length === 1);
+
         return (
-          <div key={dateKey} className="logs-wrapper">
+          <div key={dayStart} className="logs-wrapper">
             {/* Date divider for this group */}
-            <DateDivider date={new Date(dateKey)} />
+            <DateDivider date={new Date(dayStart)} tutorialTarget={isTutorialDayTarget} />
 
             {/* Render pending foods for this date first */}
-            {datePending.map((pendingFood, index) => (
+            {sortedPending.map((pendingFood, index) => (
               <div key={`pending-${index}`} className="log-wrapper">
                 <motion.div
                   initial={{
@@ -269,7 +303,7 @@ function LogList (){
                         date={new Date(log.date)}
                         recipe_id={log.recipe_id}
                         recipe_exists={log.recipe_exists}
-                        onNameClick={() => log.recipe_exists && log.recipe_id ? handleRecipeClick(log.recipe_id) : setEditingLogId(log._id)}
+                        onNameClick={() => log.recipe_id ? handleRecipeClick(log.recipe_id) : setEditingLogId(log._id)}
                         onEditClick={() => setEditingLogId(log._id)}
                         onMouseEnter={() => !isEditing && handleLogMouseEnter(log._id, `${log.meal_name} (${Number.isInteger(log.servings) ? log.servings : log.servings.toFixed(1)} servings)`)}
                         onMouseLeave={handleLogMouseLeave}
@@ -357,11 +391,11 @@ function DisplayLog ({ food_name, date, amount, weight_in_grams } : DisplayLogPr
 }
 
 
-function DateDivider({date} : {date : Date}) {
+function DateDivider({date, tutorialTarget = false} : {date : Date, tutorialTarget?: boolean}) {
   const setCurrentDay = useSetRecoilState(currentDayAtom)
   return (
-    <div className = 'date-divider'>
-      <button className = 'day'
+    <div className = {`date-divider${tutorialTarget ? ' tutorial-day-divider-target' : ''}`}>
+      <button className = {`day${tutorialTarget ? ' tutorial-day-button' : ''}`}
         onClick = {() => { setCurrentDay(date); tutorialEvent('tutorial:day-changed'); }}>
         {date.toLocaleDateString('en-US', 
         { weekday: 'long', 
