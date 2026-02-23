@@ -21,7 +21,7 @@ import nutritionLabelUrl from '../assets/images/nutrition_label.png';
 
 const steps: TutorialStep[] = [
 new TutorialStep({
-    message: 'to log a meal, describe what you ate, like \'matcha latte yesterday\' or \'500 grams of chocolate and 2 scoops of collagen powder.\'',
+    message: 'start by logging a meal. describe what you ate, like \'matcha latte yesterday\' or \'500 grams of chocolate and 2 scoops of collagen powder.\'',
     selector: '.form-elements-wrapper',
     eventName: 'tutorial:log-created',
   }),
@@ -34,17 +34,17 @@ new TutorialStep({
     eventName: 'tutorial:recipe-opened',
   }),
   new TutorialStep({
-    message: 'You can easily edit ingredients, amounts, even exact weight conversions.',
+    message: 'Recipes are easy to edit. Try tweaking the ingredients, amounts....even the exact weight conversions (for people who like exact metrics and own kitchen scales)',
     selector: '.recipe-detail-modal .ingredients-section',
     eventName: 'tutorial:ingredient-edited',
   }),
   new TutorialStep({
-    message: 'Now close the recipe to save your changes.',
+    message: 'Now close the recipe or click anywhere outside it to save your changes.',
     selector: '.recipe-detail-modal .modal-close-x',
     eventName: 'tutorial:sync-shown',
   }),
   new TutorialStep({
-    message: 'Either update all previous times you used the recipe or only use the new version going forward.',
+    message: 'Decide if you want to update all previous entries for this recipe only use the new version going forward.',
     selector: '.confirm-modal',
     eventName: 'tutorial:recipe-synced',
   }),
@@ -57,17 +57,17 @@ new TutorialStep({
     selector: 'a[href="/myfoods"]',
   }),
   new TutorialStep({
-    message: 'try typing in a food name and pressing Command+V.',
+    message: 'The nutrition label for some cookies is copied to your clipboard. Type in "chocolate chip cookies" + the Paste shortcut.',
     selector: '.form-elements-wrapper',
     eventName: 'tutorial:food-created',
   }),
   new TutorialStep({
-    message: 'It\'ll fill out the nutrition info and use it when estimating recipes.',
+    message: 'Your new food item will now be used in recipes and meals!',
     selector: '.food-tag',
     eventName: 'tutorial:food-tag-clicked',
   }),
   new TutorialStep({
-    message: 'Unlike most tracking apps, this lets you log any vitamins you take. Too much of a nutrient can be as bad as too little.',
+    message: 'The custom food feature lets you log any vitamins you take, unlike most tracking apps. After all, too much of a nutrient can be as bad as too little.',
     selector: '.tutorial-food-detail-modal',
     highlightOnly: true,
   }),
@@ -86,22 +86,22 @@ new TutorialStep({
     highlightOnly: true,
   }),
   new TutorialStep({
-    message: 'you can easily see the nutrition data for a different day...',
+    message: 'Click on the date divider to see a different day\'s stats...',
     selector: '.tutorial-day-button',
     eventName: 'tutorial:day-changed',
   }),
   new TutorialStep({
-    message: 'or a specific food.',
+    message: 'and hover to see the stats for a specific food.',
     selector: '.log-list',
     eventName: 'tutorial:log-hovered',
   }),
   new TutorialStep({
-    message: 'or change the time period the average is calculated over.',
+    message: 'Click the arrows or the date to see your average intake for a different time period',
     selector: '.dashboard-menu',
     eventName: 'tutorial:range-changed',
   }),
   new TutorialStep({
-    message: 'you can adjust your nutritional goals clicking the edit button on the panel.',
+    message: 'Click the edit button on the panel to change the dashboard settings',
     selector: '.tutorial-nutrient-edit-button',
     eventName: 'tutorial:editing-panel',
   }),
@@ -111,7 +111,7 @@ new TutorialStep({
     eventName: 'tutorial:nutrient-added',
   }),
   new TutorialStep({
-    message: 'we have 72+ nutrients you can track, everything from protein to PUFAs.',
+    message: 'We have 72+ nutrients in our database, everything from protein to PUFAs.',
     selector: '.nutrient-dashboard',
     highlightOnly: true,
   }),

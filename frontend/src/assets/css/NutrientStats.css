@@ -21,6 +21,10 @@
   transition: background-color 0.3s ease, transform 0.3s ease;
 }
 
+.nutrient-dashboard.food-hovered {
+  background-color: rgba(140, 60, 255, 0.55);
+}
+
 .nutrient-edit-button{
   margin-top: 16px;
   border: none;
@@ -88,6 +92,16 @@
   justify-content: center;
   padding-left: -20px;
 }
+
+.nutrient-edit-panel-title {
+  font-family: 'Abyssinica SIL', Georgia, 'Times New Roman', serif;
+  font-size: 20px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.92);
+  text-align: center;
+  margin-bottom: 16px;
+  margin-top: 8px;
+}
 .nutrient-list-wrapper {
   position: relative;
   display: flex;
@@ -117,10 +131,19 @@
   position: relative;
   width: 100%;
   font-family: Inconsolata;
-  color:var(--white);
+  color: var(--white);
   font-size: var(--inconsolata-font-size);
   font-weight: 300;
   text-transform: none;
+  transition: font-family 0.2s ease, font-size 0.2s ease, color 0.2s ease;
+}
+
+.nutrient-title-food-mode {
+  font-family: 'Abyssinica SIL', Georgia, 'Times New Roman', serif;
+  font-size: 22px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.92);
+  text-align: center;
 }
 
 .dashboard-row {
@@ -150,6 +173,13 @@
   flex-grow: 0;
   flex-shrink: 0;
   flex-basis: auto;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.nutrient-name-wrapper.avg-hidden {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .nutrient-name {
@@ -173,8 +203,15 @@
 .avg-stats-wrapper {
   position: relative;
   width: 20%;
-  align-self:center;
+  align-self: center;
   text-align: center;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.avg-stats-wrapper.avg-hidden {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .avg-intake {

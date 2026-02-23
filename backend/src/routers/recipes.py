@@ -204,6 +204,15 @@ def calculate_name_similarity(name1: str, name2: str) -> float:
     # Check if all words from shorter name appear in longer name
     shorter, longer = (words1, words2) if len(words1) <= len(words2) else (words2, words1)
     if shorter.issubset(longer):
+        # Penalize heavily when query words only appear in qualifier position (after comma),
+        # not in the primary food name. E.g. "apple" in "babyfood, juice, apple" but
+        # the primary is "babyfood" — a poor match.
+        primary2_stemmed = stem_words(primary2.split())
+        primary1_stemmed = stem_words(primary1.split())
+        query_words = words1 if len(words1) <= len(words2) else words2
+        primary_of_longer = primary2_stemmed if len(words1) <= len(words2) else primary1_stemmed
+        if not query_words.intersection(primary_of_longer):
+            return 0.3  # query only appears as a qualifier — very poor primary match
         return 0.7
 
     # Check overlap relative to the SHORTER name
@@ -381,7 +390,9 @@ Total weight: {weight}g
 Return ONLY base ingredients that are:
 - Single foods (not dishes or recipes)
 - Common names found in nutrition databases
-- Examples of base ingredients: rice, lentils, tomatoes, onions, oil, salt, chicken, eggs, milk, flour, sugar, butter
+- Examples of base ingredients: rice, lentils, tomatoes, onions, oil, salt, chicken, 
+eggs, milk, flour, sugar, butter
+
 
 Do NOT return:
 - Dish names (sambar, chutney, curry, biryani, pasta sauce)
@@ -484,22 +495,27 @@ async def classify_ingredient(
     # 2. Check for high-confidence food match → include as ingredient
     match = await find_high_confidence_match(ingredient_name, db, user)
     if match:
-        conf_str = f"confidence: {match['confidence']:.2f}"
-        if match.get('exact_match'):
-            conf_str = "exact match"
-        print(f"  ✓ FOOD match: '{match['name']}' ({conf_str})")
-        return {
-            "type": "food",
-            "name": ingredient_name,
-            "amount": amount,
-            "weight": weight,
-            "data": {
-                "food_id": match["id"],
-                "food_name": match["name"],
+        # If this is a composite dish (pizza, curry, etc.), don't accept a database
+        # match for a processed version (e.g. "frozen pizza") — decompose instead.
+        if not match.get('is_base') and not match.get('exact_match') and match['confidence'] < 0.95:
+            print(f"  ↷ Skipping '{match['name']}' (composite dish, confidence={match['confidence']:.2f}) — will decompose")
+        else:
+            conf_str = f"confidence: {match['confidence']:.2f}"
+            if match.get('exact_match'):
+                conf_str = "exact match"
+            print(f"  ✓ FOOD match: '{match['name']}' ({conf_str})")
+            return {
+                "type": "food",
+                "name": ingredient_name,
                 "amount": amount,
-                "weight_in_grams": weight
+                "weight": weight,
+                "data": {
+                    "food_id": match["id"],
+                    "food_name": match["name"],
+                    "amount": amount,
+                    "weight_in_grams": weight
+                }
             }
-        }
 
     # 3. No match → decompose and create new recipe
     print(f"  ✗ No match for '{ingredient_name}', will decompose into new recipe")

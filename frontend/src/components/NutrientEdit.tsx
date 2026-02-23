@@ -6,8 +6,6 @@ import { Nutrient } from './structures';
 import { getNutrientInfo } from './utlis';
 import { useRefreshRequirements } from './dashboard_states';
 import { HoverButton} from './Sections';
-import { ImageButton } from './Sections';
-import Trashcan from '../assets/images/trashcan.svg?react'
 import Ok from '../assets/images/check_circle.svg?react'
 import OkOk from '../assets/images/checkmark.svg?react'
 import { nutrientDetailsByNameAtom } from './account_states';
@@ -203,18 +201,19 @@ function NewNutrientForm({ original }: { original?: Nutrient }): React.ReactNode
     !isDeleted && (
     <form
       id="new-nutrient-form" className = {`new-nutrient-wrapper ${showSuggestions ? 'active' : ''}`} onSubmit={handleSubmit}>
-      <div className={`nutrient-form-bubble ${showSuggestions ? 'active' : ''}`}>
+      <div className={`nutrient-form-bubble ${showSuggestions ? 'active' : ''}${!original ? ' new-entry' : ''}`}>
       
-      <div className= 'new-nutrient-name-wrapper'>
+      <div className='new-nutrient-name-wrapper'>
         <input
           name='nutrient_name'
-          className = 'new-requirement-nutrient-name'
+          className='new-requirement-nutrient-name'
           placeholder='nutrient'
-          value = {formData.nutrient_name}
+          value={formData.nutrient_name}
           onChange={handleTyping}
           onKeyDown={handleNutrientNameKeyDown}
           required
-        ></input>
+        />
+        <span className="nutrient-colon">:</span>
       </div>
 
       <div className="nutrient-type-select-wrapper">
@@ -228,28 +227,27 @@ function NewNutrientForm({ original }: { original?: Nutrient }): React.ReactNode
       <div className="input-requirement-amt-wrapper">
         <input
           name='requirement'
-          className = 'input-requirement-amt'
-          type = 'number'
+          className='input-requirement-amt'
+          type='number'
           placeholder='0'
-          value = {formData.requirement}
+          value={formData.requirement}
           onChange={handleTyping}
           onKeyDown={handleRequirementKeyDown}
           required
-        ></input>
+        />
         <span className="nutrient-unit">
           {formData.nutrient_name && validInput && getNutrientInfo(formData.nutrient_name, true, nutrientList)}
         </span>
+        <span className="nutrient-sentence-sep">a day</span>
       </div>
 
       
-      <div className = 'delete-requirement-button-container'>
-      {original && (
-        <ImageButton
-                type= "button"
-                onClick= {handleDelete}
-                className= "delete-button"
-                children= {<Trashcan/>}>
-        </ImageButton> )}
+      <div className='delete-requirement-button-container'>
+        {original && (
+          <button type="button" className="delete-x-button" onClick={handleDelete} aria-label="Delete">
+            ×
+          </button>
+        )}
       </div>
   
 

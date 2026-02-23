@@ -23,8 +23,9 @@ interface NutrientStatsProps {
 function NutrientDashboard(){
   /* for add nutrient requirement button */
   const [editing, setEditing] = useState<boolean>(false)
-  const editFormRef = useRef<HTMLDivElement>(null); 
-  const currentDay = useRecoilValue(currentDayAtom) 
+  const editFormRef = useRef<HTMLDivElement>(null);
+  const currentDay = useRecoilValue(currentDayAtom)
+  const hoveredLog = useRecoilValue(hoveredLogAtom);
   const requirementsData = useRecoilValueLoadable(requirementsDataAtom);
   const [requirements, setRequirements] = useState<RequirementData[]>([]);
     
@@ -60,7 +61,7 @@ function NutrientDashboard(){
   const toggleEditing = () =>  { setEditing(!editing); tutorialEvent('tutorial:editing-panel'); }
 
   return (
-    <div className="nutrient-dashboard">
+    <div className={`nutrient-dashboard${hoveredLog ? ' food-hovered' : ''}`}>
       {!editing && <NutrientDashboardTitle/>}
         <div className = 'requirement-edit-wrapper' ref = {editFormRef}>
           {!editing ?
@@ -70,6 +71,7 @@ function NutrientDashboard(){
                 <NutrientStats requirements={requirements}/>
             </div>  :
             (<div className='nutrient-edit-list-wrapper'>
+              <div className='nutrient-edit-panel-title'>nutritional targets per day</div>
               {requirements.length > 0 && 
               requirements.map((n, index) => 
                 {return(
@@ -83,13 +85,13 @@ function NutrientDashboard(){
         </div>
 
 
-      {!editing && (
+      {!editing && !hoveredLog && (
         <ImageButton
         className="nutrient-edit-button tutorial-nutrient-edit-button"
         onClick = {toggleEditing}>
           <img src={addIcon} alt="Edit nutrients" width="30" height="30" />
         </ImageButton>
-      )} 
+      )}
     </div>
   )
 }
@@ -99,15 +101,16 @@ function NutrientDashboardTitle(){
   const hoveredLog = useRecoilValue(hoveredLogAtom);
   const currentDay = useRecoilValue(currentDayAtom) 
   return <div className='dashboard-row'>
-    <div className = 'nutrient-name-wrapper'>
-      <div className = 'nutrient-dashboard-title'> target </div>
+    <div className={`nutrient-name-wrapper${hoveredLog ? ' avg-hidden' : ''}`}>
+      <div className='nutrient-dashboard-title'> target </div>
     </div>
-    <div className = 'today-stats-wrapper'>
-      <div className = 'nutrient-dashboard-title'> {hoveredLog ? hoveredLog[1] : formatDayForFrontend(currentDay)} </div>
+    <div className='today-stats-wrapper'>
+      <div className={`nutrient-dashboard-title${hoveredLog ? ' nutrient-title-food-mode' : ''}`}>
+        {hoveredLog ? hoveredLog[1] : formatDayForFrontend(currentDay)}
+      </div>
     </div>
-
-    <div className='avg-stats-wrapper'>
-      <div className = 'nutrient-dashboard-title'> average </div>
+    <div className={`avg-stats-wrapper${hoveredLog ? ' avg-hidden' : ''}`}>
+      <div className='nutrient-dashboard-title'> average </div>
     </div>
   </div>
 }
@@ -261,10 +264,10 @@ function NutrientStatRow({ name, target, dayIntake = 0, avgIntake = 0, shouldExc
           </div>
         </div>
       </div>
-      <div className="avg-stats-wrapper">
-        <div 
+      <div className={`avg-stats-wrapper${hoveredLog ? ' avg-hidden' : ''}`}>
+        <div
           className="avg-intake"
-          style={{ 
+          style={{
             '--avg-color': avgColor
           } as React.CSSProperties}
         >

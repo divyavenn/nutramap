@@ -20,13 +20,18 @@
 
 .nutrient-form-bubble{
   display: flex;
-  border-radius: 14px;
+  border-radius: 10px;
   width: 100%;
-  /* border: 1px solid red; */
   flex-direction: row;
   align-items: center;
   color: var(--white);
-  justify-content: space-between; /* Ensure space is distributed between elements */
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 4px 6px;
+}
+
+.nutrient-form-bubble.new-entry {
+  background-color: rgba(130, 60, 220, 0.25);
 }
 
 .nutrient-form-bubble.active{
@@ -93,49 +98,60 @@
 }
 
 .new-nutrient-name-wrapper {
-  position: relative;
-  display: block;
-  width: 45%;
-  padding-right: 20px;
-  height: auto;
-  align-self: center;
-  flex-grow: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 2px;
+  width: 185px;
   flex-shrink: 0;
-  flex-basis: auto;
-  /* border: 2px solid red */
 }
 
 .new-requirement-nutrient-name {
   cursor: pointer;
   font-family: Poppins;
   font-size: 17px;
-  width: 100%;
-  /* border: 2px solid red */
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: left;
 }
 
+.nutrient-colon {
+  font-family: Poppins;
+  font-size: 17px;
+  color: inherit;
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.nutrient-sentence-sep {
+  font-family: Poppins;
+  font-size: 17px;
+  color: inherit;
+  opacity: 0.6;
+  flex-shrink: 0;
+}
 
 /*--------------------------------------AMOUNT------------------------------------*/
 
 .input-requirement-amt-wrapper {
   display: flex;
-  justify-self: right;
-  align-items: center;
+  align-items: baseline;
   align-self: center;
   position: relative;
-  width: 15%; /* Set width to match your layout */
-  margin-left: 0px;
+  width: auto;
+  flex-shrink: 0;
+  gap: 6px;
   font-family: Poppins;
   font-size: 17px;
 }
 
 /* The input for entering food amount */
 .input-requirement-amt {
-  width: 100%; /* Ensures the input takes full available space in the wrapper */
-  padding-right: 10px; /* Creates space for the "g" */
   background: none;
-  border: none; /* Removes the default border */
-  text-align: left; /* Align the input text to the left */
-  color: inherit; /* Inherit the text color (useful for hover) */
+  border: none;
+  text-align: right;
+  color: inherit;
+  min-width: 1ch;
 }
 
 
@@ -143,29 +159,26 @@
 
 .nutrient-type-select-wrapper {
   display: flex;
-  justify-self: right;
   align-items: center;
   align-self: center;
   position: relative;
   font-family: Poppins;
   font-size: 17px;
-  /* border: 2px solid red */
 }
 
 
 /* General styling for the select input */
 .custom-select {
-  -webkit-appearance: none; /* Remove default arrow */
-  -moz-appearance: none; /* Remove default arrow */
-  appearance: none; /* Remove default arrow */
-  background: none; /* Transparent background */
-  border: none; /* No border */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background: none;
+  border: none;
   border-radius: 0;
-  font-size: 1rem; /* Adjust to your needs */
-  color: inherit; /* Match the text color */
-  padding: 0 10px; /* Add padding */
+  color: inherit;
   cursor: pointer;
-  width: auto; /* Auto width to fit content */
+  width: 95px;
+  text-align: left;
   font-family: inherit;
   font-size: inherit;
 }
@@ -175,7 +188,6 @@
   display: inline-block; /* Inline to fit next to other elements */
   position: relative; /* Necessary for positioning the pseudo-element */
   border: 1px solid white; /* Add border */
-  padding: 5px 10px; /* Padding around the select */
   border-radius: 5px; /* Rounded corners */
 }
 
@@ -236,10 +248,34 @@
 /* ------------------------------------------DELETE-------------------------------------- */
 
 .delete-requirement-button-container {
-  display: flex; 
-  width: 30px;
-  align-items: start; /* Vertically centers the button */
-/*  */
+  display: flex;
+  width: 24px;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+}
+
+.delete-x-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.35);
+  padding: 0;
+  transition: color 0.2s ease, transform 0.2s ease;
+  animation: xIdle 3s ease-in-out infinite;
+}
+
+.delete-x-button:hover {
+  color: rgba(255, 255, 255, 0.9);
+  transform: rotate(90deg);
+  animation: none;
+}
+
+@keyframes xIdle {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.55; }
 }
 
 .delete-button {
