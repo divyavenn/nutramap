@@ -137,7 +137,7 @@
   scrollbar-width: none; /* For Firefox */
   margin-left: 50px;
   border-radius: 14px;
-  background-color: var(--purple);
+  background-color: rgba(140, 60, 255, 0.55);
   color: var(--white);
   justify-content: flex-start;
   transition: all 0.1s ease;
@@ -155,7 +155,7 @@
   -webkit-overflow-scrolling: touch; /* Enables smooth scrolling on mobile */
   scrollbar-width: none; /* For Firefox */
   border-radius: 14px;
-  background-color: var(--purple);
+  background-color: rgba(140, 60, 255, 0.55);
   color: var(--white);
   justify-content: flex-start;
   transition: all 0.1s ease;

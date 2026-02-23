@@ -161,6 +161,10 @@ def calculate_name_similarity(name1: str, name2: str) -> float:
     def stem_words(words):
         return {stem_word(w) for w in words}
 
+    def stem_words_ordered(words):
+        """Order-preserving stemming (list, not set) — needed for startswith checks."""
+        return [stem_word(w) for w in words]
+
     n1 = normalize(name1)
     n2 = normalize(name2)
 
@@ -177,21 +181,23 @@ def calculate_name_similarity(name1: str, name2: str) -> float:
     primary1 = get_primary(name1)
     primary2 = get_primary(name2)
 
+    # Order-preserving stemmed strings for equality and startswith checks
+    stemmed_n1 = ' '.join(stem_words_ordered(n1.split()))
+    stemmed_primary2 = ' '.join(stem_words_ordered(primary2.split()))
+    stemmed_n2 = ' '.join(stem_words_ordered(n2.split()))
+    stemmed_primary1 = ' '.join(stem_words_ordered(primary1.split()))
+
     # Check if search term matches the PRIMARY food (with stemming)
     # "milk" matches "Milk, whole", "bagel" matches "Bagels, plain"
-    stemmed_n1 = ' '.join(stem_words(n1.split()))
-    stemmed_primary2 = ' '.join(stem_words(primary2.split()))
-    stemmed_n2 = ' '.join(stem_words(n2.split()))
-    stemmed_primary1 = ' '.join(stem_words(primary1.split()))
-
     if stemmed_n1 == stemmed_primary2 or stemmed_n2 == stemmed_primary1:
         return 0.85
 
     if stemmed_primary1 == stemmed_primary2:
         return 0.8
 
-    # One contains the other at the START (primary position)
-    if stemmed_n2.startswith(stemmed_n1) or stemmed_n1.startswith(stemmed_n2):
+    # One starts with the other at the START (primary position)
+    # Use order-preserving strings so "strudel apple" won't spuriously match "apple"
+    if stemmed_n2.startswith(stemmed_n1 + ' ') or stemmed_n1.startswith(stemmed_n2 + ' '):
         return 0.75
 
     # Word overlap with stemming
