@@ -134,10 +134,6 @@
   opacity: 0.88;
 }
 
-.modal-close-x:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-}
-
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -154,11 +150,11 @@
 
 .recipe-detail-modal {
   position: relative;
-  background: linear-gradient(135deg, #2a0042 0%, #150020 100%);
+  background: #1c002b;
   border-radius: 16px;
   max-width: 800px;
   width: 100%;
-  padding: 20px 20px 72px 20px;
+  padding: 20px 20px 72px;
   
   max-height: 90vh;
   -webkit-overflow-scrolling: touch; /* Enables smooth scrolling on mobile */
@@ -176,10 +172,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 24px;
-  margin-left: 24px;
-  color: #ffffffc0;
-  font-family: Georgia, Times, Times New Roman, serif;
+  margin: 44px 44px 0;
+  color: rgba(255, 255, 255, 0.92);
+  font-family: 'Abyssinica SIL', Georgia, Times, 'Times New Roman', serif;
   font-size: 28px;
 }
 
@@ -205,10 +200,10 @@
 
 /* Unified recipe name style for h2, input, and animated text */
 .recipe-name-display {
-  font-family: Georgia, Times, Times New Roman, serif;
+  font-family: 'Abyssinica SIL', Georgia, Times, 'Times New Roman', serif;
   font-size: inherit;
   font-weight: normal;
-  color: #ffffffc0;
+  color: rgba(255, 255, 255, 0.92);
   background: transparent;
   border: none;
   outline: none;
@@ -219,7 +214,7 @@
 }
 
 .modal-content {
-  padding: 24px;
+  padding: 28px 44px 24px;
 }
 
 .recipe-description-input {
@@ -251,7 +246,7 @@
 
 .ingredients-section {
   margin-bottom: 24px;
-  margin-top: 50px;
+  margin-top: 18px;
 }
 
 .ingredients-section h3 {
@@ -334,7 +329,7 @@
   border-radius: 0;
   color: rgba(255, 255, 255, 0.9);
   font-family: 'Inconsolata', monospace;
-  font-size: 14px;
+  font-size: 18px;
   min-height: 36px;
   display: flex;
   align-items: center;
@@ -351,13 +346,13 @@
   border-radius: 0;
   color: var(--white);
   font-family: 'Inconsolata', monospace;
-  font-size: var(--inconsolata-font-size)
+  font-size: 18px;
 }
 
 .remove-ingredient-button {
   background: none;
   border: none;
-  color: rgba(255, 100, 100, 0.6);
+  color: rgba(168, 85, 247, 0.92);
   font-size: 24px;
   cursor: pointer;
   transition: color 0.2s ease;
@@ -370,7 +365,7 @@
 }
 
 .remove-ingredient-button:hover {
-  color: rgba(255, 100, 100, 1);
+  color: rgba(192, 132, 252, 1);
 }
 
 .add-ingredient-button {
@@ -582,4 +577,56 @@
 .suggestion-item.selected {
   background-color: rgba(255, 255, 255, 0.1);
   color: var(--white);
+}
+
+/* Recipe title edit row */
+.recipe-serving-suffix {
+  font-size: 0.75em;
+  opacity: 0.55;
+  font-weight: 400;
+  margin-left: 5%;
+}
+
+.recipe-title-saving {
+  min-height: 1.4em;
+}
+
+.recipe-title-edit-row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0;
+  padding: 2px 0;
+}
+
+.recipe-title-input {
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  color: bisque;
+  font-family: 'Inconsolata', monospace;
+  outline: none;
+  padding: 0 2px 2px;
+}
+
+.recipe-title-name-input {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.recipe-title-label-input {
+  font-size: 22px;
+  opacity: 0.75;
+}
+
+.recipe-title-grams-input {
+  font-size: 22px;
+  opacity: 0.75;
+}
+
+.recipe-title-sep {
+  font-family: 'Inconsolata', monospace;
+  font-size: 22px;
+  color: rgba(255, 245, 220, 0.45);
+  white-space: pre;
 }

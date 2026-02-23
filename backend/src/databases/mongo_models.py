@@ -72,6 +72,8 @@ class UserRecipe(BaseModel):
     description: str
     embedding: List[float]
     ingredients: List[RecipeIngredient]
+    serving_size_label: Optional[str] = None  # e.g. "1 slice", "1 bowl"
+    serving_size_grams: Optional[float] = None  # weight of one serving in grams
     created_at: datetime
     updated_at: datetime
 

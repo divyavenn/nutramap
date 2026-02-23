@@ -12,6 +12,8 @@ interface Recipe {
   recipe_id: string;
   description: string;
   ingredients: RecipeIngredient[];
+  serving_size_label?: string;
+  serving_size_grams?: number;
   created_at: string;
   updated_at: string;
   usage_count: number;

@@ -62,7 +62,11 @@ function NewSmartLog() {
     try {
       const data = {
         meal_description: mealDescription,
-        date: new Date().toISOString()
+        date: (() => {
+        const now = new Date();
+        const pad = (n: number) => String(n).padStart(2, '0');
+        return `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+      })()
       };
 
       const response = await request(

@@ -10,19 +10,21 @@ import { NutrientDashboard} from '../components/NutrientDash'
 import { useRefreshData } from '../components/dashboard_states'
 import { useRefreshAccountInfo} from '../components/account_states'
 import { request } from '../components/endpoints'
-import {RecoilRoot} from 'recoil';
-import Utensils from '../assets/images/utensils-solid.svg?react'
+import { useSetRecoilState } from 'recoil'
+import { tutorialMachineAtom } from '../components/tutorial_machine'
 import FoodBowl from '../assets/images/food_bowl.svg?react'
+import RecipesIcon from '../assets/images/recipes.svg?react'
+import DashboardIcon from '../assets/images/dashboard.svg?react'
+import AccountIcon from '../assets/images/account.svg?react'
 
 function TryFoodPanelRoot(){
-  return (<RecoilRoot>
-          <TryFoodPanel/>
-          </RecoilRoot>)
+  return <TryFoodPanel/>
 }
 
 function TryFoodPanel(){
   const refreshAccountInfo = useRefreshAccountInfo();
   const refreshData = useRefreshData();
+  const setMachineState = useSetRecoilState(tutorialMachineAtom);
 
   useEffect(() => {
     sessionStorage.setItem('isTrial', 'true');
@@ -70,15 +72,17 @@ function TryFoodPanel(){
     initializeTrialDashboard();
 
     // Auto-start tutorial for trial users
-    const timer = setTimeout(() => {
-      window.dispatchEvent(new Event('start-tutorial'));
-    }, 1500);
-    return () => clearTimeout(timer);
+    setMachineState(prev => ({
+      ...prev,
+      isActive: true,
+      stepIndex: 0,
+      runId: prev.runId + 1,
+    }));
   }, []);
 
   return(
   <StrictMode>
-  <Header linkIcons = {[{to : '/myfoods', img : <Utensils/>}, {to : '/myrecipes', img : <FoodBowl/>}]}/>
+  <Header linkIcons = {[{to : '/dashboard', img : <DashboardIcon/>}, {to : '/account', img : <AccountIcon/>}, {to : '/myfoods', img : <FoodBowl/>}, {to : '/myrecipes', img : <RecipesIcon/>}]}/>
   <Heading words = "Hello, you!"/>
 
   <MainSection>

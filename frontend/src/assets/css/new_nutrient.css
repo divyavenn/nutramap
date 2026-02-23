@@ -216,6 +216,10 @@
   order: 1;
 }
 
+.new-nutrient-button-hidden {
+  display: none;
+}
+
 .new-nutrient-button svg {
   fill: #ffffffa8; /* You can change the SVG color here */
   width: 18px;

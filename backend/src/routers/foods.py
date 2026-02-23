@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks,
 from fastapi.responses import JSONResponse
 from pymongo.database import Database
 from bson import ObjectId
+from bson.errors import InvalidId
 from decimal import Decimal
 import os
 import shutil
@@ -39,6 +40,77 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 # a table of nutrient_id with functional equivalents
 # mapped to a list of equivalent nutrient_ids that should be included in their total mapped to conversion factor
 convert_map = {1114: [{1110: 0.025}]}
+
+def serialize_bson(value):
+    """Recursively convert BSON types (like ObjectId) to JSON-safe values."""
+    if isinstance(value, ObjectId):
+        return str(value)
+    if isinstance(value, dict):
+        return {k: serialize_bson(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [serialize_bson(v) for v in value]
+    return value
+
+def normalize_nutrient_id(value):
+    """Convert nutrient IDs to ints when possible, otherwise keep the original value."""
+    if isinstance(value, int):
+        return value
+    try:
+        return int(str(value))
+    except (TypeError, ValueError):
+        return value
+
+def normalize_nutrient_amount(value):
+    """Normalize nutrient amounts to numeric values."""
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, (int, float)):
+        return value
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0
+
+def normalize_nutrients_to_list(nutrients):
+    """
+    Normalize nutrient payloads to list form:
+    [{nutrient_id: int|str, amt: number}, ...]
+    """
+    if isinstance(nutrients, list):
+        normalized = []
+        for nutrient in nutrients:
+            if not isinstance(nutrient, dict):
+                continue
+            if "nutrient_id" not in nutrient:
+                continue
+            nutrient_id = normalize_nutrient_id(nutrient.get("nutrient_id"))
+            amount = nutrient.get("amt", nutrient.get("amount", 0))
+            normalized.append({
+                "nutrient_id": nutrient_id,
+                "amt": normalize_nutrient_amount(amount),
+            })
+        return normalized
+
+    if isinstance(nutrients, dict):
+        return [
+            {
+                "nutrient_id": normalize_nutrient_id(nutrient_id),
+                "amt": normalize_nutrient_amount(amount),
+            }
+            for nutrient_id, amount in nutrients.items()
+        ]
+
+    return []
+
+def normalize_nutrients_to_dict(nutrients):
+    """Normalize nutrient payloads to dict form: {nutrient_id: amount}."""
+    normalized = {}
+    for nutrient in normalize_nutrients_to_list(nutrients):
+        nutrient_id = nutrient.get("nutrient_id")
+        if nutrient_id is None:
+            continue
+        normalized[str(nutrient_id)] = nutrient.get("amt", 0)
+    return normalized
 
 async def process_nutrient_conversion(target_id_pair, convert_map, expanded_nutrient_ids, conversion_sources):
     """Process a single nutrient ID for conversion mapping"""
@@ -454,11 +526,8 @@ async def get_custom_foods(
     formatted_foods = [
         {
             "_id": str(food["_id"]),
-            "name": food["food_name"],
-            "nutrients": {
-                str(nutrient["nutrient_id"]): nutrient["amt"]
-                for nutrient in food.get("nutrients", [])
-            }
+            "name": food.get("food_name", ""),
+            "nutrients": normalize_nutrients_to_dict(food.get("nutrients", [])),
         }
         for food in custom_foods
     ]
@@ -615,19 +684,18 @@ def update_food_nutrients(
         # Parse the nutrients JSON
         nutrients_data = json.loads(nutrients)
 
-        # Convert nutrients array to dict format {nutrient_id: amount}
-        nutrients_dict = {}
-        for n in nutrients_data:
-            nutrients_dict[str(n["nutrient_id"])] = n["amt"]
+        # Keep nutrient storage consistent with foods collection:
+        # [{nutrient_id, amt}, ...]
+        nutrients_list = normalize_nutrients_to_list(nutrients_data)
 
         # Update the food
         result = db.foods.update_one(
             {"_id": ObjectId(food_id), "source": user["_id"]},
-            {"$set": {"nutrients": nutrients_dict}}
+            {"$set": {"nutrients": nutrients_list}}
         )
 
-        if result.modified_count == 0:
-            raise HTTPException(status_code=404, detail="Food not found or no changes made")
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Food not found")
 
         return {"message": "Nutrients updated successfully"}
 
@@ -672,17 +740,21 @@ def get_custom_food(
         Food document
     """
     try:
+        object_id = ObjectId(food_id)
+    except InvalidId:
+        raise HTTPException(status_code=400, detail="Invalid food ID")
+
+    try:
         # Find the food
-        food = db.foods.find_one({"_id": ObjectId(food_id)})
+        food = db.foods.find_one({"_id": object_id, "source": user["_id"]})
 
         if not food:
             raise HTTPException(status_code=404, detail="Food not found")
 
-        # Convert ObjectId to string
-        food["_id"] = str(food["_id"])
+        return serialize_bson(food)
 
-        return food
-
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error getting food: {e}")
         raise HTTPException(status_code=500, detail=f"Error getting food: {str(e)}")

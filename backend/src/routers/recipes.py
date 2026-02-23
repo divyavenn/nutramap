@@ -591,17 +591,20 @@ async def parse_recipe_into_ingredients(recipe_description: str) -> List[dict]:
     try:
         client = _get_client()
 
-        prompt = f"""Break down this recipe into individual ingredients with portions.
+        prompt = f"""Please break down this recipe into individual ingredients with portions.
 
 Recipe: {recipe_description}
 
 Guidelines:
 - List ALL ingredients typically used in this recipe
-- Use natural portions (cups, tablespoons, teaspoons, pinches, pieces, etc.)
-- Be specific about ingredient preparation (cooked, raw, drained, chopped, etc.)
-- Use realistic portions for a single serving
+- Use natural portions (cups, tablespoons, teaspoons, pinches, pieces)
+- Be specific about ingredient preparation (cooked, raw, drained, chopped)
+- Use realistic portions for a single serving of what the user describes. if the user says "2 slices" 
+  estimate what would be needed for one slice
+- only include what would be left in the food itself, not the preparation. for example, 
+you may use 1 cup of oil when frying something but only 3 tablespoons would be in the final dish
 
-Respond with ONLY a JSON object in this format:
+Respond with a JSON object in this format:
 {{
   "ingredients": [
     {{
@@ -613,10 +616,26 @@ Respond with ONLY a JSON object in this format:
 }}
 
 Examples:
-- "1 cup yellow lentils, cooked"
-- "2 tablespoons olive oil"
-- "1 teaspoon cumin seeds"
-- "1 medium onion, chopped"
+{{
+  "ingredients": [
+    {{
+      "food_name": "yellow lentils, cooked",
+      "amount": "1 cup"
+    }},
+    {{
+      "food_name": "olive oil",
+      "amount": "2 tablespoons"
+    }},
+    {{
+      "food_name": "cumin seeds",
+      "amount": "1 teaspoon"
+    }},
+    ...
+  ]
+}}
+
+Thank you!
+ 
 """
 
         response = client.chat.completions.create(
@@ -636,9 +655,9 @@ Examples:
         raise HTTPException(status_code=500, detail=f"Failed to parse recipe: {str(e)}")
 
 
-async def identify_recipes_from_meal(meal_description: str, user_recipes: List[dict], user_custom_foods: List[dict]) -> List[dict]:
+async def identify_recipes_from_meal(meal_description: str, user_recipes: List[dict], user_custom_foods: List[dict], submission_time: datetime = None) -> List[dict]:
     """Use GPT-4 to identify recipes in meal description and match to existing recipes"""
-    current_time = datetime.now()
+    current_time = submission_time or datetime.now()
     try:
         client = _get_client()
 
@@ -688,10 +707,15 @@ IMPORTANT RULES:
 - No match = recipe_id: null, decomposed base ingredients
 
 For timestamps:
-- Current time is: {current_time.isoformat()}
-- PARSE RELATIVE DATES: "yesterday" = subtract 1 day, "last night" = previous day evening, "this morning" = today AM, "2 days ago" = subtract 2 days, etc.
-- If no time mentioned, use reasonable defaults (breakfast=8am, lunch=12pm, dinner=6pm)
+- The user's current local time is: {current_time.isoformat()}
+- If the user mentions a relative time (e.g. "yesterday", "last night", "this morning", "breakfast", "2 days ago"), calculate the timestamp from this reference time.
+- If NO time context is mentioned, use the exact submission time above as the timestamp.
 - Return timestamps in ISO format (YYYY-MM-DDTHH:MM:SS)
+
+For NEW recipes (recipe_id is null and more than 1 ingredient), also estimate the serving size:
+- "serving_size_label": a natural measurement for 1 serving (e.g. "1 bowl", "1 slice", "1 cup")
+- "serving_size_grams": the weight in grams of that 1 serving
+For existing recipe matches or single-ingredient items, set both to null.
 
 Respond with ONLY a JSON object:
 {{
@@ -701,6 +725,8 @@ Respond with ONLY a JSON object:
       "timestamp": "YYYY-MM-DDTHH:MM:SS",
       "description": "food item name",
       "recipe_servings": number,
+      "serving_size_label": "natural measurement or null",
+      "serving_size_grams": number or null,
       "ingredients": [
         {{"food_name": "name", "amount": "portion", "weight_in_grams": number}}
       ]
@@ -839,13 +865,14 @@ async def process_recipes_in_background(
             recipe_id = item.get("recipe_id")
             description = item["description"]
             servings = item.get("recipe_servings", 1.0)
-            timestamp_str = item.get("timestamp", meal_date.isoformat())
             ingredients = item.get("ingredients", [])
-
-            # Parse the timestamp
-            try:
-                timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-            except (ValueError, AttributeError):
+            timestamp_str = item.get("timestamp")
+            if timestamp_str:
+                try:
+                    timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                except (ValueError, AttributeError):
+                    timestamp = meal_date
+            else:
                 timestamp = meal_date
 
             print(f"\nProcessing '{description}': {len(ingredients)} ingredients, servings={servings}")
@@ -922,11 +949,16 @@ async def process_recipes_in_background(
             new_recipe_id = str(uuid.uuid4())
             embedding = await generate_recipe_embedding(description)
 
+            serving_size_label = item.get("serving_size_label") or None
+            serving_size_grams = item.get("serving_size_grams") or None
+
             new_recipe = {
                 "recipe_id": new_recipe_id,
                 "description": description,
                 "embedding": embedding,
                 "ingredients": matched_ingredients,
+                "serving_size_label": serving_size_label,
+                "serving_size_grams": serving_size_grams,
                 "created_at": timestamp,
                 "updated_at": datetime.now()
             }
@@ -1120,7 +1152,7 @@ async def parse_meal(
             print(f"  ... and {len(user_custom_foods) - 10} more")
 
         # Identify recipes in the meal (this is fast - just GPT parsing)
-        identified_recipes = await identify_recipes_from_meal(meal_description, user_recipes, user_custom_foods)
+        identified_recipes = await identify_recipes_from_meal(meal_description, user_recipes, user_custom_foods, meal_date)
         print(f"identified_recipes: {identified_recipes}")
 
         # Return immediately with recipe count and info
@@ -1348,6 +1380,32 @@ async def update_recipe_ingredients(
     except Exception as e:
         print(f"Error updating recipe: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/update-serving-size")
+async def update_serving_size(
+    user: user,
+    db: db,
+    recipe_id: str = Form(...),
+    serving_size_label: str = Form(...),
+    serving_size_grams: float = Form(...)
+):
+    """Update the serving size label and weight for a recipe"""
+    result = db.users.update_one(
+        {"_id": user["_id"], "recipes.recipe_id": recipe_id},
+        {
+            "$set": {
+                "recipes.$.serving_size_label": serving_size_label,
+                "recipes.$.serving_size_grams": serving_size_grams,
+                "recipes.$.updated_at": datetime.now()
+            }
+        }
+    )
+
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Recipe not found")
+
+    return {"status": "success"}
 
 
 @router.post("/rename")
@@ -1689,6 +1747,8 @@ async def create_recipe(
             "description": description,
             "embedding": embedding,
             "ingredients": processed_ingredients,
+            "serving_size_label": None,
+            "serving_size_grams": None,
             "created_at": datetime.now(),
             "updated_at": datetime.now()
         }

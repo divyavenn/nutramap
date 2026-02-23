@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Typewriter } from 'motion-plus/react';
 import { computePosition, flip, offset, shift } from '@floating-ui/dom';
 import { useLocation } from 'react-router-dom';
-import { useRecoilState } from 'recoil';
+import { useRecoilState, useSetRecoilState } from 'recoil';
 import {
   TutorialStep,
   canAdvanceManually as canAdvanceManuallyForStep,
@@ -13,15 +13,107 @@ import {
   tutorialMachineAtom,
   type TutorialMachineAction,
 } from './tutorial_machine';
+import { dateRangeAtom, rangeTypeAtom } from './dashboard_states';
+import { getCurrentPeriod, RangeType } from './structures';
 import { request } from './endpoints';
 import '../assets/css/tutorial.css';
 import nutritionLabelUrl from '../assets/images/nutrition_label.png';
 
 const steps: TutorialStep[] = [
+new TutorialStep({
+    message: 'to log a meal, describe what you ate, like \'matcha latte yesterday\' or \'500 grams of chocolate and 2 scoops of collagen powder.\'',
+    selector: '.form-elements-wrapper',
+    eventName: 'tutorial:log-created',
+  }),
+  new TutorialStep({ message: 'other nutrition trackers ask you to enter everything manually...' }),
+  new TutorialStep({ message: 'or make a lot of hidden assumptions about how things are made.' }),
+  new TutorialStep({ message: 'we store your meals as recipes. each recipe consists of ingredients whose nutrition info is verified by the USDA.' }),
+  new TutorialStep({
+    message: 'click the name of meal to see the linked recipe card',
+    selector: '.tutorial-recipe-name-link',
+    eventName: 'tutorial:recipe-opened',
+  }),
+  new TutorialStep({
+    message: 'You can easily edit ingredients, amounts, even exact weight conversions.',
+    selector: '.recipe-detail-modal .ingredients-section',
+    eventName: 'tutorial:ingredient-edited',
+  }),
+  new TutorialStep({
+    message: 'Now close the recipe to save your changes.',
+    selector: '.recipe-detail-modal .modal-close-x',
+    eventName: 'tutorial:sync-shown',
+  }),
+  new TutorialStep({
+    message: 'Either update all previous times you used the recipe or only use the new version going forward.',
+    selector: '.confirm-modal',
+    eventName: 'tutorial:recipe-synced',
+  }),
+  new TutorialStep({
+    message: 'most people have go-to meals they eat over and over, so all recipes are automatically stored here',
+    selector: 'a[href="/myrecipes"]',
+  }),
+  new TutorialStep({
+    message: 'you can also add custom foods by typing in a description or uploading a picture of a nutrition label.',
+    selector: 'a[href="/myfoods"]',
+  }),
+  new TutorialStep({
+    message: 'try typing in a food name and pressing Command+V.',
+    selector: '.form-elements-wrapper',
+    eventName: 'tutorial:food-created',
+  }),
+  new TutorialStep({
+    message: 'It\'ll fill out the nutrition info and use it when estimating recipes.',
+    selector: '.food-tag',
+    eventName: 'tutorial:food-tag-clicked',
+  }),
+  new TutorialStep({
+    message: 'Unlike most tracking apps, this lets you log any vitamins you take. Too much of a nutrient can be as bad as too little.',
+    selector: '.tutorial-food-detail-modal',
+    highlightOnly: true,
+  }),
+  new TutorialStep({
+    message: 'Now return home.',
+    selector: '.tutorial-home-link',
+  }),
+  new TutorialStep({
+    message: 'our nutrition dashboard compares your progress towards your nutrition goals today..',
+    selector: '.today-stats-wrapper .progress-bar-container',
+    highlightOnly: true,
+  }),
+  new TutorialStep({
+    message: 'with your monthly average.',
+    selector: '.avg-stats-wrapper .avg-intake',
+    highlightOnly: true,
+  }),
+  new TutorialStep({
+    message: 'you can easily see the nutrition data for a different day...',
+    selector: '.tutorial-day-button',
+    eventName: 'tutorial:day-changed',
+  }),
+  new TutorialStep({
+    message: 'or a specific food.',
+    selector: '.log-list',
+    eventName: 'tutorial:log-hovered',
+  }),
   new TutorialStep({
     message: 'or change the time period the average is calculated over.',
     selector: '.dashboard-menu',
     eventName: 'tutorial:range-changed',
+  }),
+  new TutorialStep({
+    message: 'you can adjust your nutritional goals clicking the edit button on the panel.',
+    selector: '.tutorial-nutrient-edit-button',
+    eventName: 'tutorial:editing-panel',
+  }),
+  new TutorialStep({
+    message: 'Try adding a nutrient to track.',
+    selector: '.nutrient-edit-list-wrapper',
+    eventName: 'tutorial:nutrient-added',
+  }),
+  new TutorialStep({
+    message: 'we have 72+ nutrients you can track, everything from protein to PUFAs.',
+    selector: '.nutrient-dashboard',
+    highlightOnly: true,
   }),
   new TutorialStep({
     message: 'foodPanelAI is currently just a proof of concept. if you\'d like to see it on the App Store, enter your email!',
@@ -95,6 +187,9 @@ export default function TryTutorial() {
   const [mailingStatus, setMailingStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const machineRef = useRef(machineState);
   const cardRef = useRef<HTMLDivElement | null>(null);
+  const setDateRange = useSetRecoilState(dateRangeAtom);
+  const setRangeType = useSetRecoilState(rangeTypeAtom);
+  const wasActiveRef = useRef(false);
 
   const dispatchMachine = useCallback((action: TutorialMachineAction) => {
     setMachineState((prev) => reduceTutorialState(prev, action, steps));
@@ -102,6 +197,15 @@ export default function TryTutorial() {
 
   // Keep ref in sync with state for event handlers with stable subscriptions.
   useEffect(() => { machineRef.current = machineState; }, [machineState]);
+
+  // Reset date range back to current period when the tutorial ends.
+  useEffect(() => {
+    if (wasActiveRef.current && !isActive) {
+      setDateRange(getCurrentPeriod());
+      setRangeType(RangeType.default);
+    }
+    wasActiveRef.current = isActive;
+  }, [isActive, setDateRange, setRangeType]);
 
   useEffect(() => {
     dispatchMachine({ type: 'ROUTE_CHANGED', path: location.pathname });
@@ -446,7 +550,11 @@ export default function TryTutorial() {
   if (!isActive) return null;
 
   const isLastStep = currentStep === steps.length - 1;
+  const isFinalEmailSubmitted = isLastStep && mailingStatus === 'success';
   const hideUntilAnchored = Boolean(currentSelector) && !anchorReady;
+  const tutorialMessage = isFinalEmailSubmitted
+    ? 'thank you, stay tuned'
+    : (hideUntilAnchored ? '' : currentCompiledStep.message);
   const tutorialCardStyle: CSSProperties = hideUntilAnchored
     ? { ...cardStyle, visibility: 'hidden' }
     : cardStyle;
@@ -466,18 +574,18 @@ export default function TryTutorial() {
       >
         <div className="tutorial-message">
           <Typewriter
-            speed="fast"
+            speed={15}
             variance="natural"
             play={!hideUntilAnchored}
             replace="all"
             cursorClassName="tutorial-typewriter-cursor"
             textClassName="tutorial-typewriter-text"
-            aria-label={currentCompiledStep.message}
+            aria-label={tutorialMessage}
           >
-            {hideUntilAnchored ? '' : currentCompiledStep.message}
+            {tutorialMessage}
           </Typewriter>
         </div>
-        {isLastStep && (
+        {isLastStep && mailingStatus !== 'success' && (
           <form className="tutorial-email-form" onSubmit={handleMailingSubmit}>
             <input
               className="tutorial-email-input"
@@ -490,10 +598,7 @@ export default function TryTutorial() {
               }}
               required
             />
-            <button className="tutorial-email-submit" type="submit" disabled={mailingStatus === 'submitting'}>
-              {mailingStatus === 'submitting' ? 'saving...' : 'submit'}
-            </button>
-            {mailingStatus === 'success' && <div className="tutorial-email-feedback">thanks! you are on the list.</div>}
+            <button type="submit" style={{ display: 'none' }} aria-hidden="true" tabIndex={-1} />
             {mailingStatus === 'error' && <div className="tutorial-email-feedback error">could not save email. try again.</div>}
           </form>
         )}

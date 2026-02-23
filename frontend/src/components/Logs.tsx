@@ -56,6 +56,20 @@ function LogList (){
   // Recipe card modal
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const refreshLogs = useRefreshLogs();
+  // recipe_id → serving_size_label lookup from cache
+  const [recipeServingMap, setRecipeServingMap] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem('recipes_cache');
+      if (cached) {
+        const recipes: Recipe[] = JSON.parse(cached);
+        const map: Record<string, string> = {};
+        recipes.forEach(r => { if (r.serving_size_label) map[r.recipe_id] = r.serving_size_label; });
+        setRecipeServingMap(map);
+      }
+    } catch (e) {}
+  }, []);
   // Debounce timer ref for hover
   const hoverDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -177,9 +191,19 @@ function LogList (){
     }
   };
 
-  const handleRecipeUpdate = () => {
+  const handleRecipeUpdate = async () => {
     try { localStorage.removeItem('recipes_cache'); } catch (e) {}
     refreshLogs();
+    try {
+      const response = await request('/recipes/list', 'GET');
+      if (response.body?.recipes) {
+        const recipes: Recipe[] = response.body.recipes;
+        try { localStorage.setItem('recipes_cache', JSON.stringify(recipes)); } catch (e) {}
+        const map: Record<string, string> = {};
+        recipes.forEach((r: Recipe) => { if (r.serving_size_label) map[r.recipe_id] = r.serving_size_label; });
+        setRecipeServingMap(map);
+      }
+    } catch (e) {}
   };
 
   // Early return AFTER all hooks
@@ -291,6 +315,7 @@ function LogList (){
                           servings={log.servings}
                           date={new Date(log.date)}
                           _id={log._id}
+                          totalWeightGrams={log.components.reduce((sum, c) => sum + c.weight_in_grams, 0)}
                           onCancel={() => setEditingLogId(null)}
                           onAnimationStart={handleAnimationStart}
                           onAnimationEnd={handleAnimationEnd}
@@ -303,6 +328,7 @@ function LogList (){
                         date={new Date(log.date)}
                         recipe_id={log.recipe_id}
                         recipe_exists={log.recipe_exists}
+                        serving_size_label={log.recipe_id ? recipeServingMap[log.recipe_id] : undefined}
                         onNameClick={() => log.recipe_id ? handleRecipeClick(log.recipe_id) : setEditingLogId(log._id)}
                         onEditClick={() => setEditingLogId(log._id)}
                         onMouseEnter={() => !isEditing && handleLogMouseEnter(log._id, `${log.meal_name} (${Number.isInteger(log.servings) ? log.servings : log.servings.toFixed(1)} servings)`)}

@@ -10,18 +10,16 @@ import { NutrientDashboard} from '../components/NutrientDash'
 import { useRefreshData } from '../components/dashboard_states'
 import AccountIcon from '../assets/images/account.svg?react'
 import DashboardIcon from '../assets/images/dashboard.svg?react'
-import Utensils from '../assets/images/utensils-solid.svg?react'
 import FoodBowl from '../assets/images/food_bowl.svg?react'
+import RecipesIcon from '../assets/images/recipes.svg?react'
 import { isLoginExpired } from '../components/utlis'
 import { useNavigate } from 'react-router-dom';
 import { firstNameAtom, useRefreshAccountInfo} from '../components/account_states'
 
-import {RecoilRoot, useRecoilValue} from 'recoil';
+import { useRecoilValue} from 'recoil';
 
 function DashboardRoot(){
-  return (<RecoilRoot>
-          <Dashboard/>
-          </RecoilRoot>)
+  return <Dashboard/>
 }
 
 function Dashboard(){
@@ -52,7 +50,7 @@ function Dashboard(){
 
   return(
   <StrictMode>
-  <Header linkIcons = {[{to : "/dashboard", img:  <DashboardIcon/>}, {to : '/account', img : <AccountIcon/>}, {to : '/myfoods', img : <Utensils/>}, {to : '/myrecipes', img : <FoodBowl/>}]}/>
+  <Header linkIcons = {[{to : "/dashboard", img:  <DashboardIcon/>}, {to : '/account', img : <AccountIcon/>}, {to : '/myfoods', img : <FoodBowl/>}, {to : '/myrecipes', img : <RecipesIcon/>}]}/>
   <Heading words = {getGreeting()}/>
 
 

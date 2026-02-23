@@ -195,13 +195,27 @@ input, textarea {
 }
 
 .form-elements-wrapper{
-  width: var(--modal-width);
+  width: min(760px, 100%);
   display: flex;
   margin-top: 20px;
   flex-direction: column;
   border-radius: 14px;
   position: relative;
   overflow: hidden;
+}
+
+.foods-container .entry-form-bubble {
+  background-color: rgba(28, 0, 43, 0.92);
+  border-radius: 14px;
+}
+
+.foods-container .entry-form-bubble:hover {
+  background-color: rgba(43, 14, 72, 0.95);
+}
+
+.foods-container .entry-form-bubble:hover input,
+.foods-container .entry-form-bubble:hover textarea {
+  color: rgba(255, 255, 255, 0.92);
 }
 
 /* Quivering animation styles */
@@ -600,7 +614,7 @@ input, textarea {
 .foods-tags-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 9px;
   margin-top: 20px;
   margin-bottom: 30px;
 }
@@ -608,26 +622,27 @@ input, textarea {
 .food-tag {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 15px;
-  background-color: rgba(96, 62, 146, 0.489);
+  gap: 9px;
+  min-height: 42px;
+  padding: 20px 25px 20px 25px;
+  background-color: #2f125b;
   border: none;
-  border-radius: 20px;
+  border-radius: 30px;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-family: 'Poppins', sans-serif;
-  font-size: 20px;
-  color: var(--white);
+  font-family: 'Abyssinica SIL', Georgia, Times, 'Times New Roman', serif;
+  font-size: 23px;
+  line-height: 26px;
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .food-tag:hover {
-  background-color: rgba(102, 0, 255, 0.5);
+  background-color: #47129a;
 }
 
 .food-tag.selected {
-  background-color: var(--purple);
-  border-color: var(--purple);
-  box-shadow: 0 4px 12px rgba(102, 0, 255, 0.4);
+  background-color: #4b16a0;
+  box-shadow: none;
 }
 
 .food-tag.shimmer {
@@ -670,7 +685,7 @@ input, textarea {
 }
 
 .food-tag.pending {
-  background-color: rgba(96, 62, 146, 0.3);
+  background-color: rgba(28, 0, 43, 0.6);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   cursor: default;
@@ -678,17 +693,18 @@ input, textarea {
 
 .food-tag-name {
   flex: 1;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .food-tag-delete {
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 18px;
+  color: rgba(168, 85, 247, 0.95);
+  font-size: 20px;
   line-height: 1;
   cursor: pointer;
-  padding: 0;
-  padding-left: 10px;
+  padding: 0 0 0 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -696,7 +712,7 @@ input, textarea {
 }
 
 .food-tag-delete:hover {
-  color: rgb(255, 255, 255);
+  color: rgba(192, 132, 252, 1);
 }
 
 /* Modal Overlay */
@@ -706,14 +722,164 @@ input, textarea {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background-color: rgba(0, 0, 0, 0.8);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
   padding: 20px;
+}
+
+.tutorial-food-detail-modal {
+  width: min(900px, 96vw);
+}
+
+.tutorial-food-detail-modal .nutrient-dashboard {
+  width: 100%;
+  margin: 0;
+  max-height: 90vh;
+  padding: 34px 56px 44px;
+  border-radius: 20px;
+  background: #3a0a84;
+  box-shadow: none;
+}
+
+.tutorial-food-detail-modal .nutrient-panel-title {
+  font-family: 'Abyssinica SIL', Georgia, Times, 'Times New Roman', serif;
+  font-size: 28px;
+  font-weight: 400;
+  text-align: center;
+  margin-bottom: 2px;
+}
+
+.tutorial-food-detail-modal .nutrient-edit-list-wrapper {
+  width: 100%;
+  padding-top: 24px;
+}
+
+.tutorial-food-detail-modal .new-nutrient-wrapper {
+  padding-bottom: 10px;
+}
+
+.tutorial-food-detail-modal .nutrient-form-bubble {
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 78px 62px 28px;
+  align-items: center;
+  column-gap: 28px;
+  justify-content: initial;
+}
+
+.tutorial-food-detail-modal .new-requirement-nutrient-name,
+.tutorial-food-detail-modal .input-requirement-amt,
+.tutorial-food-detail-modal .nutrient-unit {
+  font-family: 'Inconsolata', monospace;
+  font-size: 22px;
+  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.tutorial-food-detail-modal .new-nutrient-name-wrapper,
+.tutorial-food-detail-modal .input-requirement-amt-wrapper,
+.tutorial-food-detail-modal .new-nutrient-button-container {
+  width: auto;
+  padding: 0;
+}
+
+.tutorial-food-detail-modal .new-nutrient-name-wrapper {
+  justify-self: stretch;
+}
+
+.tutorial-food-detail-modal .input-requirement-amt-wrapper {
+  justify-self: start;
+}
+
+.tutorial-food-detail-modal .input-requirement-amt {
+  text-align: left;
+}
+
+.tutorial-food-detail-modal .new-nutrient-button-container {
+  justify-self: end;
+  justify-content: flex-end;
+}
+
+.tutorial-food-detail-modal .delete-requirement-button-container {
+  width: auto;
+  align-items: center;
+}
+
+.tutorial-food-detail-modal .delete-requirement-button-container .delete-button svg {
+  fill: rgba(13, 2, 33, 0.92) !important;
+  width: 22px;
+  height: 22px;
+}
+
+.tutorial-food-detail-modal .delete-requirement-button-container .delete-button {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.16s ease;
+}
+
+.tutorial-food-detail-modal .delete-requirement-button-container .delete-button:hover svg {
+  fill: rgba(30, 8, 58, 0.95) !important;
+}
+
+.tutorial-food-detail-modal .new-nutrient-button {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.tutorial-food-detail-modal .new-nutrient-button svg {
+  fill: rgba(239, 236, 244, 0.98);
+  width: 18px;
+  height: 18px;
+}
+
+.tutorial-food-detail-modal .nutrient-form-bubble:hover .new-nutrient-button,
+.tutorial-food-detail-modal .nutrient-form-bubble:focus-within .new-nutrient-button {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.tutorial-food-detail-modal .nutrient-form-bubble:hover .delete-requirement-button-container .delete-button,
+.tutorial-food-detail-modal .nutrient-form-bubble:focus-within .delete-requirement-button-container .delete-button {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.tutorial-food-detail-modal .new-nutrient-button:hover svg {
+  fill: rgba(255, 255, 255, 1);
+}
+
+.tutorial-food-detail-modal .new-requirement-nutrient-name::placeholder,
+.tutorial-food-detail-modal .input-requirement-amt::placeholder {
+  color: rgba(195, 167, 240, 0.86);
+}
+
+.tutorial-food-detail-modal .new-requirement-nutrient-name.nutrient-name-animated {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+@media (max-width: 1180px) {
+  .tutorial-food-detail-modal .nutrient-panel-title {
+    font-size: 24px;
+  }
+
+  .tutorial-food-detail-modal .nutrient-form-bubble {
+    grid-template-columns: 24px minmax(0, 1fr) 64px 48px 24px;
+    column-gap: 16px;
+    min-height: 42px;
+  }
+
+  .tutorial-food-detail-modal .new-requirement-nutrient-name,
+  .tutorial-food-detail-modal .input-requirement-amt,
+  .tutorial-food-detail-modal .nutrient-unit {
+    font-size: 19px;
+  }
 }
 
 /* Food Nutrient Dashboard - Exactly matching NutrientDash styling */

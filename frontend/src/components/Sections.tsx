@@ -3,6 +3,7 @@ import questionMark from '../assets/images/question_mark.svg'
 import '../assets/css/buttons.css'
 import React, { useState } from 'react';
 import {Link, useLocation} from 'react-router-dom';
+import { isLoginExpired } from './utlis';
 
 // 3 rules of JSX
 // (1) return a single root elem (wrap in div or React Fragment <>...</>)
@@ -37,22 +38,17 @@ type PageLinkIcon = {
 function Header({linkIcons, children} : {linkIcons? : PageLinkIcon[], children?: React.ReactNode}) {
   const location = useLocation();
   const isTrial = sessionStorage.getItem('isTrial') === 'true';
+  const isLoggedIn = !isLoginExpired();
 
-  // For trial users, redirect links appropriately
   const processedLinkIcons = linkIcons?.map(link => {
-    if (isTrial && link.to === '/account') {
-      return { ...link, to: '/login' };
-    }
-    if (isTrial && link.to === '/dashboard') {
-      return { ...link, to: '/try' };
-    }
+    if (link.to === '/account' && (!isLoggedIn || isTrial)) return { ...link, to: '/login' };
     return link;
   });
 
   return (
   <header>
     <section className="nutramap-header">
-      <Link className="header-logo-container" to={isTrial ? "/try" : "/dashboard"}>
+      <Link className="header-logo-container" to="/dashboard">
       <img src={foodPanelLogo}
             loading="lazy" alt="foodPanelAI logo" className = 'nutramap-logo'/>
       <div className="nutra header">foodPanelAI</div>
@@ -73,9 +69,9 @@ function Header({linkIcons, children} : {linkIcons? : PageLinkIcon[], children?:
         })
       }
       {children}
-      <button className="header-link-button" onClick={() => window.dispatchEvent(new Event('start-tutorial'))} title="Take a tour">
+      <Link className="header-link-button tutorial-home-link" to="/try" title="Take a tour">
         <img src={questionMark} alt="Take a tour" width="30" height="30" />
-      </button>
+      </Link>
     </section>
   </header>
   )

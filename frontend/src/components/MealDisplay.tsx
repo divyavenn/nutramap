@@ -6,14 +6,19 @@ interface DisplayMealProps {
   servings: number;
   recipe_id: string | null | undefined;
   recipe_exists?: boolean;
+  serving_size_label?: string;
   onNameClick?: () => void;
   onEditClick?: () => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
 }
 
-function MealDisplay ({ meal_name, date, servings, recipe_id, onNameClick, onEditClick, onMouseEnter, onMouseLeave } : DisplayMealProps) {
+function MealDisplay ({ meal_name, date, servings, recipe_id, serving_size_label, onNameClick, onEditClick, onMouseEnter, onMouseLeave } : DisplayMealProps) {
   const canOpenRecipe = Boolean(recipe_id);
+  const count = Number.isInteger(servings) ? servings : servings.toFixed(1);
+  const portionText = serving_size_label
+    ? `${count} ${serving_size_label.replace(/^\d+\.?\d*\s+/, '')}`
+    : `${count} servings`;
 
   const handleMouseEnter = () => {
     if (onMouseEnter) {
@@ -45,7 +50,7 @@ function MealDisplay ({ meal_name, date, servings, recipe_id, onNameClick, onEdi
       >
         {meal_name}
       </span>
-      <span className='food-portion-space'> {Number.isInteger(servings) ? servings : servings.toFixed(1)} servings</span>
+      <span className='food-portion-space'> {portionText}</span>
       <div className='food-weight-space'></div>
       <div className='food-date-space'></div>
       <span className='food-time-space' >{formatTime(new Date(date))}</span>

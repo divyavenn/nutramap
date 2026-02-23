@@ -92,6 +92,7 @@ function LoginForm() {
           const token = response.body.access_token;
           // Store the token in localStorage (or sessionStorage if desired)
           localStorage.setItem('access_token', token);
+          sessionStorage.removeItem('isTrial');
           localStorage.setItem('foods', JSON.stringify(await (await request('/food/all', 'GET')).body))
           localStorage.setItem('nutrients', JSON.stringify(await (await request('/nutrients/all', 'GET')).body))
           console.log('Login successful.');
@@ -181,4 +182,3 @@ function LoginForm() {
 
 
 export default LoginForm;
-

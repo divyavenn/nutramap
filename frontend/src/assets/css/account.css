@@ -1,23 +1,15 @@
 
-@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300&display=swap');
 @import './variables.css';
-
 
 .account-info-list {
   display: flex;
-  margin-top: 40px;
+  margin-top: 28px;
   flex-direction: column;
-  width: fit-content;
-  justify-content: center;
-  flex-wrap: nowrap;
-  max-width: 100%; /* Prevent overflow */
-  align-items: center;
-  flex-grow: 1; /* Allow input to take available space */
-  flex-shrink: 0; /* Prevent shrinking */
-  flex-wrap: nowrap;
-  /* border: 2px solid red; */
+  width: min(600px, 92vw);
+  align-items: flex-start;
+  flex-grow: 1;
+  gap: 24px;
 }
-
 
 @keyframes jiggle {
   0%, 100% { transform: translateX(0); }
@@ -27,109 +19,137 @@
 }
 
 .jiggle {
-  animation: jiggle 0.3s ease-in-out; /* Adjust duration and easing as needed */
+  animation: jiggle 0.3s ease-in-out;
 }
-
 
 .account-info {
   display: flex;
-  width: fit-content;
-  margin-bottom: 20px;
-  justify-content: center;
   align-items: center;
-  font-family: Open Sans;
-  font-size: 20px;
-  font-weight: 300;
-  flex-grow: 1; /* Allow input to take available space */
-  flex-shrink: 0; /* Prevent shrinking */
-  flex-wrap: nowrap;
+  width: 100%;
+  gap: 8px;
 }
-
 
 .account-info-tag {
-  width: 200px;
-  /* border: 2px solid red; */
+  width: 120px;
+  flex-shrink: 0;
+  font-family: Inconsolata, monospace;
+  font-size: 24px;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.account-info-input {
+  flex: 1;
+  min-width: 0;
+  font-family: Inconsolata, monospace;
+  font-size: 24px;
+  color: rgba(255, 255, 255, 0.35);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid transparent;
+  padding: 4px 0;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.account-info-input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.account-info-input:focus {
+  color: rgba(255, 255, 255, 0.75);
+  border-bottom-color: rgba(255, 255, 255, 0.2);
+  outline: none;
+}
+
+.submit-info-update-button-container {
+  opacity: 0;
+  transition: opacity 0.2s;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.account-info:focus-within .submit-info-update-button-container {
+  opacity: 1;
+}
+
+.submit-info-update-button-container svg {
+  display: flex;
+  align-items: center;
+}
+
+/* ------------------------------------------ACTIONS ROW-------------------------------------- */
+
+.lets-go-button {
+  font-family: Inconsolata, monospace;
+  font-size: 24px;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: 32px;
+  cursor: pointer;
+  color: rgba(160, 90, 240, 0.9);
   align-self: center;
-  font-weight: 300;
 }
 
-.account-info-input { 
-  flex-grow: 1; /* Allow input to take available space */
-  flex-shrink: 0; /* Prevent shrinking */
-  flex-wrap: nowrap;
-  min-width: 400px;
-  /* border: 2px solid red; */
-  width: fit-content;
-  text-align: left;
-}
-
-.password-container {
+.account-actions-row {
   display: flex;
   width: 100%;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
-  background-color: transparent;
-  color: white;
+  margin-top: 48px;
 }
 
 .change-password-container {
-  display: flex;
-  width: 100%;
-  margin-top: 10px;
-  justify-content: center;
-  align-items: center;
-  background-color: transparent;
-  color: white;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
 }
 
 .account-actions-button {
-  width: 200px;
-  margin: 15px;
-  padding-right: 20px;
-  align-self: center;
-  font-family: 'Open Sans';
-  font-size: 18px;
-  padding-top: 10px;
-  padding-bottom: 10px;
-  padding-left: 20px;
-  border-top-left-radius: 20px;
-  border-top-right-radius: 20px;
-  border-bottom-left-radius: 20px;
-  border-bottom-right-radius: 20px;
-  background-color: var(--transparent-bg);
-  text-align: center;
+  font-family: Inconsolata, monospace;
+  font-size: 24px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.account-actions-button.purple {
+  color: rgba(160, 90, 240, 0.9);
 }
 
 .account-actions-button.delete {
-  background-color: var(--red)
+  color: rgba(195, 72, 52, 0.85);
 }
 
-/* ------------------------------------------BUTTON-------------------------------------- */
-
-.submit-info-update-button-container {
-  display: flex; /* Enables flexbox on the container */
-  width: fit-content;
-  justify-content: flex-end; /* Pushes content to the right side */
-  align-items: center; /* Vertically centers the button */
-  padding: 10px; /* Optional: padding */
-}
+/* ------------------------------------------SUBMIT BUTTON-------------------------------------- */
 
 .submit-info-update-button {
-  align-items: center; /* Vertically center the SVG within the button */
+  align-items: center;
   background: none;
-  margin-right: 5px;
+  margin-right: 0;
   cursor: pointer;
   border: none;
   order: 1;
 }
 
 .submit-info-update-button svg {
-  fill: #ffffffa8; /* You can change the SVG color here */
-  height: 25px;
+  fill: rgba(171, 82, 255, 0.95);
+  height: 20px;
 }
 
 .submit-info-update-button:hover svg {
-  fill: #ffffffa8;; /* You can change the SVG color here */
-  height: 25px;
+  fill: rgba(192, 132, 252, 1);
 }
 
+@media (max-width: 860px) {
+  .account-info-input {
+    font-size: 20px;
+  }
+
+  .account-actions-button {
+    font-size: 20px;
+  }
+}

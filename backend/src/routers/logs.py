@@ -5,6 +5,7 @@ from typing_extensions import Annotated
 from bson import ObjectId
 from datetime import timedelta, datetime
 
+
 from src.databases.mongo import get_data
 from src.databases.mongo_models import Log, LogEdit
 from src.routers.foods import get_food_name, consolidate_amounts
@@ -323,6 +324,7 @@ def delete_old_logs(user: user, db: db):
     }
 
 
+
 @router.post("/edit-recipe-log")
 def edit_recipe_log(
     user: user,
@@ -352,13 +354,15 @@ def edit_recipe_log(
     old_servings = target_log.get("servings", 1.0)
     servings_ratio = servings / old_servings if old_servings > 0 else 1.0
 
-    # Update component weights proportionally
+    # Update component weights and amounts proportionally
     updated_components = []
     if "components" in target_log:
         for component in target_log["components"]:
             updated_component = component.copy()
-            # Scale the weight based on servings ratio
             updated_component["weight_in_grams"] = component["weight_in_grams"] * servings_ratio
+            if component.get("amount"):
+                from src.routers.parse import scale_portion_text
+                updated_component["amount"] = scale_portion_text(component["amount"], servings_ratio)
             updated_components.append(updated_component)
 
     # Update the log

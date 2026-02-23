@@ -237,7 +237,6 @@ input, textarea {
   font-family: Inconsolata;
   margin-top: 7px;
   height: var(--edit-log-input-height);
-  width: 100%
 }
 
 .edit-input-portion:hover {

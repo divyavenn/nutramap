@@ -16,9 +16,9 @@
   --log-bubble-color: rgba(0, 0, 0, 0.338);
   --inconsolata-font-size: 20px;
 
-  --log-name-width: 50%;
-  --log-portion-width: 15%;
-  --log-weight-width: 10%;
+  --log-name-width: 40%;
+  --log-portion-width: 12%;
+  --log-weight-width: 15%;
   --log-date-width: 15%;
   --log-time-width: 10%;
   --button-from-top: "20px";

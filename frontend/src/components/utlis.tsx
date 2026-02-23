@@ -178,6 +178,7 @@ const cleanLocalStorage = () => {
   localStorage.getItem('foods') ? localStorage.removeItem('foods') : null;
   localStorage.getItem('accountInfo') ? localStorage.removeItem('accountInfo') : null;
   localStorage.getItem('nutrients') ? localStorage.removeItem('nutrients') : null;
+  sessionStorage.getItem('isTrial') ? sessionStorage.removeItem('isTrial') : null;
 }  
 
 export {calculateColor, getFoodID, formatTime, getCurrentPeriod, formatDayForFrontend, 

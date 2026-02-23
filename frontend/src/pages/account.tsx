@@ -1,5 +1,4 @@
 import {
-  RecoilRoot,
   useRecoilState,
   useRecoilValue,
   useSetRecoilState
@@ -9,8 +8,8 @@ import { StrictMode, useEffect, useState, useRef} from 'react'
 import {Heading} from '../components/Title'
 import AccountIcon from '../assets/images/account.svg?react'
 import DashboardIcon from '../assets/images/dashboard.svg?react'
-import Utensils from '../assets/images/utensils-solid.svg?react'
 import FoodBowl from '../assets/images/food_bowl.svg?react'
+import RecipesIcon from '../assets/images/recipes.svg?react'
 import {request} from '../components/endpoints'
 import '../assets/css/account.css'
 import { accountInfoAtom, firstNameAtom, useRefreshAccountInfo, editingPasswordAtom, useResetAccountAtoms} from '../components/account_states';
@@ -79,7 +78,6 @@ function UpdateInfo({infoType} : {infoType : 'name' | 'email' | 'password'}){
   return (
 
     <form className = "account-info" onSubmit={handleSubmit} ref = {dialogRef}>
-      <div className = "account-info-tag">{infoType}</div>
       <input  className = "account-info-input"
               placeholder = {infoType}
               name = {infoType}
@@ -181,7 +179,7 @@ function ChangePasswordButton(){
                                      protectedComponent = {<UpdateInfo infoType='password'/>}/> :
     (
     <button className = 'change-password-container'>
-      <div className = 'account-actions-button' onClick = {() => {setEditingPassword(true)}}>change password</div>
+      <div className = 'account-actions-button purple' onClick = {() => {setEditingPassword(true)}}>change password</div>
     </button>
     )
   )
@@ -221,11 +219,13 @@ function AccountInfo(){
       <div className = "account-info-list">
         <UpdateInfo infoType='name'/>
         <UpdateInfo infoType='email'/>
-        <div className = 'password-container' ref = {editPasswordRef}>
-        <ChangePasswordButton/>
+        <div className="account-actions-row">
+          <div ref={editPasswordRef}>
+            <ChangePasswordButton/>
+          </div>
+          <LogoutButton/>
+          <DeleteAccountButton/>
         </div>
-        <LogoutButton/>
-        <DeleteAccountButton/>
       </div>
   </MainSection>
   )
@@ -247,7 +247,7 @@ function Account(){
 
   return (
   <StrictMode>
-  <Header linkIcons = {[{to : "/dashboard", img:  <DashboardIcon/>}, {to : '/account', img : <AccountIcon/>}, {to : '/myfoods', img : <Utensils/>}, {to : '/myrecipes', img : <FoodBowl/>}]}/>
+  <Header linkIcons = {[{to : "/dashboard", img:  <DashboardIcon/>}, {to : '/account', img : <AccountIcon/>}, {to : '/myfoods', img : <FoodBowl/>}, {to : '/myrecipes', img : <RecipesIcon/>}]}/>
   <Heading words = {'Hello, ' + firstName}/>
 
   <AccountInfo/>

@@ -4,9 +4,9 @@ import '../assets/css/myrecipes.css';
 import { Header } from '../components/Sections';
 import { Heading } from '../components/Title';
 import AccountIcon from '../assets/images/account.svg?react';
-import Utensils from '../assets/images/utensils-solid.svg?react'
 import DashboardIcon from '../assets/images/dashboard.svg?react';
 import FoodBowl from '../assets/images/food_bowl.svg?react';
+import RecipesIcon from '../assets/images/recipes.svg?react';
 import { useRecoilValue } from 'recoil';
 import { firstNameAtom } from '../components/account_states';
 import { RecipeBlurb } from '../components/RecipeBlurb';
@@ -151,7 +151,7 @@ function MyRecipes() {
 
   return (
     <div className="myrecipes-page">
-      <Header linkIcons={[{to: "/dashboard", img: <DashboardIcon/>}, {to: '/account', img: <AccountIcon/>}, {to: '/myfoods', img: <Utensils/>}, {to: '/myrecipes', img: <FoodBowl/>}]}/>
+      <Header linkIcons={[{to: "/dashboard", img: <DashboardIcon/>}, {to: '/account', img: <AccountIcon/>}, {to: '/myfoods', img: <FoodBowl/>}, {to: '/myrecipes', img: <RecipesIcon/>}]}/>
       <Heading words={name ? `${name}'s Recipes` : 'Your Recipes'} />
 
       { loading ?

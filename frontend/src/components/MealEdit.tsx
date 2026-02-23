@@ -18,21 +18,26 @@ interface MealProps {
   date: Date;
   servings: number;
   _id: string;
+  totalWeightGrams?: number;
   onCancel: () => void;
   onAnimationStart?: () => void;
   onAnimationEnd?: () => void;
 }
 
-function MealEdit({meal_name, date, servings, _id, onCancel, onAnimationStart, onAnimationEnd} : MealProps){
+function MealEdit({meal_name, date, servings, _id, totalWeightGrams, onCancel, onAnimationStart, onAnimationEnd} : MealProps){
 
   // Mock food data for autocomplete
   const foodList = useRecoilValue(foodsAtom)
   const [deleted, setDeleted] = useState(false)
+  const weightPerServing = (totalWeightGrams && servings > 0) ? totalWeightGrams / servings : null;
   const [formData, setFormData] = useState({
     meal_name : meal_name,
     servings: String(servings),
     date : date,
   })
+  const [weightInput, setWeightInput] = useState(
+    totalWeightGrams != null ? String(Math.round(totalWeightGrams)) : ''
+  );
   const [isSubmitting, setIsSubmitting] = useState(false); // Track submission animation state
   const [isDeleting, setIsDeleting] = useState(false); // Track deletion animation state
 
@@ -264,6 +269,13 @@ useEffect(() => {
       [name]: value,
     }));
 
+    if (name === 'servings' && weightPerServing != null) {
+      const parsed = parseFloat(value);
+      if (!isNaN(parsed) && parsed > 0) {
+        setWeightInput(String(Math.round(parsed * weightPerServing)));
+      }
+    }
+
     if (name === 'food_name') {
       markValidInput(value in foodList)
       // Filter the foodList to match the input value
@@ -274,6 +286,18 @@ useEffect(() => {
       // Show suggestions only if there are matches and the input isn't empty
       setSuggestions(filteredFoods);
       setShowSuggestions(value.length > 0 && filteredFoods.length > 0);
+    }
+  };
+
+  const handleWeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setWeightInput(value);
+    if (weightPerServing != null && weightPerServing > 0) {
+      const parsed = parseFloat(value);
+      if (!isNaN(parsed) && parsed > 0) {
+        const newServings = parsed / weightPerServing;
+        setFormData(prev => ({ ...prev, servings: newServings.toFixed(2).replace(/\.?0+$/, '') }));
+      }
     }
   };
 
@@ -396,18 +420,37 @@ useEffect(() => {
               ></textarea>
             </div>
 
-            <div className="food-portion-space">
+            <div className="food-portion-space" style={{gap: '6px', alignItems: 'baseline'}}>
               <input
                 name='servings'
                 className='edit-input-portion'
                 type='text'
-                placeholder='1 cup'
+                placeholder='1'
                 value={formData.servings}
                 onChange={handleTyping}
                 onKeyDown={handleKeyDown}
+                style={{width: `${Math.max(String(formData.servings).length, 1) + 1}ch`, flexShrink: 0}}
                 required
               ></input>
-              <div style={{marginLeft: '-30px', marginTop: '11px', marginRight: '10px'}}> servings </div>
+              <span> servings </span>
+            </div>
+
+            <div className='food-weight-space' style={{gap: '4px', alignItems: 'baseline'}}>
+              {weightPerServing != null && (
+                <>
+                  <input
+                    className='edit-input-portion'
+                    type='number'
+                    min='0'
+                    placeholder='0000'
+                    value={weightInput}
+                    onChange={handleWeightChange}
+                    onKeyDown={handleKeyDown}
+                    style={{width: `${Math.max(weightInput.length, 4) + 1}ch`, flexShrink: 0}}
+                  />
+                  <span> g </span>
+                </>
+              )}
             </div>
 
 

@@ -40,7 +40,6 @@ function AddInfo({infoType} : {infoType : 'name' | 'email' | 'password'}){
 
 
   return (
-
     <div className = "account-info">
       <div className = "account-info-tag">{infoType}</div>
       <input  className = "account-info-input"
@@ -73,6 +72,7 @@ function CreateAccountButton(){
     else {
       const token = response.body.access_token;
       localStorage.setItem('access_token', token);
+      sessionStorage.removeItem('isTrial');
       navigate("/dashboard")
     }
   }
@@ -82,9 +82,7 @@ function CreateAccountButton(){
       <AddInfo infoType='name'/>
       <AddInfo infoType='email'/>
       <AddInfo infoType='password'/>
-      <button type = 'submit' className = 'change-password-container'>
-        <div className = 'account-actions-button'>let's go!</div>
-      </button>
+      <button type = 'submit' className = 'lets-go-button'>let's go!</button>
     </form>
     )
 }

@@ -3,7 +3,7 @@ import { Header } from '../components/Sections';
 import { Heading } from '../components/Title';
 import AccountIcon from '../assets/images/account.svg?react';
 import DashboardIcon from '../assets/images/dashboard.svg?react';
-import Utensils from '../assets/images/utensils-solid.svg?react'
+import RecipesIcon from '../assets/images/recipes.svg?react'
 import { request } from '../components/endpoints';
 import { useNavigate } from 'react-router-dom';
 import { isLoginExpired } from '../components/utlis';
@@ -12,7 +12,6 @@ import { useRecoilValue, useRecoilValueLoadable } from 'recoil';
 import '../assets/css/foods.css';
 import NewFood from '../components/NewFood';
 import FoodBowl from '../assets/images/food_bowl.svg?react'
-import {RecoilRoot} from 'recoil';
 import { NutrientPanel } from '../components/NutrientPanel';
 import { AnimatedText } from '../components/AnimatedText';
 import { tutorialEvent } from '../components/TryTutorial';
@@ -30,6 +29,30 @@ interface Food {
   nutrients: {
     [key: string]: number;
   };
+}
+
+function normalizeFoodNutrients(rawNutrients: unknown): Record<string, number> {
+  if (Array.isArray(rawNutrients)) {
+    return rawNutrients.reduce<Record<string, number>>((acc, nutrient) => {
+      if (!nutrient || typeof nutrient !== 'object') return acc;
+      const nutrientId = (nutrient as any).nutrient_id;
+      const amount = Number((nutrient as any).amt ?? (nutrient as any).amount);
+      if (nutrientId === undefined || !Number.isFinite(amount)) return acc;
+      acc[String(nutrientId)] = amount;
+      return acc;
+    }, {});
+  }
+
+  if (rawNutrients && typeof rawNutrients === 'object') {
+    return Object.entries(rawNutrients as Record<string, unknown>).reduce<Record<string, number>>((acc, [nutrientId, amount]) => {
+      const parsedAmount = Number(amount);
+      if (!Number.isFinite(parsedAmount)) return acc;
+      acc[String(nutrientId)] = parsedAmount;
+      return acc;
+    }, {});
+  }
+
+  return {};
 }
 
 
@@ -97,7 +120,11 @@ function Foods() {
           if (cached) {
             const parsed = JSON.parse(cached);
             if (Array.isArray(parsed)) {
-              setFoods(parsed);
+              setFoods(parsed.map((food: any) => ({
+                ...food,
+                name: food.name ?? food.food_name ?? '',
+                nutrients: normalizeFoodNutrients(food.nutrients)
+              })));
               return;
             } else {
               localStorage.removeItem('custom_foods_cache');
@@ -111,7 +138,11 @@ function Foods() {
       // Cache miss - fetch from API
       const response = await request('/food/custom-foods', 'GET');
       if (response.body && Array.isArray(response.body)) {
-        const foods = response.body;
+        const foods = response.body.map((food: any) => ({
+          ...food,
+          name: food.name ?? food.food_name ?? '',
+          nutrients: normalizeFoodNutrients(food.nutrients)
+        }));
         setFoods(foods);
         try {
           localStorage.setItem('custom_foods_cache', JSON.stringify(foods));
@@ -170,14 +201,19 @@ function Foods() {
 
       const response = await request(`/food/custom_foods/${selectedFood}`, 'GET');
       const updatedFood = response.body;
+      const normalizedFood = {
+        ...updatedFood,
+        name: updatedFood.name ?? updatedFood.food_name ?? '',
+        nutrients: normalizeFoodNutrients(updatedFood.nutrients)
+      };
 
       // Update foods list using functional update to ensure we have latest state
       setFoods(prevFoods => prevFoods.map(f =>
-        f._id === selectedFood ? updatedFood : f
+        f._id === selectedFood ? normalizedFood : f
       ));
 
       // Update nutrient details using cached data
-      const details: NutrientInfo[] = Object.keys(updatedFood.nutrients || {})
+      const details: NutrientInfo[] = Object.keys(normalizedFood.nutrients)
         .map(nutrientId => {
           const nutrientIdNum = parseInt(nutrientId);
           const nutrientInfo = nutrientDetailsById[nutrientIdNum];
@@ -190,7 +226,7 @@ function Foods() {
           return {
             nutrient_id: nutrientIdNum,
             name: nutrientInfo.name,
-            amount: updatedFood.nutrients[nutrientId],
+            amount: normalizedFood.nutrients[nutrientId],
             unit: nutrientInfo.unit
           };
         })
@@ -227,7 +263,7 @@ function Foods() {
 
   return (
     <>
-      <Header linkIcons={[{to: "/dashboard", img: <DashboardIcon/>}, {to: '/account', img: <AccountIcon/>}, {to: '/myfoods', img: <Utensils/>}, {to: '/myrecipes', img: <FoodBowl/>}]}/>
+      <Header linkIcons={[{to: "/dashboard", img: <DashboardIcon/>}, {to: '/account', img: <AccountIcon/>}, {to: '/myfoods', img: <FoodBowl/>}, {to: '/myrecipes', img: <RecipesIcon/>}]}/>
       <Heading words={name ? `${name}'s Foods` : 'Your Foods'} />
 
       <div className="foods-container">
@@ -282,11 +318,7 @@ function Foods() {
 }
 
 function FoodsPage(){
-  return (
-    <RecoilRoot>
-      <Foods/>
-    </RecoilRoot>
-  )
+  return <Foods/>
 }
 
 export default FoodsPage;

@@ -1,14 +1,13 @@
 import { useState } from 'react';
-import { ImageButton, HoverButton } from './Sections';
+import { ImageButton } from './Sections';
 import Trashcan from '../assets/images/trashcan.svg?react';
-import Ok from '../assets/images/check_circle.svg?react';
-import OkOk from '../assets/images/checkmark.svg?react';
 import '../assets/css/NutrientStats.css';
 import '../assets/css/new_nutrient.css';
 import { useRecoilValue } from 'recoil';
 import { nutrientDetailsByNameAtom } from './account_states';
 import { getNutrientInfo } from './utlis';
 import { request } from './endpoints';
+import { AnimatedText } from './AnimatedText';
 
 interface NutrientInfo {
   nutrient_id: number;
@@ -32,6 +31,38 @@ interface EditNutrientFormProps {
   onUpdate: () => void;
 }
 
+interface EditableNutrient {
+  nutrient_id: number;
+  amt: number;
+}
+
+function normalizeEditableNutrients(rawNutrients: unknown): EditableNutrient[] {
+  if (Array.isArray(rawNutrients)) {
+    return rawNutrients
+      .map((nutrient): EditableNutrient | null => {
+        if (!nutrient || typeof nutrient !== 'object') return null;
+        const nutrientId = Number((nutrient as any).nutrient_id);
+        const amount = Number((nutrient as any).amt ?? (nutrient as any).amount);
+        if (!Number.isFinite(nutrientId) || !Number.isFinite(amount)) return null;
+        return { nutrient_id: nutrientId, amt: amount };
+      })
+      .filter((nutrient): nutrient is EditableNutrient => nutrient !== null);
+  }
+
+  if (rawNutrients && typeof rawNutrients === 'object') {
+    return Object.entries(rawNutrients as Record<string, unknown>)
+      .map(([nutrientId, amount]): EditableNutrient | null => {
+        const parsedId = Number(nutrientId);
+        const parsedAmount = Number(amount);
+        if (!Number.isFinite(parsedId) || !Number.isFinite(parsedAmount)) return null;
+        return { nutrient_id: parsedId, amt: parsedAmount };
+      })
+      .filter((nutrient): nutrient is EditableNutrient => nutrient !== null);
+  }
+
+  return [];
+}
+
 /**
  * Form component for editing/adding individual nutrients
  * Used for both custom foods and recipes
@@ -48,18 +79,23 @@ function EditNutrientForm({ original, itemId, itemType, onUpdate }: EditNutrient
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [validInput, markValidInput] = useState(original ? true : false);
   const [isDeleted, setIsDeleted] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && (!showSuggestions || suggestions.length === 0)) {
       e.preventDefault();
 
       if (formData.nutrient_name && formData.amount && validInput) {
-        submitForm();
+        void submitForm();
       }
     }
   };
 
   const submitForm = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+
+    try {
     const endpoint = itemType === 'food'
       ? `/food/custom_foods/${itemId}`
       : `/recipe/${itemId}`;
@@ -68,14 +104,17 @@ function EditNutrientForm({ original, itemId, itemType, onUpdate }: EditNutrient
     const response = await request(endpoint, 'GET');
     const currentItem = response.body;
 
-    const nutrientId = getNutrientInfo(formData.nutrient_name, false, nutrientList);
+    const nutrientId = Number(getNutrientInfo(formData.nutrient_name, false, nutrientList));
     const amount = parseFloat(formData.amount);
+    if (!Number.isFinite(nutrientId) || !Number.isFinite(amount)) {
+      return;
+    }
 
     // Build updated nutrients array
-    let updatedNutrients = currentItem.nutrients || [];
+    const updatedNutrients = normalizeEditableNutrients(currentItem.nutrients);
 
     // Check if this nutrient already exists
-    const existingIndex = updatedNutrients.findIndex((n: any) => n.nutrient_id === nutrientId);
+    const existingIndex = updatedNutrients.findIndex((n) => n.nutrient_id === nutrientId);
 
     if (existingIndex >= 0) {
       // Update existing
@@ -98,6 +137,9 @@ function EditNutrientForm({ original, itemId, itemType, onUpdate }: EditNutrient
     }, 'URLencode');
 
     onUpdate();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -135,6 +177,9 @@ function EditNutrientForm({ original, itemId, itemType, onUpdate }: EditNutrient
 
   const handleDelete = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
 
     const endpoint = itemType === 'food'
       ? `/food/custom_foods/${itemId}`
@@ -143,11 +188,14 @@ function EditNutrientForm({ original, itemId, itemType, onUpdate }: EditNutrient
     const response = await request(endpoint, 'GET');
     const currentItem = response.body;
 
-    const nutrientId = getNutrientInfo(formData.nutrient_name, false, nutrientList);
+    const nutrientId = Number(getNutrientInfo(formData.nutrient_name, false, nutrientList));
+    if (!Number.isFinite(nutrientId)) {
+      return;
+    }
 
     // Remove this nutrient from the list
-    const updatedNutrients = (currentItem.nutrients || []).filter(
-      (n: any) => n.nutrient_id !== nutrientId
+    const updatedNutrients = normalizeEditableNutrients(currentItem.nutrients).filter(
+      (n) => n.nutrient_id !== nutrientId
     );
 
     // Update the item
@@ -161,6 +209,9 @@ function EditNutrientForm({ original, itemId, itemType, onUpdate }: EditNutrient
 
     setIsDeleted(true);
     onUpdate();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -177,6 +228,7 @@ function EditNutrientForm({ original, itemId, itemType, onUpdate }: EditNutrient
                 type="button"
                 onClick={handleDelete}
                 className="delete-button"
+                disabled={isSaving}
               >
                 <Trashcan />
               </ImageButton>
@@ -184,15 +236,23 @@ function EditNutrientForm({ original, itemId, itemType, onUpdate }: EditNutrient
           </div>
 
           <div className='new-nutrient-name-wrapper'>
-            <input
-              name='nutrient_name'
-              className='new-requirement-nutrient-name'
-              placeholder='nutrient'
-              value={formData.nutrient_name}
-              onChange={handleTyping}
-              onKeyDown={handleKeyDown}
-              required
-            />
+            {isSaving && formData.nutrient_name ? (
+              <AnimatedText
+                text={formData.nutrient_name}
+                className='new-requirement-nutrient-name nutrient-name-animated'
+              />
+            ) : (
+              <input
+                name='nutrient_name'
+                className='new-requirement-nutrient-name'
+                placeholder='nutrient'
+                value={formData.nutrient_name}
+                onChange={handleTyping}
+                onKeyDown={handleKeyDown}
+                disabled={isSaving}
+                required
+              />
+            )}
           </div>
 
 
@@ -206,6 +266,7 @@ function EditNutrientForm({ original, itemId, itemType, onUpdate }: EditNutrient
               value={formData.amount}
               onChange={handleTyping}
               onKeyDown={handleKeyDown}
+              disabled={isSaving}
               required
             />
             <span className="nutrient-unit">
@@ -214,14 +275,7 @@ function EditNutrientForm({ original, itemId, itemType, onUpdate }: EditNutrient
           </div>
 
           <div className='new-nutrient-button-container'>
-            {(formData.nutrient_name && formData.amount && validInput) && (
-              <HoverButton
-                type="submit"
-                className="new-nutrient-button"
-                childrenOn={<Ok />}
-                childrenOff={<OkOk />}
-              />
-            )}
+            <button type="submit" className="new-nutrient-button-hidden" tabIndex={-1} aria-hidden="true" />
           </div>
         </div>
 

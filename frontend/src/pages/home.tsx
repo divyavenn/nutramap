@@ -3,7 +3,6 @@ import {Link} from 'react-router-dom';
 import {Title} from '../components/Title'
 import {Header, MainSection } from '../components/Sections'
 import {LottieAnimation} from '../components/Graphics'
-import { RecoilRoot } from 'recoil';
 import { CopyReelFeature } from '../components/CopyReel';
 import { motion } from 'framer-motion';
 import styled from 'styled-components';
@@ -30,7 +29,6 @@ function Home(){
 
   return(
   <StrictMode>
-  <RecoilRoot>
   <Header />
   <MainSection>
     <Title/>
@@ -54,8 +52,7 @@ function Home(){
     <Link to="/login">or log in</Link>
   </div>
   </MainSection>
-  </RecoilRoot>
-</StrictMode>)
+  </StrictMode>)
 }
 
 export default Home
