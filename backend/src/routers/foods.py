@@ -535,6 +535,25 @@ async def get_custom_foods(
     return formatted_foods
 
 
+@router.get("/custom_foods/{food_id}/used-in")
+def get_food_usage(
+    food_id: str,
+    db: Database = Depends(get_data),
+    user: dict = Depends(get_current_user),
+):
+    """Return the names of recipes that contain this custom food as a component."""
+    food = db.foods.find_one({"_id": ObjectId(food_id), "source": user["_id"]})
+    if not food:
+        raise HTTPException(status_code=404, detail="Food not found")
+
+    recipes = list(db.recipes.find(
+        {"user_id": user["_id"], "components.food_id": food_id},
+        {"description": 1, "_id": 0}
+    ))
+    recipe_names = [r.get("description", "Unknown recipe") for r in recipes]
+    return {"recipe_names": recipe_names}
+
+
 @router.delete("/custom_foods/{food_id}")
 def delete_custom_food(
     food_id: str,
@@ -566,6 +585,14 @@ def delete_custom_food(
 
         if result.deleted_count == 0:
             raise HTTPException(status_code=404, detail="Food not found")
+
+        # Remove food from any recipe components that reference it
+        result_recipes = db.recipes.update_many(
+            {"user_id": user["_id"], "components.food_id": food_id},
+            {"$pull": {"components": {"food_id": food_id}}}
+        )
+        if result_recipes.modified_count:
+            print(f"✓ Removed food {food_id} from {result_recipes.modified_count} recipe(s)")
 
         # Remove food_id from user's custom_foods array
         db.users.update_one(
@@ -758,6 +785,259 @@ def get_custom_food(
     except Exception as e:
         print(f"Error getting food: {e}")
         raise HTTPException(status_code=500, detail=f"Error getting food: {str(e)}")
+
+async def _process_and_add_food_bg(
+    description: Optional[str],
+    image_bytes_list: list,
+    user: dict,
+    db,
+    request=None,
+):
+    """
+    Background task: process food images (or text description) and save to the database.
+    Called by /food/process_and_add so the HTTP connection can close immediately.
+    """
+    try:
+        import openai as _openai
+        import base64
+
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            print("Background food processing error: OPENAI_API_KEY not set")
+            return
+
+        client = _openai.OpenAI(api_key=api_key)
+
+        def _clean_json(text: str) -> str:
+            text = text.strip()
+            if text.startswith("```"):
+                nl = text.find("\n")
+                if nl != -1:
+                    text = text[nl + 1:]
+                if text.endswith("```"):
+                    text = text[:-3]
+            return text.strip()
+
+        result_description = description
+        result_nutrients: list = []
+
+        # ── Step 1: classify and analyse images ──────────────────────────────
+        if image_bytes_list:
+            label_b64s: list = []
+            food_b64s: list = []
+
+            for contents in image_bytes_list:
+                b64 = base64.b64encode(contents).decode("utf-8")
+                resp = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "user", "content": [
+                        {"type": "text", "text": "Is this image a nutrition facts label? Answer with only 'yes' or 'no'."},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}},
+                    ]}],
+                    max_tokens=10,
+                    temperature=0,
+                )
+                cls = resp.choices[0].message.content.strip().lower()
+                (label_b64s if "yes" in cls else food_b64s).append(b64)
+
+            # Description from images if not supplied
+            if not result_description:
+                src = food_b64s if food_b64s else label_b64s
+                if src:
+                    resp = client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[{"role": "user", "content": [
+                            {"type": "text", "text": "Describe this food item in a concise phrase (e.g. 'Grilled chicken breast'). Return only the food name."},
+                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{src[0]}"}},
+                        ]}],
+                        max_tokens=50,
+                    )
+                    result_description = resp.choices[0].message.content.strip()
+
+            # Nutrition from labels
+            if label_b64s:
+                for b64 in label_b64s:
+                    resp = client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[{"role": "user", "content": [
+                            {"type": "text", "text": (
+                                "Extract all nutritional information from this nutrition facts label and convert to per 100g.\n\n"
+                                "CRITICAL: (amount / serving_size_grams) * 100 for every nutrient.\n\n"
+                                'Return ONLY JSON:\n{"serving_size":"33g","nutrients":[{"name":"Energy","amount":250,"unit":"KCAL"},...]}\n\n'
+                                "Use standard USDA names. Energy in KCAL, G/MG/UG for mass. Return ONLY the JSON."
+                            )},
+                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}},
+                        ]}],
+                        max_tokens=1000,
+                        temperature=0,
+                    )
+                    try:
+                        data = json.loads(_clean_json(resp.choices[0].message.content))
+                        for n in data.get("nutrients", []):
+                            existing = next((x for x in result_nutrients if x["name"] == n["name"]), None)
+                            if existing:
+                                existing["amount"] = (existing["amount"] + n["amount"]) / 2
+                            else:
+                                result_nutrients.append(n)
+                    except json.JSONDecodeError as e:
+                        print(f"Background food: failed to parse label JSON: {e}")
+
+            elif food_b64s:
+                resp = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "user", "content": [
+                        {"type": "text", "text": (
+                            "Estimate nutritional content per 100g for this food.\n"
+                            'Return ONLY JSON:\n{"nutrients":[{"name":"Energy","amount":250,"unit":"KCAL"},...]}\n'
+                            "Use standard USDA names. Return ONLY the JSON."
+                        )},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{food_b64s[0]}"}},
+                    ]}],
+                    max_tokens=1000,
+                    temperature=0,
+                )
+                try:
+                    data = json.loads(_clean_json(resp.choices[0].message.content))
+                    result_nutrients = data.get("nutrients", [])
+                except json.JSONDecodeError as e:
+                    print(f"Background food: failed to parse food-image JSON: {e}")
+
+        # ── Step 2: map nutrient names → IDs ─────────────────────────────────
+        name_mappings = {
+            "total fat": "Total lipid (fat)", "fat": "Total lipid (fat)",
+            "total lipid (fat)": "Total lipid (fat)",
+            "carbohydrates": "Carbohydrate, by difference",
+            "carbohydrate, by difference": "Carbohydrate, by difference",
+            "carbs": "Carbohydrate, by difference",
+            "fiber": "Fiber, total dietary", "dietary fiber": "Fiber, total dietary",
+            "sugars": "Sugars, total including NLEA",
+            "protein": "Protein", "sodium": "Sodium, Na",
+            "potassium": "Potassium, K", "iron": "Iron, Fe", "energy": "Energy",
+        }
+        nutrients_to_save: list = []
+        for nutrient in result_nutrients:
+            nutrient_name = nutrient["name"].lower().strip()
+            doc = db.nutrients.find_one({"nutrient_name": {"$regex": f"^{nutrient['name']}$", "$options": "i"}})
+            if not doc:
+                mapped = name_mappings.get(nutrient_name)
+                if mapped:
+                    doc = db.nutrients.find_one({"nutrient_name": {"$regex": f"^{mapped}$", "$options": "i"}})
+            if not doc:
+                try:
+                    results = await search_nutrients_by_name(nutrient["name"], db=db, threshold=0.5, limit=1)
+                    if results:
+                        best_id = max(results, key=results.get)
+                        doc = db.nutrients.find_one({"_id": int(best_id)})
+                except Exception as e:
+                    print(f"Background food: hybrid search failed for '{nutrient['name']}': {e}")
+            if doc:
+                nutrients_to_save.append({"nutrient_id": doc["_id"], "amt": nutrient["amount"]})
+
+        # ── Step 3: save food ─────────────────────────────────────────────────
+        food_name = result_description or "Unknown food"
+        embedding = None
+        try:
+            embed_resp = client.embeddings.create(
+                model="text-embedding-3-large",
+                input=food_name.lower().strip(),
+            )
+            embedding = embed_resp.data[0].embedding
+            print(f"✓ Generated embedding for '{food_name}' ({len(embedding)} dims)")
+        except Exception as e:
+            print(f"Warning: could not generate embedding for '{food_name}': {e}")
+
+        food_doc = {
+            "_id": ObjectId(),
+            "food_name": food_name,
+            "nutrients": nutrients_to_save,
+            "is_custom": True,
+            "source": user["_id"],
+            "created_at": datetime.now(),
+        }
+        if embedding:
+            food_doc["embedding"] = embedding
+
+        result = db.foods.insert_one(food_doc)
+        food_id = str(result.inserted_id)
+
+        db.users.update_one(
+            {"_id": ObjectId(user["_id"])},
+            {"$addToSet": {"custom_foods": food_id}},
+        )
+        print(f"✓ Added food to DB: {food_name} ({food_id})")
+
+        # Add to search indexes
+        if embedding:
+            try:
+                from .sparse import _get_client as _get_typesense
+                tc = _get_typesense()
+                if tc:
+                    tc.collections["foods"].documents.create({"id": food_id, "food_name": food_name})
+                    print(f"✓ Added to Typesense: {food_name}")
+            except Exception as e:
+                print(f"Warning: Typesense update failed: {e}")
+
+            if request and hasattr(request.app.state, "faiss_index") and request.app.state.faiss_index is not None:
+                try:
+                    faiss_index = request.app.state.faiss_index
+                    id_list = getattr(request.app.state, "id_list", [])
+                    if len(embedding) == faiss_index.d:
+                        emb_arr = np.array([embedding], dtype=np.float32)
+                        faiss.normalize_L2(emb_arr)
+                        faiss_id = hash(food_id) & 0x7FFFFFFFFFFFFFFF
+                        faiss_index.add_with_ids(emb_arr, np.array([faiss_id], dtype=np.int64))
+                        id_list.append(food_id)
+                        request.app.state.id_list = id_list
+                        faiss_bin_path = os.getenv("FAISS_BIN", "./faiss_index.bin")
+                        faiss.write_index(faiss_index, faiss_bin_path)
+                        food_id_cache_path = os.getenv("FOOD_ID_CACHE")
+                        if food_id_cache_path:
+                            with open(food_id_cache_path, "rb") as f:
+                                id_name_map = pickle.load(f)
+                            id_name_map[food_id] = {"name": food_name}
+                            with open(food_id_cache_path, "wb") as f:
+                                pickle.dump(id_name_map, f)
+                        print(f"✓ Added to FAISS: {food_name}")
+                except Exception as e:
+                    print(f"Warning: FAISS update failed: {e}")
+
+        print(f"✓ Background food processing complete: {food_name}")
+
+    except Exception as e:
+        print(f"Error in background food processing: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+@router.post("/process_and_add")
+async def process_and_add_food(
+    background_tasks: BackgroundTasks,
+    description: Optional[str] = Form(None),
+    images: list[UploadFile] = File([]),
+    user: dict = Depends(get_current_user),
+    db: Database = Depends(get_data),
+    request: Request = None,
+):
+    """
+    Submit a food for processing and saving. Returns immediately (HTTP 200).
+    Image processing and DB writes happen in a background task so the client
+    can navigate away without interrupting the work.
+    """
+    # Read image bytes while the request is still open — UploadFile streams
+    # are closed when the response is sent.
+    image_bytes_list = [await img.read() for img in images]
+
+    background_tasks.add_task(
+        _process_and_add_food_bg,
+        description,
+        image_bytes_list,
+        user,
+        db,
+        request,
+    )
+
+    return {"status": "processing"}
+
 
 @router.post("/process_images")
 async def process_food_images(

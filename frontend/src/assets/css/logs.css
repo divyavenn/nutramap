@@ -1,6 +1,17 @@
 @import url('./variables.css');
 @import url('https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&display=swap');
 
+.deleting-group {
+  animation: log-group-exit 0.45s ease-in forwards;
+  pointer-events: none;
+}
+
+@keyframes log-group-exit {
+  0%   { opacity: 1; transform: scale(1)    translateY(0);   }
+  40%  { opacity: 0.6; transform: scale(0.99) translateY(0);   }
+  100% { opacity: 0; transform: scale(0.97) translateY(-4px); }
+}
+
 
 /*--------------------------------------------NAME----------------------------------*/
 
@@ -128,20 +139,59 @@
 .recipe-bubble {
   display: flex;
   width: var(--modal-width);
-  margin-bottom: 20px;
+  margin-bottom: 4px;
   flex-direction: row;
   align-self: center;
-  align-items: start;
+  align-items: center;
   font-family: Inconsolata;
-  -webkit-overflow-scrolling: touch; /* Enables smooth scrolling on mobile */
-  scrollbar-width: none; /* For Firefox */
-  margin-left: 50px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
   border-radius: 14px;
-  background-color: rgba(140, 60, 255, 0.55);
+  background-color: transparent;
   color: var(--white);
   justify-content: flex-start;
-  transition: all 0.1s ease;
+  transition: background-color 0.2s ease;
   box-sizing: border-box;
+}
+
+.recipe-bubble.expanded {
+  background-color: rgba(140, 60, 255, 0.55);
+  margin-bottom: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.meal-toggle-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 20px;
+  line-height: 1;
+  padding: 0 8px 0 12px;
+  flex-shrink: 0;
+  transition: color 0.15s ease, transform 0.2s ease;
+  display: inline-block;
+}
+
+.meal-toggle-btn.expanded {
+  transform: rotate(90deg);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.meal-toggle-btn:hover {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.meal-components {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.3s ease;
+}
+
+.meal-components.expanded {
+  max-height: 2000px;
+  transition: max-height 0.4s ease;
 }
 
 .loading-recipe-bubble {
@@ -184,14 +234,8 @@
   justify-items: center;
   align-items: center;
   list-style-type: none;
-  padding: 0;            /* Removes padding */
-  margin-top: 20px;     
-  height:500px;    /* Removes margin */
-  overflow-y: auto; /* Scrollable if suggestions overflow */
-  /* Hides scrollbar in WebKit browsers (Chrome, Safari, etc.) */
-  -webkit-overflow-scrolling: touch; /* Enables smooth scrolling on mobile */
-  scrollbar-width: none; /* For Firefox */
-  -ms-overflow-style: none;  /* IE/Edge: Hide scrollbar */
+  padding: 0;
+  margin-top: 20px;
 }
 
 .log-list::-webkit-scrollbar {
@@ -203,8 +247,23 @@
   font-family: 'Ubuntu';
   color: hsla(0, 0.00%, 100.00%, 0.53);
   font-size: 14px;
-  font-weight: 300; 
+  font-weight: 300;
   font-style: italic;
+}
+
+@media (max-width: 1000px) {
+  .date-divider {
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .log-wrapper {
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .log-bubble {
+    width: 100%;
+    box-sizing: border-box;
+  }
 }
 
 /* Recipe log entry styles */

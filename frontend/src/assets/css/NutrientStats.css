@@ -135,12 +135,16 @@
   font-size: var(--inconsolata-font-size);
   font-weight: 300;
   text-transform: none;
-  transition: font-family 0.2s ease, font-size 0.2s ease, color 0.2s ease;
+  line-height: 28px;
+  height: 28px;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: font-family 0.2s ease, color 0.2s ease;
 }
 
 .nutrient-title-food-mode {
   font-family: 'Abyssinica SIL', Georgia, 'Times New Roman', serif;
-  font-size: 22px;
+  font-size: var(--inconsolata-font-size);
   font-weight: 400;
   color: rgba(255, 255, 255, 0.92);
   text-align: center;
@@ -262,7 +266,7 @@
   position: relative;
   border-color: antiquewhite;
   height: 13px;
-  width: 300px;
+  width: 100%;
   
   background-color: #12000e42;
   border-radius: 100px;

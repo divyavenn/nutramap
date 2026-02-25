@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useRef, KeyboardEvent } from 'react' 
+import React, { useState, useEffect, useRef, KeyboardEvent } from 'react'
 import {request} from './endpoints';
-import {HoverButton, ImageButton } from './Sections';
 import YesOk from '../assets/images/check_circle.svg?react'
 import IsOk from '../assets/images/checkmark.svg?react'
 import Trashcan from '../assets/images/trashcan.svg?react'
@@ -8,10 +7,17 @@ import { CalendarDay} from './DateSelector';
 import { getFoodID } from './utlis';
 import { tolocalDateString } from './utlis'
 import { useRecoilValue } from 'recoil';
-
-import '../assets/css/edit_log.css'
 import { useRefreshLogs } from './dashboard_states';
 import { foodsAtom } from './account_states';
+import {
+  EditFormContainer, FormDropdownWrapper, EditEntryFormBubble,
+  EditInputFoodName, EditInputPortion, EditInputDate, EditInputTimeWrapper,
+  SuggestionsContainer, SuggestionsList, SuggestionItem,
+  DeleteLogButtonContainer, DeleteLogBtn,
+  EditLogSubmitContainer, EditLogSubmitBtn,
+  CalendarDropdownWrapper,
+} from './EditLogStyles';
+import { FoodNameSpace, FoodPortionSpace, FoodWeightSpace, FoodDateSpace, FoodTimeSpace } from './LogStyles';
 
 interface MealProps {
   meal_name: string;
@@ -22,9 +28,10 @@ interface MealProps {
   onCancel: () => void;
   onAnimationStart?: () => void;
   onAnimationEnd?: () => void;
+  onDeleteStart?: () => void;
 }
 
-function MealEdit({meal_name, date, servings, _id, totalWeightGrams, onCancel, onAnimationStart, onAnimationEnd} : MealProps){
+function MealEdit({meal_name, date, servings, _id, totalWeightGrams, onCancel, onAnimationStart, onAnimationEnd, onDeleteStart} : MealProps){
 
   // Mock food data for autocomplete
   const foodList = useRecoilValue(foodsAtom)
@@ -355,7 +362,10 @@ useEffect(() => {
     
     // Start the deletion animation
     setIsDeleting(true);
-    
+
+    // Notify parent to animate the whole group out
+    if (onDeleteStart) onDeleteStart();
+
     // Notify parent component that animation has started
     if (onAnimationStart) {
       onAnimationStart();
@@ -385,9 +395,10 @@ useEffect(() => {
 
   return (
     !deleted ? (
-      <form
+      <EditFormContainer
         id="edit-log-form"
-        className={`edit-form-container ${showSuggestions ? 'active' : ''} ${isSubmitting ? 'submitting' : ''} ${isDeleting ? 'deleting' : ''}`}
+        $submitting={isSubmitting}
+        $deleting={isDeleting}
         onSubmit={handleSubmit}
         onMouseEnter={handleMouseEvent}
         onMouseLeave={handleMouseEvent}
@@ -395,35 +406,29 @@ useEffect(() => {
         onMouseMove={handleMouseEvent}
         onClick={handleMouseEvent}
       >
-        
-        <div className={`delete-log-button-container ${isSubmitting ? 'hide' : ''}`}>
-          <ImageButton
-                  type="button"
-                  onClick={handleDelete}
-                  className="delete-button"
-                  children={<Trashcan/>}>
-          </ImageButton>  
-        </div>
+        <DeleteLogButtonContainer $hide={isSubmitting}>
+          <DeleteLogBtn type="button" onClick={handleDelete}>
+            <Trashcan/>
+          </DeleteLogBtn>
+        </DeleteLogButtonContainer>
 
-        <div className="form-dropdown-wrapper">
-          <div className={`edit-entry-form-bubble ${showSuggestions ? 'active' : ''}`}>
-            <div className='food-name-space'>
-              <textarea
+        <FormDropdownWrapper>
+          <EditEntryFormBubble $active={showSuggestions}>
+            <FoodNameSpace>
+              <EditInputFoodName
                 ref={textareaRef}
                 name='food_name'
-                className='edit-input-food-name textarea-auto-height'
                 placeholder='food'
                 value={formData.meal_name}
                 onChange={handleTyping}
                 onKeyDown={handleTextareaKeyDown}
                 required
-              ></textarea>
-            </div>
+              />
+            </FoodNameSpace>
 
-            <div className="food-portion-space" style={{gap: '6px', alignItems: 'baseline'}}>
-              <input
+            <FoodPortionSpace style={{gap: '6px', alignItems: 'baseline'}}>
+              <EditInputPortion
                 name='servings'
-                className='edit-input-portion'
                 type='text'
                 placeholder='1'
                 value={formData.servings}
@@ -431,15 +436,14 @@ useEffect(() => {
                 onKeyDown={handleKeyDown}
                 style={{width: `${Math.max(String(formData.servings).length, 1) + 1}ch`, flexShrink: 0}}
                 required
-              ></input>
+              />
               <span> servings </span>
-            </div>
+            </FoodPortionSpace>
 
-            <div className='food-weight-space' style={{gap: '4px', alignItems: 'baseline'}}>
+            <FoodWeightSpace style={{gap: '4px', alignItems: 'baseline'}}>
               {weightPerServing != null && (
                 <>
-                  <input
-                    className='edit-input-portion'
+                  <EditInputPortion
                     type='number'
                     min='0'
                     placeholder='0000'
@@ -451,92 +455,84 @@ useEffect(() => {
                   <span> g </span>
                 </>
               )}
-            </div>
+            </FoodWeightSpace>
 
+            <FoodDateSpace>
+              <EditInputDate
+                name='date'
+                type='date'
+                onChange={handleDateChange}
+                onKeyDown={handleKeyDown}
+                value={formatDate(formData.date)}
+                required
+              />
+            </FoodDateSpace>
 
-            <div className='food-date-space'>
+            <FoodTimeSpace>
+              <EditInputTimeWrapper>
                 <input
-                  className='edit-input-date'
-                  name='date'
-                  type='date'
-                  onChange={handleDateChange}
+                  name='time'
+                  type='time'
+                  onChange={handleTimeChange}
                   onKeyDown={handleKeyDown}
-                  value={formatDate(formData.date)} // Format date to 'YYYY-MM-DD'
+                  value={`${String(formData.date.getHours()).padStart(2, '0')}:${String(formData.date.getMinutes()).padStart(2, '0')}`}
                   required
                 />
-            </div>
-
-            <div className='food-time-space'>
-              <div className='edit-input-time-wrapper'>
-                <input
-                name='time'
-                type='time'
-                onChange={handleTimeChange}
-                onKeyDown={handleKeyDown}
-                value={`${String(formData.date.getHours()).padStart(2, '0')}:${String(formData.date.getMinutes()).padStart(2, '0')}`}
-                required>
-                </input>
-              </div>
-            </div>
-          </div>
+              </EditInputTimeWrapper>
+            </FoodTimeSpace>
+          </EditEntryFormBubble>
 
           {showSuggestions && (
-            <div 
-              className="suggestions-container" 
-              ref={suggestionsRef}
-            >
-              <ul 
-                className="suggestions-list" 
+            <SuggestionsContainer ref={suggestionsRef}>
+              <SuggestionsList
                 onMouseEnter={handleMouseEvent}
                 onMouseLeave={handleMouseEvent}
                 onMouseOver={handleMouseEvent}
                 onMouseMove={handleMouseEvent}
               >
                 {suggestions.map((suggestion, index) => (
-                  <li key={suggestion}
-                      onClick={() => handleSuggestionClick(suggestion)}
-                      className={`suggestion-item ${index === selectedSuggestionIndex ? 'selected' : ''}`}
-                      onMouseEnter={() => setSelectedSuggestionIndex(index)}
+                  <SuggestionItem
+                    key={suggestion}
+                    $selected={index === selectedSuggestionIndex}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    onMouseEnter={() => setSelectedSuggestionIndex(index)}
                   >
                     {suggestion}
-                  </li>
+                  </SuggestionItem>
                 ))}
-              </ul>
-            </div>
+              </SuggestionsList>
+            </SuggestionsContainer>
           )}
 
           {showCalendar && (
-          <div 
-            className='calendar-dropdown-wrapper' 
-            onMouseEnter={handleMouseEvent}
-            onMouseLeave={handleMouseEvent}
-            onMouseOver={handleMouseEvent}
-            onMouseMove={handleMouseEvent}
-          >
-            <CalendarDay
-            day={date}
-            handleSelect={handleSelect}
-            isOpen={showCalendar}
-            setIsOpen={setShowCalendar}/>
-          </div>
+            <CalendarDropdownWrapper
+              onMouseEnter={handleMouseEvent}
+              onMouseLeave={handleMouseEvent}
+              onMouseOver={handleMouseEvent}
+              onMouseMove={handleMouseEvent}
+            >
+              <CalendarDay
+                day={date}
+                handleSelect={handleSelect}
+                isOpen={showCalendar}
+                setIsOpen={setShowCalendar}
+              />
+            </CalendarDropdownWrapper>
           )}
-        </div>
+        </FormDropdownWrapper>
 
-        <div className='edit-log-submit-container'>
-          <HoverButton
-                  type="submit"
-                  className={`edit-log-submit ${isSubmitting ? 'confirming' : ''}`}
-                  disabled={!formData.meal_name || !formData.servings || !validInput || isSubmitting}
-                  childrenOn={<YesOk/>}
-                  childrenOff={<IsOk/>}>
-          </HoverButton>
-        </div> 
-      </form>
+        <EditLogSubmitContainer>
+          <EditLogSubmitBtn
+            type="submit"
+            $confirming={isSubmitting}
+            disabled={!formData.meal_name || !formData.servings || !validInput || isSubmitting}
+            childrenOn={<YesOk/>}
+            childrenOff={<IsOk/>}
+          />
+        </EditLogSubmitContainer>
+      </EditFormContainer>
     ) :
-    <div>
-
-      
-    </div>
+    <div />
   )
 
 }

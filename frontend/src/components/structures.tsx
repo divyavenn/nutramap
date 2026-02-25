@@ -22,6 +22,7 @@ export interface LogProps {
   date: Date;
   components: LogComponent[];
   recipe_exists?: boolean;  // Whether the linked recipe still exists
+  serving_size_label?: string | null;  // Recipe's serving label (e.g. "1 slice")
 }
 
 export interface LogbookProps {

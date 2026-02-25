@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Header } from '../components/Sections';
 import { Heading } from '../components/Title';
 import AccountIcon from '../assets/images/account.svg?react';
@@ -7,7 +7,7 @@ import RecipesIcon from '../assets/images/recipes.svg?react'
 import { request } from '../components/endpoints';
 import { useNavigate } from 'react-router-dom';
 import { isLoginExpired } from '../components/utlis';
-import { firstNameAtom, useRefreshAccountInfo, nutrientDetailsByIDAtom} from '../components/account_states';
+import { firstNameAtom, useRefreshAccountInfo, nutrientDetailsByIDAtom, pendingCustomFoodsAtom } from '../components/account_states';
 import { useRecoilValue, useRecoilValueLoadable } from 'recoil';
 import '../assets/css/foods.css';
 import NewFood from '../components/NewFood';
@@ -61,7 +61,7 @@ function Foods() {
   const [foods, setFoods] = useState<Food[]>([]);
   const [selectedFood, setSelectedFood] = useState<string | null>(null);
   const [nutrientsDetails, setNutrientsDetails] = useState<NutrientInfo[]>([]);
-  const [pendingFoodName, setPendingFoodName] = useState<string | null>(null);
+  const pendingCustomFoods = useRecoilValue(pendingCustomFoodsAtom);
   const refreshAccountInfo = useRefreshAccountInfo();
   const navigate = useNavigate();
   const name = useRecoilValue(firstNameAtom);
@@ -70,46 +70,24 @@ function Foods() {
     ? nutrientDetailsByIdLoadable.contents
     : {} 
 
-  // Fetch user's custom foods
+  // Fetch user's custom foods — always force-refresh so navigating back shows latest data
   useEffect(() => {
     if (isLoginExpired()) {
       navigate('/login');
       return;
     }
-    refreshAccountInfo()
-    fetchFoods();
+    refreshAccountInfo();
+    fetchFoods(true);
   }, []);
 
-  // Listen for food processing and food added events
+  // Re-fetch when any pending food finishes (array shrinks).
+  const prevPendingLengthRef = useRef(pendingCustomFoods.length);
   useEffect(() => {
-    const handleFoodProcessing = (e: Event) => {
-      const customEvent = e as CustomEvent<{ name: string }>;
-      setPendingFoodName(customEvent.detail?.name || 'new food');
-    };
-
-    const handleFoodAdded = (e: Event) => {
-      const customEvent = e as CustomEvent<{ foodId: string }>;
-      const foodId = customEvent.detail?.foodId;
-
-      setPendingFoodName(null);
-
-      try { localStorage.removeItem('custom_foods_cache'); } catch (e) {}
+    if (prevPendingLengthRef.current > pendingCustomFoods.length) {
       fetchFoods(true);
-    };
-
-    const handleFoodProcessingDone = () => {
-      setPendingFoodName(null);
-    };
-
-    window.addEventListener('food-processing', handleFoodProcessing);
-    window.addEventListener('food-added', handleFoodAdded);
-    window.addEventListener('food-processing-done', handleFoodProcessingDone);
-    return () => {
-      window.removeEventListener('food-processing', handleFoodProcessing);
-      window.removeEventListener('food-added', handleFoodAdded);
-      window.removeEventListener('food-processing-done', handleFoodProcessingDone);
-    };
-  }, []);
+    }
+    prevPendingLengthRef.current = pendingCustomFoods.length;
+  }, [pendingCustomFoods.length]);
 
   const fetchFoods = async (forceRefresh = false) => {
     try {
@@ -239,18 +217,25 @@ function Foods() {
   };
 
   const deleteFood = async (foodId: string, event: React.MouseEvent) => {
-    event.stopPropagation(); // Prevent triggering food selection
+    event.stopPropagation();
 
     try {
+      // Check if this food is used in any recipes
+      const usageResponse = await request(`/food/custom_foods/${foodId}/used-in`, 'GET');
+      const recipeNames: string[] = usageResponse.body?.recipe_names ?? [];
+
+      if (recipeNames.length > 0) {
+        const list = recipeNames.map(n => `"${n}"`).join(', ');
+        const confirmed = window.confirm(
+          `Are you sure? This food is used in the following recipes: ${list}.\n\nDeleting it will remove it from those recipes.`
+        );
+        if (!confirmed) return;
+      }
+
       await request(`/food/custom_foods/${foodId}`, 'DELETE');
 
-      // Invalidate cache
       try { localStorage.removeItem('custom_foods_cache'); } catch (e) {}
-
-      // Update local state
       setFoods(foods.filter(food => food._id !== foodId));
-
-      // If the deleted food was selected, deselect it
       if (selectedFood === foodId) {
         setSelectedFood(null);
         setNutrientsDetails([]);
@@ -269,7 +254,7 @@ function Foods() {
       <div className="foods-container">
         <NewFood />
 
-        {foods.length === 0 && !pendingFoodName ? (
+        {foods.length === 0 && pendingCustomFoods.length === 0 ? (
           <div className="no-foods-message">
             You haven't created any custom foods yet.
           </div>
@@ -291,11 +276,11 @@ function Foods() {
                 </button>
               </div>
             ))}
-            {pendingFoodName && (
-              <div className="food-tag pending">
-                <AnimatedText text={pendingFoodName} />
+            {pendingCustomFoods.map(p => (
+              <div key={p.timestamp} className="food-tag pending">
+                <AnimatedText text={p.name} />
               </div>
-            )}
+            ))}
           </div>
         )}
       </div>

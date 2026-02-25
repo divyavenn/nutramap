@@ -71,15 +71,18 @@ def make_log_readable(logs, db, request: Request = None):
             for component in log["components"]:
                 component["food_name"] = str(get_food_name(component["food_id"], db, request)).strip("(')',")
 
-        # Check if recipe still exists (if recipe_id is present)
+        # Check if recipe still exists and pull serving_size_label
         if log.get("recipe_id"):
             user_doc = db.users.find_one(
                 {"recipes.recipe_id": log["recipe_id"]},
                 {"recipes.$": 1}
             )
-            log["recipe_exists"] = bool(user_doc and "recipes" in user_doc and len(user_doc["recipes"]) > 0)
+            recipe = user_doc["recipes"][0] if (user_doc and user_doc.get("recipes")) else None
+            log["recipe_exists"] = bool(recipe)
+            log["serving_size_label"] = recipe.get("serving_size_label") if recipe else None
         else:
             log["recipe_exists"] = False
+            log["serving_size_label"] = None
 
         log.pop("user_id", None)
     return logs 
@@ -141,6 +144,7 @@ async def add_log(user: user, log, db: db):
 
     # Validate that all component foods exist in MongoDB (new format)
     if "components" in log_dict and isinstance(log_dict["components"], list):
+        valid_components = []
         for component in log_dict["components"]:
             food_id = component.get("food_id")
             if food_id:
@@ -148,7 +152,12 @@ async def add_log(user: user, log, db: db):
                 search_id = ObjectId(food_id) if isinstance(food_id, str) and len(str(food_id)) == 24 else food_id
                 food = db.foods.find_one({"_id": search_id})
                 if not food:
-                    raise HTTPException(status_code=404, detail=f"Food not found: {food_id}")
+                    print(f"Warning: skipping component with missing food ID {food_id}")
+                    continue
+            valid_components.append(component)
+        log_dict["components"] = valid_components
+        if not valid_components:
+            raise HTTPException(status_code=404, detail="No valid food components found for this log")
     # Old format validation (for backward compatibility with /logs/new endpoint)
     elif "food_id" in log_dict:
         food_id = log_dict.get("food_id")
@@ -378,6 +387,105 @@ def edit_recipe_log(
         raise HTTPException(status_code=500, detail="Something went wrong; log not updated.")
 
     return {"status": "success", "message": "Recipe log updated successfully"}
+
+
+@router.post("/add-component")
+async def add_component(
+    user: user,
+    db: db,
+    log_id: str = Form(...),
+    food_name: str = Form(...),
+    amount: str = Form(...),
+    food_id: str = Form(None)
+):
+    """
+    Append a new component to an existing log.
+    Used when adding an ingredient to an unlinked meal.
+    """
+    target_log = db.logs.find_one({"_id": ObjectId(log_id), "user_id": ObjectId(user["_id"])})
+
+    if not target_log:
+        raise HTTPException(status_code=404, detail="Log not found.")
+
+    # Resolve food_id
+    if food_id:
+        new_food_id = food_id
+        try:
+            new_food_id = int(new_food_id)
+        except (ValueError, TypeError):
+            pass
+    else:
+        from src.routers.match import rrf_fusion, get_sparse_index
+        from src.routers.dense import find_dense_matches
+        matches = await rrf_fusion(
+            get_sparse_index, [food_name, db, user, 60, 50],
+            find_dense_matches, [food_name, db, user, None, 40, 50],
+            k=30, n=1
+        )
+        if not matches:
+            raise HTTPException(status_code=404, detail="Food not found")
+        new_food_id = matches[0]
+        try:
+            new_food_id = int(new_food_id)
+        except (ValueError, TypeError):
+            pass
+
+    from src.routers.parse import estimate_grams
+    weight_in_grams = await estimate_grams(food_name, amount)
+
+    new_component = {
+        "food_id": new_food_id,
+        "amount": amount,
+        "weight_in_grams": weight_in_grams
+    }
+
+    result = db.logs.update_one(
+        {"_id": target_log["_id"]},
+        {"$push": {"components": new_component}}
+    )
+
+    if result.matched_count == 0:
+        raise HTTPException(status_code=500, detail="Something went wrong; component not added.")
+
+    return {
+        "status": "success",
+        "weight_in_grams": weight_in_grams,
+        "food_name": food_name
+    }
+
+
+@router.delete("/delete-component")
+def delete_component(
+    user: user,
+    db: db,
+    log_id: str,
+    component_index: int
+):
+    """
+    Remove a specific component from a log.
+    If it is the last component, deletes the whole log.
+    """
+    target_log = db.logs.find_one({"_id": ObjectId(log_id), "user_id": ObjectId(user["_id"])})
+
+    if not target_log:
+        raise HTTPException(status_code=404, detail="Log not found.")
+
+    components = list(target_log.get("components", []))
+
+    if component_index < 0 or component_index >= len(components):
+        raise HTTPException(status_code=400, detail="Invalid component index.")
+
+    if len(components) == 1:
+        db.logs.delete_one({"_id": target_log["_id"]})
+        return {"status": "deleted_log"}
+
+    components.pop(component_index)
+    db.logs.update_one(
+        {"_id": target_log["_id"]},
+        {"$set": {"components": components}}
+    )
+
+    return {"status": "success", "remaining_components": len(components)}
 
 
 @router.post("/edit-component")

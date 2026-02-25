@@ -326,7 +326,7 @@ def _is_likely_base_ingredient(name: str) -> bool:
         'korma', 'tikka', 'tandoori', 'pakora', 'bhaji', 'paratha', 'naan',
         'dal', 'daal', 'sabzi', 'raita', 'paneer',
         # Western dishes
-        'gravy', 'sauce', 'soup', 'stew', 'casserole', 'salad',
+        'gravy', 'soup', 'stew', 'casserole', 'salad',
         'sandwich', 'burger', 'pizza', 'wrap', 'roll', 'taco', 'burrito',
         'pasta', 'lasagna', 'risotto', 'gnocchi',
         # Asian dishes
@@ -362,7 +362,7 @@ def _is_likely_base_ingredient(name: str) -> bool:
         # Nuts & seeds
         'coconut', 'almond', 'cashew', 'nuts', 'peanut', 'walnut',
         # Condiments & basics
-        'sugar', 'salt', 'honey', 'syrup', 'vinegar', 'broth', 'stock',
+        'sugar', 'salt', 'honey', 'syrup', 'vinegar', 'broth', 'stock', 'water', 'yeast',
         # Spices
         'tamarind', 'turmeric', 'cumin', 'coriander', 'mustard', 'chili', 'basil', 'cilantro',
         # Descriptors that indicate base foods
@@ -536,6 +536,11 @@ async def classify_ingredient(
     for base_ing in base_ingredients:
         base_match = await find_high_confidence_match(base_ing["food_name"], db, user)
         if base_match:
+            # Skip composite dish matches with low confidence (same guard as in classify_ingredient).
+            # Prevents e.g. "pizza crust" from matching "Pizza, pepperoni topping".
+            if not base_match.get('is_base') and not base_match.get('exact_match') and base_match['confidence'] < 0.95:
+                print(f"    ⚠ Skipping composite match '{base_match['name']}' for base ingredient '{base_ing['food_name']}' (confidence={base_match['confidence']:.2f})")
+                continue
             matched_ingredients.append({
                 "food_id": base_match["id"],
                 "food_name": base_match["name"],
@@ -726,7 +731,12 @@ IMPORTANT RULES:
 - "idli sambar chutney" = THREE separate entries, NOT one combined recipe
 - Recipe match = use recipe_id from list, ingredients array MUST be EMPTY []
 - Custom food match = recipe_id: null, ONE ingredient with the exact custom food name
-- No match = recipe_id: null, decomposed base ingredients
+- No match = recipe_id: null, decomposed base ingredients — NEVER leave ingredients empty when recipe_id is null
+- ingredients: [] is ONLY allowed when recipe_id is set (existing recipe matched)
+- QUANTITY MULTIPLIERS set recipe_servings, they do NOT create duplicate entries:
+  "2 slices cheese pizza" = ONE entry for "cheese pizza" with recipe_servings=2
+  "3 cups oatmeal" = ONE entry for "oatmeal" with recipe_servings=3
+  "half a bowl of rice" = ONE entry for "rice" with recipe_servings=0.5
 
 For timestamps:
 - The user's current local time is: {current_time.isoformat()}
@@ -913,55 +923,82 @@ async def process_recipes_in_background(
                     )
                     continue
 
-            # CASE 2: Single ingredient matching description → standalone food log
+            # CASE 2: Single ingredient → try to log as standalone food
+            # Covers both custom foods ("idli") and simple USDA foods ("2 apples").
             if len(ingredients) == 1:
                 ing = ingredients[0]
                 ing_name = ing.get("food_name", "")
-
-                # Check if this is a custom food (ingredient name matches description)
-                if ing_name.lower().strip() == description.lower().strip():
-                    print(f"  → Custom food match: '{ing_name}'")
-                    # Find the food_id for this custom food
-                    food_match = await find_high_confidence_match(ing_name, db, {"_id": user_id})
-                    if food_match:
+                if ing_name:
+                    classification = await classify_ingredient(
+                        ing_name,
+                        ing.get("amount", ""),
+                        ing.get("weight_in_grams", 0),
+                        db,
+                        {"_id": user_id},
+                        user_recipes=[],
+                    )
+                    if classification["type"] == "food":
+                        food_data = classification["data"]
+                        print(f"  → Standalone food: '{food_data['food_name']}'")
                         await _create_log_for_food(
-                            food_match["name"],
+                            food_data["food_name"],
                             servings,
                             timestamp,
-                            {
-                                "food_id": food_match["id"],
-                                "food_name": food_match["name"],
-                                "amount": ing.get("amount", ""),
-                                "weight_in_grams": ing.get("weight_in_grams", 0)
-                            },
+                            food_data,
                             user_id,
                             db
                         )
                         continue
-                    else:
-                        print(f"  ⚠ Could not find food match for '{ing_name}'")
+                    elif classification["type"] == "decompose":
+                        # Single ingredient that itself decomposes → treat as a recipe
+                        print(f"  → '{ing_name}' decomposes, promoting to CASE 3")
+                        ingredients = classification["data"]
+                    # "none" → fall through to CASE 3 with the original single ingredient
 
             # CASE 3: Multiple ingredients → create new recipe + log
             print(f"  → Creating new recipe with {len(ingredients)} ingredients")
 
-            # Match each ingredient to a food_id
+            # Classify each ingredient via classify_ingredient (same path as the test).
+            # Defensive fallback: GPT sometimes returns ingredients: [] for composite dishes
+            # (should never happen per prompt rules, but handle it gracefully).
             matched_ingredients = []
-            for ing in ingredients:
-                ing_name = ing.get("food_name", "")
-                if not ing_name:
-                    continue
-
-                food_match = await find_high_confidence_match(ing_name, db, {"_id": user_id})
-                if food_match:
-                    matched_ingredients.append({
-                        "food_id": food_match["id"],
-                        "food_name": food_match["name"],
-                        "amount": ing.get("amount", ""),
-                        "weight_in_grams": ing.get("weight_in_grams", 0)
-                    })
-                    print(f"    ✓ '{ing_name}' → '{food_match['name']}'")
+            if not ingredients:
+                print(f"  ⚠ GPT returned no ingredients for '{description}', classifying description directly")
+                classification = await classify_ingredient(
+                    description, "", 0, db, {"_id": user_id}, user_recipes=[]
+                )
+                if classification["type"] == "food":
+                    matched_ingredients = [classification["data"]]
+                elif classification["type"] == "decompose":
+                    matched_ingredients = list(classification["data"])
                 else:
-                    print(f"    ✗ No match for '{ing_name}'")
+                    print(f"  ⚠ Could not classify '{description}', skipping")
+                    continue
+            else:
+                for ing in ingredients:
+                    ing_name = ing.get("food_name", "")
+                    if not ing_name:
+                        continue
+
+                    classification = await classify_ingredient(
+                        ing_name,
+                        ing.get("amount", ""),
+                        ing.get("weight_in_grams", 0),
+                        db,
+                        {"_id": user_id},
+                        user_recipes=[],  # sub-ingredients are never themselves recipes
+                    )
+
+                    if classification["type"] == "food":
+                        matched_ingredients.append(classification["data"])
+                        print(f"    ✓ '{ing_name}' → '{classification['data']['food_name']}'")
+                    elif classification["type"] == "decompose":
+                        # e.g. "pizza crust" further decomposes into flour, water, yeast
+                        for sub in classification["data"]:
+                            matched_ingredients.append(sub)
+                        print(f"    ✓ '{ing_name}' → decomposed into {len(classification['data'])} sub-ingredient(s)")
+                    else:
+                        print(f"    ✗ '{ing_name}' — no match found")
 
             if not matched_ingredients:
                 print(f"  ⚠ No valid ingredients for '{description}', skipping")
@@ -1807,6 +1844,74 @@ async def match_recipe(user: user, db: db, recipe_description: str = Form(...)):
     matches = await find_similar_recipes(user["_id"], embedding, db, threshold=0.85)
 
     return {"matches": matches}
+
+
+@router.post("/create-from-meal")
+async def create_recipe_from_meal(
+    user: user,
+    db: db,
+    log_id: str = Form(...),
+    recipe_name: str = Form(...)
+):
+    """
+    Create a new recipe using an existing log's components as ingredients,
+    then link the log to that recipe.
+    """
+    target_log = db.logs.find_one({"_id": ObjectId(log_id), "user_id": user["_id"]})
+
+    if not target_log:
+        raise HTTPException(status_code=404, detail="Log not found.")
+
+    components = target_log.get("components", [])
+    if not components:
+        raise HTTPException(status_code=400, detail="Log has no components.")
+
+    # Build ingredients from components
+    ingredients = []
+    for comp in components:
+        food_id = comp.get("food_id")
+        if food_id is not None:
+            food_name_str = get_food_name(food_id, db, None)
+            ingredients.append({
+                "food_id": food_id,
+                "food_name": food_name_str,
+                "amount": comp.get("amount", ""),
+                "weight_in_grams": comp.get("weight_in_grams", 0)
+            })
+
+    if not ingredients:
+        raise HTTPException(status_code=400, detail="No valid ingredients found in log.")
+
+    recipe_id = str(uuid.uuid4())
+    embedding = await generate_recipe_embedding(recipe_name)
+
+    new_recipe = {
+        "recipe_id": recipe_id,
+        "description": recipe_name,
+        "embedding": embedding,
+        "ingredients": ingredients,
+        "serving_size_label": None,
+        "serving_size_grams": None,
+        "created_at": datetime.now(),
+        "updated_at": datetime.now()
+    }
+
+    db.users.update_one(
+        {"_id": user["_id"]},
+        {"$push": {"recipes": new_recipe}}
+    )
+
+    # Link the log to the new recipe and update meal_name
+    db.logs.update_one(
+        {"_id": target_log["_id"]},
+        {"$set": {"recipe_id": recipe_id, "meal_name": recipe_name}}
+    )
+
+    return {
+        "status": "success",
+        "recipe_id": recipe_id,
+        "description": recipe_name
+    }
 
 
 @router.post("/unlink-log")

@@ -15,9 +15,11 @@ interface RecipeCardProps {
   onClose: () => void;
   onDelete: (recipeId: string) => void;
   onUpdate: () => void;
+  logId?: string;
+  onUnlink?: () => void;
 }
 
-function RecipeCard({ recipe, onClose, onDelete, onUpdate }: RecipeCardProps) {
+function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink }: RecipeCardProps) {
   const [editedIngredients, setEditedIngredients] = useState<RecipeIngredient[]>(recipe.ingredients);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [hasEdits, setHasEdits] = useState(false);
@@ -172,6 +174,19 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate }: RecipeCardProps) {
     tutorialEvent('tutorial:recipe-synced');
   };
 
+  const handleUnlinkFromLog = async () => {
+    if (!logId) return;
+    try {
+      const fd = new FormData();
+      fd.append('log_id', logId);
+      await request('/recipes/unlink-log', 'POST', fd);
+    } catch (error) {
+      console.error('Error unlinking log from recipe:', error);
+    }
+    onUnlink?.();
+    onClose();
+  };
+
   const handleUnlinkLogs = async () => {
     try {
       const formData = new FormData();
@@ -287,23 +302,54 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate }: RecipeCardProps) {
           </div>
         </div>
 
-        <div className="modal-footer">
-          <motion.button
-            className="delete-recipe-icon-button"
-            onClick={() => onDelete(recipe.recipe_id)}
-            title="Delete Recipe"
-            aria-label="Delete Recipe"
-            whileHover={{ scale: 1.08, y: -1 }}
-            whileTap={{ scale: 0.92, y: 0 }}
-            transition={{ type: 'spring', stiffness: 380, damping: 20, mass: 0.6 }}
-          >
-            <TrashcanIcon className="delete-recipe-icon" aria-hidden="true" focusable="false" />
-          </motion.button>
-        </div>
+        {logId && (
+          <div style={{
+            position: 'absolute',
+            bottom: 35,
+            left: 0,
+            right: 0,
+            display: 'flex',
+            justifyContent: 'center',
+          }}>
+            <button
+              onClick={handleUnlinkFromLog}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'rgba(255,255,255,0.4)',
+                fontFamily: 'Inconsolata, monospace',
+                fontSize: 13,
+                cursor: 'pointer',
+                padding: '6px 10px',
+                transition: 'color 0.15s ease',
+              }}
+              onMouseEnter={(e) => { (e.target as HTMLButtonElement).style.color = 'rgba(255,255,255,0.85)'; }}
+              onMouseLeave={(e) => { (e.target as HTMLButtonElement).style.color = 'rgba(255,255,255,0.4)'; }}
+            >
+              unlink from this meal
+            </button>
+          </div>
+        )}
+
+        {!logId && (
+          <div className="modal-footer">
+            <motion.button
+              className="delete-recipe-icon-button"
+              onClick={() => onDelete(recipe.recipe_id)}
+              title="Delete Recipe"
+              aria-label="Delete Recipe"
+              whileHover={{ scale: 1.08, y: -1 }}
+              whileTap={{ scale: 0.92, y: 0 }}
+              transition={{ type: 'spring', stiffness: 380, damping: 20, mass: 0.6 }}
+            >
+              <TrashcanIcon className="delete-recipe-icon" aria-hidden="true" focusable="false" />
+            </motion.button>
+          </div>
+        )}
       </div>
 
       {showSyncConfirm && (
-        <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
+        <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
           <Confirm
             message="update all previous meals using this recipe?"
             ifYesDo={handleSyncLogs}

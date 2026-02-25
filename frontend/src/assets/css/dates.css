@@ -6,7 +6,6 @@
   flex-direction: vertical;
   justify-content: center;
   align-items: center;
-  margin-bottom: 50px;
 }
 
 .range-selector {
@@ -15,8 +14,6 @@
 
   justify-items: center;
   align-items: center;
-
-  margin-bottom: 50px;
 }
 
 .today {
@@ -66,7 +63,7 @@
   .range-text {
     padding: 10px;
     order: 1;
-    color: #ffffff;
+    color: #a855f7;
     font-size: 18px;
     font-family: Inconsolata;
     font-weight: 300;
@@ -86,9 +83,9 @@
     font-size: 10px;
     text-align: center;
   }
-  
+
   .month-arrow svg {
-    fill: #ffffff; /* White color */
+    fill: #a855f7;
     height: 20px;
   }
 

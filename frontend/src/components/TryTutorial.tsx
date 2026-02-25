@@ -39,12 +39,17 @@ new TutorialStep({
     eventName: 'tutorial:ingredient-edited',
   }),
   new TutorialStep({
+    message: 'Home cooks usually improvise based on what\'s available. To change the components for this meal without changing the original recipe, simply unlink the recipe using this button.',
+    selector: '.confirm-modal',
+    highlightOnly: true,
+  }),
+  new TutorialStep({
     message: 'Now close the recipe or click anywhere outside it to save your changes.',
     selector: '.recipe-detail-modal .modal-close-x',
     eventName: 'tutorial:sync-shown',
   }),
   new TutorialStep({
-    message: 'Decide if you want to update all previous entries for this recipe only use the new version going forward.',
+    message: 'Decide if you want to update all previous entries for this recipe or only use the new version going forward.',
     selector: '.confirm-modal',
     eventName: 'tutorial:recipe-synced',
   }),

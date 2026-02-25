@@ -5,8 +5,8 @@ import Arrow from '../assets/images/arrow.svg?react';
 import IsOk from '../assets/images/checkmark.svg?react';
 import ImageIcon from '../assets/images/image.svg?react';
 import '../assets/css/foods.css';
-import { useSetRecoilState } from 'recoil';
-import { foodsAtom } from './account_states';
+import { useSetRecoilState, useRecoilValue } from 'recoil';
+import { pendingCustomFoodsAtom, PendingCustomFood } from './account_states';
 import { tutorialEvent } from './TryTutorial';
 
 /**
@@ -29,7 +29,69 @@ function NewFood() {
   const formRef = useRef<HTMLFormElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const setFoods = useSetRecoilState(foodsAtom);
+  const pendingCustomFoods = useRecoilValue(pendingCustomFoodsAtom);
+  const setPendingCustomFoods = useSetRecoilState(pendingCustomFoodsAtom);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollCountRef = useRef(0);
+  const knownFoodsCountRef = useRef<number | null>(null);
+
+  // Poll GET /food/custom-foods while foods are pending.
+  // When a new food appears, remove the oldest pending entry.
+  // Restarts automatically if the component remounts after navigation.
+  useEffect(() => {
+    if (pendingCustomFoods.length === 0) {
+      if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null; }
+      if (pollTimeoutRef.current) { clearTimeout(pollTimeoutRef.current); pollTimeoutRef.current = null; }
+      knownFoodsCountRef.current = null;
+      return;
+    }
+
+    if (pollIntervalRef.current !== null) return; // already polling
+
+    pollCountRef.current = 0;
+    knownFoodsCountRef.current = null;
+
+    pollIntervalRef.current = setInterval(async () => {
+      pollCountRef.current++;
+      try {
+        const response = await request('/food/custom-foods', 'GET');
+        if (response.body && Array.isArray(response.body)) {
+          const currentCount: number = response.body.length;
+          if (knownFoodsCountRef.current === null) {
+            knownFoodsCountRef.current = currentCount; // establish baseline
+          } else if (currentCount > knownFoodsCountRef.current) {
+            const added = currentCount - knownFoodsCountRef.current;
+            knownFoodsCountRef.current = currentCount;
+            try { localStorage.removeItem('custom_foods_cache'); } catch (e) {}
+            setPendingCustomFoods(prev => prev.slice(added));
+          }
+        }
+      } catch (e) { /* network error — keep polling */ }
+
+      if (pollCountRef.current >= 10) {
+        clearInterval(pollIntervalRef.current!);
+        pollIntervalRef.current = null;
+        if (pollTimeoutRef.current) { clearTimeout(pollTimeoutRef.current!); pollTimeoutRef.current = null; }
+        try { localStorage.removeItem('custom_foods_cache'); } catch (e) {}
+        setPendingCustomFoods([]);
+      }
+    }, 2000);
+
+    pollTimeoutRef.current = setTimeout(() => {
+      if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null; }
+      try { localStorage.removeItem('custom_foods_cache'); } catch (e) {}
+      setPendingCustomFoods([]);
+      pollTimeoutRef.current = null;
+    }, 30000);
+
+    return () => {
+      // Clear timers on unmount but leave atom intact so polling resumes on remount.
+      if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null; }
+      if (pollTimeoutRef.current) { clearTimeout(pollTimeoutRef.current); pollTimeoutRef.current = null; }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingCustomFoods.length]);
 
   // Handle paste events for direct image pasting
   useEffect(() => {
@@ -135,88 +197,43 @@ function NewFood() {
   const handleProcess = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!foodDescription.trim() && imageFiles.length === 0) {
-      return;
-    }
+    if (!foodDescription.trim() && imageFiles.length === 0) return;
 
-    // Capture the current values before clearing
     const descriptionToProcess = foodDescription;
     const filesToProcess = [...imageFiles];
-
-    // Clear UI immediately (before async operations)
     const pendingName = descriptionToProcess.trim() || 'new food';
+
     setFoodDescription('');
     clearAllImages();
-
     setIsProcessing(true);
     setIsJiggling(true);
 
-    // Notify foods page to show a pending tag
-    window.dispatchEvent(new CustomEvent('food-processing', { detail: { name: pendingName } }));
+    const pendingItem: PendingCustomFood = {
+      name: pendingName,
+      timestamp: new Date().toISOString(),
+    };
+    setPendingCustomFoods(prev => [...prev, pendingItem]);
 
     try {
-      // Create form data for multipart/form-data request
       const formData = new FormData();
-
-      // Add description if provided
       if (descriptionToProcess.trim()) {
         formData.append('description', descriptionToProcess);
       }
+      filesToProcess.forEach(file => formData.append('images', file));
 
-      // Add all images (using captured files)
-      filesToProcess.forEach((file) => {
-        formData.append('images', file);
+      // Backend returns immediately; all processing runs in a background task.
+      await fetch(`${import.meta.env.VITE_API_URL}/food/process_and_add`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` },
+        body: formData,
       });
 
-      // Process images with backend
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/food/process_images`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-          },
-          body: formData
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to process images');
-      }
-
-      const data = await response.json();
-
-      // Directly submit the food without review modal
-      const generatedDescription = data.description || foodDescription;
-      const nutritionData = data.nutrients || [];
-
-      const addResponse = await request('/food/add_custom_food', 'POST', {
-        name: generatedDescription,
-        nutrients: JSON.stringify(nutritionData)
-      }, 'URLencode');
-
-      if (addResponse.status === 200) {
-        // Update localStorage cache with new food
-        const foodId = addResponse.body.food_id;
-        if (foodId) {
-          const foodsCache = JSON.parse(localStorage.getItem('foods') || '{}');
-          foodsCache[generatedDescription] = parseInt(foodId);
-          localStorage.setItem('foods', JSON.stringify(foodsCache));
-
-          // Also update the Recoil atom so autocomplete works immediately
-          setFoods(foodsCache);
-        }
-
-        // Dispatch event with the new food ID so Foods page can refresh and animate
-        const event = new CustomEvent('food-added', { detail: { foodId } });
-        window.dispatchEvent(event);
-        tutorialEvent('tutorial:food-created');
-      }
-
+      tutorialEvent('tutorial:food-created');
+      // Polling (useEffect above) will detect the new food and clear the pending entry.
     } catch (error) {
-      console.error('Error processing food:', error);
-      alert('Error processing food. Please try again.');
-      window.dispatchEvent(new CustomEvent('food-processing-done'));
+      console.error('Error submitting food:', error);
+      alert('Error submitting food. Please try again.');
+      setPendingCustomFoods(prev => prev.filter(p => p.timestamp !== pendingItem.timestamp));
     } finally {
       setIsProcessing(false);
       setIsJiggling(false);

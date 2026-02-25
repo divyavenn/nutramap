@@ -100,6 +100,7 @@ export const FormDropdownWrapper = styled.div`
   flex-direction: column;
   border-radius: 14px;
   width: 600px;
+  background-color: transparent;
   transition: all 0.1s ease;
 `;
 
@@ -140,8 +141,10 @@ export const FoodNameInput = styled.textarea`
   font-size: var(--recipe-card-font-size);
   color: var(--white);
   border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
   outline: none;
-  transition: color 0.1s ease, background-color 0.1s ease;
+  background: transparent;
+  transition: border-color 0.15s ease;
   width: 100%;
   resize: none;
   overflow: hidden;
@@ -149,8 +152,12 @@ export const FoodNameInput = styled.textarea`
   line-height: 1;
   margin-top: 10px;
 
+  &:focus {
+    border-bottom-color: rgba(200, 150, 255, 0.5);
+  }
+
   &::placeholder {
-    color: rgba(255, 255, 255, 0.3);
+    color: rgba(190, 140, 255, 0.5);
   }
 `;
 
@@ -169,15 +176,21 @@ export const PortionInput = styled.input`
   font-weight: inherit;
   color: var(--white);
   border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
   outline: none;
-  transition: color 0.1s ease, background-color 0.1s ease;
+  background: transparent;
+  transition: border-color 0.15s ease;
   width: 100%;
   min-height: var(--ingredient-input-height);
   padding: 0;
   margin-top: -13px;
 
+  &:focus {
+    border-bottom-color: rgba(200, 150, 255, 0.5);
+  }
+
   &::placeholder {
-    color: rgba(255, 255, 255, 0.3);
+    color: rgba(190, 140, 255, 0.5);
   }
 `;
 

@@ -140,6 +140,19 @@ const foodsAtom = atom<{[key : string] : number}>({
   default: {}
 });
 
+// Global state for tracking in-progress custom food creation.
+// Array so multiple foods can be created concurrently.
+// Persists across navigation so indicators survive route changes.
+export interface PendingCustomFood {
+  name: string;
+  timestamp: string;
+}
+
+export const pendingCustomFoodsAtom = atom<PendingCustomFood[]>({
+  key: 'pendingCustomFoods',
+  default: []
+});
+
 const nutrientDetailsByIDAtom = selector<{[key : number] : { name: string, unit: string}}>({
   key: 'nutrientDetailsbyID',
   get: async ({get}) => {

@@ -213,7 +213,7 @@ function NewNutrientForm({ original }: { original?: Nutrient }): React.ReactNode
           onKeyDown={handleNutrientNameKeyDown}
           required
         />
-        <span className="nutrient-colon">:</span>
+
       </div>
 
       <div className="nutrient-type-select-wrapper">

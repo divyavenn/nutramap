@@ -1,17 +1,18 @@
-import { AnimatedText} from "./AnimatedText";
+import { AnimatedText } from './AnimatedText';
+import {
+  LogBubble, FoodNameSpace, FoodDateSpace, FoodPortionSpace, MealRowContainer,
+} from './LogStyles';
 
-
-function MealLoading({} : {}) {
-
+function MealLoading() {
   return (
-    <div
-      className='loading-recipe-bubble'
-    >
-      <span className='food-name-space'>
-        <AnimatedText text="Loading..." />
-      </span>
-    </div>
+    <MealRowContainer>
+      <LogBubble>
+        <FoodNameSpace><AnimatedText text="loading..." /></FoodNameSpace>
+        <FoodDateSpace />
+        <FoodPortionSpace><AnimatedText text="0g" /></FoodPortionSpace>
+      </LogBubble>
+    </MealRowContainer>
   );
 }
 
-export { MealLoading }
+export { MealLoading };

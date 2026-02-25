@@ -67,3 +67,28 @@ body, html {
   position: relative;
   min-height: 100vh;
 }
+
+/* ── Dashboard two-column layout ── */
+.dashboard-two-col {
+  /* Override component widths for the narrower columns.
+     Components use var(--modal-width) / var(--dashboard-width); overriding
+     here keeps the foods page and other pages at their original values. */
+  --modal-width: 460px;
+  --dashboard-width: 440px;
+
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.dashboard-col {
+  width: 50%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 0 20px;
+}

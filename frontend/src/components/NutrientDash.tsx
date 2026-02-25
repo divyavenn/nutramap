@@ -60,23 +60,40 @@ function NutrientDashboard(){
 
   const toggleEditing = () =>  { setEditing(!editing); tutorialEvent('tutorial:editing-panel'); }
 
+  // Fixed height based on row count so hover mode never changes panel size.
+  // Constants derived from NutrientStats.css:
+  //   80px  = dashboard padding (40 top + 40 bottom)
+  //   38px  = title row (28px height + 10px margin-bottom)
+  //   50px  = nutrient-list-wrapper padding (30 top + 20 bottom)
+  //   40px  = per row (≈30px content + 10px margin-bottom)
+  //   58px  = edit button (16px margin-top + 6+30+6px button)
+  //   30px  = extra bottom padding buffer
+  const PANEL_BASE_H = 286; // 80 + 38 + 50 + 58 + 30
+  const ROW_H = 40;
+  const panelHeight = requirements.length > 0
+    ? PANEL_BASE_H + requirements.length * ROW_H
+    : 300; // fallback for "no requirements" state
+
   return (
-    <div className={`nutrient-dashboard${hoveredLog ? ' food-hovered' : ''}`}>
+    <div
+      className={`nutrient-dashboard ${hoveredLog ? ' food-hovered' : ''}`}
+      style={!editing ? { height: panelHeight } : undefined}
+    >
       {!editing && <NutrientDashboardTitle/>}
         <div className = 'requirement-edit-wrapper' ref = {editFormRef}>
           {!editing ?
-            requirements.length === 0 ? 
+            requirements.length === 0 ?
               <div className = 'no-req-message'> no requirements </div> :
               <div className='nutrient-list-wrapper'>
                 <NutrientStats requirements={requirements}/>
             </div>  :
             (<div className='nutrient-edit-list-wrapper'>
               <div className='nutrient-edit-panel-title'>nutritional targets per day</div>
-              {requirements.length > 0 && 
-              requirements.map((n, index) => 
+              {requirements.length > 0 &&
+              requirements.map((n, index) =>
                 {return(
                   <NewNutrientForm
-                    key={n.name}  // Using index as a key. Ideally, use a unique id if available.
+                    key={n.name}
                     original={n}/>);
                 })
               }
@@ -84,11 +101,12 @@ function NutrientDashboard(){
             </div> )}
         </div>
 
-
-      {!editing && !hoveredLog && (
+      {!editing && (
         <ImageButton
-        className="nutrient-edit-button tutorial-nutrient-edit-button"
-        onClick = {toggleEditing}>
+          className="nutrient-edit-button tutorial-nutrient-edit-button"
+          onClick={hoveredLog ? undefined : toggleEditing}
+          style={{ visibility: hoveredLog ? 'hidden' : 'visible' }}
+        >
           <img src={addIcon} alt="Edit nutrients" width="30" height="30" />
         </ImageButton>
       )}

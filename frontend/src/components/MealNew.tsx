@@ -5,7 +5,7 @@ import Arrow from '../assets/images/arrow.svg?react';
 import { useRefreshLogs, pendingFoodsAtom, PendingFood } from './dashboard_states';
 import IsOk from '../assets/images/checkmark.svg?react'
 import '../assets/css/new_log.css';
-import { useSetRecoilState } from 'recoil';
+import { useSetRecoilState, useRecoilValue } from 'recoil';
 import { tutorialEvent } from './TryTutorial';
 
 /**
@@ -21,9 +21,58 @@ function NewSmartLog() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isJiggling, setIsJiggling] = useState(false);
   // Use the global state for pending foods
-  const setPendingFoods = useSetRecoilState(pendingFoodsAtom); 
+  const setPendingFoods = useSetRecoilState(pendingFoodsAtom);
+  const pendingFoods = useRecoilValue(pendingFoodsAtom);
   const refreshLogs = useRefreshLogs();
   const formRef = useRef<HTMLFormElement>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollCountRef = useRef(0);
+
+  // Poll for log updates while there are pending foods.
+  // Using useEffect means polling restarts if the user navigates away and back.
+  useEffect(() => {
+    if (pendingFoods.length === 0) {
+      if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null; }
+      if (pollTimeoutRef.current) { clearTimeout(pollTimeoutRef.current); pollTimeoutRef.current = null; }
+      return;
+    }
+
+    // Already polling — don't start a second interval
+    if (pollIntervalRef.current !== null) return;
+
+    pollCountRef.current = 0;
+
+    pollIntervalRef.current = setInterval(async () => {
+      pollCountRef.current++;
+      await refreshLogs();
+      requestAnimationFrame(() => {
+        if (document.querySelector('.recipe-bubble')) {
+          tutorialEvent('tutorial:log-ready');
+        }
+      });
+      if (pollCountRef.current >= 8) {
+        clearInterval(pollIntervalRef.current!);
+        pollIntervalRef.current = null;
+        if (pollTimeoutRef.current) { clearTimeout(pollTimeoutRef.current); pollTimeoutRef.current = null; }
+        setPendingFoods([]);
+      }
+    }, 1500);
+
+    pollTimeoutRef.current = setTimeout(() => {
+      if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null; }
+      setPendingFoods([]);
+      pollTimeoutRef.current = null;
+    }, 15000);
+
+    return () => {
+      // On unmount: clear timers but leave pendingFoodsAtom intact so polling
+      // resumes automatically when the component remounts.
+      if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null; }
+      if (pollTimeoutRef.current) { clearTimeout(pollTimeoutRef.current); pollTimeoutRef.current = null; }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingFoods.length]);
 
   const handleTyping = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setMealDescription(e.target.value);
@@ -83,34 +132,7 @@ function NewSmartLog() {
 
       // Invalidate recipes cache since parse-meal can create new recipes
       try { localStorage.removeItem('recipes_cache'); } catch (e) {}
-
-      // Background processing takes time - poll for new logs
-      // The endpoint returns immediately but logs are created asynchronously
-      const maxPolls = 8;
-      let pollCount = 0;
-
-      const pollInterval = setInterval(async () => {
-        pollCount++;
-        await refreshLogs();
-        // Wait a tick for React to render, then check if recipe bubble exists
-        requestAnimationFrame(() => {
-          if (document.querySelector('.recipe-bubble')) {
-            tutorialEvent('tutorial:log-ready');
-          }
-        });
-
-        if (pollCount >= maxPolls) {
-          clearInterval(pollInterval);
-          // Remove pending food after max attempts
-          setPendingFoods(prev => prev.filter(p => p.timestamp !== pendingMeal.timestamp));
-        }
-      }, 1500);
-
-      // Also remove pending food after timeout as fallback
-      setTimeout(() => {
-        clearInterval(pollInterval);
-        setPendingFoods(prev => prev.filter(p => p.timestamp !== pendingMeal.timestamp));
-      }, 15000);
+      // Polling is handled by the useEffect above that watches pendingFoodsAtom.
     } catch (error) {
       console.error('Error parsing meal:', error);
       setIsJiggling(false);
