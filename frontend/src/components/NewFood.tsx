@@ -1,11 +1,22 @@
 import { useState, useRef, useEffect } from 'react';
 import { request } from './endpoints';
-import { HoverButton } from './Sections';
 import Arrow from '../assets/images/arrow.svg?react';
 import IsOk from '../assets/images/checkmark.svg?react';
 import ImageIcon from '../assets/images/image.svg?react';
-import '../assets/css/foods.css';
 import { useSetRecoilState, useRecoilValue } from 'recoil';
+import { EntryFormBubble } from './LogNew.styled';
+import {
+  FoodFormWrapper,
+  FoodJournalInput,
+  ImageUploadContainer,
+  ImageUploadButton,
+  SmartLogButtonContainer,
+  FoodLogButton,
+  ImagesPreviewGrid,
+  ImagePreviewContainer,
+  ImagePreviewEl,
+  RemoveImageButton,
+} from './Foods.styled';
 import { pendingCustomFoodsAtom, PendingCustomFood } from './account_states';
 import { tutorialEvent } from './TryTutorial';
 
@@ -242,15 +253,11 @@ function NewFood() {
 
   return (
     <>
-      <form
-        ref={formRef}
-        className="form-elements-wrapper"
-        onSubmit={handleProcess}
-      >
-        <div className="entry-form-bubble">
-          <textarea
+      <FoodFormWrapper ref={formRef} onSubmit={handleProcess}>
+        <EntryFormBubble>
+          <FoodJournalInput
             ref={textareaRef}
-            className={`input-journal ${isJiggling ? 'jiggle-text' : ''}`}
+            $jiggling={isJiggling}
             placeholder="Describe your food or upload images (nutrition label, food photo, etc.)"
             value={foodDescription}
             onChange={handleTyping}
@@ -259,16 +266,15 @@ function NewFood() {
           />
 
           {/* Image upload button */}
-          <div className="image-upload-container">
-            <button
+          <ImageUploadContainer>
+            <ImageUploadButton
               type="button"
-              className="image-upload-button"
               onClick={handleImageClick}
               disabled={isProcessing}
               title="Upload or paste images"
             >
               <ImageIcon />
-            </button>
+            </ImageUploadButton>
             <input
               ref={fileInputRef}
               type="file"
@@ -277,44 +283,39 @@ function NewFood() {
               onChange={handleFileChange}
               style={{ display: 'none' }}
             />
-          </div>
+          </ImageUploadContainer>
 
           {/* Submit button */}
-          <div className='new-smart-log-button-container'>
+          <SmartLogButtonContainer>
             {!isProcessing && (foodDescription || imageFiles.length > 0) && (
-              <HoverButton
+              <FoodLogButton
                 type="submit"
-                className="new-log-button"
                 childrenOn={<IsOk/>}
                 childrenOff={<Arrow/>}
                 disabled={isProcessing}
-              >
-              </HoverButton>
+              />
             )}
-          </div>
-        </div>
+          </SmartLogButtonContainer>
+        </EntryFormBubble>
 
         {/* Image previews */}
         {imagePreviews.length > 0 && (
-          <div className="images-preview-grid">
+          <ImagesPreviewGrid>
             {imagePreviews.map((preview, index) => (
-              <div key={index} className="image-preview-container">
-                <img src={preview} alt={`Preview ${index + 1}`} className="image-preview" />
-                <button
+              <ImagePreviewContainer key={index}>
+                <ImagePreviewEl src={preview} alt={`Preview ${index + 1}`} />
+                <RemoveImageButton
                   type="button"
-                  className="remove-image-button"
                   onClick={() => clearImage(index)}
                   aria-label="Remove image"
                 >
                   ×
-                </button>
-              </div>
+                </RemoveImageButton>
+              </ImagePreviewContainer>
             ))}
-          </div>
+          </ImagesPreviewGrid>
         )}
-
-      </form>
-
+      </FoodFormWrapper>
     </>
   );
 }

@@ -1,5 +1,12 @@
-import '../assets/css/login_prompt.css'
 import { useNavigate } from 'react-router-dom'
+import {
+  LoginPromptOverlay,
+  LoginPromptModal,
+  LoginPromptText,
+  LoginPromptActions,
+  LoginPromptBtn,
+  LoginPromptBtnText,
+} from './LoginPrompt.styled';
 
 interface LoginPromptProps {
   onClose: () => void;
@@ -13,21 +20,21 @@ function LoginPrompt({ onClose }: LoginPromptProps) {
   };
 
   return (
-    <div className="login-prompt-overlay" onClick={onClose}>
-      <div className="login-prompt-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="login-prompt-text">
+    <LoginPromptOverlay onClick={onClose}>
+      <LoginPromptModal onClick={(e) => e.stopPropagation()}>
+        <LoginPromptText>
           Please log in to save and view your nutritional information across different days
-        </div>
-        <div className="login-prompt-actions">
-          <button className="login-prompt-btn primary" onClick={handleLogin}>
-            <div className="login-prompt-btn-text">Log In</div>
-          </button>
-          <button className="login-prompt-btn secondary" onClick={onClose}>
-            <div className="login-prompt-btn-text">Cancel</div>
-          </button>
-        </div>
-      </div>
-    </div>
+        </LoginPromptText>
+        <LoginPromptActions>
+          <LoginPromptBtn $variant="primary" onClick={handleLogin}>
+            <LoginPromptBtnText>Log In</LoginPromptBtnText>
+          </LoginPromptBtn>
+          <LoginPromptBtn $variant="secondary" onClick={onClose}>
+            <LoginPromptBtnText>Cancel</LoginPromptBtnText>
+          </LoginPromptBtn>
+        </LoginPromptActions>
+      </LoginPromptModal>
+    </LoginPromptOverlay>
   );
 }
 

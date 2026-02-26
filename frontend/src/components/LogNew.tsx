@@ -1,16 +1,14 @@
-import React, { useState } from 'react' 
+import React, { useState } from 'react'
 import {request} from './endpoints';
-import {HoverButton } from './Sections';
 import Arrow from '../assets/images/arrow.svg?react'
 import Ok from '../assets/images/checkmark.svg?react'
-import '../assets/css/new_log.css'
-import '../assets/css/buttons.css'
 import { getFoodID } from './utlis';
 import { tolocalDateString } from './utlis'
 import { useRefreshLogs } from './dashboard_states';
 import { foodsAtom } from './account_states';
 import { useRecoilValue } from 'recoil';
 import { useMemo, useEffect } from 'react';
+import { LogNewGlobalStyles, FormElementsWrapper, EntryFormBubble, NewLogButton } from './LogNew.styled';
 
 
 function NewLogForm(){
@@ -28,6 +26,7 @@ function NewLogForm(){
   const [showSuggestions, setShowSuggestions] = useState(false); // Control the visibility of suggestions
   const [validInput, markValidInput] = useState(true)
   const [isJiggling, setIsJiggling] = useState(false)
+  const [isLogBtnHovered, setIsLogBtnHovered] = useState(false)
 
 
   const filteredFoods = useMemo(() => {
@@ -83,63 +82,67 @@ function NewLogForm(){
   }
 
   return (
-    <form
-      id="login-form" className = {`form-elements-wrapper ${showSuggestions ? 'active' : ''}`} onSubmit={handleSubmit}>
-      <div className={`entry-form-bubble ${showSuggestions ? 'active' : ''}`}>
-      <div className= 'input-food-name-wrapper'>
+    <>
+      <LogNewGlobalStyles />
+      <FormElementsWrapper
+        id="login-form"
+        className={`form-elements-wrapper${showSuggestions ? ' active' : ''}`}
+        onSubmit={handleSubmit}>
+        <EntryFormBubble className={`entry-form-bubble${showSuggestions ? ' active' : ''}`}>
+        <div className= 'input-food-name-wrapper'>
+          <input
+            name='food_name'
+            className={`input-food-name ${isJiggling ? 'jiggle-text' : ''}`}
+            placeholder='food'
+            value = {formData.food_name}
+            onChange={handleTyping}
+            required
+          ></input>
+        </div>
+
+        <div className="input-food-amt-wrapper">
         <input
-          name='food_name'
-          className={`input-food-name ${isJiggling ? 'jiggle-text' : ''}`}
-          placeholder='food'
-          value = {formData.food_name}
-          onChange={handleTyping}
+          name="amount_in_grams"
+          className="input-food-amt"
+          type="number"
+          placeholder="0"
+          value={formData.amount_in_grams}
+          onChange={(e) => {
+            const value = parseFloat(e.target.value);
+            if (value > 0 || e.target.value === '') {
+              handleTyping(e);
+            }
+          }}
           required
-        ></input>
-      </div>
+        />
+          <span className="unit">g</span>
+        </div>
 
-      <div className="input-food-amt-wrapper">
-      <input
-        name="amount_in_grams"
-        className="input-food-amt"
-        type="number"
-        placeholder="0"
-        value={formData.amount_in_grams}
-        onChange={(e) => {
-          const value = parseFloat(e.target.value);
-          if (value > 0 || e.target.value === '') {
-            handleTyping(e);
-          }
-        }}
-        required
-      />
-        <span className="unit">g</span>
-      </div>
 
-      
-      <div className = 'new-log-button-container'>
-      {formData.food_name && formData.amount_in_grams && validInput &&
-      <HoverButton
-              type="submit"
-              className="new-log-button"
-              disabled={!formData.food_name || !formData.amount_in_grams || !validInput}
-              childrenOn={<Ok/>}
-              childrenOff={<Arrow/>}>
-      </HoverButton>}
-      </div> 
-      </div>
-      {showSuggestions && (
-            <ul className="suggestions-list">
-              {suggestions.map(suggestion => (
-                <li key={suggestion}
-                    onClick={() => handleSuggestionClick(suggestion)}
-                    className="suggestion-item">
-                  {suggestion}
-                </li>
-              ))}
-            </ul>
-          )}
-    </form>
-    
+        <div className = 'new-log-button-container'>
+        {formData.food_name && formData.amount_in_grams && validInput &&
+        <NewLogButton
+                type="submit"
+                disabled={!formData.food_name || !formData.amount_in_grams || !validInput}
+                onMouseEnter={() => setIsLogBtnHovered(true)}
+                onMouseLeave={() => setIsLogBtnHovered(false)}>
+          {isLogBtnHovered ? <Ok/> : <Arrow/>}
+        </NewLogButton>}
+        </div>
+        </EntryFormBubble>
+        {showSuggestions && (
+              <ul className="suggestions-list">
+                {suggestions.map(suggestion => (
+                  <li key={suggestion}
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      className="suggestion-item">
+                    {suggestion}
+                  </li>
+                ))}
+              </ul>
+            )}
+      </FormElementsWrapper>
+    </>
   )
 
 }

@@ -1,9 +1,9 @@
 import foodPanelLogo from '../assets/images/nutramap_logo.png'
 import questionMark from '../assets/images/question_mark.svg'
-import '../assets/css/buttons.css'
 import React, { useState } from 'react';
 import {Link, useLocation} from 'react-router-dom';
 import { isLoginExpired } from './utlis';
+import { SvgButton, HeaderLinkButton } from './Sections.styled';
 
 // 3 rules of JSX
 // (1) return a single root elem (wrap in div or React Fragment <>...</>)
@@ -58,20 +58,20 @@ function Header({linkIcons, children} : {linkIcons? : PageLinkIcon[], children?:
         processedLinkIcons.map((link) => {
           const isActive = location.pathname === link.to;
           return (
-          <Link key={link.to}
+          <HeaderLinkButton key={link.to}
                 to={link.to}
-                className={`header-link-button${link.to === '/try' || link.to === '/dashboard' ? ' tutorial-home-link' : ''}`}
+                className={link.to === '/try' || link.to === '/dashboard' ? 'tutorial-home-link' : undefined}
                 style={isActive ? { fill: '#a855f7' } : undefined}>
                 {React.cloneElement(link.img as React.ReactElement, {
                   style: isActive ? { fill: '#a855f7' } : undefined
                 })}
-          </Link> )
+          </HeaderLinkButton> )
         })
       }
       {children}
-      <Link className="header-link-button tutorial-home-link" to="/try" title="Take a tour">
+      <HeaderLinkButton className="tutorial-home-link" to="/try" title="Take a tour">
         <img src={questionMark} alt="Take a tour" width="30" height="30" />
-      </Link>
+      </HeaderLinkButton>
     </section>
   </header>
   )
@@ -88,9 +88,9 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 function ImageButton({children, ...props} : ButtonProps){
   return (
-    <button className="svg-button" {...props}>
+    <SvgButton {...props}>
      {children}
-    </button>
+    </SvgButton>
   )
 }
 
@@ -104,13 +104,12 @@ interface HoverButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>
 function HoverButton({childrenOn, childrenOff, ...props} : HoverButtonProps){
   const [mouseOn, setMouseOn] = useState(false);
   return (
-    <button 
-    className="svg-button" 
-    onMouseEnter={() => setMouseOn(true)}  // Set hover state to true
-    onMouseLeave={() => setMouseOn(false)} // Set hover state to false{...props}>
+    <SvgButton
+    onMouseEnter={() => setMouseOn(true)}
+    onMouseLeave={() => setMouseOn(false)}
     {...props} >
       {mouseOn? childrenOn : childrenOff}
-    </button>
+    </SvgButton>
   )
 }
 

@@ -7,26 +7,31 @@ import { StrictMode} from 'react'
 import {Heading} from '../components/Title'
 import Dashboard from '../assets/images/dashboard.svg?react'
 import {request} from '../components/endpoints'
-import '../assets/css/account.css'
 import '../assets/css/variables.css'
 import { accountInfoAtom, firstNameAtom} from '../components/account_states';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import {
+  AccountInfoList,
+  AccountInfoRow,
+  AccountInfoTag,
+  AccountInfoInput,
+  LetsGoButton,
+} from '../components/Account.styled';
 
 function AddInfo({infoType} : {infoType : 'name' | 'email' | 'password'}){
   const [accountInfo, setAccountInfo] = useRecoilState(accountInfoAtom)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;  // Destructure name and value from event target
-    // Update the corresponding field in formData
+    const { name, value } = e.target;
     setAccountInfo({
-      ...accountInfo,  // Spread the previous state to retain other fields
-      [name]: value,    // Dynamically update the field based on the input's name
+      ...accountInfo,
+      [name]: value,
     });
   }
 
   const inputType = (infoType === 'email' ? 'email' : 'text');
-  
+
   const placeholder = () => {
     switch (infoType) {
       case 'name':
@@ -40,16 +45,17 @@ function AddInfo({infoType} : {infoType : 'name' | 'email' | 'password'}){
 
 
   return (
-    <div className = "account-info">
-      <div className = "account-info-tag">{infoType}</div>
-      <input  className = "account-info-input"
-              placeholder = {placeholder()}
-              name = {infoType}
-              type = {inputType}
-              value = {accountInfo[infoType] ?? ""}
-              onChange={handleInputChange}
-              required/>
-    </div>
+    <AccountInfoRow>
+      <AccountInfoTag>{infoType}</AccountInfoTag>
+      <AccountInfoInput
+        placeholder={placeholder()}
+        name={infoType}
+        type={inputType}
+        value={accountInfo[infoType] ?? ""}
+        onChange={handleInputChange}
+        required
+      />
+    </AccountInfoRow>
   )
 }
 
@@ -60,7 +66,7 @@ function CreateAccountButton(){
   const [accountInfo] = useRecoilState(accountInfoAtom)
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault() // prevent automatic submission
+    e.preventDefault()
     let response = await request('/user/new', 'POST', accountInfo, 'JSON', false);
     if (response.status == 400) {
       toast.error("User already exists", {
@@ -78,17 +84,17 @@ function CreateAccountButton(){
   }
 
   return (
-    <form className = "account-info-list" onSubmit = {handleSubmit}>
+    <AccountInfoList as="form" onSubmit={handleSubmit}>
       <AddInfo infoType='name'/>
       <AddInfo infoType='email'/>
       <AddInfo infoType='password'/>
-      <button type = 'submit' className = 'lets-go-button'>let's go!</button>
-    </form>
+      <LetsGoButton type='submit'>let's go!</LetsGoButton>
+    </AccountInfoList>
     )
 }
 
 
-function NewAccount(){ 
+function NewAccount(){
   const firstName = useRecoilValue(firstNameAtom)
 
   const getWelcomeMessage = () => {

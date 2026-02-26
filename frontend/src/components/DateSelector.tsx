@@ -2,17 +2,25 @@ import { DateRange } from 'react-date-range';
 import {TimePeriod, RangeType} from './structures'
 import DatePicker from 'react-datepicker';
 import 'react-date-range/dist/styles.css'; // main style file
-import 'react-date-range/dist/theme/default.css'; 
+import 'react-date-range/dist/theme/default.css';
 import 'react-datepicker/dist/react-datepicker.css';
-import '../assets/css/date_picker.css'
-import '../assets/css/dates.css'
 
 import React, {useState, useEffect, useRef, forwardRef} from 'react'
 import { DateSelectorProps, getCurrentPeriod } from './structures';
 
-import {ImageButton} from '../components/Sections'
 import RightArrow from '../assets/images/caret-right.svg?react'
 import LeftArrow from '../assets/images/caret-left.svg?react'
+import {
+  DateSelectorGlobalStyles,
+  DashboardMenu,
+  RangeSelector,
+  TodayButton,
+  DateSelectorEl,
+  RangeText,
+  MonthArrow,
+  CalendarPopup,
+  DatePickerPopup,
+} from './DateSelector.styled';
 import { dateRangeAtom, rangeTypeAtom } from './dashboard_states';
 import { useRecoilState } from 'recoil';
 import { useRefreshLogs, useRefreshRequirements } from './dashboard_states';
@@ -76,7 +84,7 @@ const Calendar = forwardRef<HTMLDivElement, CalendarProps>(({ day, handleSelect,
   return (
     <div>
       {isOpen && (
-        <div ref={ref || calendarRef} className="calendar-popup">
+        <CalendarPopup ref={ref || calendarRef}>
           <DateRange
             ranges={selection}
             onChange={handleSelectRanges}
@@ -86,7 +94,7 @@ const Calendar = forwardRef<HTMLDivElement, CalendarProps>(({ day, handleSelect,
             showMonthAndYearPickers={true}
             rangeColors={['#1e002e8d']}
           />
-        </div>
+        </CalendarPopup>
       )}
     </div>
   );
@@ -112,7 +120,7 @@ const CalendarDay = forwardRef<HTMLDivElement, CalendarProps>(({ day, handleSele
   return (
     <div>
       {isOpen && (
-        <div ref={ref || calendarRef} className="date-picker-popup">
+        <DatePickerPopup ref={ref || calendarRef}>
           <DatePicker
             selected={datePicked} // Pass the selected date
             onChange={handleDateChange} // Your date change handler
@@ -125,7 +133,7 @@ const CalendarDay = forwardRef<HTMLDivElement, CalendarProps>(({ day, handleSele
                 : ""
             }
           />
-        </div>
+        </DatePickerPopup>
       )}
     </div>
   );
@@ -181,7 +189,7 @@ const CalendarRange = forwardRef<HTMLDivElement, CalendarRangeProps>(({ range, h
     <div>
       {isOpen && (
         // if the parent doesn't pass in a ref, use local ref
-        <div ref={ref || calendarRef} className="calendar-popup">
+        <CalendarPopup ref={ref || calendarRef}>
           <DateRange
             ranges={[{ startDate: range.start, endDate: range.end, key: 'selection' }]}
             onChange={handleSelect}
@@ -189,7 +197,7 @@ const CalendarRange = forwardRef<HTMLDivElement, CalendarRangeProps>(({ range, h
             editableDateInputs={true}
             rangeColors={['#1e002e8d']}
           />
-        </div>
+        </CalendarPopup>
       )}
     </div>
   );
@@ -300,33 +308,35 @@ function DateSelector() {
   };
 
   return (
-    <div className="dashboard-menu">
-      <div className="range-selector">
-      {!isOpen && (
-      <div className="date-selector">
-            <ImageButton className="month-arrow left" onClick={handlePreviousMonth}>
+    <DashboardMenu>
+      <DateSelectorGlobalStyles />
+      <RangeSelector>
+        {!isOpen && (
+          <DateSelectorEl>
+            <MonthArrow $left onClick={handlePreviousMonth}>
               <LeftArrow/>
-            </ImageButton>
-            <div className="range-text"  onClick = {toggleCalendar}>
+            </MonthArrow>
+            <RangeText onClick={toggleCalendar}>
               {formatDateRange(dateRange.start, dateRange.end)}
-            </div>
-            <ImageButton className="month-arrow" onClick={handleNextMonth}>
+            </RangeText>
+            <MonthArrow onClick={handleNextMonth}>
               <RightArrow/>
-            </ImageButton>
-          </div>)}
-        {!isOpen && rangeType === RangeType.custom && (
-          <div className="today" onClick={handleTodayClick}>today</div>
+            </MonthArrow>
+          </DateSelectorEl>
         )}
-      </div>
+        {!isOpen && rangeType === RangeType.custom && (
+          <TodayButton onClick={handleTodayClick}>today</TodayButton>
+        )}
+      </RangeSelector>
       <CalendarRange
-              range={dateRange}
-              handleSelect={handleSelect}
-              isOpen = {isOpen}
-              setIsOpen={setIsOpen}
-              clickToOpen = {<div className="range-text">{formatDateRange(dateRange.start, dateRange.end)}</div>}
-            />
+        range={dateRange}
+        handleSelect={handleSelect}
+        isOpen={isOpen}
+        setIsOpen={setIsOpen}
+        clickToOpen={<RangeText>{formatDateRange(dateRange.start, dateRange.end)}</RangeText>}
+      />
       {showLoginPrompt && <LoginPrompt onClose={() => setShowLoginPrompt(false)} />}
-    </div>
+    </DashboardMenu>
   );
 }
 

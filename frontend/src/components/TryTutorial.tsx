@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import { motion } from 'framer-motion';
 import { Typewriter } from 'motion-plus/react';
 import { computePosition, flip, offset, shift, type Placement } from '@floating-ui/dom';
 import { useLocation } from 'react-router-dom';
@@ -17,11 +16,23 @@ import {
 import { dateRangeAtom, rangeTypeAtom } from './dashboard_states';
 import { getCurrentPeriod, RangeType } from './structures';
 import { request } from './endpoints';
-import '../assets/css/tutorial.css';
 import nutritionLabelUrl from '../assets/images/nutrition_label.png';
+import {
+  TutorialGlobalStyles,
+  TutorialDim,
+  TutorialText,
+  TutorialMessage,
+  TutorialNav,
+  TutorialMedia,
+  TutorialMediaAsset,
+  TutorialEmailForm,
+  TutorialEmailInput,
+  TutorialEmailFeedback,
+  TutorialPrevBtn,
+  TutorialNextBtn,
+} from './TutorialStyles';
 
 const steps: TutorialStep[] = [
-  /** 
 new TutorialStep({
     message: 'start by logging a meal. describe what you ate, like \'matcha latte yesterday\' or \'500 grams of chocolate and 2 scoops of collagen powder.\'',
     selector: '.form-elements-wrapper',
@@ -34,7 +45,7 @@ new TutorialStep({
     message: 'click on the meal to edit it.',
     selector: '.tutorial-meal-with-recipe',
     eventName: 'tutorial:log-clicked',
-  }), 
+  }),
   new TutorialStep({
     message: 'click the name of meal to see the linked recipe card',
     selector: '.tutorial-recipe-name-link',
@@ -59,7 +70,6 @@ new TutorialStep({
     message: 'most people have go-to meals they eat over and over, so all recipes are automatically stored here',
     selector: 'a[href="/myrecipes"]',
   }),
-  **/
   new TutorialStep({
     message: 'you can also add custom foods by typing in a description or uploading a picture of a nutrition label.',
     selector: 'a[href="/myfoods"]',
@@ -70,7 +80,7 @@ new TutorialStep({
     eventName: 'tutorial:food-created',
   }),
   new TutorialStep({
-    message: 'Your new food item will now be used in recipes and meals!',
+    message: 'It will auto-detect nutrition info and use it in recipes and meals!',
     selector: '.food-tag',
     eventName: 'tutorial:food-tag-clicked',
   }),
@@ -84,7 +94,7 @@ new TutorialStep({
     selector: '.tutorial-home-link',
   }),
   new TutorialStep({
-    message: 'our nutrition dashboard compares your progress towards your nutrition goals today..',
+    message: 'our nutrition dashboard compares your progress towards your nutrition goals today...',
     selector: '.today-stats-wrapper .progress-bar-container',
     highlightOnly: true,
   }),
@@ -139,6 +149,7 @@ new TutorialStep({
   }),
   new TutorialStep({
     message: '...and try adding or editing one.',
+    selector: '.tutorial-meal-components',
     eventName: 'tutorial:component-added',
   }),
   new TutorialStep({
@@ -152,7 +163,7 @@ const TUTORIAL_APP_EVENT = 'tutorial:app-event';
 // Step index of the "try pressing Command+V" step
 const PASTE_STEP = steps.findIndex((s) => s.message.includes('Paste shortcut') || s.message.includes('Command+V'));
 
-type TutorialMediaAsset =
+type TutorialMediaAssetType =
   | { type: 'image'; src: string; alt: string }
   | {
       type: 'video';
@@ -164,7 +175,7 @@ type TutorialMediaAsset =
       controls?: boolean;
     };
 
-const tutorialMediaByStep: Record<number, TutorialMediaAsset> = {};
+const tutorialMediaByStep: Record<number, TutorialMediaAssetType> = {};
 if (PASTE_STEP >= 0) {
   tutorialMediaByStep[PASTE_STEP] = {
     type: 'image',
@@ -348,8 +359,6 @@ export default function TryTutorial() {
   }, [isActive, currentStep, computeCardPosition]);
 
   // Keep the active target above the dim overlay.
-  // The dim is rendered inline (inside VantaBackground's stacking context), so lifting
-  // stacking-context ancestors within that same context makes the target pop above the dim.
   useEffect(() => {
     if (!isActive) return;
     if (!currentSelector) return;
@@ -414,7 +423,6 @@ export default function TryTutorial() {
   }, [currentSelector, getStepElement, isActive, location.pathname, targetRect]);
 
   // Advance on click when step has a selector but no event.
-  // Defer step changes so route-changing link handlers run first.
   useEffect(() => {
     if (!isActive) return;
     if (currentCompiledStep.kind !== 'target_click' || !currentSelector) return;
@@ -423,7 +431,6 @@ export default function TryTutorial() {
       if (!clickTarget) return;
       if (!clickTarget.closest(currentSelector)) return;
 
-      // Let link/navigation handlers run first so route-changing steps still navigate.
       window.setTimeout(() => {
         dispatchMachine({ type: 'TARGET_CLICK', matchesCurrentTarget: true });
       }, 0);
@@ -446,8 +453,7 @@ export default function TryTutorial() {
     return () => window.removeEventListener(TUTORIAL_APP_EVENT, handler as EventListener);
   }, [dispatchMachine, isActive]);
 
-  // Interactivity rule: if a step has both selector + event, only the selected
-  // element can be interacted with until the event is emitted.
+  // Interactivity rule
   useEffect(() => {
     if (!isActive) return;
     if (!interactionLockSelector) return;
@@ -473,7 +479,7 @@ export default function TryTutorial() {
     };
   }, [interactionLockSelector, isActive]);
 
-  // Scroll target into view then compute rect (retry if element not yet mounted)
+  // Scroll target into view then compute rect
   useEffect(() => {
     if (!isActive) return;
     if (!currentSelector) { computeRect(); return; }
@@ -575,89 +581,88 @@ export default function TryTutorial() {
     ? { ...cardStyle, visibility: 'hidden' }
     : cardStyle;
 
-  // The dim is rendered inline (inside VantaBackground's stacking context), so lifting
-  // stacking-context ancestors within that same context makes the target pop above the dim.
-  // Only the card is portaled to document.body so it appears above modals.
   return (
     <>
-      <div className="tutorial-dim" />
+      <TutorialGlobalStyles />
+      <TutorialDim />
 
-      {createPortal(<motion.div
-        ref={cardRef}
-        key={currentStep}
-        className={`tutorial-text${currentSelector ? '' : ' centered'}`}
-        style={tutorialCardStyle}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3 }}
-      >
-        <div className="tutorial-message">
-          <Typewriter
-            speed={15}
-            variance="natural"
-            play={!hideUntilAnchored}
-            replace="all"
-            cursorClassName="tutorial-typewriter-cursor"
-            textClassName="tutorial-typewriter-text"
-            aria-label={tutorialMessage}
-          >
-            {tutorialMessage}
-          </Typewriter>
-        </div>
-        {isLastStep && mailingStatus !== 'success' && (
-          <form className="tutorial-email-form" onSubmit={handleMailingSubmit}>
-            <input
-              className="tutorial-email-input"
-              type="email"
-              placeholder="you@example.com"
-              value={mailingEmail}
-              onChange={(e) => {
-                setMailingEmail(e.target.value);
-                if (mailingStatus !== 'idle') setMailingStatus('idle');
-              }}
-              required
-            />
-            <button type="submit" style={{ display: 'none' }} aria-hidden="true" tabIndex={-1} />
-            {mailingStatus === 'error' && <div className="tutorial-email-feedback error">could not save email. try again.</div>}
-          </form>
-        )}
-        {currentMedia && (
-          <div className="tutorial-media">
-            {currentMedia.type === 'image' ? (
-              <img
-                src={currentMedia.src}
-                alt={currentMedia.alt}
-                className="tutorial-media-asset"
+      {createPortal(
+        <TutorialText
+          ref={cardRef}
+          key={currentStep}
+          $centered={!currentSelector}
+          style={tutorialCardStyle}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          <TutorialMessage>
+            <Typewriter
+              speed={10}
+              variance="natural"
+              play={!hideUntilAnchored}
+              replace="all"
+              cursorClassName="tutorial-typewriter-cursor"
+              textClassName="tutorial-typewriter-text"
+              aria-label={tutorialMessage}
+            >
+              {tutorialMessage}
+            </Typewriter>
+          </TutorialMessage>
+          {isLastStep && mailingStatus !== 'success' && (
+            <TutorialEmailForm className="tutorial-email-form" onSubmit={handleMailingSubmit}>
+              <TutorialEmailInput
+                type="email"
+                placeholder="you@example.com"
+                value={mailingEmail}
+                onChange={(e) => {
+                  setMailingEmail(e.target.value);
+                  if (mailingStatus !== 'idle') setMailingStatus('idle');
+                }}
+                required
               />
-            ) : (
-              <video
-                src={currentMedia.src}
-                poster={currentMedia.poster}
-                autoPlay={currentMedia.autoPlay ?? true}
-                loop={currentMedia.loop ?? true}
-                muted={currentMedia.muted ?? true}
-                controls={currentMedia.controls ?? false}
-                playsInline
-                className="tutorial-media-asset"
-              />
+              <button type="submit" style={{ display: 'none' }} aria-hidden="true" tabIndex={-1} />
+              {mailingStatus === 'error' && (
+                <TutorialEmailFeedback $error>could not save email. try again.</TutorialEmailFeedback>
+              )}
+            </TutorialEmailForm>
+          )}
+          {currentMedia && (
+            <TutorialMedia>
+              {currentMedia.type === 'image' ? (
+                <TutorialMediaAsset
+                  src={currentMedia.src}
+                  alt={currentMedia.alt}
+                />
+              ) : (
+                <TutorialMediaAsset
+                  as="video"
+                  src={currentMedia.src}
+                  poster={currentMedia.poster}
+                  autoPlay={currentMedia.autoPlay ?? true}
+                  loop={currentMedia.loop ?? true}
+                  muted={currentMedia.muted ?? true}
+                  controls={currentMedia.controls ?? false}
+                  playsInline
+                />
+              )}
+            </TutorialMedia>
+          )}
+          <TutorialNav>
+            {currentStep > 0 && (
+              <TutorialPrevBtn onClick={prev}>
+                previous
+              </TutorialPrevBtn>
             )}
-          </div>
-        )}
-        <div className="tutorial-nav">
-          {currentStep > 0 && (
-            <button className="tutorial-prev-btn" onClick={prev}>
-              previous
-            </button>
-          )}
-          {canAdvanceManually && (
-            <button className="tutorial-next-btn" onClick={next}>
-              {isLastStep ? 'done' : 'next'}
-            </button>
-          )}
-        </div>
-      </motion.div>,
-      document.body
-    )}
+            {canAdvanceManually && (
+              <TutorialNextBtn onClick={next}>
+                {isLastStep ? 'done' : 'next'}
+              </TutorialNextBtn>
+            )}
+          </TutorialNav>
+        </TutorialText>,
+        document.body
+      )}
     </>
   );
 }

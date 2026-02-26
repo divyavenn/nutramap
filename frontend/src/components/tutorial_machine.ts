@@ -26,7 +26,8 @@ export type TutorialStepKind =
   | 'manual_highlight'
   | 'target_click'
   | 'event_only'
-  | 'target_and_event';
+  | 'target_and_event'
+  | 'highlight_and_event';
 
 export interface CompiledTutorialStep {
   message: string;
@@ -69,7 +70,7 @@ export function compileTutorialStep(step: TutorialStep): CompiledTutorialStep {
 
   let kind: TutorialStepKind = 'manual';
   if (selector && eventName) {
-    kind = 'target_and_event';
+    kind = highlightOnly ? 'highlight_and_event' : 'target_and_event';
   } else if (selector) {
     kind = highlightOnly ? 'manual_highlight' : 'target_click';
   } else if (eventName) {
