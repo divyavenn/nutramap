@@ -764,7 +764,7 @@ input, textarea {
 .tutorial-food-detail-modal .nutrient-form-bubble {
   min-height: 48px;
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) 78px 62px 28px;
+  grid-template-columns: 28px minmax(0, 1fr) auto 28px;
   align-items: center;
   column-gap: 28px;
   justify-content: initial;
@@ -870,7 +870,7 @@ input, textarea {
   }
 
   .tutorial-food-detail-modal .nutrient-form-bubble {
-    grid-template-columns: 24px minmax(0, 1fr) 64px 48px 24px;
+    grid-template-columns: 24px minmax(0, 1fr) auto 24px;
     column-gap: 16px;
     min-height: 42px;
   }

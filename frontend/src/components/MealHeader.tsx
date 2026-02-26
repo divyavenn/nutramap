@@ -176,12 +176,18 @@ function MealHeader({
     <MealRowContainer
       ref={containerRef}
       $active={isEditable}
+      className={canOpenRecipe ? 'tutorial-meal-with-recipe' : 'tutorial-meal-without-recipe'}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
       <MealToggleBtn
         $expanded={expanded}
-        onClick={(e: React.MouseEvent) => { e.stopPropagation(); onToggle(); }}
+        className="tutorial-meal-toggle"
+        onClick={(e: React.MouseEvent) => {
+          e.stopPropagation();
+          onToggle();
+          if (!expanded) tutorialEvent('tutorial:meal-expanded');
+        }}
         aria-label={expanded ? 'Collapse' : 'Expand'}
       >
         ›
@@ -253,7 +259,6 @@ function MealHeader({
       ) : (
         <RecipeBubble
           $expanded={expanded}
-          className="tutorial-meal-header"
           onClick={() => { setIsEditable(true); tutorialEvent('tutorial:log-clicked'); }}
           style={{ cursor: 'pointer' }}
         >

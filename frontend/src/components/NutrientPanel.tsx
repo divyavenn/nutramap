@@ -246,7 +246,7 @@ function EditNutrientForm({ original, itemId, itemType, onUpdate }: EditNutrient
                 name='nutrient_name'
                 className='new-requirement-nutrient-name'
                 placeholder='nutrient'
-                value={formData.nutrient_name + ':'}
+                value={formData.nutrient_name}
                 onChange={handleTyping}
                 onKeyDown={handleKeyDown}
                 disabled={isSaving}

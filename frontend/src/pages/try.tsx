@@ -43,6 +43,7 @@ const TwoCol = styled.div`
 const LeftCol = styled.div`
   flex: 1;
   min-width: 480px;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -50,6 +51,11 @@ const LeftCol = styled.div`
   position: sticky;
   top: 0;
   height: 100vh;
+
+  body[data-tutorial-active='true'] & {
+    position: static;
+    top: auto;
+  }
 
   @media (max-width: ${BREAKPOINT}) {
     position: static;
@@ -82,6 +88,10 @@ const RightContent = styled.div`
   flex-direction: column;
   align-items: center;
 
+  body[data-tutorial-active='true'] & {
+    position: static;
+  }
+
   @media (max-width: ${BREAKPOINT}) {
     position: static;
     margin-top: 0;
@@ -96,18 +106,32 @@ const LeftContent = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
+  overflow: hidden;
+
+  @media (max-width: ${BREAKPOINT}) {
+    flex: none;
+    min-height: auto;
+    overflow: visible;
+  }
 `
 
 const LogScroller = styled.div`
-  flex: 1;
+  flex: 1 1 0;
+  height: 0;
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior-y: contain;
   width: 100%;
-  display: flex;
-  flex-direction: column;
   scrollbar-width: none;
   -ms-overflow-style: none;
   &::-webkit-scrollbar { display: none; }
+
+  @media (max-width: ${BREAKPOINT}) {
+    flex: none;
+    height: auto;
+    overflow: visible;
+    overscroll-behavior-y: auto;
+  }
 `
 
 const Center = styled.div`

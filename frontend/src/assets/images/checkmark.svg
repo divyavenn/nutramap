@@ -1,1 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--!Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.--><path d="M256 48a208 208 0 1 1 0 416 208 208 0 1 1 0-416zm0 464A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM369 209c9.4-9.4 9.4-24.6 0-33.9s-24.6-9.4-33.9 0l-111 111-47-47c-9.4-9.4-24.6-9.4-33.9 0s-9.4 24.6 0 33.9l64 64c9.4 9.4 24.6 9.4 33.9 0L369 209z"/></svg>
+<?xml version="1.0" encoding="UTF-8"?>
+<!--Generator: Apple Native CoreSVG 341-->
+<!DOCTYPE svg
+PUBLIC "-//W3C//DTD SVG 1.1//EN"
+       "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 299.5 242.125">
+ <g>
+  <rect height="242.125" opacity="0" width="299.5" x="0" y="0"/>
+  <path d="M178.5 242C181.75 242 184.625 240.75 187.375 238.25L295.375 130C298.125 127.5 299.5 124.375 299.5 121C299.5 117.625 298.125 114.5 295.375 111.875L188 4.375C184.75 1.125 181.75 0 178.5 0C171.75 0 166.5 5 166.5 11.75C166.5 15 167.625 18.125 169.875 20.375L213.625 64.75L274.625 121L213.625 177.25L169.875 221.5C167.75 223.75 166.5 227 166.5 230.25C166.5 237 171.75 242 178.5 242ZM12 133.125L225.75 133.125L274.75 130.375C280.5 130 284.375 126.5 284.375 121C284.375 115.375 280.5 111.875 274.875 111.5L225.75 108.875L12 108.875C5 108.875 0 113.875 0 121C0 128 5 133.125 12 133.125Z" fill="white" fill-opacity="0.85"/>
+ </g>
+</svg>

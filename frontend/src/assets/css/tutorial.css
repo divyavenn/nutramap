@@ -29,10 +29,11 @@
 }
 
 .tutorial-message {
-  font-family: 'Inconsolata', monospace;
-  font-size: 30px;
-  line-height: 1.5;
-  color: rgba(255, 255, 255, 0.9);
+  font-family: 'Public Sans';
+  font-size: 25px;
+  font-weight: 100;
+  line-height: 1;
+  color: rgba(207, 183, 255, 0.9);
 }
 
 .tutorial-typewriter-text {

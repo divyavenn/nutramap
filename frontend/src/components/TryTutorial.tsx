@@ -30,10 +30,9 @@ new TutorialStep({
   new TutorialStep({ message: 'other nutrition trackers ask you to enter everything manually...', selector: '.log-list', highlightOnly: true }),
   new TutorialStep({ message: 'or make a lot of hidden assumptions about how things are made.', selector: '.log-list', highlightOnly: true }),
   new TutorialStep({ message: 'we store your meals as recipes. each recipe consists of ingredients whose nutrition info is verified by the USDA.', selector: '.log-list', highlightOnly: true }),
-  **/
   new TutorialStep({
     message: 'click on the meal to edit it.',
-    selector: '.tutorial-meal-header',
+    selector: '.tutorial-meal-with-recipe',
     eventName: 'tutorial:log-clicked',
   }), 
   new TutorialStep({
@@ -47,12 +46,7 @@ new TutorialStep({
     eventName: 'tutorial:ingredient-edited',
   }),
   new TutorialStep({
-    message: 'Home cooks usually improvise based on what\'s available. To change the components for this meal without changing the original recipe, simply unlink the recipe using this button.',
-    selector: '.confirm-modal',
-    highlightOnly: true,
-  }),
-  new TutorialStep({
-    message: 'Now close the recipe or click anywhere outside it to save your changes.',
+    message: 'Now close the recipe to save your changes.',
     selector: '.recipe-detail-modal .modal-close-x',
     eventName: 'tutorial:sync-shown',
   }),
@@ -65,6 +59,7 @@ new TutorialStep({
     message: 'most people have go-to meals they eat over and over, so all recipes are automatically stored here',
     selector: 'a[href="/myrecipes"]',
   }),
+  **/
   new TutorialStep({
     message: 'you can also add custom foods by typing in a description or uploading a picture of a nutrition label.',
     selector: 'a[href="/myfoods"]',
@@ -129,6 +124,24 @@ new TutorialStep({
     highlightOnly: true,
   }),
   new TutorialStep({
+    message: 'Home cooks usually improvise based on what\'s available. You can change a single meal without updating the recipe. Open the recipe card again...',
+    eventName: 'tutorial:recipe-opened',
+  }),
+  new TutorialStep({
+    message: '...and unlink the recipe using this button.',
+    selector: '.tutorial-unlink-btn',
+    eventName: 'tutorial:recipe-unlinked',
+  }),
+  new TutorialStep({
+    message: 'Click the toggle on the meal to reveal the components...',
+    selector: '.tutorial-meal-without-recipe .tutorial-meal-toggle',
+    eventName: 'tutorial:meal-expanded',
+  }),
+  new TutorialStep({
+    message: '...and try adding or editing one.',
+    eventName: 'tutorial:component-added',
+  }),
+  new TutorialStep({
     message: 'foodPanelAI is currently just a proof of concept. if you\'d like to see it on the App Store, enter your email!',
   }),
 ];
@@ -137,7 +150,7 @@ const TUTORIAL_ACTIVE_ATTR = 'data-tutorial-active';
 const TUTORIAL_APP_EVENT = 'tutorial:app-event';
 
 // Step index of the "try pressing Command+V" step
-const PASTE_STEP = steps.findIndex((s) => s.message.includes('Command+V'));
+const PASTE_STEP = steps.findIndex((s) => s.message.includes('Paste shortcut') || s.message.includes('Command+V'));
 
 type TutorialMediaAsset =
   | { type: 'image'; src: string; alt: string }
@@ -274,7 +287,7 @@ export default function TryTutorial() {
     const placement = isHeaderIcon ? 'bottom-end' : 'right';
     const fallbackPlacements: Placement[] = isHeaderIcon
       ? ['bottom', 'left', 'top', 'right']
-      : ['left', 'bottom', 'top', 'right'];
+      : ['bottom', 'top', 'left', 'right'];
 
     const { x, y } = await computePosition(targetEl, cardEl, {
       strategy: 'fixed',
@@ -334,7 +347,6 @@ export default function TryTutorial() {
     void computeCardPosition();
   }, [isActive, currentStep, computeCardPosition]);
 
-
   // Keep the active target above the dim overlay.
   // The dim is rendered inline (inside VantaBackground's stacking context), so lifting
   // stacking-context ancestors within that same context makes the target pop above the dim.
@@ -365,7 +377,7 @@ export default function TryTutorial() {
 
     const createsStackingContext = (node: HTMLElement) => {
       const style = getComputedStyle(node);
-      if (style.position === 'fixed' || style.position === 'sticky') return true;
+      if (style.position === 'fixed') return true;
       if (style.zIndex !== 'auto' && style.position !== 'static') return true;
       if (style.opacity !== '1') return true;
       if (style.transform !== 'none') return true;
@@ -563,8 +575,8 @@ export default function TryTutorial() {
     ? { ...cardStyle, visibility: 'hidden' }
     : cardStyle;
 
-  // The dim is rendered inline (not portaled) so it sits inside VantaBackground's
-  // stacking context, where the lift effect can raise the target element above it.
+  // The dim is rendered inline (inside VantaBackground's stacking context), so lifting
+  // stacking-context ancestors within that same context makes the target pop above the dim.
   // Only the card is portaled to document.body so it appears above modals.
   return (
     <>

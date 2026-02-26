@@ -183,6 +183,7 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink }: Re
     } catch (error) {
       console.error('Error unlinking log from recipe:', error);
     }
+    tutorialEvent('tutorial:recipe-unlinked');
     onUnlink?.();
     onClose();
   };
@@ -312,6 +313,7 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink }: Re
             justifyContent: 'center',
           }}>
             <button
+              className="tutorial-unlink-btn"
               onClick={handleUnlinkFromLog}
               style={{
                 background: 'none',
