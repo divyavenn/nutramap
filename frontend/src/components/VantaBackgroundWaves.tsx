@@ -59,7 +59,7 @@ const VantaBackgroundWaves: React.FC<VantaBackgroundProps> = ({ children }) => {
       />
       
       {/* Content rendered separately from the background */}
-      <div style={{ position: 'relative', zIndex: 1 }}>
+      <div style={{ position: 'relative' }}>
         {children}
       </div>
     </>

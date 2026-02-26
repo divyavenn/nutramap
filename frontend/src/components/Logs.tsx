@@ -294,7 +294,11 @@ function LogList (){
                   )}
 
                   {/* Standalone food: always visible. Meal log: collapsible */}
-                  <MealComponentsWrapper $standalone={isStandaloneFood} $expanded={isExpanded}>
+                  <MealComponentsWrapper
+                    $standalone={isStandaloneFood}
+                    $expanded={isExpanded}
+                    className={(!isStandaloneFood && !log.recipe_id && isExpanded) ? 'tutorial-meal-components' : undefined}
+                  >
                     {log.components.map((component, idx) => {
                       const componentId = `${log._id}-${idx}`;
                       return (

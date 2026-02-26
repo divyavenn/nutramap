@@ -1,12 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { request } from './endpoints';
-import { HoverButton } from './Sections';
 import Arrow from '../assets/images/arrow.svg?react';
 import { useRefreshLogs, pendingFoodsAtom, PendingFood } from './dashboard_states';
 import IsOk from '../assets/images/checkmark.svg?react'
-import '../assets/css/new_log.css';
 import { useSetRecoilState, useRecoilValue } from 'recoil';
 import { tutorialEvent } from './TryTutorial';
+import { FormElementsWrapper, EntryFormBubble, NewLogInputJournal, NewLogButton } from './LogNew.styled';
 
 /**
  * NewSmartLog component for natural language meal logging
@@ -20,6 +19,7 @@ function NewSmartLog() {
   const [mealDescription, setMealDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isJiggling, setIsJiggling] = useState(false);
+  const [isSubmitHovered, setIsSubmitHovered] = useState(false);
   // Use the global state for pending foods
   const setPendingFoods = useSetRecoilState(pendingFoodsAtom);
   const pendingFoods = useRecoilValue(pendingFoodsAtom);
@@ -30,7 +30,6 @@ function NewSmartLog() {
   const pollCountRef = useRef(0);
 
   // Poll for log updates while there are pending foods.
-  // Using useEffect means polling restarts if the user navigates away and back.
   useEffect(() => {
     if (pendingFoods.length === 0) {
       if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null; }
@@ -66,8 +65,6 @@ function NewSmartLog() {
     }, 15000);
 
     return () => {
-      // On unmount: clear timers but leave pendingFoodsAtom intact so polling
-      // resumes automatically when the component remounts.
       if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null; }
       if (pollTimeoutRef.current) { clearTimeout(pollTimeoutRef.current); pollTimeoutRef.current = null; }
     };
@@ -132,7 +129,6 @@ function NewSmartLog() {
 
       // Invalidate recipes cache since parse-meal can create new recipes
       try { localStorage.removeItem('recipes_cache'); } catch (e) {}
-      // Polling is handled by the useEffect above that watches pendingFoodsAtom.
     } catch (error) {
       console.error('Error parsing meal:', error);
       setIsJiggling(false);
@@ -148,36 +144,36 @@ function NewSmartLog() {
 
   return (
     <>
-      <form
+      <FormElementsWrapper
         ref={formRef}
-        id="login-form" 
-        className="form-elements-wrapper" 
+        id="login-form"
+        className="form-elements-wrapper"
         onSubmit={handleSubmit}
       >
-         <div className = "entry-form-bubble">
-          <textarea
-            className={`new-log-input-journal ${isJiggling ? 'jiggle-text' : ''}`}
+         <EntryFormBubble className="entry-form-bubble">
+          <NewLogInputJournal
             placeholder="a bowl of steel-cut oats with blueberries with a 12oz latte"
             value={mealDescription}
             onChange={handleTyping}
             onKeyDown={handleKeyDown}
             disabled={isSubmitting}
+            $jiggling={isJiggling}
             required
           />
           <div className='new-smart-log-button-container'>
             {!isSubmitting && mealDescription && (
-              <HoverButton
+              <NewLogButton
                 type="submit"
-                className="new-log-button"
-                childrenOn={<IsOk/>}
-                childrenOff={<Arrow/>}
                 disabled={isSubmitting}
+                onMouseEnter={() => setIsSubmitHovered(true)}
+                onMouseLeave={() => setIsSubmitHovered(false)}
               >
-              </HoverButton>
+                {isSubmitHovered ? <IsOk/> : <Arrow/>}
+              </NewLogButton>
             )}
           </div>
-          </div>
-      </form>
+          </EntryFormBubble>
+      </FormElementsWrapper>
     </>
   );
 }

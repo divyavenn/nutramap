@@ -1,6 +1,6 @@
 
 import { firstNameAtom, useResetAccountAtoms } from '../components/account_states'
-import '../assets/css/confirm_modal.css'
+import { ConfirmSection } from '../components/ConfirmModal.styled'
 import {
   useRecoilValue,
 } from 'recoil';
@@ -43,12 +43,12 @@ function DeleteAccount() {
   return (
     <div>
     <Header/>
-    {!deleted ? 
-    (<div className = 'confirm-section'>
-        <Confirm message = {message} ifYesDo={handleYes} ifNoDo={handleNo}/> 
-      </div>)
-    : 
-    (<div className = 'greeting confirm-section'> Goodbye! </div>) 
+    {!deleted ?
+    (<ConfirmSection>
+        <Confirm message = {message} ifYesDo={handleYes} ifNoDo={handleNo}/>
+      </ConfirmSection>)
+    :
+    (<ConfirmSection className="greeting"> Goodbye! </ConfirmSection>)
     }
     </div>)
 }

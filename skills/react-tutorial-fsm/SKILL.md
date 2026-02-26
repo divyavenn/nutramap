@@ -220,6 +220,7 @@ Treat these as shipping blockers. The implementation is incomplete unless each i
 - Deduplicate event listeners per run and remove on step change/unmount.
 - Prevent stale listeners from prior tutorial runs via run/session id checks.
 - Guard against double progression from duplicate events in the same frame.
+- Ensure tutorial-mode layout toggles (for example sticky -> static) do not trigger duplicate progression events from remounts/rerenders.
 
 ### Interactivity lock specs
 
@@ -233,6 +234,18 @@ Treat these as shipping blockers. The implementation is incomplete unless each i
 - Support nested scroll containers (not only window scroll) when auto-scrolling target into view.
 - Handle stacking contexts (`transform`, `opacity`, `filter`, `position: fixed`) so target remains undimmed and visible above overlay.
 - Recompute placement on resize, scroll, content expansion, and route change.
+
+### Sticky layout + dim overlay rule (required)
+
+- Treat `position: sticky` containers as high-risk for tutorial dim behavior.
+- If the tutorial uses ancestor-lifting (`z-index` raise) instead of overlay cutouts:
+  - Lifting a target inside a sticky column can unintentionally undim the whole sticky pane.
+  - Not lifting sticky ancestors can leave the target dimmed and unclickable.
+- Recommended contract:
+  - Keep sticky layout in normal app mode.
+  - Disable sticky only while tutorial is active, using a global flag (for example `body[data-tutorial-active='true']`).
+  - Re-enable sticky when tutorial stops.
+- Apply the same tutorial-mode sticky override to all relevant sticky regions (left log pane, right dashboard panel), not just one container.
 
 ### Input and keyboard specs
 
@@ -316,6 +329,8 @@ The validator checks package prerequisites and flags non-Motion+ typewriter impl
 - Range-change step does not progress on incomplete selection.
 - Enter in email input submits form (does not skip step).
 - Target element remains undimmed while rest is dimmed.
+- In desktop split-pane layouts, tutorial keeps only intended target(s) undimmed, not an entire sticky pane.
+- Sticky behavior returns to normal when tutorial ends.
 
 ## Minimal backend checks
 

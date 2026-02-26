@@ -1,13 +1,32 @@
 import { useState, useEffect, useRef, startTransition} from 'react';
 import { calculateColor, formatDayForFrontend} from './utlis';
-import { ImageButton } from './Sections';
 import addIcon from '../assets/images/add.svg'
 import { NewNutrientForm } from './NutrientEdit';
-import '../assets/css/NutrientStats.css'; // Import your CSS file for styling
 import {useRecoilValue, useRecoilValueLoadable} from 'recoil'
 import { currentDayAtom, hoveredLogAtom, hoveredLogPanelData } from './dashboard_states';
 import { requirementsAtom, RequirementData, requirementsDataAtom, dayIntake, averageIntake } from './dashboard_states';
 import { tutorialEvent } from './TryTutorial';
+import {
+  NutrientDashboardContainer,
+  NutrientEditButton,
+  RequirementEditWrapper,
+  NutrientEditListWrapper,
+  NutrientEditPanelTitle,
+  NutrientListWrapper,
+  NoReqMessage,
+  NutrientDashTitle,
+  DashboardRow,
+  NutrientNameWrapper,
+  NutrientName,
+  TodayStatsWrapper,
+  AvgIntake,
+  AvgStatsWrapper,
+  HoverTransitionContainer,
+  GoalMessage,
+  DailyIntake,
+  ProgressBarContainer,
+  ProgressBar,
+} from './NutrientDash.styled';
 
 
 interface NutrientStatsProps {
@@ -28,7 +47,7 @@ function NutrientDashboard(){
   const hoveredLog = useRecoilValue(hoveredLogAtom);
   const requirementsData = useRecoilValueLoadable(requirementsDataAtom);
   const [requirements, setRequirements] = useState<RequirementData[]>([]);
-    
+
   useEffect(() => {
     if (requirementsData.state === 'hasValue') {
       startTransition(() => {
@@ -40,15 +59,13 @@ function NutrientDashboard(){
   }, [requirementsData]);
 
   useEffect(() => {
-    // start looking for clicks outside if new requirement form is visible
-    // console.log("clicked outside edit form")
     if (editFormRef.current) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside); // Cleanup
-    };  
-  }, [editFormRef])  
+    };
+  }, [editFormRef])
 
 
   // Function to close form if clicked outside
@@ -62,33 +79,34 @@ function NutrientDashboard(){
 
   // Fixed height based on row count so hover mode never changes panel size.
   // Constants derived from NutrientStats.css:
-  //   80px  = dashboard padding (40 top + 40 bottom)
+  //   100px = dashboard padding (40 top + 60 bottom)
   //   38px  = title row (28px height + 10px margin-bottom)
   //   50px  = nutrient-list-wrapper padding (30 top + 20 bottom)
   //   40px  = per row (≈30px content + 10px margin-bottom)
-  //   58px  = edit button (16px margin-top + 6+30+6px button)
-  //   30px  = extra bottom padding buffer
-  const PANEL_BASE_H = 286; // 80 + 38 + 50 + 58 + 30
+  //   48px  = edit button (6px margin-top + 6+30+6px button)
+  //   12px  = bottom padding buffer
+  const PANEL_BASE_H = 248; // 100 + 38 + 50 + 48 + 2
   const ROW_H = 40;
   const panelHeight = requirements.length > 0
     ? PANEL_BASE_H + requirements.length * ROW_H
     : 300; // fallback for "no requirements" state
 
   return (
-    <div
-      className={`nutrient-dashboard ${hoveredLog ? ' food-hovered' : ''}`}
+    <NutrientDashboardContainer
+      className="nutrient-dashboard"
+      $foodHovered={!!hoveredLog}
       style={!editing ? { height: panelHeight } : undefined}
     >
       {!editing && <NutrientDashboardTitle/>}
-        <div className = 'requirement-edit-wrapper' ref = {editFormRef}>
+        <RequirementEditWrapper ref={editFormRef}>
           {!editing ?
             requirements.length === 0 ?
-              <div className = 'no-req-message'> no requirements </div> :
-              <div className='nutrient-list-wrapper'>
+              <NoReqMessage>no requirements</NoReqMessage> :
+              <NutrientListWrapper>
                 <NutrientStats requirements={requirements}/>
-            </div>  :
-            (<div className='nutrient-edit-list-wrapper'>
-              <div className='nutrient-edit-panel-title'>nutritional targets per day</div>
+              </NutrientListWrapper> :
+            (<NutrientEditListWrapper className="nutrient-edit-list-wrapper">
+              <NutrientEditPanelTitle>nutritional targets</NutrientEditPanelTitle>
               {requirements.length > 0 &&
               requirements.map((n, index) =>
                 {return(
@@ -98,39 +116,41 @@ function NutrientDashboard(){
                 })
               }
               <NewNutrientForm/>
-            </div> )}
-        </div>
+            </NutrientEditListWrapper>)}
+        </RequirementEditWrapper>
 
       {!editing && (
-        <ImageButton
-          className="nutrient-edit-button tutorial-nutrient-edit-button"
+        <NutrientEditButton
+          className="tutorial-nutrient-edit-button"
           onClick={hoveredLog ? undefined : toggleEditing}
           style={{ visibility: hoveredLog ? 'hidden' : 'visible' }}
         >
           <img src={addIcon} alt="Edit nutrients" width="30" height="30" />
-        </ImageButton>
+        </NutrientEditButton>
       )}
-    </div>
+    </NutrientDashboardContainer>
   )
 }
 
 
 function NutrientDashboardTitle(){
   const hoveredLog = useRecoilValue(hoveredLogAtom);
-  const currentDay = useRecoilValue(currentDayAtom) 
-  return <div className='dashboard-row'>
-    <div className={`nutrient-name-wrapper${hoveredLog ? ' avg-hidden' : ''}`}>
-      <div className='nutrient-dashboard-title'> target </div>
-    </div>
-    <div className='today-stats-wrapper'>
-      <div className={`nutrient-dashboard-title${hoveredLog ? ' nutrient-title-food-mode' : ''}`}>
-        {hoveredLog ? hoveredLog[1] : formatDayForFrontend(currentDay)}
-      </div>
-    </div>
-    <div className={`avg-stats-wrapper${hoveredLog ? ' avg-hidden' : ''}`}>
-      <div className='nutrient-dashboard-title'> average </div>
-    </div>
-  </div>
+  const currentDay = useRecoilValue(currentDayAtom)
+  return (
+    <DashboardRow>
+      <NutrientNameWrapper $hidden={!!hoveredLog}>
+        <NutrientDashTitle>target</NutrientDashTitle>
+      </NutrientNameWrapper>
+      <TodayStatsWrapper className="today-stats-wrapper">
+        <NutrientDashTitle $foodMode={!!hoveredLog}>
+          {hoveredLog ? hoveredLog[1] : formatDayForFrontend(currentDay)}
+        </NutrientDashTitle>
+      </TodayStatsWrapper>
+      <AvgStatsWrapper className="avg-stats-wrapper" $hidden={!!hoveredLog}>
+        <NutrientDashTitle>average</NutrientDashTitle>
+      </AvgStatsWrapper>
+    </DashboardRow>
+  );
 }
 
 
@@ -199,7 +219,7 @@ const NutrientStats = ({requirements} : {requirements : RequirementData[]}) => {
         <NutrientStatRow
           key = {nutrient.id}
           name = {removeTextWithinBrackets(nutrient.name)}
-          target = {nutrient.target} 
+          target = {nutrient.target}
           dayIntake = {dailyValues[nutrient.id]}
           avgIntake={avgValues[nutrient.id]}
           shouldExceed={nutrient.shouldExceed}
@@ -238,61 +258,49 @@ function NutrientStatRow({ name, target, dayIntake = 0, avgIntake = 0, shouldExc
   }
 
   return (
-    <div className="dashboard-row">
-      <div
-        className="nutrient-name-wrapper"
+    <DashboardRow>
+      <NutrientNameWrapper
         onMouseEnter={() => setHoveredName(true)}
         onMouseLeave={() => setHoveredName(false)}>
-        <div className="nutrient-name">
+        <NutrientName>
           {hoveredName ? `${target} ${units}` : name}
-        </div>
-      </div>
+        </NutrientName>
+      </NutrientNameWrapper>
 
-      <div 
+      <TodayStatsWrapper
         className="today-stats-wrapper"
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}>
-        <div className="hover-transition-container">
-          <div 
-            className={`goal-message ${hoveredLog || hovered ? 'visible' : 'hidden'}`}>
+        <HoverTransitionContainer>
+          <GoalMessage $visible={!!(hoveredLog || hovered)}>
             {targetDisplay(dayIntake, units)}
-          </div>
-          <div 
-            className={`daily-intake ${hoveredLog || hovered ? 'hidden' : 'visible'}`}>
-            {shouldExceed ?
-            (<div
-              className="progress-bar-container">
-              <div
-                className="progress-bar"
+          </GoalMessage>
+          <DailyIntake $visible={!(hoveredLog || hovered)}>
+            <ProgressBarContainer className="progress-bar-container">
+              <ProgressBar
                 style={{
-                width: `${progressPercentage}%`,
-                backgroundColor: progressColor}}>
-              </div>
-            </div>) :
-            (<div
-              className="progress-bar-container">
-              <div
-                className="progress-bar"
-                style={{
-                width: `${progressPercentage * .75}%`,
-                backgroundColor: progressColor}}>
-              </div>
-            </div>)
-            }
-          </div>
-        </div>
-      </div>
-      <div className={`avg-stats-wrapper${hoveredLog ? ' avg-hidden' : ''}`}>
-        <div
-          className="avg-intake"
+                  width: `${shouldExceed ? progressPercentage : progressPercentage * 0.75}%`,
+                  backgroundColor: progressColor,
+                }}
+              />
+            </ProgressBarContainer>
+          </DailyIntake>
+        </HoverTransitionContainer>
+      </TodayStatsWrapper>
+
+      <AvgStatsWrapper
+        className="avg-stats-wrapper"
+        $hidden={!!hoveredLog}
+      >
+        <AvgIntake
           style={{
             '--avg-color': avgColor
           } as React.CSSProperties}
         >
-           {avgIntake.toFixed(0)} {units}
-        </div>
-      </div>
-     </div>
+          {avgIntake.toFixed(0)} {units.toLowerCase()}
+        </AvgIntake>
+      </AvgStatsWrapper>
+    </DashboardRow>
   );
 }
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, KeyboardEvent } from 'react';
 import styled from 'styled-components';
 import { request } from './endpoints';
 import { useRefreshLogs } from './dashboard_states';
+import { tutorialEvent } from './TryTutorial';
 import {
   FoodNameSpace, FoodPortionSpace, FoodDateSpace,
 } from './LogStyles';
@@ -126,6 +127,7 @@ function AddComponentForm({ logId, onAdd }: AddComponentFormProps) {
       fd.append('amount', amount);
       if (foodId) fd.append('food_id', foodId);
       await request('/logs/add-component', 'POST', fd);
+      tutorialEvent('tutorial:component-added');
       refreshLogs();
       onAdd();
       setFoodName('');

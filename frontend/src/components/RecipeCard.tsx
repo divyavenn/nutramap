@@ -8,7 +8,24 @@ import SaveIcon from '../assets/images/save.svg?react';
 import TrashcanIcon from '../assets/images/trashcan.svg?react';
 import type { Recipe, RecipeIngredient } from './RecipeBlurb';
 import { tutorialEvent } from './TryTutorial';
-import '../assets/css/myrecipes.css';
+import {
+  RecipeCardGlobalStyles,
+  ModalOverlay,
+  RecipeDetailModal,
+  ModalCloseX,
+  ModalHeader,
+  RecipeNameDisplay,
+  RecipeTitleEditRow,
+  RecipeTitleNameInput,
+  RecipeTitleLabelInput,
+  RecipeTitleGramsInput,
+  RecipeServingSuffix,
+  RecipeTitleSep,
+  ModalContent,
+  IngredientsSection,
+  ModalFooter,
+  DeleteRecipeIconButton,
+} from './RecipeCard.styled';
 
 interface RecipeCardProps {
   recipe: Recipe;
@@ -183,6 +200,7 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink }: Re
     } catch (error) {
       console.error('Error unlinking log from recipe:', error);
     }
+    tutorialEvent('tutorial:recipe-unlinked');
     onUnlink?.();
     onClose();
   };
@@ -202,33 +220,32 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink }: Re
   };
 
   return (
-    <div className="modal-overlay" onClick={handleClose}>
-      <div className="recipe-detail-modal" onClick={(e) => e.stopPropagation()}>
-        <motion.button
-          className="modal-close-x"
+    <ModalOverlay onClick={handleClose}>
+      <RecipeCardGlobalStyles />
+      <RecipeDetailModal className="recipe-detail-modal" onClick={(e) => e.stopPropagation()}>
+        <ModalCloseX
+          as={motion.button}
           onClick={handleClose}
           aria-label="Close"
           whileHover={{ rotate: -12, scale: 1.05, y: -1 }}
           whileTap={{ scale: 0.92, rotate: -2, y: 0 }}
           transition={{ type: 'spring', stiffness: 420, damping: 20, mass: 0.6 }}
         >
-          <SaveIcon className="modal-close-icon" aria-hidden="true" focusable="false" />
-        </motion.button>
+          <SaveIcon aria-hidden="true" />
+        </ModalCloseX>
 
-        <div className="modal-header">
+        <ModalHeader>
           {isSavingTitle ? (
-            <div className="recipe-name-display recipe-title-saving">
+            <RecipeNameDisplay as="div" $saving>
               <AnimatedText text={titleDisplayText()} />
-            </div>
+            </RecipeNameDisplay>
           ) : isEditingTitle ? (
-            <div
+            <RecipeTitleEditRow
               ref={titleRowRef}
-              className="recipe-title-edit-row"
               onBlur={handleTitleBlur}
             >
-              <input
+              <RecipeTitleNameInput
                 ref={nameInputRef}
-                className="recipe-title-input recipe-title-name-input"
                 value={recipeName}
                 onChange={(e) => setRecipeName(e.target.value)}
                 onKeyDown={handleTitleKeyDown}
@@ -236,18 +253,16 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink }: Re
                 style={{ width: `${Math.max(recipeName.length, 11) + 1}ch` }}
                 autoFocus
               />
-              <span className="recipe-title-sep"> - </span>
-              <input
-                className="recipe-title-input recipe-title-label-input"
+              <RecipeTitleSep> - </RecipeTitleSep>
+              <RecipeTitleLabelInput
                 value={servingLabel}
                 onChange={(e) => setServingLabel(e.target.value)}
                 onKeyDown={handleTitleKeyDown}
                 placeholder="1 bowl"
                 style={{ width: `${Math.max(servingLabel.length, 6) + 1}ch` }}
               />
-              <span className="recipe-title-sep"> (</span>
-              <input
-                className="recipe-title-input recipe-title-grams-input"
+              <RecipeTitleSep> (</RecipeTitleSep>
+              <RecipeTitleGramsInput
                 value={servingGrams}
                 onChange={(e) => setServingGrams(e.target.value)}
                 onKeyDown={handleTitleKeyDown}
@@ -256,11 +271,10 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink }: Re
                 min="0"
                 style={{ width: `${Math.max(servingGrams.length, 3) + 1}ch` }}
               />
-              <span className="recipe-title-sep"> grams)</span>
-            </div>
+              <RecipeTitleSep> grams)</RecipeTitleSep>
+            </RecipeTitleEditRow>
           ) : (
-            <h2
-              className="recipe-name-display"
+            <RecipeNameDisplay
               onClick={() => {
                 setIsEditingTitle(true);
                 setTimeout(() => nameInputRef.current?.focus(), 0);
@@ -268,14 +282,14 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink }: Re
             >
               {recipeName}
               {servingLabel && servingGrams && (
-                <span className="recipe-serving-suffix">{servingLabel} ({servingGrams} grams)</span>
+                <RecipeServingSuffix>{servingLabel} ({servingGrams} grams)</RecipeServingSuffix>
               )}
-            </h2>
+            </RecipeNameDisplay>
           )}
-        </div>
+        </ModalHeader>
 
-        <div className="modal-content">
-          <div className="ingredients-section">
+        <ModalContent>
+          <IngredientsSection>
             {editedIngredients.map((ingredient, index) => (
               <EditIngredientForm
                 key={index}
@@ -299,8 +313,8 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink }: Re
               onDelete={handleIngredientDelete}
               onCancel={() => setEditingIndex(null)}
             />
-          </div>
-        </div>
+          </IngredientsSection>
+        </ModalContent>
 
         {logId && (
           <div style={{
@@ -312,6 +326,7 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink }: Re
             justifyContent: 'center',
           }}>
             <button
+              className="tutorial-unlink-btn"
               onClick={handleUnlinkFromLog}
               style={{
                 background: 'none',
@@ -332,9 +347,9 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink }: Re
         )}
 
         {!logId && (
-          <div className="modal-footer">
-            <motion.button
-              className="delete-recipe-icon-button"
+          <ModalFooter>
+            <DeleteRecipeIconButton
+              as={motion.button}
               onClick={() => onDelete(recipe.recipe_id)}
               title="Delete Recipe"
               aria-label="Delete Recipe"
@@ -342,11 +357,11 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink }: Re
               whileTap={{ scale: 0.92, y: 0 }}
               transition={{ type: 'spring', stiffness: 380, damping: 20, mass: 0.6 }}
             >
-              <TrashcanIcon className="delete-recipe-icon" aria-hidden="true" focusable="false" />
-            </motion.button>
-          </div>
+              <TrashcanIcon aria-hidden="true" />
+            </DeleteRecipeIconButton>
+          </ModalFooter>
         )}
-      </div>
+      </RecipeDetailModal>
 
       {showSyncConfirm && (
         <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
@@ -357,7 +372,7 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink }: Re
           />
         </div>
       )}
-    </div>
+    </ModalOverlay>
   );
 }
 

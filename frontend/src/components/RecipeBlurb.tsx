@@ -1,5 +1,13 @@
 import React from 'react';
-import '../assets/css/myrecipes.css';
+import {
+  RecipeCardEl,
+  RecipeCardHeader,
+  RecipeTitleEl,
+  RecipeUsageCount,
+  RecipeIngredientsPreview,
+  IngredientPreviewItem,
+  MoreIngredients,
+} from './RecipeCard.styled';
 
 interface RecipeIngredient {
   food_id: number;
@@ -26,26 +34,26 @@ interface RecipeBlurbProps {
 
 function RecipeBlurb({ recipe, onClick }: RecipeBlurbProps) {
   return (
-    <div className="recipe-card" onClick={onClick}>
-      <div className="recipe-card-header">
-        <h3 className="recipe-title">{recipe.description}</h3>
-        <div className="recipe-usage-count">
+    <RecipeCardEl onClick={onClick}>
+      <RecipeCardHeader>
+        <RecipeTitleEl>{recipe.description}</RecipeTitleEl>
+        <RecipeUsageCount>
           Used {recipe.usage_count} {recipe.usage_count === 1 ? 'time' : 'times'}
-        </div>
-      </div>
-      <div className="recipe-ingredients-preview">
+        </RecipeUsageCount>
+      </RecipeCardHeader>
+      <RecipeIngredientsPreview>
         {recipe.ingredients.slice(0, 5).map((ing, idx) => (
-          <div key={idx} className="ingredient-preview-item">
+          <IngredientPreviewItem key={idx}>
             {ing.amount} {ing.food_name || 'Unknown'}
-          </div>
+          </IngredientPreviewItem>
         ))}
         {recipe.ingredients.length > 5 && (
-          <div className="more-ingredients">
+          <MoreIngredients>
             +{recipe.ingredients.length - 5} more
-          </div>
+          </MoreIngredients>
         )}
-      </div>
-    </div>
+      </RecipeIngredientsPreview>
+    </RecipeCardEl>
   );
 }
 

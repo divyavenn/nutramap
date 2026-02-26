@@ -63,21 +63,30 @@ def get_logs_in_range(user, startDate : datetime, endDate: datetime, user_db):
 # Each log has: meal_name, recipe_id, servings, date, components[]
 # Each component has: food_id, food_name, amount, weight_in_grams
 def make_log_readable(logs, db, request: Request = None):
-    for log in logs:
-        log = serialize_document(log)
+    logs = [serialize_document(log) for log in logs]
 
+    # Batch-fetch all recipes referenced by these logs (one query instead of N)
+    recipe_ids = {log["recipe_id"] for log in logs if log.get("recipe_id")}
+    recipe_map: dict = {}
+    if recipe_ids:
+        for user_doc in db.users.find(
+            {"recipes.recipe_id": {"$in": list(recipe_ids)}},
+            {"recipes": 1}
+        ):
+            for recipe in user_doc.get("recipes", []):
+                rid = recipe.get("recipe_id")
+                if rid and rid in recipe_ids:
+                    recipe_map[rid] = recipe
+
+    for log in logs:
         # Add food names to each component
         if "components" in log:
             for component in log["components"]:
                 component["food_name"] = str(get_food_name(component["food_id"], db, request)).strip("(')',")
 
-        # Check if recipe still exists and pull serving_size_label
+        # Attach recipe metadata from the batch-fetched map
         if log.get("recipe_id"):
-            user_doc = db.users.find_one(
-                {"recipes.recipe_id": log["recipe_id"]},
-                {"recipes.$": 1}
-            )
-            recipe = user_doc["recipes"][0] if (user_doc and user_doc.get("recipes")) else None
+            recipe = recipe_map.get(log["recipe_id"])
             log["recipe_exists"] = bool(recipe)
             log["serving_size_label"] = recipe.get("serving_size_label") if recipe else None
         else:
@@ -85,7 +94,7 @@ def make_log_readable(logs, db, request: Request = None):
             log["serving_size_label"] = None
 
         log.pop("user_id", None)
-    return logs 
+    return logs
               
 def count_unique_days(logs: List[Log]) -> int:
     unique_days = set()

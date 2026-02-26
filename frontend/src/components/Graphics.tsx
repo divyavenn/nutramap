@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import '../assets/css/buttons.css'
+import { SvgButton } from './Sections.styled';
 
 
 
@@ -58,9 +58,9 @@ function Graphic({src, width = 'auto', height = "auto", loading = "lazy", classN
 
 function ImageButton(props : GraphicsProps){
   return (
-    <button className="svg-button">
+    <SvgButton>
     <Graphic {...props}></Graphic>
-    </button>
+    </SvgButton>
   )
 }
 
