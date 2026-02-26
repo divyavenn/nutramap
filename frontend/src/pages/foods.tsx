@@ -9,11 +9,21 @@ import { useNavigate } from 'react-router-dom';
 import { isLoginExpired } from '../components/utlis';
 import { firstNameAtom, useRefreshAccountInfo, nutrientDetailsByIDAtom, pendingCustomFoodsAtom } from '../components/account_states';
 import { useRecoilValue, useRecoilValueLoadable } from 'recoil';
-import '../assets/css/foods.css';
 import NewFood from '../components/NewFood';
 import FoodBowl from '../assets/images/food_bowl.svg?react'
 import { NutrientPanel } from '../components/NutrientPanel';
 import { AnimatedText } from '../components/AnimatedText';
+import {
+  FoodsGlobalStyles,
+  FoodsContainer,
+  NoFoodsMessage,
+  FoodsTagsContainer,
+  FoodTag,
+  FoodTagName,
+  FoodTagDelete,
+  FoodModalOverlay,
+  TutorialFoodDetailModal,
+} from '../components/Foods.styled';
 import { tutorialEvent } from '../components/TryTutorial';
 
 interface NutrientInfo {
@@ -248,46 +258,49 @@ function Foods() {
 
   return (
     <>
+      <FoodsGlobalStyles />
       <Header linkIcons={[{to: "/dashboard", img: <DashboardIcon/>}, {to: '/account', img: <AccountIcon/>}, {to: '/myfoods', img: <FoodBowl/>}, {to: '/myrecipes', img: <RecipesIcon/>}]}/>
       <Heading words={name ? `${name}'s Foods` : 'Your Foods'} />
 
-      <div className="foods-container">
+      <FoodsContainer>
         <NewFood />
 
         {foods.length === 0 && pendingCustomFoods.length === 0 ? (
-          <div className="no-foods-message">
+          <NoFoodsMessage>
             You haven't created any custom foods yet.
-          </div>
+          </NoFoodsMessage>
         ) : (
-          <div className="foods-tags-container">
+          <FoodsTagsContainer>
             {foods.map(food => (
-              <div
+              <FoodTag
                 key={food._id}
-                className={`food-tag ${selectedFood === food._id ? 'selected' : ''}`}
+                $selected={selectedFood === food._id}
                 onClick={() => handleFoodClick(food._id)}
               >
-                <span className="food-tag-name">{food.name}</span>
-                <button
-                  className="food-tag-delete"
+                <FoodTagName>{food.name}</FoodTagName>
+                <FoodTagDelete
                   onClick={(e) => deleteFood(food._id, e)}
                   aria-label="Delete food"
                 >
                   ×
-                </button>
-              </div>
+                </FoodTagDelete>
+              </FoodTag>
             ))}
             {pendingCustomFoods.map(p => (
-              <div key={p.timestamp} className="food-tag pending">
+              <FoodTag key={p.timestamp} $pending>
                 <AnimatedText text={p.name} />
-              </div>
+              </FoodTag>
             ))}
-          </div>
+          </FoodsTagsContainer>
         )}
-      </div>
+      </FoodsContainer>
 
       {selectedFood && (
-        <div className="food-modal-overlay" onClick={() => { setSelectedFood(null); setNutrientsDetails([]); }}>
-          <div className="tutorial-food-detail-modal" onClick={(e) => e.stopPropagation()}>
+        <FoodModalOverlay onClick={() => { setSelectedFood(null); setNutrientsDetails([]); }}>
+          <TutorialFoodDetailModal
+            className="tutorial-food-detail-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
             <NutrientPanel
               itemId={selectedFood}
               itemType="food"
@@ -295,8 +308,8 @@ function Foods() {
               nutrients={nutrientsDetails}
               onUpdate={refreshNutrients}
             />
-          </div>
-        </div>
+          </TutorialFoodDetailModal>
+        </FoodModalOverlay>
       )}
     </>
   );

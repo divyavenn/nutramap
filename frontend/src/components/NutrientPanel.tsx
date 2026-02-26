@@ -1,13 +1,30 @@
 import { useState } from 'react';
 import { ImageButton } from './Sections';
 import Trashcan from '../assets/images/trashcan.svg?react';
-import '../assets/css/NutrientStats.css';
-import '../assets/css/new_nutrient.css';
 import { useRecoilValue } from 'recoil';
 import { nutrientDetailsByNameAtom } from './account_states';
 import { getNutrientInfo } from './utlis';
 import { request } from './endpoints';
-import { AnimatedText } from './AnimatedText';
+import {
+  NutrientDashboardContainer,
+  RequirementEditWrapper,
+  NutrientEditListWrapper,
+  NutrientPanelTitle,
+} from './NutrientDash.styled';
+import {
+  NewNutrientWrapper,
+  NutrientFormBubble,
+  DeleteRequirementButtonContainer,
+  NewNutrientNameWrapper,
+  NewRequirementNutrientName,
+  AnimatedNutrientName,
+  InputRequirementAmtWrapper,
+  InputRequirementAmt,
+  NewNutrientButtonContainer,
+  NewNutrientButtonHidden,
+  NutrientSuggestionsList,
+  NutrientSuggestionItem,
+} from './NutrientEdit.styled';
 
 interface NutrientInfo {
   nutrient_id: number;
@@ -216,13 +233,13 @@ function EditNutrientForm({ original, itemId, itemType, onUpdate }: EditNutrient
 
   return (
     !isDeleted && (
-      <form
+      <NewNutrientWrapper
         id="new-nutrient-form"
-        className={`new-nutrient-wrapper ${showSuggestions ? 'active' : ''}`}
+        $active={showSuggestions}
         onSubmit={handleSubmit}
       >
-        <div className={`nutrient-form-bubble ${showSuggestions ? 'active' : ''}`}>
-          <div className='delete-requirement-button-container'>
+        <NutrientFormBubble $active={showSuggestions}>
+          <DeleteRequirementButtonContainer>
             {original && (
               <ImageButton
                 type="button"
@@ -233,18 +250,14 @@ function EditNutrientForm({ original, itemId, itemType, onUpdate }: EditNutrient
                 <Trashcan />
               </ImageButton>
             )}
-          </div>
+          </DeleteRequirementButtonContainer>
 
-          <div className='new-nutrient-name-wrapper'>
+          <NewNutrientNameWrapper>
             {isSaving && formData.nutrient_name ? (
-              <AnimatedText
-                text={formData.nutrient_name}
-                className='new-requirement-nutrient-name nutrient-name-animated'
-              />
+              <AnimatedNutrientName text={formData.nutrient_name} />
             ) : (
-              <input
+              <NewRequirementNutrientName
                 name='nutrient_name'
-                className='new-requirement-nutrient-name'
                 placeholder='nutrient'
                 value={formData.nutrient_name}
                 onChange={handleTyping}
@@ -253,13 +266,11 @@ function EditNutrientForm({ original, itemId, itemType, onUpdate }: EditNutrient
                 required
               />
             )}
-          </div>
+          </NewNutrientNameWrapper>
 
-
-          <div className="input-requirement-amt-wrapper">
-            <input
+          <InputRequirementAmtWrapper>
+            <InputRequirementAmt
               name='amount'
-              className='input-requirement-amt'
               type='number'
               step="0.01"
               placeholder='0'
@@ -269,30 +280,29 @@ function EditNutrientForm({ original, itemId, itemType, onUpdate }: EditNutrient
               disabled={isSaving}
               required
             />
-            <span className="nutrient-unit">
+            <span>
               {formData.nutrient_name && validInput && getNutrientInfo(formData.nutrient_name, true, nutrientList)}
             </span>
-          </div>
+          </InputRequirementAmtWrapper>
 
-          <div className='new-nutrient-button-container'>
-            <button type="submit" className="new-nutrient-button-hidden" tabIndex={-1} aria-hidden="true" />
-          </div>
-        </div>
+          <NewNutrientButtonContainer>
+            <NewNutrientButtonHidden type="submit" tabIndex={-1} aria-hidden="true" />
+          </NewNutrientButtonContainer>
+        </NutrientFormBubble>
 
         {showSuggestions && (
-          <ul className="nutrient-suggestions-list">
+          <NutrientSuggestionsList>
             {suggestions.map(suggestion => (
-              <li
+              <NutrientSuggestionItem
                 key={suggestion}
-                className="nutrient-suggestion-item"
                 onClick={() => handleSuggestionClick(suggestion)}
               >
                 {suggestion}
-              </li>
+              </NutrientSuggestionItem>
             ))}
-          </ul>
+          </NutrientSuggestionsList>
         )}
-      </form>
+      </NewNutrientWrapper>
     )
   );
 }
@@ -304,11 +314,11 @@ function EditNutrientForm({ original, itemId, itemType, onUpdate }: EditNutrient
  */
 function NutrientPanel({ itemId, itemType, itemName, nutrients, onUpdate }: NutrientPanelProps) {
   return (
-    <div className="nutrient-dashboard">
-      <div className="nutrient-panel-title">{itemName} (per 100 g)</div>
+    <NutrientDashboardContainer className="nutrient-dashboard">
+      <NutrientPanelTitle>{itemName} (per 100 g)</NutrientPanelTitle>
 
-      <div className='requirement-edit-wrapper'>
-        <div className='nutrient-edit-list-wrapper'>
+      <RequirementEditWrapper>
+        <NutrientEditListWrapper className="nutrient-edit-list-wrapper">
           {nutrients.map(nutrient => (
             <EditNutrientForm
               key={nutrient.nutrient_id}
@@ -323,9 +333,9 @@ function NutrientPanel({ itemId, itemType, itemName, nutrients, onUpdate }: Nutr
             itemType={itemType}
             onUpdate={onUpdate}
           />
-        </div>
-      </div>
-    </div>
+        </NutrientEditListWrapper>
+      </RequirementEditWrapper>
+    </NutrientDashboardContainer>
   );
 }
 

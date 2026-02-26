@@ -1,16 +1,25 @@
-import React, {useState, useEffect, useRef } from 'react' 
+import React, {useState, useEffect, useRef } from 'react'
 import {request } from './endpoints';
-import '../assets/css/new_nutrient.css'
-import '../assets/css/buttons.css'
 import { Nutrient } from './structures';
 import { getNutrientInfo } from './utlis';
 import { useRefreshRequirements } from './dashboard_states';
-import { HoverButton} from './Sections';
-import Ok from '../assets/images/check_circle.svg?react'
-import OkOk from '../assets/images/checkmark.svg?react'
 import { nutrientDetailsByNameAtom } from './account_states';
 import { useRecoilValue } from 'recoil';
 import { tutorialEvent } from './TryTutorial';
+import {
+  NewNutrientWrapper,
+  NutrientFormBubble,
+  NewNutrientNameWrapper,
+  NewRequirementNutrientName,
+  NutrientTypeSelectWrapper,
+  CustomSelect,
+  InputRequirementAmtWrapper,
+  InputRequirementAmt,
+  DeleteRequirementButtonContainer,
+  DeleteXButton,
+  NutrientSuggestionsList,
+  NutrientSuggestionItem,
+} from './NutrientEdit.styled';
 
 function NewNutrientForm({ original }: { original?: Nutrient }): React.ReactNode{
 
@@ -39,7 +48,7 @@ function NewNutrientForm({ original }: { original?: Nutrient }): React.ReactNode
   useEffect(() => {
     if (selectedSuggestionIndex >= 0 && suggestionsRef.current) {
       const suggestionsContainer = suggestionsRef.current;
-      const selectedElement = suggestionsContainer.querySelector(`.nutrient-suggestion-item:nth-child(${selectedSuggestionIndex + 1})`) as HTMLElement;
+      const selectedElement = suggestionsContainer.children[selectedSuggestionIndex] as HTMLElement;
 
       if (selectedElement) {
         // Calculate if the element is outside the visible area
@@ -145,8 +154,6 @@ function NewNutrientForm({ original }: { original?: Nutrient }): React.ReactNode
 
     const {name, value} = e.target; // get the name and value of the input field
 
-    // console.log(`Updating ${name} with value: ${value}`); // Debugging log
-
     setFormData({
       ...formData,
       [name] : value, // this works because the form variables match the names of the input fields
@@ -199,72 +206,76 @@ function NewNutrientForm({ original }: { original?: Nutrient }): React.ReactNode
 
   return (
     !isDeleted && (
-    <form
-      id="new-nutrient-form" className = {`new-nutrient-wrapper ${showSuggestions ? 'active' : ''}`} onSubmit={handleSubmit}>
-      <div className={`nutrient-form-bubble ${showSuggestions ? 'active' : ''}${!original ? ' new-entry' : ''}`}>
-      
-      <div className='new-nutrient-name-wrapper'>
-        <input
-          name='nutrient_name'
-          className='new-requirement-nutrient-name'
-          placeholder='nutrient'
-          value={formData.nutrient_name}
-          onChange={handleTyping}
-          onKeyDown={handleNutrientNameKeyDown}
-          required
-        />
+    <NewNutrientWrapper
+      id="new-nutrient-form"
+      $active={showSuggestions}
+      onSubmit={handleSubmit}
+    >
+      <NutrientFormBubble $active={showSuggestions} $newEntry={!original}>
 
-      </div>
+        <NewNutrientNameWrapper>
+          <NewRequirementNutrientName
+            name='nutrient_name'
+            placeholder='nutrient'
+            value={formData.nutrient_name}
+            onChange={handleTyping}
+            onKeyDown={handleNutrientNameKeyDown}
+            required
+          />
+        </NewNutrientNameWrapper>
 
-      <div className="nutrient-type-select-wrapper">
-        <select name="comparison" className="custom-select" onChange={handleComparisonChange}
-        value={formData.should_exceed ? 'more' : 'less'}>
-          <option value="less">less than</option>
-          <option value="more">more than</option>
-        </select>
-      </div>
+        <NutrientTypeSelectWrapper>
+          <CustomSelect
+            name="comparison"
+            onChange={handleComparisonChange}
+            value={formData.should_exceed ? 'more' : 'less'}
+          >
+            <option value="less">less than</option>
+            <option value="more">more than</option>
+          </CustomSelect>
+        </NutrientTypeSelectWrapper>
 
-      <div className="input-requirement-amt-wrapper">
-        <input
-          name='requirement'
-          className='input-requirement-amt'
-          type='number'
-          placeholder='0'
-          value={formData.requirement}
-          onChange={handleTyping}
-          onKeyDown={handleRequirementKeyDown}
-          required
-        />
-        <span className="nutrient-unit">
-          {formData.nutrient_name && validInput && getNutrientInfo(formData.nutrient_name, true, nutrientList)}
-        </span>
-        <span className="nutrient-sentence-sep">a day</span>
-      </div>
+        <InputRequirementAmtWrapper>
+          <InputRequirementAmt
+            name='requirement'
+            type='number'
+            placeholder='0'
+            value={formData.requirement}
+            onChange={handleTyping}
+            onKeyDown={handleRequirementKeyDown}
+            required
+          />
+          <span>
+            {formData.nutrient_name && validInput && getNutrientInfo(formData.nutrient_name, true, nutrientList)}
+          </span>
+          <span>a day</span>
+        </InputRequirementAmtWrapper>
 
-      
-      <div className='delete-requirement-button-container'>
-        {original && (
-          <button type="button" className="delete-x-button" onClick={handleDelete} aria-label="Delete">
-            ×
-          </button>
-        )}
-      </div>
-  
-
-      </div>
-      {showSuggestions && (
-            <ul className="nutrient-suggestions-list" ref={suggestionsRef}>
-              {suggestions.map((suggestion, index) => (
-                <li key={suggestion}
-                    className={`nutrient-suggestion-item ${index === selectedSuggestionIndex ? 'selected' : ''}`}
-                    onClick={() => handleSuggestionClick(suggestion)}
-                    onMouseEnter={() => setSelectedSuggestionIndex(index)}>
-                  {suggestion}
-                </li>
-              ))}
-            </ul>
+        <DeleteRequirementButtonContainer>
+          {original && (
+            <DeleteXButton type="button" onClick={handleDelete} aria-label="Delete">
+              ×
+            </DeleteXButton>
           )}
-    </form>))
+        </DeleteRequirementButtonContainer>
+
+      </NutrientFormBubble>
+
+      {showSuggestions && (
+        <NutrientSuggestionsList ref={suggestionsRef}>
+          {suggestions.map((suggestion, index) => (
+            <NutrientSuggestionItem
+              key={suggestion}
+              $selected={index === selectedSuggestionIndex}
+              onClick={() => handleSuggestionClick(suggestion)}
+              onMouseEnter={() => setSelectedSuggestionIndex(index)}
+            >
+              {suggestion}
+            </NutrientSuggestionItem>
+          ))}
+        </NutrientSuggestionsList>
+      )}
+    </NewNutrientWrapper>))
 }
 
 export  {NewNutrientForm}

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {HoverButton } from './Sections';
+import { LoginButton } from './Sections.styled';
 import SubmitButton from '../assets/images/login.svg?react'
 import SubmitButtonHollow from '../assets/images/login-hollow.svg?react'
 import {Link} from 'react-router-dom';
@@ -25,6 +25,7 @@ function LoginForm() {
 
   const [emailIncorrect, setEmailIncorrect] = useState(false);
   const [passwordIncorrect, setPasswordIncorrect] = useState(false);
+  const [loginHovered, setLoginHovered] = useState(false);
   const refreshAccountInfo = useRefreshAccountInfo()
 
   const nextInputRef = useRef<HTMLInputElement>(null);
@@ -157,12 +158,12 @@ function LoginForm() {
                 required
               /> </div>
           </div>
-            <HoverButton
+            <LoginButton
               type="submit"
-              className="login-button"
-              childrenOn={<SubmitButton/>}
-              childrenOff={<SubmitButtonHollow/>}>
-              </HoverButton>
+              onMouseEnter={() => setLoginHovered(true)}
+              onMouseLeave={() => setLoginHovered(false)}>
+              {loginHovered ? <SubmitButton/> : <SubmitButtonHollow/>}
+            </LoginButton>
         </form>
         <div>
               {redirect && (

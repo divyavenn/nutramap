@@ -168,7 +168,7 @@ function MealHeader({
   const count = Number.isInteger(servings) ? servings : servings.toFixed(1);
   const portionText = serving_size_label
     ? `${count} ${serving_size_label.replace(/^\d+\.?\d*\s+/, '')}`
-    : `${count} servings`;
+    : '';
 
   if (isDeleting) return null;
 

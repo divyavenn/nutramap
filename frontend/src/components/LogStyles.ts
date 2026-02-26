@@ -72,15 +72,15 @@ export const DateDividerEl = styled.div`
   max-width: calc(var(--modal-width) + 150px);
   margin-bottom: 10px;
   border-bottom-style: solid;
-  border-bottom-width: 1px;
-  border-bottom-color: rgba(255, 255, 255, 0.2);
+  border-bottom-width: .5px;
+  border-bottom-color: rgba(168, 85, 247, 0.3);
 `;
 
 export const DayButton = styled.button`
   margin-bottom: 0;
-  font-family: 'Ubuntu';
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 14px;
+  font-family: Inconsolata;
+  color: rgba(168, 85, 247, 0.5);
+  font-size: 15px;
   font-weight: 300;
   background-color: transparent;
   border: none;

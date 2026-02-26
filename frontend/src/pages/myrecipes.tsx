@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { request } from '../components/endpoints';
-import '../assets/css/myrecipes.css';
 import { Header } from '../components/Sections';
 import { Heading } from '../components/Title';
 import AccountIcon from '../assets/images/account.svg?react';
@@ -13,6 +12,21 @@ import { RecipeBlurb } from '../components/RecipeBlurb';
 import { RecipeCard } from '../components/RecipeCard';
 import type { Recipe } from '../components/RecipeBlurb';
 import { tutorialEvent } from '../components/TryTutorial';
+import {
+  MyRecipesPage,
+  MyRecipesContainer,
+  MyRecipesHeader,
+  CreateRecipeButton,
+  LoadingMessage,
+  NoRecipesMessage,
+  RecipesGrid,
+  ModalOverlay,
+  RecipeDetailModal,
+  ModalCloseX,
+  ModalHeader,
+  RecipeNameDisplay,
+  ModalContent,
+} from '../components/RecipeCard.styled';
 
 function MyRecipes() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -150,30 +164,29 @@ function MyRecipes() {
   };
 
   return (
-    <div className="myrecipes-page">
+    <MyRecipesPage>
       <Header linkIcons={[{to: "/dashboard", img: <DashboardIcon/>}, {to: '/account', img: <AccountIcon/>}, {to: '/myfoods', img: <FoodBowl/>}, {to: '/myrecipes', img: <RecipesIcon/>}]}/>
       <Heading words={name ? `${name}'s Recipes` : 'Your Recipes'} />
 
       { loading ?
-      (<div className="loading-message">Loading recipes...</div>)
+      (<LoadingMessage>Loading recipes...</LoadingMessage>)
       :
-      ( <div className="myrecipes-container">
-          <div className="myrecipes-header">
-            <button
-              className="create-recipe-button"
+      ( <MyRecipesContainer>
+          <MyRecipesHeader>
+            <CreateRecipeButton
               onClick={() => setShowCreateModal(true)}
             >
-                + Create New Recipe
-            </button>
-          </div>
+              + Create New Recipe
+            </CreateRecipeButton>
+          </MyRecipesHeader>
 
           {recipes.length === 0 ? (
-            <div className="no-recipes-message">
+            <NoRecipesMessage>
               <p>You haven't created any recipes yet.</p>
               <p>Start by logging a meal or creating a new recipe manually!</p>
-            </div>
+            </NoRecipesMessage>
           ) : (
-            <div className="recipes-grid">
+            <RecipesGrid>
               {recipes.map(recipe => (
                 <RecipeBlurb
                   key={recipe.recipe_id}
@@ -181,7 +194,7 @@ function MyRecipes() {
                   onClick={() => handleRecipeClick(recipe)}
                 />
               ))}
-            </div>
+            </RecipesGrid>
           )}
 
           {selectedRecipe && (
@@ -198,15 +211,22 @@ function MyRecipes() {
           )}
 
           {showCreateModal && (
-            <div className="modal-overlay" onClick={() => { setShowCreateModal(false); setNewRecipeName(''); }}>
-              <div className="recipe-detail-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
-                <button className="modal-close-x" onClick={() => { setShowCreateModal(false); setNewRecipeName(''); }} aria-label="Close">
+            <ModalOverlay onClick={() => { setShowCreateModal(false); setNewRecipeName(''); }}>
+              <RecipeDetailModal
+                className="recipe-detail-modal"
+                onClick={(e) => e.stopPropagation()}
+                style={{ maxWidth: '400px' }}
+              >
+                <ModalCloseX
+                  onClick={() => { setShowCreateModal(false); setNewRecipeName(''); }}
+                  aria-label="Close"
+                >
                   ×
-                </button>
-                <div className="modal-header">
-                  <h2 className="recipe-name-display">New Recipe</h2>
-                </div>
-                <div className="modal-content">
+                </ModalCloseX>
+                <ModalHeader>
+                  <RecipeNameDisplay>New Recipe</RecipeNameDisplay>
+                </ModalHeader>
+                <ModalContent>
                   <form onSubmit={handleCreateRecipe} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     <input
                       type="text"
@@ -225,22 +245,20 @@ function MyRecipes() {
                         outline: 'none',
                       }}
                     />
-                    <button
+                    <CreateRecipeButton
                       type="submit"
-                      className="create-recipe-button"
                       disabled={creating || !newRecipeName.trim()}
-                      style={{ opacity: creating || !newRecipeName.trim() ? 0.5 : 1 }}
                     >
                       {creating ? 'Creating...' : 'Create'}
-                    </button>
+                    </CreateRecipeButton>
                   </form>
-                </div>
-              </div>
-            </div>
+                </ModalContent>
+              </RecipeDetailModal>
+            </ModalOverlay>
           )}
-        </div> )
+        </MyRecipesContainer> )
     }
-    </div>
+    </MyRecipesPage>
   );
 }
 

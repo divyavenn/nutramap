@@ -1,0 +1,1 @@
+"""Foodpanel MCP server package."""
