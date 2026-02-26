@@ -152,10 +152,10 @@ def calculate_name_similarity(name1: str, name2: str) -> float:
     def stem_word(word):
         if word.endswith('ies'):
             return word[:-3] + 'y'  # berries -> berry
-        if word.endswith('es') and len(word) > 3:
-            return word[:-2]  # tomatoes -> tomato
+        if word.endswith('oes') and len(word) > 3:
+            return word[:-2]  # tomatoes -> tomato, potatoes -> potato
         if word.endswith('s') and len(word) > 2 and not word.endswith('ss'):
-            return word[:-1]  # bagels -> bagel
+            return word[:-1]  # apples -> apple, bagels -> bagel, oranges -> orange
         return word
 
     def stem_words(words):
@@ -231,10 +231,103 @@ def calculate_name_similarity(name1: str, name2: str) -> float:
     return max(coverage * 0.6, jaccard)
 
 
-async def find_high_confidence_match(ingredient_name: str, db: Database, user: dict) -> Optional[dict]:
+async def llm_disambiguate_food(
+    ingredient_name: str,
+    candidates: List[dict],  # [{"food_id": ..., "food_name": ...}, ...]
+    original_query: Optional[str] = None,
+) -> Optional[dict]:
+    """
+    When multiple RRF candidates are tied on similarity score, use an LLM to pick
+    the most likely match given the original ingredient name and optional full meal query.
+    Returns the chosen {"food_id": ..., "food_name": ...} or None on failure.
+    """
+    try:
+        client = _get_client()
+
+        candidates_str = "\n".join(
+            f"{i + 1}. food_id={c['food_id']}  name=\"{c['food_name']}\""
+            for i, c in enumerate(candidates)
+        )
+        
+        print(candidates_str)
+
+        context_line = ""
+        if original_query:
+            context_line = f"User description of meal: \"{original_query}\"\n"
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        """Given an ingredient name, the user's description of their meal, and a list of USDA food database entries, 
+                        return the food_id of the entry that most closely matches what the user actually ended up consuming.
+                        For example, if the ingredient is carrot and the user describes a soup, it would be boiled carrots. 
+                        if the user describes eating carrots and ranch, it would be raw carrots. 
+                        Don't pick something that was processed in ways that was not mentioned (pureed, babyfood, juiced, drained, etc.)
+                        For example, if the user says orange, don't pick orange juice.
+                        If multiple entries are possible, pick the simplest, most commonly available option."
+                        "Respond with JSON only."""
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"Ingredient: \"{ingredient_name}\"\n"
+                        f"{context_line}"
+                        f"\nCandidates:\n{candidates_str}\n\n"
+                        "Which food_id is the best match?\n"
+                        "Respond with: {\"food_id\": <id>, \"reason\": \"<brief reason>\"}"
+                    ),
+                },
+            ],
+            response_format={"type": "json_object"},
+        )
+
+        result = json.loads(response.choices[0].message.content)
+        chosen_id = result.get("food_id")
+        reason = result.get("reason", "")
+
+        if chosen_id is None:
+            print(f"    ⚠ LLM returned no food_id for '{ingredient_name}'")
+            return None
+
+        # Normalise type (LLM may return int or string)
+        try:
+            chosen_id = int(chosen_id)
+        except (ValueError, TypeError):
+            pass
+
+        match = next(
+            (c for c in candidates
+             if c["food_id"] == chosen_id or str(c["food_id"]) == str(chosen_id)),
+            None,
+        )
+
+        if match:
+            print(f"    🤖 LLM picked '{match['food_name']}' (id={chosen_id}) — {reason}")
+            return match
+
+        print(f"    ⚠ LLM returned unknown food_id={chosen_id} for '{ingredient_name}'")
+        return None
+
+    except Exception as e:
+        print(f"    ⚠ LLM disambiguation failed for '{ingredient_name}': {e}")
+        return None
+
+
+async def find_high_confidence_match(ingredient_name: str, db: Database, user: dict, original_query: Optional[str] = None) -> Optional[dict]:
     """
     Find a high-confidence match for an ingredient using RRF fusion.
     Returns {"id": food_id, "name": food_name, "confidence": score} if found, None otherwise.
+
+    Pipeline:
+    1. Exact-name check in sparse results (custom-food priority).
+    2. RRF fusion → top 10 candidates.
+    3. Re-rank by calculate_name_similarity.
+    4. If multiple candidates share the top similarity score (tie), call
+       llm_disambiguate_food to break the tie.
     """
     from src.routers.match import get_sparse_index, rrf_fusion
     from src.routers.dense import find_dense_matches
@@ -250,58 +343,68 @@ async def find_high_confidence_match(ingredient_name: str, db: Database, user: d
                     "name": food_name,
                     "confidence": 1.0,
                     "is_base": False,
-                    "exact_match": True
+                    "exact_match": True,
                 }
 
-    # Use RRF to get best match
+    # Use RRF to get top-10 candidates
     matches = await rrf_fusion(
         get_sparse_index, [ingredient_name, db, user, 40, 50],
         find_dense_matches, [ingredient_name, db, user, None, 40, 50],
         k=30,
-        n=5  # Get top 5 to find best primary match
+        n=10,
     )
 
     if not matches:
         print(f"    🔍 No RRF matches found for '{ingredient_name}'")
         return None
 
-    # Check top results and pick the one with best similarity
-    # This handles cases where RRF returns "Crackers, milk" before "Milk, whole"
-    best_result = None
-    best_similarity = 0
-
+    # Score every candidate with the name-similarity heuristic
+    scored: List[dict] = []
     for match_id in matches:
         try:
             match_id = int(match_id)
         except (ValueError, TypeError):
             pass
-
         matched_name = get_food_name(match_id, db, None)
         if not matched_name:
             continue
+        scored.append({
+            "food_id": match_id,
+            "food_name": matched_name,
+            "similarity": calculate_name_similarity(ingredient_name, matched_name),
+        })
 
-        similarity = calculate_name_similarity(ingredient_name, matched_name)
-
-        if similarity > best_similarity:
-            best_similarity = similarity
-            best_result = {
-                "id": match_id,
-                "name": matched_name,
-                "similarity": similarity
-            }
-
-    if not best_result:
-        print(f"    🔍 Could not get food names for any matches")
+    if not scored:
+        print(f"    🔍 Could not get food names for any RRF matches for '{ingredient_name}'")
         return None
 
+    best_similarity = max(c["similarity"] for c in scored)
+
+    # Find all candidates that share the best score
+    top_candidates = [c for c in scored if c["similarity"] == best_similarity]
+
+    if len(top_candidates) > 1:
+        # No clear winner from name similarity — ask the LLM to break the tie
+        print(
+            f"    🔍 {len(top_candidates)} tied candidates at sim={best_similarity:.2f} "
+            f"for '{ingredient_name}', calling LLM to disambiguate..."
+        )
+        llm_choice = await llm_disambiguate_food(ingredient_name, top_candidates, original_query=original_query)
+        best_result = llm_choice if llm_choice else top_candidates[0]
+    else:
+        best_result = top_candidates[0]
+
     is_base = _is_likely_base_ingredient(ingredient_name)
-    print(f"    🔍 Best match for '{ingredient_name}': '{best_result['name']}' (similarity={best_similarity:.2f}, is_base={is_base})")
+    print(
+        f"    🔍 Best match for '{ingredient_name}': '{best_result['food_name']}' "
+        f"(similarity={best_similarity:.2f}, is_base={is_base})"
+    )
 
     return {
-        "id": best_result["id"],
-        "name": best_result["name"],
+        "id": best_result["food_id"],
+        "name": best_result["food_name"],
         "confidence": best_similarity,
-        "is_base": is_base
+        "is_base": is_base,
     }
 
 
@@ -469,7 +572,8 @@ async def classify_ingredient(
     weight: float,
     db: Database,
     user: dict,
-    user_recipes: List[dict] = None
+    user_recipes: List[dict] = None,
+    original_query: Optional[str] = None,
 ) -> dict:
     """
     Classify an ingredient as one of:
@@ -499,7 +603,7 @@ async def classify_ingredient(
             }
 
     # 2. Check for high-confidence food match → include as ingredient
-    match = await find_high_confidence_match(ingredient_name, db, user)
+    match = await find_high_confidence_match(ingredient_name, db, user, original_query=original_query)
     if match:
         # If this is a composite dish (pizza, curry, etc.), don't accept a database
         # match for a processed version (e.g. "frozen pizza") — decompose instead.
@@ -534,7 +638,7 @@ async def classify_ingredient(
     # Recursively match each base ingredient (these should all become foods)
     matched_ingredients = []
     for base_ing in base_ingredients:
-        base_match = await find_high_confidence_match(base_ing["food_name"], db, user)
+        base_match = await find_high_confidence_match(base_ing["food_name"], db, user, original_query=original_query)
         if base_match:
             # Skip composite dish matches with low confidence (same guard as in classify_ingredient).
             # Prevents e.g. "pizza crust" from matching "Pizza, pepperoni topping".
@@ -880,7 +984,8 @@ async def process_recipes_in_background(
     user_id: ObjectId,
     user_recipes: List[dict],
     meal_date: datetime,
-    db: Database
+    db: Database,
+    meal_description: str = "",
 ):
     """
     Process recipes in the background: match ingredients, generate embeddings, create logs.
@@ -936,6 +1041,7 @@ async def process_recipes_in_background(
                         db,
                         {"_id": user_id},
                         user_recipes=[],
+                        original_query=meal_description or description,
                     )
                     if classification["type"] == "food":
                         food_data = classification["data"]
@@ -965,7 +1071,7 @@ async def process_recipes_in_background(
             if not ingredients:
                 print(f"  ⚠ GPT returned no ingredients for '{description}', classifying description directly")
                 classification = await classify_ingredient(
-                    description, "", 0, db, {"_id": user_id}, user_recipes=[]
+                    description, "", 0, db, {"_id": user_id}, user_recipes=[], original_query=meal_description or description
                 )
                 if classification["type"] == "food":
                     matched_ingredients = [classification["data"]]
@@ -987,6 +1093,7 @@ async def process_recipes_in_background(
                         db,
                         {"_id": user_id},
                         user_recipes=[],  # sub-ingredients are never themselves recipes
+                        original_query=meal_description or description,
                     )
 
                     if classification["type"] == "food":
@@ -1235,7 +1342,8 @@ async def parse_meal(
             user["_id"],
             user_recipes,
             meal_date,
-            db
+            db,
+            meal_description,
         )
 
         print(f"=== parse_meal returning immediately (processing in background) ===")

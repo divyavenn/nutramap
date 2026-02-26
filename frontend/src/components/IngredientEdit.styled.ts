@@ -141,20 +141,13 @@ export const FoodNameInput = styled.textarea`
   font-size: var(--recipe-card-font-size);
   color: var(--white);
   border: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
   outline: none;
   background: transparent;
-  transition: border-color 0.15s ease;
   width: 100%;
   resize: none;
   overflow: hidden;
   min-height: var(--ingredient-input-height);
   line-height: 1;
-  margin-top: 10px;
-
-  &:focus {
-    border-bottom-color: rgba(200, 150, 255, 0.5);
-  }
 
   &::placeholder {
     color: rgba(190, 140, 255, 0.5);
@@ -176,18 +169,11 @@ export const PortionInput = styled.input`
   font-weight: inherit;
   color: var(--white);
   border: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
   outline: none;
   background: transparent;
-  transition: border-color 0.15s ease;
   width: 100%;
   min-height: var(--ingredient-input-height);
   padding: 0;
-  margin-top: -13px;
-
-  &:focus {
-    border-bottom-color: rgba(200, 150, 255, 0.5);
-  }
 
   &::placeholder {
     color: rgba(190, 140, 255, 0.5);
@@ -208,9 +194,11 @@ export const GramsDisplay = styled.input`
   font-family: 'Inconsolata', monospace;
   font-size: var(--recipe-card-font-size);
   color: rgba(255, 255, 255, 0.6);
+  border: none;
+  outline: none;
+  background: transparent;
   padding: 0;
   width: 50px;
-  margin-top: -15px;
   min-height: var(--ingredient-input-height);
   display: flex;
 `;
@@ -223,7 +211,6 @@ export const AnimatedFoodName = styled.div`
   color: var(--white);
   min-height: var(--ingredient-input-height);
   line-height: 1;
-  margin-top: 10px;
   display: flex;
   align-items: center;
 `;
@@ -268,7 +255,6 @@ export const AlignedText = styled.div`
   font-family: 'Inconsolata', monospace;
   font-size: var(--recipe-card-font-size);
   color: var(--white);
-  margin-top: -15px;
 `;
 
 

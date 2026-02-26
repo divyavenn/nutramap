@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, KeyboardEvent } from 'react';
 import { formatTime } from './utlis'; // eslint-disable-line @typescript-eslint/no-unused-vars
 import { request } from './endpoints';
 import { useRefreshLogs } from './dashboard_states';
+import { tutorialEvent } from './TryTutorial';
 import { AnimatedText } from './AnimatedText';
 import {
   RecipeBubble, MealToggleBtn,
@@ -252,7 +253,8 @@ function MealHeader({
       ) : (
         <RecipeBubble
           $expanded={expanded}
-          onClick={() => setIsEditable(true)}
+          className="tutorial-meal-header"
+          onClick={() => { setIsEditable(true); tutorialEvent('tutorial:log-clicked'); }}
           style={{ cursor: 'pointer' }}
         >
           <FoodNameSpace as="span">

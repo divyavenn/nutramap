@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { Typewriter } from 'motion-plus/react';
-import { computePosition, flip, offset, shift } from '@floating-ui/dom';
+import { computePosition, flip, offset, shift, type Placement } from '@floating-ui/dom';
 import { useLocation } from 'react-router-dom';
 import { useRecoilState, useSetRecoilState } from 'recoil';
 import {
@@ -20,14 +21,21 @@ import '../assets/css/tutorial.css';
 import nutritionLabelUrl from '../assets/images/nutrition_label.png';
 
 const steps: TutorialStep[] = [
+  /** 
 new TutorialStep({
     message: 'start by logging a meal. describe what you ate, like \'matcha latte yesterday\' or \'500 grams of chocolate and 2 scoops of collagen powder.\'',
     selector: '.form-elements-wrapper',
     eventName: 'tutorial:log-created',
   }),
-  new TutorialStep({ message: 'other nutrition trackers ask you to enter everything manually...' }),
-  new TutorialStep({ message: 'or make a lot of hidden assumptions about how things are made.' }),
-  new TutorialStep({ message: 'we store your meals as recipes. each recipe consists of ingredients whose nutrition info is verified by the USDA.' }),
+  new TutorialStep({ message: 'other nutrition trackers ask you to enter everything manually...', selector: '.log-list', highlightOnly: true }),
+  new TutorialStep({ message: 'or make a lot of hidden assumptions about how things are made.', selector: '.log-list', highlightOnly: true }),
+  new TutorialStep({ message: 'we store your meals as recipes. each recipe consists of ingredients whose nutrition info is verified by the USDA.', selector: '.log-list', highlightOnly: true }),
+  **/
+  new TutorialStep({
+    message: 'click on the meal to edit it.',
+    selector: '.tutorial-meal-header',
+    eventName: 'tutorial:log-clicked',
+  }), 
   new TutorialStep({
     message: 'click the name of meal to see the linked recipe card',
     selector: '.tutorial-recipe-name-link',
@@ -264,7 +272,7 @@ export default function TryTutorial() {
 
     const isHeaderIcon = currentSelector.includes('.tutorial-home-link') || currentSelector.includes('a[href="/');
     const placement = isHeaderIcon ? 'bottom-end' : 'right';
-    const fallbackPlacements = isHeaderIcon
+    const fallbackPlacements: Placement[] = isHeaderIcon
       ? ['bottom', 'left', 'top', 'right']
       : ['left', 'bottom', 'top', 'right'];
 
@@ -326,7 +334,10 @@ export default function TryTutorial() {
     void computeCardPosition();
   }, [isActive, currentStep, computeCardPosition]);
 
-  // Keep the active target above the dim overlay (no cutout).
+
+  // Keep the active target above the dim overlay.
+  // The dim is rendered inline (inside VantaBackground's stacking context), so lifting
+  // stacking-context ancestors within that same context makes the target pop above the dim.
   useEffect(() => {
     if (!isActive) return;
     if (!currentSelector) return;
@@ -344,12 +355,7 @@ export default function TryTutorial() {
     };
 
     const lift = (node: HTMLElement, ensurePosition: boolean) => {
-      lifted.push({
-        node,
-        position: node.style.position,
-        zIndex: node.style.zIndex,
-      });
-
+      lifted.push({ node, position: node.style.position, zIndex: node.style.zIndex });
       const computed = getComputedStyle(node);
       if (ensurePosition && computed.position === 'static') {
         node.style.position = 'relative';
@@ -372,7 +378,6 @@ export default function TryTutorial() {
 
     const applyLift = (attempt = 0) => {
       resetLift();
-
       const el = getStepElement(currentSelector);
       if (!el) {
         if (attempt < 12) {
@@ -380,14 +385,10 @@ export default function TryTutorial() {
         }
         return;
       }
-
       lift(el, true);
-
       let parent = el.parentElement;
       while (parent && parent !== document.body) {
-        if (createsStackingContext(parent)) {
-          lift(parent, false);
-        }
+        if (createsStackingContext(parent)) lift(parent, false);
         parent = parent.parentElement;
       }
     };
@@ -395,9 +396,7 @@ export default function TryTutorial() {
     applyLift();
 
     return () => {
-      if (retryTimer !== null) {
-        window.clearTimeout(retryTimer);
-      }
+      if (retryTimer !== null) window.clearTimeout(retryTimer);
       resetLift();
     };
   }, [currentSelector, getStepElement, isActive, location.pathname, targetRect]);
@@ -564,11 +563,14 @@ export default function TryTutorial() {
     ? { ...cardStyle, visibility: 'hidden' }
     : cardStyle;
 
+  // The dim is rendered inline (not portaled) so it sits inside VantaBackground's
+  // stacking context, where the lift effect can raise the target element above it.
+  // Only the card is portaled to document.body so it appears above modals.
   return (
     <>
       <div className="tutorial-dim" />
 
-      <motion.div
+      {createPortal(<motion.div
         ref={cardRef}
         key={currentStep}
         className={`tutorial-text${currentSelector ? '' : ' centered'}`}
@@ -630,22 +632,20 @@ export default function TryTutorial() {
           </div>
         )}
         <div className="tutorial-nav">
-          <button
-            className="tutorial-prev-btn"
-            onClick={prev}
-            disabled={currentStep === 0}
-          >
-            previous
-          </button>
-          <button
-            className="tutorial-next-btn"
-            onClick={next}
-            disabled={!canAdvanceManually}
-          >
-            {isLastStep ? 'done' : 'next'}
-          </button>
+          {currentStep > 0 && (
+            <button className="tutorial-prev-btn" onClick={prev}>
+              previous
+            </button>
+          )}
+          {canAdvanceManually && (
+            <button className="tutorial-next-btn" onClick={next}>
+              {isLastStep ? 'done' : 'next'}
+            </button>
+          )}
         </div>
-      </motion.div>
+      </motion.div>,
+      document.body
+    )}
     </>
   );
 }

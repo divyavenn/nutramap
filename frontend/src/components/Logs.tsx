@@ -168,7 +168,7 @@ function LogList (){
   // Early return AFTER all hooks
   if (logs.length === 0 && pendingFoods.length === 0) {
     return (
-      <LogListContainer>
+      <LogListContainer className="log-list">
         <GlobalEditStyles />
         <NoLogsMessage>no logs in this time.</NoLogsMessage>
       </LogListContainer>
@@ -213,7 +213,7 @@ function LogList (){
   };
 
   return (
-    <LogListContainer>
+    <LogListContainer className="log-list">
       <GlobalEditStyles />
       {sortedDays.map(([dayStart, { logs: dateLogs, pending: datePending }], dayIndex) => {
         // Sort logs by time (newest first); break ties by id for stable ordering.
