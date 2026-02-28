@@ -12,6 +12,7 @@ import { RecipeBlurb } from '../components/RecipeBlurb';
 import { RecipeCard } from '../components/RecipeCard';
 import type { Recipe } from '../components/RecipeBlurb';
 import { tutorialEvent } from '../components/TryTutorial';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   MyRecipesPage,
   MyRecipesContainer,
@@ -36,6 +37,8 @@ function MyRecipes() {
   const [newRecipeName, setNewRecipeName] = useState('');
   const [creating, setCreating] = useState(false);
   const name = useRecoilValue(firstNameAtom);
+  const overlayTransition = { duration: 0.2, ease: 'easeOut' } as const;
+  const modalTransition = { duration: 0.22, ease: [0.22, 1, 0.36, 1] } as const;
 
   useEffect(() => {
     initializeRecipes();
@@ -197,65 +200,83 @@ function MyRecipes() {
             </RecipesGrid>
           )}
 
-          {selectedRecipe && (
-            <RecipeCard
-              recipe={selectedRecipe}
-              onClose={handleCloseModal}
-              onDelete={handleDeleteRecipe}
-              onUpdate={() => {
-                // Invalidate cache and force refresh after recipe updates
-                try { localStorage.removeItem('recipes_cache'); } catch (e) {}
-                fetchRecipes(true);
-              }}
-            />
-          )}
+          <AnimatePresence>
+            {selectedRecipe && (
+              <RecipeCard
+                recipe={selectedRecipe}
+                onClose={handleCloseModal}
+                onDelete={handleDeleteRecipe}
+                onUpdate={() => {
+                  // Invalidate cache and force refresh after recipe updates
+                  try { localStorage.removeItem('recipes_cache'); } catch (e) {}
+                  fetchRecipes(true);
+                }}
+              />
+            )}
+          </AnimatePresence>
 
-          {showCreateModal && (
-            <ModalOverlay onClick={() => { setShowCreateModal(false); setNewRecipeName(''); }}>
-              <RecipeDetailModal
-                className="recipe-detail-modal"
-                onClick={(e) => e.stopPropagation()}
-                style={{ maxWidth: '400px' }}
+          <AnimatePresence>
+            {showCreateModal && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={overlayTransition}
               >
-                <ModalCloseX
-                  onClick={() => { setShowCreateModal(false); setNewRecipeName(''); }}
-                  aria-label="Close"
-                >
-                  ×
-                </ModalCloseX>
-                <ModalHeader>
-                  <RecipeNameDisplay>New Recipe</RecipeNameDisplay>
-                </ModalHeader>
-                <ModalContent>
-                  <form onSubmit={handleCreateRecipe} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    <input
-                      type="text"
-                      value={newRecipeName}
-                      onChange={(e) => setNewRecipeName(e.target.value)}
-                      placeholder="Recipe name"
-                      autoFocus
-                      style={{
-                        padding: '10px 14px',
-                        fontSize: '16px',
-                        background: 'rgba(255,255,255,0.08)',
-                        border: '1px solid rgba(255,255,255,0.2)',
-                        borderRadius: '8px',
-                        color: 'bisque',
-                        fontFamily: 'Inconsolata',
-                        outline: 'none',
-                      }}
-                    />
-                    <CreateRecipeButton
-                      type="submit"
-                      disabled={creating || !newRecipeName.trim()}
+                <ModalOverlay onClick={() => { setShowCreateModal(false); setNewRecipeName(''); }}>
+                  <motion.div
+                    initial={{ opacity: 0, y: 16, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 12, scale: 0.98 }}
+                    transition={modalTransition}
+                  >
+                    <RecipeDetailModal
+                      className="recipe-detail-modal"
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ maxWidth: '400px' }}
                     >
-                      {creating ? 'Creating...' : 'Create'}
-                    </CreateRecipeButton>
-                  </form>
-                </ModalContent>
-              </RecipeDetailModal>
-            </ModalOverlay>
-          )}
+                      <ModalCloseX
+                        onClick={() => { setShowCreateModal(false); setNewRecipeName(''); }}
+                        aria-label="Close"
+                      >
+                        ×
+                      </ModalCloseX>
+                      <ModalHeader>
+                        <RecipeNameDisplay>New Recipe</RecipeNameDisplay>
+                      </ModalHeader>
+                      <ModalContent>
+                        <form onSubmit={handleCreateRecipe} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                          <input
+                            type="text"
+                            value={newRecipeName}
+                            onChange={(e) => setNewRecipeName(e.target.value)}
+                            placeholder="Recipe name"
+                            autoFocus
+                            style={{
+                              padding: '10px 14px',
+                              fontSize: '16px',
+                              background: 'rgba(255,255,255,0.08)',
+                              border: '1px solid rgba(255,255,255,0.2)',
+                              borderRadius: '8px',
+                              color: 'bisque',
+                              fontFamily: 'Inconsolata',
+                              outline: 'none',
+                            }}
+                          />
+                          <CreateRecipeButton
+                            type="submit"
+                            disabled={creating || !newRecipeName.trim()}
+                          >
+                            {creating ? 'Creating...' : 'Create'}
+                          </CreateRecipeButton>
+                        </form>
+                      </ModalContent>
+                    </RecipeDetailModal>
+                  </motion.div>
+                </ModalOverlay>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </MyRecipesContainer> )
     }
     </MyRecipesPage>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { request } from './endpoints';
 import { EditIngredientForm } from './IngredientEdit';
 import { Confirm } from './Confirm';
@@ -219,160 +219,185 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink }: Re
     onClose();
   };
 
+  const overlayTransition = { duration: 0.2, ease: 'easeOut' } as const;
+  const modalTransition = { duration: 0.22, ease: [0.22, 1, 0.36, 1] } as const;
+
   return (
-    <ModalOverlay onClick={handleClose}>
-      <RecipeCardGlobalStyles />
-      <RecipeDetailModal className="recipe-detail-modal" onClick={(e) => e.stopPropagation()}>
-        <ModalCloseX
-          as={motion.button}
-          onClick={handleClose}
-          aria-label="Close"
-          whileHover={{ rotate: -12, scale: 1.05, y: -1 }}
-          whileTap={{ scale: 0.92, rotate: -2, y: 0 }}
-          transition={{ type: 'spring', stiffness: 420, damping: 20, mass: 0.6 }}
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={overlayTransition}
+    >
+      <ModalOverlay onClick={handleClose}>
+        <RecipeCardGlobalStyles />
+        <motion.div
+          initial={{ opacity: 0, y: 16, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 12, scale: 0.98 }}
+          transition={modalTransition}
         >
-          <SaveIcon aria-hidden="true" />
-        </ModalCloseX>
-
-        <ModalHeader>
-          {isSavingTitle ? (
-            <RecipeNameDisplay as="div" $saving>
-              <AnimatedText text={titleDisplayText()} />
-            </RecipeNameDisplay>
-          ) : isEditingTitle ? (
-            <RecipeTitleEditRow
-              ref={titleRowRef}
-              onBlur={handleTitleBlur}
-            >
-              <RecipeTitleNameInput
-                ref={nameInputRef}
-                value={recipeName}
-                onChange={(e) => setRecipeName(e.target.value)}
-                onKeyDown={handleTitleKeyDown}
-                placeholder="recipe name"
-                style={{ width: `${Math.max(recipeName.length, 11) + 1}ch` }}
-                autoFocus
-              />
-              <RecipeTitleSep> - </RecipeTitleSep>
-              <RecipeTitleLabelInput
-                value={servingLabel}
-                onChange={(e) => setServingLabel(e.target.value)}
-                onKeyDown={handleTitleKeyDown}
-                placeholder="1 bowl"
-                style={{ width: `${Math.max(servingLabel.length, 6) + 1}ch` }}
-              />
-              <RecipeTitleSep> (</RecipeTitleSep>
-              <RecipeTitleGramsInput
-                value={servingGrams}
-                onChange={(e) => setServingGrams(e.target.value)}
-                onKeyDown={handleTitleKeyDown}
-                placeholder="350"
-                type="number"
-                min="0"
-                style={{ width: `${Math.max(servingGrams.length, 3) + 1}ch` }}
-              />
-              <RecipeTitleSep> grams)</RecipeTitleSep>
-            </RecipeTitleEditRow>
-          ) : (
-            <RecipeNameDisplay
-              onClick={() => {
-                setIsEditingTitle(true);
-                setTimeout(() => nameInputRef.current?.focus(), 0);
-              }}
-            >
-              {recipeName}
-              {servingLabel && servingGrams && (
-                <RecipeServingSuffix>{servingLabel} ({servingGrams} grams)</RecipeServingSuffix>
-              )}
-            </RecipeNameDisplay>
-          )}
-        </ModalHeader>
-
-        <ModalContent>
-          <IngredientsSection>
-            {editedIngredients.map((ingredient, index) => (
-              <EditIngredientForm
-                key={index}
-                food_name={ingredient.food_name || ''}
-                amount={ingredient.amount}
-                weight_in_grams={ingredient.weight_in_grams}
-                food_id={ingredient.food_id}
-                componentIndex={index}
-                recipeId={recipe.recipe_id}
-                onSave={handleIngredientSave}
-                onDelete={handleIngredientDelete}
-                onCancel={() => setEditingIndex(null)}
-              />
-            ))}
-            <EditIngredientForm
-              food_name={''}
-              amount={''}
-              weight_in_grams={0}
-              recipeId={recipe.recipe_id}
-              onSave={handleIngredientSave}
-              onDelete={handleIngredientDelete}
-              onCancel={() => setEditingIndex(null)}
-            />
-          </IngredientsSection>
-        </ModalContent>
-
-        {logId && (
-          <div style={{
-            position: 'absolute',
-            bottom: 35,
-            left: 0,
-            right: 0,
-            display: 'flex',
-            justifyContent: 'center',
-          }}>
-            <button
-              className="tutorial-unlink-btn"
-              onClick={handleUnlinkFromLog}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'rgba(255,255,255,0.4)',
-                fontFamily: 'Inconsolata, monospace',
-                fontSize: 13,
-                cursor: 'pointer',
-                padding: '6px 10px',
-                transition: 'color 0.15s ease',
-              }}
-              onMouseEnter={(e) => { (e.target as HTMLButtonElement).style.color = 'rgba(255,255,255,0.85)'; }}
-              onMouseLeave={(e) => { (e.target as HTMLButtonElement).style.color = 'rgba(255,255,255,0.4)'; }}
-            >
-              unlink from this meal
-            </button>
-          </div>
-        )}
-
-        {!logId && (
-          <ModalFooter>
-            <DeleteRecipeIconButton
+          <RecipeDetailModal className="recipe-detail-modal" onClick={(e) => e.stopPropagation()}>
+            <ModalCloseX
               as={motion.button}
-              onClick={() => onDelete(recipe.recipe_id)}
-              title="Delete Recipe"
-              aria-label="Delete Recipe"
-              whileHover={{ scale: 1.08, y: -1 }}
-              whileTap={{ scale: 0.92, y: 0 }}
-              transition={{ type: 'spring', stiffness: 380, damping: 20, mass: 0.6 }}
+              onClick={handleClose}
+              aria-label="Close"
+              whileHover={{ rotate: -12, scale: 1.05, y: -1 }}
+              whileTap={{ scale: 0.92, rotate: -2, y: 0 }}
+              transition={{ type: 'spring', stiffness: 420, damping: 20, mass: 0.6 }}
             >
-              <TrashcanIcon aria-hidden="true" />
-            </DeleteRecipeIconButton>
-          </ModalFooter>
-        )}
-      </RecipeDetailModal>
+              <SaveIcon aria-hidden="true" />
+            </ModalCloseX>
 
-      {showSyncConfirm && (
-        <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
-          <Confirm
-            message="update all previous meals using this recipe?"
-            ifYesDo={handleSyncLogs}
-            ifNoDo={handleUnlinkLogs}
-          />
-        </div>
-      )}
-    </ModalOverlay>
+            <ModalHeader>
+              {isSavingTitle ? (
+                <RecipeNameDisplay as="div" $saving>
+                  <AnimatedText text={titleDisplayText()} />
+                </RecipeNameDisplay>
+              ) : isEditingTitle ? (
+                <RecipeTitleEditRow
+                  ref={titleRowRef}
+                  onBlur={handleTitleBlur}
+                >
+                  <RecipeTitleNameInput
+                    ref={nameInputRef}
+                    value={recipeName}
+                    onChange={(e) => setRecipeName(e.target.value)}
+                    onKeyDown={handleTitleKeyDown}
+                    placeholder="recipe name"
+                    style={{ width: `${Math.max(recipeName.length, 11) + 1}ch` }}
+                    autoFocus
+                  />
+                  <RecipeTitleSep> - </RecipeTitleSep>
+                  <RecipeTitleLabelInput
+                    value={servingLabel}
+                    onChange={(e) => setServingLabel(e.target.value)}
+                    onKeyDown={handleTitleKeyDown}
+                    placeholder="1 bowl"
+                    style={{ width: `${Math.max(servingLabel.length, 6) + 1}ch` }}
+                  />
+                  <RecipeTitleSep> (</RecipeTitleSep>
+                  <RecipeTitleGramsInput
+                    value={servingGrams}
+                    onChange={(e) => setServingGrams(e.target.value)}
+                    onKeyDown={handleTitleKeyDown}
+                    placeholder="350"
+                    type="number"
+                    min="0"
+                    style={{ width: `${Math.max(servingGrams.length, 3) + 1}ch` }}
+                  />
+                  <RecipeTitleSep> grams)</RecipeTitleSep>
+                </RecipeTitleEditRow>
+              ) : (
+                <RecipeNameDisplay
+                  onClick={() => {
+                    setIsEditingTitle(true);
+                    setTimeout(() => nameInputRef.current?.focus(), 0);
+                  }}
+                >
+                  {recipeName}
+                  {servingLabel && servingGrams && (
+                    <RecipeServingSuffix>{servingLabel} ({servingGrams} grams)</RecipeServingSuffix>
+                  )}
+                </RecipeNameDisplay>
+              )}
+            </ModalHeader>
+
+            <ModalContent>
+              <IngredientsSection>
+                {editedIngredients.map((ingredient, index) => (
+                  <EditIngredientForm
+                    key={index}
+                    food_name={ingredient.food_name || ''}
+                    amount={ingredient.amount}
+                    weight_in_grams={ingredient.weight_in_grams}
+                    food_id={ingredient.food_id}
+                    componentIndex={index}
+                    recipeId={recipe.recipe_id}
+                    onSave={handleIngredientSave}
+                    onDelete={handleIngredientDelete}
+                    onCancel={() => setEditingIndex(null)}
+                  />
+                ))}
+                <EditIngredientForm
+                  food_name={''}
+                  amount={''}
+                  weight_in_grams={0}
+                  recipeId={recipe.recipe_id}
+                  onSave={handleIngredientSave}
+                  onDelete={handleIngredientDelete}
+                  onCancel={() => setEditingIndex(null)}
+                />
+              </IngredientsSection>
+            </ModalContent>
+
+            {logId && (
+              <div style={{
+                position: 'absolute',
+                bottom: 35,
+                left: 0,
+                right: 0,
+                display: 'flex',
+                justifyContent: 'center',
+              }}>
+                <button
+                  className="tutorial-unlink-btn"
+                  onClick={handleUnlinkFromLog}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'rgba(255,255,255,0.4)',
+                    fontFamily: 'Inconsolata, monospace',
+                    fontSize: 13,
+                    cursor: 'pointer',
+                    padding: '6px 10px',
+                    transition: 'color 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => { (e.target as HTMLButtonElement).style.color = 'rgba(255,255,255,0.85)'; }}
+                  onMouseLeave={(e) => { (e.target as HTMLButtonElement).style.color = 'rgba(255,255,255,0.4)'; }}
+                >
+                  unlink from this meal
+                </button>
+              </div>
+            )}
+
+            {!logId && (
+              <ModalFooter>
+                <DeleteRecipeIconButton
+                  as={motion.button}
+                  onClick={() => onDelete(recipe.recipe_id)}
+                  title="Delete Recipe"
+                  aria-label="Delete Recipe"
+                  whileHover={{ scale: 1.08, y: -1 }}
+                  whileTap={{ scale: 0.92, y: 0 }}
+                  transition={{ type: 'spring', stiffness: 380, damping: 20, mass: 0.6 }}
+                >
+                  <TrashcanIcon aria-hidden="true" />
+                </DeleteRecipeIconButton>
+              </ModalFooter>
+            )}
+          </RecipeDetailModal>
+        </motion.div>
+
+        <AnimatePresence>
+          {showSyncConfirm && (
+            <motion.div
+              style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.16, ease: 'easeOut' }}
+            >
+              <Confirm
+                message="update all previous meals using this recipe?"
+                ifYesDo={handleSyncLogs}
+                ifNoDo={handleUnlinkLogs}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </ModalOverlay>
+    </motion.div>
   );
 }
 

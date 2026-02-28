@@ -10,7 +10,7 @@ import { CreateRecipeModal } from './CreateRecipeModal';
 import { LogProps, LogComponent } from './structures';
 import {useRecoilValue, useSetRecoilState, useRecoilState} from 'recoil'
 import { logsAtom, currentDayAtom, hoveredLogAtom, useRefreshLogs, pendingFoodsAtom, PendingFood } from './dashboard_states';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { MealLoading} from './MealLoading';
 import { RecipeCard } from './RecipeCard';
 import { request } from './endpoints';
@@ -211,6 +211,7 @@ function LogList (){
     }
     return `${components.length} components`;
   };
+  const rowTransition = { type: 'spring', stiffness: 360, damping: 32, mass: 0.6 } as const;
 
   return (
     <LogListContainer className="log-list">
@@ -229,120 +230,146 @@ function LogList (){
         const isTutorialDayTarget = dayIndex === 1 || (dayIndex === 0 && sortedDays.length === 1);
 
         return (
-          <LogsWrapper key={dayStart}>
+          <LogsWrapper as={motion.div} layout key={dayStart}>
             {/* Date divider for this group */}
             <DateDivider date={new Date(dayStart)} tutorialTarget={isTutorialDayTarget} />
 
             {/* Render pending foods for this date first */}
-            {sortedPending.map((_pendingFood, index) => (
-              <LogWrapper key={`pending-${index}`}>
+            <AnimatePresence initial={false} mode="popLayout">
+              {sortedPending.map((pendingFood, index) => (
                 <motion.div
-                  style={{ width: '100%', filter: 'blur(4px)' }}
-                  initial={{ opacity: 0.5, scale: 0.98 }}
-                  animate={{
-                    opacity: [0.5, 0.9, 0.5],
-                    scale: 1,
-                    transition: { delay: index * 0.15, duration: 1.6, repeat: Infinity, ease: 'easeInOut' }
-                  }}
+                  key={`pending-${pendingFood.timestamp}-${pendingFood.name}-${index}`}
+                  layout
+                  initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                  transition={rowTransition}
+                  style={{ width: '100%' }}
                 >
-                  <MealLoading/>
+                  <LogWrapper>
+                    <motion.div
+                      style={{ width: '100%', filter: 'blur(4px)' }}
+                      initial={{ opacity: 0.5, scale: 0.98 }}
+                      animate={{
+                        opacity: [0.5, 0.9, 0.5],
+                        scale: 1,
+                        transition: { delay: index * 0.15, duration: 1.6, repeat: Infinity, ease: 'easeInOut' }
+                      }}
+                    >
+                      <MealLoading/>
+                    </motion.div>
+                  </LogWrapper>
                 </motion.div>
-              </LogWrapper>
-            ))}
+              ))}
+            </AnimatePresence>
             {/* Render each log (each log is a recipe/meal entry) */}
-            {sortedLogs.map((log) => {
-              // Skip logs without components array (old format)
-              if (!log.components || !Array.isArray(log.components)) {
-                return null;
-              }
-
-              // Standalone food log: no recipe_id and single component
-              const isStandaloneFood = !log.recipe_id && log.components.length === 1;
-              const totalWeight = log.components.reduce((sum, c) => sum + c.weight_in_grams, 0);
-              const isExpanded = expandedLogId === log._id;
-
-              const handleMealNameClick = () => {
-                if (log.recipe_id && log.recipe_exists) {
-                  handleRecipeClick(log.recipe_id, log._id);
-                } else {
-                  setCreateRecipeLogId(log._id);
+            <AnimatePresence initial={false} mode="popLayout">
+              {sortedLogs.map((log) => {
+                // Skip logs without components array (old format)
+                if (!log.components || !Array.isArray(log.components)) {
+                  return null;
                 }
-              };
 
-              return (
-                <DeletingWrapper key={log._id} $isDeleting={deletingLogId === log._id}>
-                  {/* Meal header - only show for non-standalone meals */}
-                  {!isStandaloneFood && (
-                    <LogWrapper>
-                      <MealHeader
-                        meal_name={log.meal_name}
-                        servings={log.servings}
-                        date={new Date(log.date)}
-                        log_id={log._id}
-                        recipe_id={log.recipe_id}
-                        recipe_exists={log.recipe_exists}
-                        serving_size_label={log.serving_size_label || undefined}
-                        total_weight_grams={totalWeight}
-                        expanded={isExpanded}
-                        onToggle={() => setExpandedLogId(isExpanded ? null : log._id)}
-                        onNameClick={handleMealNameClick}
-                        onDeleteStart={() => setDeletingLogId(log._id)}
-                        onMouseEnter={() => handleLogMouseEnter(log._id, `${log.meal_name} (${Number.isInteger(log.servings) ? log.servings : log.servings.toFixed(1)} servings)`)}
-                        onMouseLeave={handleLogMouseLeave}
-                      />
-                    </LogWrapper>
-                  )}
+                // Standalone food log: no recipe_id and single component
+                const isStandaloneFood = !log.recipe_id && log.components.length === 1;
+                const totalWeight = log.components.reduce((sum, c) => sum + c.weight_in_grams, 0);
+                const isExpanded = expandedLogId === log._id;
 
-                  {/* Standalone food: always visible. Meal log: collapsible */}
-                  <MealComponentsWrapper
-                    $standalone={isStandaloneFood}
-                    $expanded={isExpanded}
-                    className={(!isStandaloneFood && !log.recipe_id && isExpanded) ? 'tutorial-meal-components' : undefined}
+                const handleMealNameClick = () => {
+                  if (log.recipe_id && log.recipe_exists) {
+                    handleRecipeClick(log.recipe_id, log._id);
+                  } else {
+                    setCreateRecipeLogId(log._id);
+                  }
+                };
+
+                return (
+                  <motion.div
+                    key={log._id}
+                    layout
+                    initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                    transition={rowTransition}
+                    style={{ width: '100%' }}
                   >
-                    {log.components.map((component, idx) => {
-                      const componentId = `${log._id}-${idx}`;
-                      return (
-                        <LogWrapper key={componentId}>
-                          <ComponentLog
-                            component={component}
-                            logId={log._id}
-                            componentIndex={idx}
-                            isStandalone={isStandaloneFood}
-                            logDate={new Date(log.date)}
-                            logServings={log.servings}
-                            onMouseEnter={() => handleLogMouseEnter(componentId, formatLogDescription([component]))}
+                    <DeletingWrapper $isDeleting={deletingLogId === log._id}>
+                      {/* Meal header - only show for non-standalone meals */}
+                      {!isStandaloneFood && (
+                        <LogWrapper>
+                          <MealHeader
+                            meal_name={log.meal_name}
+                            servings={log.servings}
+                            date={new Date(log.date)}
+                            log_id={log._id}
+                            recipe_id={log.recipe_id}
+                            recipe_exists={log.recipe_exists}
+                            serving_size_label={log.serving_size_label || undefined}
+                            total_weight_grams={totalWeight}
+                            expanded={isExpanded}
+                            onToggle={() => setExpandedLogId(isExpanded ? null : log._id)}
+                            onNameClick={handleMealNameClick}
+                            onDeleteStart={() => setDeletingLogId(log._id)}
+                            onMouseEnter={() => handleLogMouseEnter(log._id, `${log.meal_name} (${Number.isInteger(log.servings) ? log.servings : log.servings.toFixed(1)} servings)`)}
                             onMouseLeave={handleLogMouseLeave}
                           />
                         </LogWrapper>
-                      );
-                    })}
-                    {/* Add component form for expanded unlinked meals */}
-                    {!isStandaloneFood && !log.recipe_id && isExpanded && (
-                      <LogWrapper>
-                        <MealRowContainer>
-                          <AddComponentForm logId={log._id} onAdd={refreshLogs} />
-                        </MealRowContainer>
-                      </LogWrapper>
-                    )}
-                  </MealComponentsWrapper>
-                </DeletingWrapper>
-              );
-            })}
+                      )}
+
+                      {/* Standalone food: always visible. Meal log: collapsible */}
+                      <MealComponentsWrapper
+                        $standalone={isStandaloneFood}
+                        $expanded={isExpanded}
+                        className={(!isStandaloneFood && !log.recipe_id && isExpanded) ? 'tutorial-meal-components' : undefined}
+                      >
+                        {log.components.map((component, idx) => {
+                          const componentId = `${log._id}-${idx}`;
+                          return (
+                            <LogWrapper key={componentId}>
+                              <ComponentLog
+                                component={component}
+                                logId={log._id}
+                                componentIndex={idx}
+                                isStandalone={isStandaloneFood}
+                                logDate={new Date(log.date)}
+                                logServings={log.servings}
+                                onMouseEnter={() => handleLogMouseEnter(componentId, formatLogDescription([component]))}
+                                onMouseLeave={handleLogMouseLeave}
+                              />
+                            </LogWrapper>
+                          );
+                        })}
+                        {/* Add component form for expanded unlinked meals */}
+                        {!isStandaloneFood && !log.recipe_id && isExpanded && (
+                          <LogWrapper>
+                            <MealRowContainer>
+                              <AddComponentForm logId={log._id} onAdd={refreshLogs} />
+                            </MealRowContainer>
+                          </LogWrapper>
+                        )}
+                      </MealComponentsWrapper>
+                    </DeletingWrapper>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
           </LogsWrapper>
         );
       })}
 
-      {selectedRecipe && createPortal(
-        <RecipeCard
-          recipe={selectedRecipe}
-          onClose={() => { setSelectedRecipe(null); setSelectedRecipeLogId(null); }}
-          onDelete={handleDeleteRecipe}
-          onUpdate={handleRecipeUpdate}
-          logId={selectedRecipeLogId ?? undefined}
-          onUnlink={() => { setSelectedRecipe(null); setSelectedRecipeLogId(null); refreshLogs(); }}
-        />,
-        document.body
-      )}
+      <AnimatePresence>
+        {selectedRecipe && createPortal(
+          <RecipeCard
+            recipe={selectedRecipe}
+            onClose={() => { setSelectedRecipe(null); setSelectedRecipeLogId(null); }}
+            onDelete={handleDeleteRecipe}
+            onUpdate={handleRecipeUpdate}
+            logId={selectedRecipeLogId ?? undefined}
+            onUnlink={() => { setSelectedRecipe(null); setSelectedRecipeLogId(null); refreshLogs(); }}
+          />,
+          document.body
+        )}
+      </AnimatePresence>
 
       {createRecipeLogId && (() => {
         const log = logs.find(l => l._id === createRecipeLogId);
