@@ -19,6 +19,8 @@ export interface LogProps {
   recipe_id?: string | null;
   meal_name: string;
   servings: number;
+  serving_unit?: string | null;
+  logged_weight_grams?: number | null;
   date: Date;
   components: LogComponent[];
   recipe_exists?: boolean;  // Whether the linked recipe still exists

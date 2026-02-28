@@ -17,6 +17,9 @@ class LogCreate(BaseModel):
     recipe_id: Optional[str] = None  # Links to user's saved recipe if exists
     meal_name: str  # Display name (recipe description or food name)
     servings: float  # Number of servings consumed
+    serving_unit: Optional[str] = None  # e.g. "slice", "bowl"
+    serving_size_label: Optional[str] = None  # e.g. "1 slice"
+    logged_weight_grams: Optional[float] = None  # total consumed grams for this log
     date: datetime
     components: List[LogComponent]  # Array of food items
 
@@ -50,6 +53,9 @@ class Log(BaseModel):
     recipe_id: Optional[str] = None  # Links to saved recipe if exists
     meal_name: str  # Display name
     servings: float  # Number of servings consumed
+    serving_unit: Optional[str] = None
+    serving_size_label: Optional[str] = None
+    logged_weight_grams: Optional[float] = None
     date: Optional[datetime]
     components: List[LogComponent]  # Array of food items
 

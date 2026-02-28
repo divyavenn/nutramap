@@ -10,6 +10,7 @@ import os
 from openai import OpenAI
 from dotenv import load_dotenv
 import json
+import re
 
 from src.databases.mongo import get_data
 from src.databases.mongo_models import UserRecipe, RecipeIngredient
@@ -46,6 +47,71 @@ def _get_client():
     return _client
 
 response_format = {"type": "json_object"}
+
+
+def _to_float_or_none(value) -> Optional[float]:
+    try:
+        if value is None:
+            return None
+        parsed = float(value)
+        if parsed <= 0:
+            return None
+        return parsed
+    except (TypeError, ValueError):
+        return None
+
+
+def _normalize_serving_unit(label: Optional[str]) -> Optional[str]:
+    if not label:
+        return None
+    cleaned = re.sub(r"^\s*\d+(\.\d+)?\s*", "", str(label)).strip().lower()
+    return cleaned or None
+
+
+def _sum_ingredient_weight(ingredients: List[dict]) -> float:
+    total = 0.0
+    for ing in ingredients:
+        try:
+            total += float(ing.get("weight_in_grams", 0) or 0)
+        except (TypeError, ValueError):
+            continue
+    return total
+
+
+def _infer_recipe_servings_from_text(
+    *,
+    meal_description: str,
+    item_description: str,
+    parsed_servings: float,
+    serving_unit: Optional[str],
+) -> float:
+    """
+    Heuristic fallback for existing-recipe matches when the parser underestimates quantity.
+    Example: "whole pizza" when serving unit is "slice".
+    """
+    text = (meal_description or "").lower()
+    item = (item_description or "").lower().strip()
+    unit = (serving_unit or "").strip().lower()
+    servings = parsed_servings if parsed_servings > 0 else 1.0
+
+    if not item:
+        return servings
+
+    if item in text and "whole" in text:
+        if unit in {"slice", "slices"}:
+            # Midpoint of common 8-12 slice range.
+            return max(servings, 10.0)
+        if unit in {"piece", "pieces"}:
+            return max(servings, 8.0)
+        return max(servings, 2.0)
+
+    if item in text and ("half" in text or "1/2" in text):
+        return max(servings, 0.5)
+
+    if item in text and ("quarter" in text or "1/4" in text):
+        return max(servings, 0.25)
+
+    return servings
 
 
 async def generate_recipe_embedding(description: str) -> List[float]:
@@ -797,7 +863,17 @@ async def identify_recipes_from_meal(meal_description: str, user_recipes: List[d
         if user_recipes:
             recipes_context = "User's existing recipes:\n"
             for idx, recipe in enumerate(user_recipes[:30], 1):
-                recipes_context += f"{idx}. {recipe['description']} (ID: {recipe['recipe_id']})\n"
+                serving_label = recipe.get("serving_size_label")
+                serving_grams = recipe.get("serving_size_grams")
+                serving_bits = []
+                if serving_label:
+                    serving_bits.append(f"label={serving_label}")
+                if serving_grams:
+                    serving_bits.append(f"grams={serving_grams}")
+                serving_info = f", serving_info: ({', '.join(serving_bits)})" if serving_bits else ""
+                recipes_context += (
+                    f"{idx}. {recipe['description']} (ID: {recipe['recipe_id']}{serving_info})\n"
+                )
                 
         custom_foods_context = ""
         if user_custom_foods:
@@ -841,6 +917,8 @@ IMPORTANT RULES:
   "2 slices cheese pizza" = ONE entry for "cheese pizza" with recipe_servings=2
   "3 cups oatmeal" = ONE entry for "oatmeal" with recipe_servings=3
   "half a bowl of rice" = ONE entry for "rice" with recipe_servings=0.5
+- For EXISTING recipe matches, use that recipe's serving_info to infer realistic servings and grams:
+  if serving unit is "slice" and user says "whole pizza", infer ~8-12 slices (use best estimate).
 
 For timestamps:
 - The user's current local time is: {current_time.isoformat()}
@@ -848,10 +926,12 @@ For timestamps:
 - If NO time context is mentioned, use the exact submission time above as the timestamp.
 - Return timestamps in ISO format (YYYY-MM-DDTHH:MM:SS)
 
-For NEW recipes (recipe_id is null and more than 1 ingredient), also estimate the serving size:
-- "serving_size_label": a natural measurement for 1 serving (e.g. "1 bowl", "1 slice", "1 cup")
-- "serving_size_grams": the weight in grams of that 1 serving
-For existing recipe matches or single-ingredient items, set both to null.
+For EVERY parsed item, return serving semantics:
+- "serving_unit": unit from user text (e.g. "slice", "bowl", "cup", "mug", "plate")
+- "serving_size_label": normalized one-unit label (e.g. "1 slice", "1 bowl")
+- "serving_size_grams": grams for ONE serving unit
+- "logged_weight_grams": total grams consumed for this logged item
+If uncertain, estimate using typical values and ingredient context.
 
 Respond with ONLY a JSON object:
 {{
@@ -861,8 +941,10 @@ Respond with ONLY a JSON object:
       "timestamp": "YYYY-MM-DDTHH:MM:SS",
       "description": "food item name",
       "recipe_servings": number,
+      "serving_unit": "unit string",
       "serving_size_label": "natural measurement or null",
       "serving_size_grams": number or null,
+      "logged_weight_grams": number or null,
       "ingredients": [
         {{"food_name": "name", "amount": "portion", "weight_in_grams": number}}
       ]
@@ -1001,8 +1083,12 @@ async def process_recipes_in_background(
         for item in identified_recipes:
             recipe_id = item.get("recipe_id")
             description = item["description"]
-            servings = item.get("recipe_servings", 1.0)
+            servings = _to_float_or_none(item.get("recipe_servings")) or 1.0
             ingredients = item.get("ingredients", [])
+            serving_unit = _normalize_serving_unit(item.get("serving_unit") or item.get("serving_size_label"))
+            item_serving_size_label = item.get("serving_size_label")
+            parsed_serving_size_grams = _to_float_or_none(item.get("serving_size_grams"))
+            parsed_logged_weight_grams = _to_float_or_none(item.get("logged_weight_grams"))
             timestamp_str = item.get("timestamp")
             if timestamp_str:
                 try:
@@ -1022,9 +1108,32 @@ async def process_recipes_in_background(
                 )
                 if existing_recipe:
                     print(f"  → Existing recipe match")
+                    recipe_serving_size_grams = _to_float_or_none(existing_recipe.get("serving_size_grams"))
+                    if not item_serving_size_label:
+                        item_serving_size_label = existing_recipe.get("serving_size_label")
+                    inferred_unit = _normalize_serving_unit(item_serving_size_label)
+                    servings = _infer_recipe_servings_from_text(
+                        meal_description=meal_description or description,
+                        item_description=description,
+                        parsed_servings=servings,
+                        serving_unit=inferred_unit,
+                    )
+                    resolved_logged_weight_grams = (
+                        parsed_logged_weight_grams
+                        or (servings * parsed_serving_size_grams if parsed_serving_size_grams else None)
+                        or (servings * recipe_serving_size_grams if recipe_serving_size_grams else None)
+                    )
                     await _create_log_for_recipe(
-                        recipe_id, description, servings, timestamp,
-                        existing_recipe["ingredients"], user_id, db
+                        recipe_id=recipe_id,
+                        meal_name=description,
+                        servings=servings,
+                        timestamp=timestamp,
+                        ingredients=existing_recipe["ingredients"],
+                        user_id=user_id,
+                        db=db,
+                        serving_unit=serving_unit,
+                        serving_size_label=item_serving_size_label,
+                        logged_weight_grams=resolved_logged_weight_grams,
                     )
                     continue
 
@@ -1052,7 +1161,11 @@ async def process_recipes_in_background(
                             timestamp,
                             food_data,
                             user_id,
-                            db
+                            db,
+                            serving_unit=serving_unit,
+                            serving_size_label=item_serving_size_label,
+                            logged_weight_grams=parsed_logged_weight_grams,
+                            serving_size_grams=parsed_serving_size_grams,
                         )
                         continue
                     elif classification["type"] == "decompose":
@@ -1139,13 +1252,16 @@ async def process_recipes_in_background(
 
             # Create log for this new recipe
             await _create_log_for_recipe(
-                new_recipe_id,
-                description,
-                servings,
-                timestamp,
-                matched_ingredients,
-                user_id,
-                db
+                recipe_id=new_recipe_id,
+                meal_name=description,
+                servings=servings,
+                timestamp=timestamp,
+                ingredients=matched_ingredients,
+                user_id=user_id,
+                db=db,
+                serving_unit=serving_unit,
+                serving_size_label=serving_size_label,
+                logged_weight_grams=parsed_logged_weight_grams,
             )
 
         print(f"\n=== Background processing completed ===")
@@ -1186,7 +1302,11 @@ async def _create_log_for_food(
     timestamp: datetime,
     food_data: dict,
     user_id: ObjectId,
-    db: Database
+    db: Database,
+    serving_unit: Optional[str] = None,
+    serving_size_label: Optional[str] = None,
+    logged_weight_grams: Optional[float] = None,
+    serving_size_grams: Optional[float] = None,
 ):
     """Create a standalone log entry for a single food (no recipe)."""
     from src.routers.parse import scale_portion_text
@@ -1200,9 +1320,14 @@ async def _create_log_for_food(
         return
 
     base_weight = food_data.get("weight_in_grams", 0)
-    actual_weight = base_weight * servings
+    resolved_logged_weight_grams = (
+        _to_float_or_none(logged_weight_grams)
+        or ((_to_float_or_none(serving_size_grams) or base_weight) * servings)
+    )
+    actual_weight = resolved_logged_weight_grams
     base_amount = food_data.get("amount", "")
-    scaled_amount = scale_portion_text(base_amount, servings) if base_amount else ""
+    scale_ratio = (actual_weight / base_weight) if base_weight > 0 else servings
+    scaled_amount = scale_portion_text(base_amount, scale_ratio) if base_amount else ""
 
     log_dict = {
         "recipe_id": None,  # No recipe - standalone food log
@@ -1214,6 +1339,9 @@ async def _create_log_for_food(
             "amount": scaled_amount,
             "weight_in_grams": actual_weight
         }],
+        "serving_unit": serving_unit,
+        "serving_size_label": serving_size_label,
+        "logged_weight_grams": actual_weight,
         "user_id": user_id,
         "_id": ObjectId()
     }
@@ -1229,10 +1357,24 @@ async def _create_log_for_recipe(
     timestamp: datetime,
     ingredients: List[dict],
     user_id: ObjectId,
-    db: Database
+    db: Database,
+    serving_unit: Optional[str] = None,
+    serving_size_label: Optional[str] = None,
+    logged_weight_grams: Optional[float] = None,
 ):
     """Create a log entry for a recipe with its ingredients as components."""
     from src.routers.parse import scale_portion_text
+
+    base_total_weight = _sum_ingredient_weight(ingredients)
+    resolved_logged_weight_grams = _to_float_or_none(logged_weight_grams)
+    if resolved_logged_weight_grams is None and base_total_weight > 0:
+        resolved_logged_weight_grams = base_total_weight * servings
+
+    scale_ratio = (
+        (resolved_logged_weight_grams / base_total_weight)
+        if (resolved_logged_weight_grams and base_total_weight > 0)
+        else servings
+    )
 
     components = []
     for ingredient in ingredients:
@@ -1242,9 +1384,9 @@ async def _create_log_for_recipe(
 
         if food_id:
             base_weight = ingredient.get("weight_in_grams", 0)
-            actual_weight = base_weight * servings
+            actual_weight = base_weight * scale_ratio
             base_amount = ingredient.get("amount", "")
-            scaled_amount = scale_portion_text(base_amount, servings) if base_amount else ""
+            scaled_amount = scale_portion_text(base_amount, scale_ratio) if base_amount else ""
 
             components.append({
                 "food_id": food_id,
@@ -1262,6 +1404,9 @@ async def _create_log_for_recipe(
         "servings": servings,
         "date": timestamp,
         "components": components,
+        "serving_unit": serving_unit,
+        "serving_size_label": serving_size_label,
+        "logged_weight_grams": resolved_logged_weight_grams,
         "user_id": user_id,
         "_id": ObjectId()
     }
@@ -2039,6 +2184,7 @@ def unlink_log_from_recipe(user: user, db: db, log_id: str = Form(...)):
 @router.post("/sync-logs")
 def sync_logs_to_recipe(user: user, db: db, recipe_id: str = Form(...)):
     """Update all linked logs to match the current recipe ingredients"""
+    from src.routers.parse import scale_portion_text
     # Fetch recipe from user's recipes
     user_data = db.users.find_one(
         {"_id": user["_id"], "recipes.recipe_id": recipe_id},
@@ -2059,22 +2205,32 @@ def sync_logs_to_recipe(user: user, db: db, recipe_id: str = Form(...)):
     if not linked_logs:
         return {"status": "success", "updated_count": 0}
 
+    base_total_weight = _sum_ingredient_weight(ingredients)
     updated_count = 0
     for log in linked_logs:
         servings = log.get("servings", 1.0)
+        logged_weight_grams = _to_float_or_none(log.get("logged_weight_grams"))
+        if logged_weight_grams is None and base_total_weight > 0:
+            logged_weight_grams = base_total_weight * servings
+        scale_ratio = (
+            (logged_weight_grams / base_total_weight)
+            if (logged_weight_grams and base_total_weight > 0)
+            else servings
+        )
 
-        # Rebuild components from recipe ingredients scaled by servings
+        # Rebuild components from recipe ingredients scaled by logged grams ratio
         new_components = []
         for ing in ingredients:
+            base_amount = ing.get("amount", "")
             new_components.append({
                 "food_id": ing["food_id"],
-                "amount": ing.get("amount", ""),
-                "weight_in_grams": ing["weight_in_grams"] * servings
+                "amount": scale_portion_text(base_amount, scale_ratio) if base_amount else "",
+                "weight_in_grams": ing["weight_in_grams"] * scale_ratio
             })
 
         result = db.logs.update_one(
             {"_id": log["_id"]},
-            {"$set": {"components": new_components}}
+            {"$set": {"components": new_components, "logged_weight_grams": logged_weight_grams}}
         )
         if result.modified_count > 0:
             updated_count += 1

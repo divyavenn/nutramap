@@ -1,4 +1,4 @@
-import styled, { createGlobalStyle, keyframes } from 'styled-components';
+import styled, { createGlobalStyle, css, keyframes } from 'styled-components';
 import { SvgButton } from './Sections.styled';
 
 export const LogNewGlobalStyles = createGlobalStyle`
@@ -129,10 +129,12 @@ export const NewLogInputJournal = styled.textarea<NewLogInputJournalProps>`
     color: rgba(255, 255, 255, 0.642);
   }
 
-  ${({ $jiggling }) => $jiggling && `
-    animation: ${jiggleAnim} .3s ease 3.33, ${fadeOut} 1s ease forwards;
-    will-change: opacity, transform;
-  `}
+  ${({ $jiggling }) =>
+    $jiggling &&
+    css`
+      animation: ${jiggleAnim} 0.3s ease 3.33, ${fadeOut} 1s ease forwards;
+      will-change: opacity, transform;
+    `}
 `;
 
 // Styled submit button for the log form — overrides SvgButton sizing/colors

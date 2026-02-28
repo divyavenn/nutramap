@@ -70,7 +70,7 @@ export const FoodTimeSpace = styled.div`
 export const DateDividerEl = styled.div`
   width: 100%;
   max-width: calc(var(--modal-width) + 150px);
-  margin-bottom: 10px;
+  margin: 0 auto 10px;
   border-bottom-style: solid;
   border-bottom-width: .5px;
   border-bottom-color: rgba(168, 85, 247, 0.3);
@@ -93,6 +93,7 @@ export const DayButton = styled.button`
 export const DeletingWrapper = styled.div<{ $isDeleting?: boolean }>`
   width: 100%;
   max-width: calc(var(--modal-width) + 150px);
+  margin: 0 auto;
   ${p => p.$isDeleting && css`
     animation: ${logGroupExit} 0.45s ease-in forwards;
     pointer-events: none;
@@ -283,6 +284,8 @@ export const LoadingRecipeBubble = styled.div`
   display: flex;
   width: 100%;
   max-width: calc(var(--modal-width) + 150px);
+  margin-left: auto;
+  margin-right: auto;
   margin-bottom: 20px;
   flex-direction: row;
   align-self: center;

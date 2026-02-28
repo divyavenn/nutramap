@@ -164,11 +164,20 @@ function MealHeader({
     onNameClick();
   };
 
-  // Display-mode portion text
-  const count = Number.isInteger(servings) ? servings : servings.toFixed(1);
-  const portionText = serving_size_label
-    ? `${count} ${serving_size_label.replace(/^\d+\.?\d*\s+/, '')}`
-    : '';
+  // Display-mode portion text (always show servings, even without serving_size_label)
+  const servingsValue = Number(servings);
+  const safeServings = Number.isFinite(servingsValue) && servingsValue > 0 ? servingsValue : 1;
+  const count = Number.isInteger(safeServings)
+    ? String(safeServings)
+    : safeServings.toFixed(1).replace(/\.0$/, "");
+  const cleanedServingLabel = serving_size_label?.replace(/^\d+\.?\d*\s+/, "").trim();
+  let unitText = cleanedServingLabel || "serving";
+  if (safeServings !== 1 && unitText === "serving") {
+    unitText = "servings";
+  } else if (safeServings !== 1 && unitText && !unitText.endsWith("s")) {
+    unitText = `${unitText}s`;
+  }
+  const portionText = `${count} ${unitText}`;
 
   if (isDeleting) return null;
 

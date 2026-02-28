@@ -88,10 +88,18 @@ def make_log_readable(logs, db, request: Request = None):
         if log.get("recipe_id"):
             recipe = recipe_map.get(log["recipe_id"])
             log["recipe_exists"] = bool(recipe)
-            log["serving_size_label"] = recipe.get("serving_size_label") if recipe else None
+            if log.get("serving_unit"):
+                log["serving_size_label"] = f"1 {str(log['serving_unit']).strip()}"
+            elif log.get("serving_size_label"):
+                log["serving_size_label"] = log.get("serving_size_label")
+            else:
+                log["serving_size_label"] = recipe.get("serving_size_label") if recipe else None
         else:
             log["recipe_exists"] = False
-            log["serving_size_label"] = None
+            if log.get("serving_unit"):
+                log["serving_size_label"] = f"1 {str(log['serving_unit']).strip()}"
+            else:
+                log["serving_size_label"] = log.get("serving_size_label")
 
         log.pop("user_id", None)
     return logs
@@ -384,10 +392,13 @@ def edit_recipe_log(
             updated_components.append(updated_component)
 
     # Update the log
+    total_weight_grams = sum(float(c.get("weight_in_grams", 0) or 0) for c in updated_components)
+
     update_data = {
         "servings": servings,
         "date": new_date,
-        "components": updated_components
+        "components": updated_components,
+        "logged_weight_grams": total_weight_grams,
     }
 
     result = db.logs.update_one({"_id": target_log["_id"]}, {"$set": update_data})
