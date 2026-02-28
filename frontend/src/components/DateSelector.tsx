@@ -7,6 +7,7 @@ import 'react-datepicker/dist/react-datepicker.css';
 
 import React, {useState, useEffect, useRef, forwardRef} from 'react'
 import { DateSelectorProps, getCurrentPeriod } from './structures';
+import { AnimatePresence, motion } from 'framer-motion';
 
 import RightArrow from '../assets/images/caret-right.svg?react'
 import LeftArrow from '../assets/images/caret-left.svg?react'
@@ -55,6 +56,11 @@ interface CalendarProps {
   setIsOpen : (b :  boolean) => void;
 }
 
+const calendarPopupTransition = {
+  duration: 0.18,
+  ease: [0.22, 1, 0.36, 1],
+} as const;
+
 const Calendar = forwardRef<HTMLDivElement, CalendarProps>(({ day, handleSelect, isOpen, setIsOpen }, ref) => {
   const calendarRef = ref as React.RefObject<HTMLDivElement> || useRef<HTMLDivElement>(null);
     // Function to close form if clicked outside
@@ -83,19 +89,30 @@ const Calendar = forwardRef<HTMLDivElement, CalendarProps>(({ day, handleSelect,
 
   return (
     <div>
-      {isOpen && (
-        <CalendarPopup ref={ref || calendarRef}>
-          <DateRange
-            ranges={selection}
-            onChange={handleSelectRanges}
-            moveRangeOnFirstSelection={false}
-            editableDateInputs={false}
-            showDateDisplay={false}
-            showMonthAndYearPickers={true}
-            rangeColors={['#1e002e8d']}
-          />
-        </CalendarPopup>
-      )}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            ref={ref || calendarRef}
+            initial={{ opacity: 0, y: -10, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.99 }}
+            transition={calendarPopupTransition}
+            style={{ transformOrigin: 'top center' }}
+          >
+            <CalendarPopup>
+              <DateRange
+                ranges={selection}
+                onChange={handleSelectRanges}
+                moveRangeOnFirstSelection={false}
+                editableDateInputs={false}
+                showDateDisplay={false}
+                showMonthAndYearPickers={true}
+                rangeColors={['#1e002e8d']}
+              />
+            </CalendarPopup>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 });
@@ -119,22 +136,33 @@ const CalendarDay = forwardRef<HTMLDivElement, CalendarProps>(({ day, handleSele
 
   return (
     <div>
-      {isOpen && (
-        <DatePickerPopup ref={ref || calendarRef}>
-          <DatePicker
-            selected={datePicked} // Pass the selected date
-            onChange={handleDateChange} // Your date change handler
-            inline
-            dayClassName={date => 
-              date.getDate() === datePicked.getDate() && 
-              date.getMonth() === datePicked.getMonth() && 
-              date.getFullYear() === datePicked.getFullYear() 
-                ? "selected-day" 
-                : ""
-            }
-          />
-        </DatePickerPopup>
-      )}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            ref={ref || calendarRef}
+            initial={{ opacity: 0, y: -10, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.99 }}
+            transition={calendarPopupTransition}
+            style={{ transformOrigin: 'top center' }}
+          >
+            <DatePickerPopup>
+              <DatePicker
+                selected={datePicked} // Pass the selected date
+                onChange={handleDateChange} // Your date change handler
+                inline
+                dayClassName={date =>
+                  date.getDate() === datePicked.getDate() &&
+                  date.getMonth() === datePicked.getMonth() &&
+                  date.getFullYear() === datePicked.getFullYear()
+                    ? "selected-day"
+                    : ""
+                }
+              />
+            </DatePickerPopup>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 })
@@ -187,18 +215,29 @@ const CalendarRange = forwardRef<HTMLDivElement, CalendarRangeProps>(({ range, h
 
   return (
     <div>
-      {isOpen && (
-        // if the parent doesn't pass in a ref, use local ref
-        <CalendarPopup ref={ref || calendarRef}>
-          <DateRange
-            ranges={[{ startDate: range.start, endDate: range.end, key: 'selection' }]}
-            onChange={handleSelect}
-            moveRangeOnFirstSelection={false}
-            editableDateInputs={true}
-            rangeColors={['#1e002e8d']}
-          />
-        </CalendarPopup>
-      )}
+      <AnimatePresence>
+        {isOpen && (
+          // if the parent doesn't pass in a ref, use local ref
+          <motion.div
+            ref={ref || calendarRef}
+            initial={{ opacity: 0, y: -10, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.99 }}
+            transition={calendarPopupTransition}
+            style={{ transformOrigin: 'top center' }}
+          >
+            <CalendarPopup>
+              <DateRange
+                ranges={[{ startDate: range.start, endDate: range.end, key: 'selection' }]}
+                onChange={handleSelect}
+                moveRangeOnFirstSelection={false}
+                editableDateInputs={true}
+                rangeColors={['#1e002e8d']}
+              />
+            </CalendarPopup>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 });
@@ -335,7 +374,9 @@ function DateSelector() {
         setIsOpen={setIsOpen}
         clickToOpen={<RangeText>{formatDateRange(dateRange.start, dateRange.end)}</RangeText>}
       />
-      {showLoginPrompt && <LoginPrompt onClose={() => setShowLoginPrompt(false)} />}
+      <AnimatePresence>
+        {showLoginPrompt && <LoginPrompt onClose={() => setShowLoginPrompt(false)} />}
+      </AnimatePresence>
     </DashboardMenu>
   );
 }

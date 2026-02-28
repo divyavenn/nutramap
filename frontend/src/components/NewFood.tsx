@@ -19,6 +19,7 @@ import {
 } from './Foods.styled';
 import { pendingCustomFoodsAtom, PendingCustomFood } from './account_states';
 import { tutorialEvent } from './TryTutorial';
+import { AnimatePresence, motion } from 'framer-motion';
 
 /**
  * NewFood component for adding custom foods
@@ -46,6 +47,7 @@ function NewFood() {
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollCountRef = useRef(0);
   const knownFoodsCountRef = useRef<number | null>(null);
+  const imageTransition = { type: 'spring', stiffness: 420, damping: 32, mass: 0.6 };
 
   // Poll GET /food/custom-foods while foods are pending.
   // When a new food appears, remove the oldest pending entry.
@@ -300,20 +302,33 @@ function NewFood() {
 
         {/* Image previews */}
         {imagePreviews.length > 0 && (
-          <ImagesPreviewGrid>
-            {imagePreviews.map((preview, index) => (
-              <ImagePreviewContainer key={index}>
-                <ImagePreviewEl src={preview} alt={`Preview ${index + 1}`} />
-                <RemoveImageButton
-                  type="button"
-                  onClick={() => clearImage(index)}
-                  aria-label="Remove image"
-                >
-                  ×
-                </RemoveImageButton>
-              </ImagePreviewContainer>
-            ))}
-          </ImagesPreviewGrid>
+          <motion.div layout transition={imageTransition}>
+            <ImagesPreviewGrid>
+              <AnimatePresence initial={false} mode="popLayout">
+                {imagePreviews.map((preview, index) => (
+                  <motion.div
+                    key={`${preview}-${index}`}
+                    layout
+                    initial={{ opacity: 0, y: 8, scale: 0.92 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.9 }}
+                    transition={imageTransition}
+                  >
+                    <ImagePreviewContainer>
+                      <ImagePreviewEl src={preview} alt={`Preview ${index + 1}`} />
+                      <RemoveImageButton
+                        type="button"
+                        onClick={() => clearImage(index)}
+                        aria-label="Remove image"
+                      >
+                        ×
+                      </RemoveImageButton>
+                    </ImagePreviewContainer>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </ImagesPreviewGrid>
+          </motion.div>
         )}
       </FoodFormWrapper>
     </>

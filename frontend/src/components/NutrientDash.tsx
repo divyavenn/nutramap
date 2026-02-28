@@ -6,6 +6,7 @@ import {useRecoilValue, useRecoilValueLoadable} from 'recoil'
 import { currentDayAtom, hoveredLogAtom, hoveredLogPanelData } from './dashboard_states';
 import { requirementsAtom, RequirementData, requirementsDataAtom, dayIntake, averageIntake } from './dashboard_states';
 import { tutorialEvent } from './TryTutorial';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   NutrientDashboardContainer,
   NutrientEditButton,
@@ -76,6 +77,7 @@ function NutrientDashboard(){
   }
 
   const toggleEditing = () =>  { setEditing(!editing); tutorialEvent('tutorial:editing-panel'); }
+  const dashboardLayoutTransition = { type: 'spring', stiffness: 360, damping: 32, mass: 0.7 } as const;
 
   // Fixed height based on row count so hover mode never changes panel size.
   // Constants derived from NutrientStats.css:
@@ -92,43 +94,96 @@ function NutrientDashboard(){
     : 300; // fallback for "no requirements" state
 
   return (
-    <NutrientDashboardContainer
-      className="nutrient-dashboard"
-      $foodHovered={!!hoveredLog}
-      style={!editing ? { height: panelHeight } : undefined}
-    >
-      {!editing && <NutrientDashboardTitle/>}
-        <RequirementEditWrapper ref={editFormRef}>
-          {!editing ?
-            requirements.length === 0 ?
-              <NoReqMessage>no requirements</NoReqMessage> :
-              <NutrientListWrapper>
-                <NutrientStats requirements={requirements}/>
-              </NutrientListWrapper> :
-            (<NutrientEditListWrapper className="nutrient-edit-list-wrapper">
-              <NutrientEditPanelTitle>nutritional targets</NutrientEditPanelTitle>
-              {requirements.length > 0 &&
-              requirements.map((n, index) =>
-                {return(
-                  <NewNutrientForm
-                    key={n.name}
-                    original={n}/>);
-                })
-              }
-              <NewNutrientForm/>
-            </NutrientEditListWrapper>)}
-        </RequirementEditWrapper>
+    <motion.div layout transition={dashboardLayoutTransition}>
+      <NutrientDashboardContainer
+        className="nutrient-dashboard"
+        $foodHovered={!!hoveredLog}
+        style={!editing ? { height: panelHeight } : undefined}
+      >
+        <AnimatePresence initial={false} mode="wait">
+          {!editing && (
+            <motion.div
+              key="nutrient-title"
+              layout
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.16, ease: 'easeOut' }}
+              style={{ width: '100%' }}
+            >
+              <NutrientDashboardTitle/>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-      {!editing && (
-        <NutrientEditButton
-          className="tutorial-nutrient-edit-button"
-          onClick={hoveredLog ? undefined : toggleEditing}
-          style={{ visibility: hoveredLog ? 'hidden' : 'visible' }}
-        >
-          <img src={addIcon} alt="Edit nutrients" width="30" height="30" />
-        </NutrientEditButton>
-      )}
-    </NutrientDashboardContainer>
+        <motion.div layout transition={dashboardLayoutTransition} style={{ width: '100%' }}>
+          <RequirementEditWrapper ref={editFormRef}>
+            <AnimatePresence initial={false} mode="wait">
+              {!editing ? (
+                <motion.div
+                  key="view-mode"
+                  layout
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                >
+                  {requirements.length === 0 ? (
+                    <NoReqMessage>no requirements</NoReqMessage>
+                  ) : (
+                    <NutrientListWrapper>
+                      <NutrientStats requirements={requirements}/>
+                    </NutrientListWrapper>
+                  )}
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="edit-mode"
+                  layout
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                >
+                  <NutrientEditListWrapper className="nutrient-edit-list-wrapper">
+                    <NutrientEditPanelTitle>nutritional targets</NutrientEditPanelTitle>
+                    {requirements.length > 0 &&
+                      requirements.map((n, index) =>
+                        {return(
+                          <NewNutrientForm
+                            key={n.name}
+                            original={n}/>);
+                        })
+                    }
+                    <NewNutrientForm/>
+                  </NutrientEditListWrapper>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </RequirementEditWrapper>
+        </motion.div>
+
+        <AnimatePresence initial={false}>
+          {!editing && (
+            <motion.div
+              key="add-requirement-button"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
+            >
+              <NutrientEditButton
+                className="tutorial-nutrient-edit-button"
+                onClick={hoveredLog ? undefined : toggleEditing}
+                style={{ visibility: hoveredLog ? 'hidden' : 'visible' }}
+              >
+                <img src={addIcon} alt="Edit nutrients" width="30" height="30" />
+              </NutrientEditButton>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </NutrientDashboardContainer>
+    </motion.div>
   )
 }
 
@@ -180,7 +235,7 @@ const NutrientStats = ({requirements} : {requirements : RequirementData[]}) => {
     if (hoveredLog && hoveredPanel.state === 'hasValue' && hoveredPanel.contents) {
       // Use hovered log's nutrient data
       startTransition(() => {
-        setDailyValues(hoveredPanel.contents);
+        setDailyValues(hoveredPanel.contents ?? initialize());
       });
     } else if (day.state === 'hasValue') {
       // Use day intake when not hovering
