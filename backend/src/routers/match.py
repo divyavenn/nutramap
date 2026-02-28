@@ -11,21 +11,17 @@
 #	Experiment with distilled vector models for compactness
 #Try compressed sparse vector fusion
 
-from fastapi import APIRouter, Depends, Request, Body, Query
+from fastapi import APIRouter, Depends, Request, Query
 from fastapi.responses import JSONResponse
-from fastapi import BackgroundTasks
 from typing import Dict
-import asyncio
 import time
 from datetime import datetime, timedelta
 from collections import OrderedDict
 
 # When running as a module within the application, use relative imports
 try:
-    from .parse import estimate_grams
     from .sparse import get_sparse_index
     from .dense import find_dense_matches
-    from .logs import add_log
     from .auth import get_current_user
     from src.databases.mongo import get_data
     from .foods import get_food_name
@@ -36,10 +32,8 @@ except ImportError:
     import sys
     import os
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-    from src.routers.parse import parse_meal_description
     from src.routers.sparse import get_sparse_index
     from src.routers.dense import find_dense_matches
-    from src.routers.logs import add_log
     from src.routers.auth import get_current_user
     from src.databases.mongo import get_data
     from src.routers.foods import get_food_name
@@ -198,85 +192,6 @@ async def rrf_fusion(
         return []
     sorted_scores = sorted(combined_scores.items(), key=lambda x: x[1], reverse=True)
     return [item_id for item_id, _ in sorted_scores[:n]]
-
-@router.post("/log-meal")
-async def log_meal(  
-    user: user,
-    db: db,
-    request: Request,
-    background: BackgroundTasks, 
-    request_data: dict = Body(...),
-):
-    meal_description = request_data.get("meal_description", "")
-    # print(meal_description)
-    
-    parsed_foods, timestamps = await parse_meal_description(meal_description)
-    
-    # Convert datetime objects to ISO format strings for JSON serialization
-    serializable_timestamps = {
-        food_name: timestamp.isoformat() 
-        for food_name, timestamp in timestamps.items()
-    }
-    
-    # Return early with the number of logs that will be processed
-    # This allows the frontend to start showing animations while processing continues
-    response = JSONResponse(
-        content={
-            "status": "processing", 
-            "log_count": len(parsed_foods),
-            "foods": [{item["food_name"] : serializable_timestamps[item["food_name"]]} for item in parsed_foods]
-        }
-    )
-    background.add_task(process_logs, user, db, request, parsed_foods, timestamps)
-    
-    return response
-
-@router.post("/log-meal-now")
-async def log_meal_now(  
-    user: user,
-    db: db,
-    request: Request,
-    request_data: dict = Body(...),
-):
-    meal_description = request_data.get("meal_description", "")
-    parsed_foods, timestamps = await parse_meal_description(meal_description)
-    await process_logs(user, db, request, parsed_foods, timestamps)
-
-    return {"status": "success", "message": f"Logged {len(parsed_foods)} items"}
-
-async def process_logs(user, db, request, parsed_foods, timestamps):
-    """Process logs in the background after initial response is sent"""
-    try:
-        async def process_ingredient(ingredient):
-            # Convert portion to grams using GPT
-            portion = ingredient.get('portion', '1 serving')
-            weight_in_grams = await estimate_grams(ingredient['food_name'], portion)
-
-            # Find matches using RRF fusion
-            food_name = ingredient['food_name']
-            matches = await rrf_fusion(
-                get_sparse_index, [food_name, db, user, 60, 50],
-                find_dense_matches, [food_name, db, user, request, 40, 50],
-                k=30,
-                n=1
-            )
-
-            return {
-                "food_id": int(matches[0]) if matches else None,
-                "amount": portion,  # Store natural portion
-                "weight_in_grams": weight_in_grams,  # Store converted grams
-                "date": timestamps.get(ingredient['food_name']),
-                "user_id": user["_id"]
-            }
-
-        log_entries = await asyncio.gather(*[process_ingredient(ingredient) for ingredient in parsed_foods])
-
-        await asyncio.gather(*[add_log(user, log_entry, db) for log_entry in log_entries])
-    except Exception as e:
-        print(f"Error in background log processing: {e}")
-        import traceback
-        traceback.print_exc()
-
 
 @router.post("/autocomplete")
 async def autocomplete(user : user, db : db, request : Request, prompt: str):

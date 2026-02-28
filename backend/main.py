@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from src.routers import auth, foods, users, requirements, logs, nutrients, match, trial_user, recipes
@@ -87,15 +88,28 @@ fastapi_app = FastAPI(lifespan=lifespan)
 # Templates are not currently used - initialize lazily if needed
 # templates = Jinja2Templates(directory="templates")
 
+allowed_origins = [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "https://www.nutramap.me",
+    "https://nutramap.me",
+    "https://nutramap.vercel.app",
+]
+
+extra_allowed_origins = os.getenv("CORS_ALLOW_ORIGINS", "")
+if extra_allowed_origins:
+    allowed_origins.extend(
+        origin.strip()
+        for origin in extra_allowed_origins.split(",")
+        if origin.strip()
+    )
+
 fastapi_app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "https://www.nutramap.me",
-        "https://nutramap.me",
-        "*"
-    ],
+    allow_origins=list(dict.fromkeys(allowed_origins)),
+    # Support Vercel preview deployments like:
+    # https://nutramap-git-main-<team>.vercel.app
+    allow_origin_regex=r"^https://nutramap(?:-[a-z0-9-]+)?\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

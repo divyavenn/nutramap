@@ -171,3 +171,4 @@ backend/.env.local
 
 *.sh
 *.sh
+backend/deploy-modal.sh

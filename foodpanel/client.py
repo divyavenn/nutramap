@@ -91,11 +91,11 @@ class FoodpanelClient:
         return self._request("POST", "/recipes/parse-meal", data=form_data)
 
     def log_entry(self, entry: str) -> Dict[str, Any]:
-        """Log a free-form meal entry, letting the backend infer dates/times from text."""
+        """Log a free-form meal entry via the same parser flow used by the frontend."""
         return self._request(
             "POST",
-            "/match/log-meal-now",
-            json_data={"meal_description": entry},
+            "/recipes/parse-meal",
+            data={"meal_description": entry},
         )
 
     def get_logs(self, start_date: DateLike, end_date: DateLike) -> List[Dict[str, Any]]:
@@ -110,18 +110,135 @@ class FoodpanelClient:
 
     def get_day_intake(self, day: DateLike) -> Dict[str, Any]:
         params = {"date": self._to_datetime_string(day, end_of_day=False)}
-        return self._request("GET", "/logs/day_intake", params=params)
+        totals = self._request("GET", "/logs/day_intake", params=params)
+        if isinstance(totals, dict):
+            return self._humanize_nutrient_totals(totals)
+        return totals
 
     def get_progress_stats(self, start_date: DateLike, end_date: DateLike) -> Dict[str, Any]:
         params = {
             "startDate": self._to_datetime_string(start_date, end_of_day=False),
             "endDate": self._to_datetime_string(end_date, end_of_day=True),
         }
-        return self._request("GET", "/logs/range_intake", params=params)
+        totals = self._request("GET", "/logs/range_intake", params=params)
+        if isinstance(totals, dict):
+            return self._humanize_nutrient_totals(totals)
+        return totals
+
+    def get_nutrients(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Return nutrient metadata keyed by nutrient name:
+        {
+          "Protein": {"id": 1003, "unit": "g"},
+          ...
+        }
+        """
+        return self._request("GET", "/nutrients/all")
+
+    # Requirements
+    def list_requirements(self) -> List[Dict[str, Any]]:
+        """
+        Return requirement list with nutrient names/units:
+        [
+          {
+            "nutrient_id": "1003",
+            "nutrient_name": "Protein",
+            "unit": "G",
+            "target": 120,
+            "should_exceed": True
+          },
+          ...
+        ]
+        """
+        payload = self._request("GET", "/requirements/all")
+        if not isinstance(payload, dict):
+            return []
+
+        nutrient_lookup = self._build_nutrient_lookup()
+        out: List[Dict[str, Any]] = []
+        for nutrient_id, cfg in payload.items():
+            nutrient_id_str = str(nutrient_id)
+            name, unit = nutrient_lookup.get(nutrient_id_str, (f"Nutrient {nutrient_id_str}", ""))
+            if not isinstance(cfg, dict):
+                continue
+            out.append(
+                {
+                    "nutrient_id": nutrient_id_str,
+                    "nutrient_name": name,
+                    "unit": unit,
+                    "target": cfg.get("target"),
+                    "should_exceed": bool(cfg.get("should_exceed")),
+                }
+            )
+        out.sort(key=lambda x: x.get("nutrient_name", ""))
+        return out
+
+    def add_requirement(self, nutrient_id: int, target: float, should_exceed: bool) -> Dict[str, Any]:
+        payload = {
+            "nutrient_id": int(nutrient_id),
+            "amt": float(target),
+            "should_exceed": bool(should_exceed),
+        }
+        result = self._request("POST", "/requirements/new", json_data=payload)
+        return result if isinstance(result, dict) else {"status": "success"}
+
+    def remove_requirement(self, nutrient_id: int) -> Dict[str, Any]:
+        result = self._request("DELETE", "/requirements/delete", params={"requirement_id": int(nutrient_id)})
+        return result if isinstance(result, dict) else {"status": "success"}
+
+    def edit_requirement(
+        self,
+        nutrient_id: int,
+        target: float,
+        should_exceed: bool,
+        *,
+        new_nutrient_id: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """
+        Edit a requirement. If new_nutrient_id differs, delete old requirement and add new one.
+        """
+        effective_id = int(new_nutrient_id) if new_nutrient_id is not None else int(nutrient_id)
+        if effective_id != int(nutrient_id):
+            self.remove_requirement(int(nutrient_id))
+        self.add_requirement(effective_id, target, should_exceed)
+        return {"status": "success", "nutrient_id": effective_id}
 
     # Custom foods
     def list_custom_foods(self) -> List[Dict[str, Any]]:
-        return self._request("GET", "/food/custom-foods")
+        foods = self._request("GET", "/food/custom-foods")
+        if not isinstance(foods, list):
+            return foods
+
+        nutrient_lookup = self._build_nutrient_lookup()
+        enriched: List[Dict[str, Any]] = []
+        for food in foods:
+            if not isinstance(food, dict):
+                enriched.append(food)
+                continue
+
+            nutrient_details: List[Dict[str, Any]] = []
+            nutrients = food.get("nutrients", {})
+            if isinstance(nutrients, dict):
+                for nutrient_id, amount in nutrients.items():
+                    name, unit = nutrient_lookup.get(str(nutrient_id), (f"Nutrient {nutrient_id}", ""))
+                    nutrient_details.append(
+                        {
+                            "nutrient_id": str(nutrient_id),
+                            "nutrient_name": name,
+                            "amount": amount,
+                            "unit": unit,
+                        }
+                    )
+
+            enriched.append(
+                {
+                    **food,
+                    "id": food.get("_id"),
+                    "display_name": str(food.get("name", "")).strip(),
+                    "nutrient_details": nutrient_details,
+                }
+            )
+        return enriched
 
     def get_custom_food(self, food_id: str) -> Dict[str, Any]:
         return self._request("GET", f"/food/custom_foods/{food_id}")
@@ -145,7 +262,50 @@ class FoodpanelClient:
 
     # Recipes
     def list_recipes(self) -> Dict[str, Any]:
-        return self._request("GET", "/recipes/list")
+        payload = self._request("GET", "/recipes/list")
+        if not isinstance(payload, dict):
+            return payload
+
+        recipes = payload.get("recipes", [])
+        if not isinstance(recipes, list):
+            return payload
+
+        enriched_recipes: List[Dict[str, Any]] = []
+        for recipe in recipes:
+            if not isinstance(recipe, dict):
+                enriched_recipes.append(recipe)
+                continue
+
+            ingredients = recipe.get("ingredients", [])
+            ingredient_details: List[Dict[str, Any]] = []
+            if isinstance(ingredients, list):
+                for ingredient in ingredients:
+                    if not isinstance(ingredient, dict):
+                        continue
+                    food_id = ingredient.get("food_id")
+                    food_name = ingredient.get("food_name")
+                    ingredient_details.append(
+                        {
+                            "food_id": str(food_id) if food_id is not None else None,
+                            "food_name": (str(food_name).strip() if food_name else f"Food {food_id}"),
+                            "amount": ingredient.get("amount"),
+                            "weight_in_grams": ingredient.get("weight_in_grams"),
+                        }
+                    )
+
+            enriched_recipes.append(
+                {
+                    **recipe,
+                    "display_name": str(recipe.get("description", "")).strip(),
+                    "serving_label": recipe.get("serving_size_label"),
+                    "ingredient_details": ingredient_details,
+                }
+            )
+
+        return {
+            **payload,
+            "recipes": enriched_recipes,
+        }
 
     def create_recipe(self, name: str, ingredients: List[Dict[str, Any]]) -> Dict[str, Any]:
         form_data = {
@@ -208,6 +368,9 @@ class FoodpanelClient:
             form_data["food_id"] = str(food_id)
         return self._request("POST", "/recipes/edit-ingredient", data=form_data)
 
+    def delete_recipe(self, recipe_id: str) -> Dict[str, Any]:
+        return self._request("DELETE", "/recipes/delete", params={"recipe_id": recipe_id})
+
     def _request(
         self,
         method: str,
@@ -255,6 +418,35 @@ class FoodpanelClient:
             return response.json()
         except ValueError:
             return response.text
+
+    def _build_nutrient_lookup(self) -> Dict[str, tuple[str, str]]:
+        """Return map of nutrient_id -> (nutrient_name, unit)."""
+        nutrient_map = self.get_nutrients()
+        lookup: Dict[str, tuple[str, str]] = {}
+        if not isinstance(nutrient_map, dict):
+            return lookup
+
+        for nutrient_name, meta in nutrient_map.items():
+            if not isinstance(meta, dict):
+                continue
+            nutrient_id = meta.get("id")
+            if nutrient_id is None:
+                continue
+            lookup[str(nutrient_id)] = (str(nutrient_name), str(meta.get("unit", "") or ""))
+        return lookup
+
+    def _humanize_nutrient_totals(self, totals: Dict[Any, Any]) -> Dict[str, Any]:
+        """Convert nutrient-id keyed totals to nutrient-name keyed totals."""
+        lookup = self._build_nutrient_lookup()
+        humanized: Dict[str, Any] = {}
+
+        for nutrient_id, amount in totals.items():
+            nutrient_key = str(nutrient_id)
+            name, unit = lookup.get(nutrient_key, (f"Nutrient {nutrient_key}", ""))
+            label = f"{name} ({unit})" if unit else name
+            humanized[label] = amount
+
+        return humanized
 
     def _raise_api_error(self, response: httpx.Response, path: str) -> None:
         status_code = response.status_code

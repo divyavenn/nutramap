@@ -385,25 +385,48 @@ def get_nutrient_details(db, nutrient_id: int):
 
 def get_food_name(food_id: int, db: Annotated[Database, Depends(get_data)] = None, request: Request = None):
     # Check app state first
-    if request is not None and hasattr(request.app.state, 'id_name_map') and food_id in request.app.state.id_name_map:
-        food_data = request.app.state.id_name_map[food_id]
+    lookup_id = food_id
+    if isinstance(food_id, str):
+        stripped = food_id.strip()
+        if stripped.isdigit():
+            lookup_id = int(stripped)
+
+    if request is not None and hasattr(request.app.state, 'id_name_map') and lookup_id in request.app.state.id_name_map:
+        food_data = request.app.state.id_name_map[lookup_id]
         # Handle both dict format {"name": "..."} and string format
         return food_data["name"] if isinstance(food_data, dict) else food_data
 
     # Then check pickle
     try:
-        with open(os.getenv("FOOD_ID_CACHE"), 'rb') as f:
+        cache_path = os.getenv("FOOD_ID_CACHE")
+        if not cache_path:
+            raise FileNotFoundError("FOOD_ID_CACHE is not configured")
+
+        with open(cache_path, 'rb') as f:
             foods = pickle.load(f)
-            if food_id in foods:
-                food_data = foods[food_id]
+            if lookup_id in foods:
+                food_data = foods[lookup_id]
                 # Handle both dict format {"name": "..."} and string format
                 return food_data["name"] if isinstance(food_data, dict) else food_data
-    except (FileNotFoundError, pickle.UnpicklingError) as e:
+    except (FileNotFoundError, pickle.UnpicklingError, TypeError, OSError) as e:
         print(f"Warning: Failed to load pickle cache: {e}")
 
     # Finally, default to MongoDB query
-    # Convert string IDs to ObjectId for custom foods
-    query_id = ObjectId(food_id) if isinstance(food_id, str) else food_id
+    # Convert IDs safely:
+    # - numeric strings map to int USDA IDs
+    # - 24-char ObjectId strings map to ObjectId
+    # - invalid strings return "No data found." instead of throwing InvalidId
+    query_id = lookup_id
+    if isinstance(lookup_id, str):
+        stripped = lookup_id.strip()
+        if stripped.isdigit():
+            query_id = int(stripped)
+        elif len(stripped) == 24 and ObjectId.is_valid(stripped):
+            query_id = ObjectId(stripped)
+        else:
+            print(f"Warning: Invalid food ID format: {food_id}")
+            return "No data found."
+
     food = db.foods.find_one({"_id": query_id}, {"food_name": 1, "_id": 0})
 
     if not food:

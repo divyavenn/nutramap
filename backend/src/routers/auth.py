@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Form, Request, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Form, Request
 from fastapi.security import OAuth2PasswordBearer
 from pymongo.database import Database
 from typing_extensions import Annotated
@@ -9,9 +9,9 @@ from fastapi.responses import JSONResponse
 from bson import ObjectId
 import os
 from dotenv import load_dotenv
-import faiss
 import asyncio
 import pickle
+import faiss
 
 # When running as a module within the application, use relative imports
 try:
@@ -106,102 +106,61 @@ def get_current_user(token:Annotated[str, Depends(oauth2_bearer)]):
 
 #--------------------------------------end points------------------------------------------------------# 
 
-
-def update_sparse_index(db: Database, user: dict, request: Request, background_tasks: BackgroundTasks):
-    background_tasks.add_task(update_sparse_index, db=db, user=user, request=request)
-
-
-
 @router.post("/submit_login")
-async def handle_login(request: Request, background_tasks: BackgroundTasks, username: str = Form(...), password: str = Form(...)):
+async def handle_login(request: Request, username: str = Form(...), password: str = Form(...)):
     user = authenticate_user(username, password, get_data())
     token = create_access_token(user["email"], str(user["_id"]), user["role"], user["name"], timedelta(minutes=60))
-    
-    # Initialize indexes with the current user's information
+
+    # Keep login response fast while always initializing indexes in the background.
+    async def init_indexes() -> None:
+        db = get_data()
+        print(f"Starting index initialization for user {user['email']}")
+        try:
+            # Import inside async task so login path does not pay import cost.
+            from src.routers.dense import update_faiss_index, update_foods_list
+            from src.routers.sparse import _get_client as get_typesense_client
+            from src.routers.sparse import update_sparse_index
+
+            tasks = []
+            typesense_client = get_typesense_client()
+            needs_typesense_update = False
+
+            if typesense_client:
+                try:
+                    typesense_client.collections["foods"].retrieve()
+                except Exception:
+                    needs_typesense_update = True
+                try:
+                    typesense_client.collections["nutrients"].retrieve()
+                except Exception:
+                    needs_typesense_update = True
+
+            if needs_typesense_update:
+                tasks.append(update_sparse_index(db=db, user=user))
+
+            faiss_path = os.getenv("FAISS_BIN")
+            if not (faiss_path and os.path.exists(faiss_path) and os.path.getsize(faiss_path) > 0):
+                tasks.append(update_faiss_index(db=db, user=user, request=request))
+            else:
+                request.app.state.faiss_index = faiss.read_index(faiss_path)
+
+            id_list_path = os.getenv("FOOD_ID_CACHE")
+            if not (id_list_path and os.path.exists(id_list_path) and os.path.getsize(id_list_path) > 0):
+                tasks.append(update_foods_list(db=db, user=user, request=request))
+            else:
+                with open(id_list_path, "rb") as f:
+                    request.app.state.id_name_map = pickle.load(f)
+
+            if tasks:
+                await asyncio.gather(*tasks, return_exceptions=True)
+        except Exception as e:
+            print(f"Error in background index initialization: {e}")
+
     try:
-        # Import here to avoid circular imports
-        from src.routers.dense import update_faiss_index, update_foods_list
-        from src.routers.sparse import update_sparse_index
-        
-        # Define the initialization function as a standalone function
-        # This ensures it runs completely independently of the request
-        async def init_indexes():
-            db = get_data()
-            print(f"Starting index initialization for user {user['email']}")
-            try:
-                # Process index initialization tasks in parallel
-                async def check_and_update_indexes():
-                    tasks = []
-
-                    # Check Typesense collections - only update if they don't exist
-                    from src.routers.sparse import _get_client as get_typesense_client
-                    typesense_client = get_typesense_client()
-                    needs_typesense_update = False
-
-                    if typesense_client:
-                        try:
-                            # Check if 'foods' collection exists
-                            foods_collection = typesense_client.collections['foods'].retrieve()
-                            print(f"✓ Typesense 'foods' collection exists with {foods_collection.get('num_documents', 0)} documents")
-                        except Exception:
-                            print("⚠ Typesense 'foods' collection not found, will create it")
-                            needs_typesense_update = True
-
-                        try:
-                            # Check if 'nutrients' collection exists
-                            nutrients_collection = typesense_client.collections['nutrients'].retrieve()
-                            print(f"✓ Typesense 'nutrients' collection exists with {nutrients_collection.get('num_documents', 0)} documents")
-                        except Exception:
-                            print("⚠ Typesense 'nutrients' collection not found, will create it")
-                            needs_typesense_update = True
-                    else:
-                        print("⚠ Typesense client not configured")
-
-                    # Only update Typesense if needed
-                    if needs_typesense_update:
-                        tasks.append(update_sparse_index(db=db, user=user))
-
-                    # Check FAISS index
-                    faiss_path = os.getenv("FAISS_BIN")
-                    if not (faiss_path and os.path.exists(faiss_path) and os.path.getsize(faiss_path) > 0):
-                        print("No index found — generating FAISS index...")
-                        tasks.append(update_faiss_index(db=db, user=user, request=request))
-                    else:
-                        print("Loading FAISS index from disk...")
-                        index = faiss.read_index(faiss_path)
-                        request.app.state.faiss_index = index
-                    
-                    # Check ID list
-                    id_list_path = os.getenv("FOOD_ID_CACHE")
-                    if not (os.path.exists(id_list_path) and os.path.getsize(id_list_path) > 0):
-                        print("No id list found — generating id list...")
-                        tasks.append(update_foods_list(db=db, user=user, request=request))
-                    else:
-                        with open(id_list_path, "rb") as f:
-                            id_name_map = pickle.load(f)
-                        request.app.state.id_name_map = id_name_map
-                    
-                    # Run all tasks in parallel if there are any
-                    if tasks:
-                        await asyncio.gather(*tasks)
-                
-                # Add the parallel processing task to background tasks
-                background_tasks.add_task(check_and_update_indexes)
-                
-            except Exception as e:
-                print(f"Error in background index initialization: {e}")
-                import traceback
-                traceback.print_exc()
-                
-        background_tasks.add_task(init_indexes)
-        
+        asyncio.create_task(init_indexes())
     except Exception as e:
-      print(f"Error in background index initialization: {e}")
-      import traceback
-      traceback.print_exc()
-    
-    # Return the token in the response body immediately
-    # This allows the user to proceed to the dashboard while indexes initialize
+        print(f"Failed to schedule background index initialization: {e}")
+
     return JSONResponse(content={"access_token": token, "token_type": "bearer"}, status_code=200)
     
 

@@ -3,16 +3,18 @@ name = "foodpanel"
 version = "0.1.0"
 description = "Shared client and CLI for the Foodpanel API"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "httpx>=0.27.0",
     "mcp>=1.0.0",
+    "rich>=13.7.0",
 ]
 
 [project.scripts]
 foodpanel = "foodpanel.cli:main"
 foodPanel = "foodpanel.cli:main"
 foodpanel-mcp = "foodpanel_mcp.server:main"
+foodpanel-mcp-http = "foodpanel_mcp.server:main_http"
 
 [build-system]
 requires = ["hatchling"]
