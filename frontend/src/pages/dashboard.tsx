@@ -13,7 +13,6 @@ import DashboardIcon from '../assets/images/dashboard.svg?react'
 import FoodBowl from '../assets/images/food_bowl.svg?react'
 import RecipesIcon from '../assets/images/recipes.svg?react'
 import { isLoginExpired } from '../components/utlis'
-import { useNavigate } from 'react-router-dom'
 import { firstNameAtom, useRefreshAccountInfo } from '../components/account_states'
 import { useRecoilValue } from 'recoil'
 
@@ -156,16 +155,17 @@ function Dashboard() {
   const name = useRecoilValue(firstNameAtom)
   const refreshAccountInfo = useRefreshAccountInfo()
   const refreshData = useRefreshData()
-  const navigate = useNavigate()
+  const isLoggedIn = !isLoginExpired()
 
   useEffect(() => {
     const init = async () => {
-      if (isLoginExpired()) { navigate('/login'); return }
-      refreshData()
-      refreshAccountInfo()
+      // Dashboard is viewable while logged out; only fetch protected data when authenticated.
+      if (!isLoggedIn) return
+      await refreshData()
+      await refreshAccountInfo()
     }
     init()
-  }, [])
+  }, [isLoggedIn, refreshData, refreshAccountInfo])
 
   const greeting = name ? `Hello, ${name}` : 'Hello, you!'
 

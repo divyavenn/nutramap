@@ -17,6 +17,7 @@ STATELESS_ENV = "FOODPANEL_MCP_STATELESS"
 TRANSPORT_ENV = "FOODPANEL_MCP_TRANSPORT"
 ACCESS_TOKEN_ENV = "FOODPANEL_ACCESS_TOKEN"
 ACCESS_TOKEN_HEADER = "x-foodpanel-access-token"
+TIMEOUT_ENV = "FOODPANEL_TIMEOUT_SECONDS"
 
 mcp = FastMCP(
     SERVER_NAME,
@@ -100,9 +101,15 @@ def _get_client(
 ) -> FoodpanelClient:
     resolved_token, _ = _resolve_access_token(ctx, explicit_token=access_token)
     resolved_base_url = base_url or os.getenv("FOODPANEL_API_URL")
+    timeout_raw = os.getenv(TIMEOUT_ENV)
+    try:
+        resolved_timeout = float(timeout_raw) if timeout_raw else None
+    except (TypeError, ValueError):
+        resolved_timeout = None
     return FoodpanelClient(
         base_url=resolved_base_url,
         access_token=resolved_token,
+        timeout=resolved_timeout,
         persist_session=not _is_stateless_mode(ctx),
     )
 

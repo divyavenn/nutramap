@@ -27,7 +27,7 @@ class FoodpanelClient:
         *,
         base_url: Optional[str] = None,
         access_token: Optional[str] = None,
-        timeout: float = 30.0,
+        timeout: Optional[float] = None,
         config_path: Optional[str] = None,
         persist_session: bool = True,
     ) -> None:
@@ -41,9 +41,20 @@ class FoodpanelClient:
             or os.getenv("FOODPANEL_API_URL")
             or DEFAULT_BASE_URL
         )
+        resolved_timeout = timeout
+        if resolved_timeout is None:
+            env_timeout = os.getenv("FOODPANEL_TIMEOUT_SECONDS")
+            try:
+                resolved_timeout = float(env_timeout) if env_timeout else 90.0
+            except (TypeError, ValueError):
+                resolved_timeout = 90.0
+
         self.base_url = resolved_base_url.rstrip("/")
         self._access_token = access_token if access_token is not None else (stored.access_token if stored else None)
-        self._client = httpx.Client(base_url=self.base_url, timeout=timeout)
+        self._client = httpx.Client(
+            base_url=self.base_url,
+            timeout=httpx.Timeout(timeout=resolved_timeout),
+        )
 
         if persist_session:
             self._store.save(base_url=self.base_url, access_token=self._access_token)

@@ -15,6 +15,7 @@ export const FoodNameSpace = styled.div`
   padding-right: 10px;
   width: var(--log-name-width);
   min-width: 0;
+  font-family: Inconsolata;
   display: flex;
   align-items: center;
   overflow: hidden;
@@ -70,16 +71,16 @@ export const FoodTimeSpace = styled.div`
 export const DateDividerEl = styled.div`
   width: 100%;
   max-width: calc(var(--modal-width) + 150px);
-  margin: 0 auto 10px;
+  margin-bottom: 10px;
   border-bottom-style: solid;
   border-bottom-width: .5px;
-  border-bottom-color: rgba(168, 85, 247, 0.3);
+  border-bottom-color: #a855f7;
 `;
 
 export const DayButton = styled.button`
   margin-bottom: 0;
   font-family: Inconsolata;
-  color: rgba(168, 85, 247, 0.5);
+  color: #a855f7;
   font-size: 15px;
   font-weight: 300;
   background-color: transparent;
@@ -93,7 +94,6 @@ export const DayButton = styled.button`
 export const DeletingWrapper = styled.div<{ $isDeleting?: boolean }>`
   width: 100%;
   max-width: calc(var(--modal-width) + 150px);
-  margin: 0 auto;
   ${p => p.$isDeleting && css`
     animation: ${logGroupExit} 0.45s ease-in forwards;
     pointer-events: none;
@@ -284,8 +284,6 @@ export const LoadingRecipeBubble = styled.div`
   display: flex;
   width: 100%;
   max-width: calc(var(--modal-width) + 150px);
-  margin-left: auto;
-  margin-right: auto;
   margin-bottom: 20px;
   flex-direction: row;
   align-self: center;

@@ -63,7 +63,7 @@ function getHeader(authorized : boolean = true, hasData : boolean = false, data_
   if (authorized) {
     const token = localStorage.getItem('access_token');
     if (!token) {
-      throw new Error('Authentication token not found');
+      return null;
     }
     header['Authorization'] = `Bearer ${token}`;
   }
@@ -93,16 +93,32 @@ function proxy(endpoint : string ) {
 
 async function request(url : string, method : string = 'GET', data : any = null, data_type : 'JSON' | 'URLencode' = 'URLencode', authorized : boolean = true) {
   // console.log(`requesting ${method} ${url} and ${data_type} body: ${data ? ((data_type == 'JSON') ? JSON.stringify(data) : new URLSearchParams(data)) : null}`)
+  const headers = getHeader(authorized, (data !== null), data_type);
+  if (authorized && !headers) {
+    return {
+      status: 401,
+      body: { detail: 'Authentication token not found' },
+    };
+  }
+
   return fetch(proxy(url), {
-      method: method,
-      headers: getHeader(authorized, (data !== null), data_type),
-      body: data ? ((data_type == 'JSON') ? JSON.stringify(data) : new URLSearchParams(data)) : null
+    method: method,
+    headers: headers || {},
+    body: data ? ((data_type == 'JSON') ? JSON.stringify(data) : new URLSearchParams(data)) : null
   })
-  .then(async response => {
-      let data = await response.json()
+    .then(async response => {
+      let parsedBody: any = null;
+      const raw = await response.text();
+      if (raw) {
+        try {
+          parsedBody = JSON.parse(raw);
+        } catch {
+          parsedBody = { detail: raw };
+        }
+      }
       return {
-        status: response.status, // Include the status code
-        body: data,      // Include the parsed response body
+        status: response.status,
+        body: parsedBody,
       };
     })
 }

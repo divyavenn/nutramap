@@ -67,6 +67,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="foodpanel", description="CLI for Foodpanel API.")
     parser.add_argument("--base-url", help="Foodpanel API base URL")
     parser.add_argument("--token", help="Override bearer token for this invocation")
+    parser.add_argument("--timeout", type=float, help="HTTP timeout in seconds (default: FOODPANEL_TIMEOUT_SECONDS or 90)")
     parser.add_argument("--config-path", help="Path to config file (default: ~/.foodpanel/config.json)")
     parser.add_argument("--no-config", action="store_true", help="Disable config persistence")
     parser.add_argument("--json", action="store_true", help="Force JSON output")
@@ -186,6 +187,7 @@ def _client_from_args(args: argparse.Namespace) -> FoodpanelClient:
     return FoodpanelClient(
         base_url=args.base_url,
         access_token=args.token,
+        timeout=args.timeout,
         config_path=args.config_path,
         persist_session=not args.no_config,
     )

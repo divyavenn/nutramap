@@ -58,21 +58,39 @@ function useRefreshData(){
     const currentLogs = await snapshot.getPromise(logsAtom);
     const currentRequirements = await snapshot.getPromise(requirementsAtom);
 
-    const [logData, requirementsData] = await Promise.all([
-      request('/logs/get?startDate='
-        + tolocalDateString(dateRange.start)
-        + '&endDate='
-        + tolocalDateString(dateRange.end) + ''),
-      request('/requirements/all')
-    ]);
+    try {
+      const [logData, requirementsData] = await Promise.all([
+        request('/logs/get?startDate='
+          + tolocalDateString(dateRange.start)
+          + '&endDate='
+          + tolocalDateString(dateRange.end) + ''),
+        request('/requirements/all')
+      ]);
 
-    // Only update if data has actually changed
-    if (!deepEqual(currentLogs, logData.body)) {
-      set(logsAtom, logData.body);
-    }
+      const nextLogs = (logData.status === 200 && Array.isArray(logData.body)) ? logData.body : [];
+      const nextRequirements = (
+        requirementsData.status === 200 &&
+        requirementsData.body &&
+        typeof requirementsData.body === 'object' &&
+        !Array.isArray(requirementsData.body)
+      ) ? requirementsData.body : {};
 
-    if (!deepEqual(currentRequirements, requirementsData.body)) {
-      set(requirementsAtom, requirementsData.body);
+      // Only update if data has actually changed
+      if (!deepEqual(currentLogs, nextLogs)) {
+        set(logsAtom, nextLogs);
+      }
+
+      if (!deepEqual(currentRequirements, nextRequirements)) {
+        set(requirementsAtom, nextRequirements);
+      }
+    } catch (error) {
+      console.error('Failed to refresh dashboard data:', error);
+      if (!deepEqual(currentLogs, [])) {
+        set(logsAtom, []);
+      }
+      if (!deepEqual(currentRequirements, {})) {
+        set(requirementsAtom, {});
+      }
     }
   }, []);
 
@@ -85,14 +103,23 @@ function useRefreshLogs() {
     const dateRange = await snapshot.getPromise(dateRangeAtom);
     const currentLogs = await snapshot.getPromise(logsAtom);
 
-    const data = await request('/logs/get?startDate='
-      + tolocalDateString(dateRange.start)
-      + '&endDate='
-      + tolocalDateString(dateRange.end) + '');
+    try {
+      const data = await request('/logs/get?startDate='
+        + tolocalDateString(dateRange.start)
+        + '&endDate='
+        + tolocalDateString(dateRange.end) + '');
 
-    // Only update if data has actually changed
-    if (!deepEqual(currentLogs, data.body)) {
-      set(logsAtom, data.body);
+      const nextLogs = (data.status === 200 && Array.isArray(data.body)) ? data.body : [];
+
+      // Only update if data has actually changed
+      if (!deepEqual(currentLogs, nextLogs)) {
+        set(logsAtom, nextLogs);
+      }
+    } catch (error) {
+      console.error('Failed to refresh logs:', error);
+      if (!deepEqual(currentLogs, [])) {
+        set(logsAtom, []);
+      }
     }
   }, []);
 
@@ -104,11 +131,24 @@ function useRefreshRequirements() {
     // Get current values without triggering re-render
     const currentRequirements = await snapshot.getPromise(requirementsAtom);
 
-    const data = await request('/requirements/all');
+    try {
+      const data = await request('/requirements/all');
+      const nextRequirements = (
+        data.status === 200 &&
+        data.body &&
+        typeof data.body === 'object' &&
+        !Array.isArray(data.body)
+      ) ? data.body : {};
 
-    // Only update if data has actually changed
-    if (!deepEqual(currentRequirements, data.body)) {
-      set(requirementsAtom, data.body);
+      // Only update if data has actually changed
+      if (!deepEqual(currentRequirements, nextRequirements)) {
+        set(requirementsAtom, nextRequirements);
+      }
+    } catch (error) {
+      console.error('Failed to refresh requirements:', error);
+      if (!deepEqual(currentRequirements, {})) {
+        set(requirementsAtom, {});
+      }
     }
   }, []);
 
@@ -136,8 +176,16 @@ const dayIntake = selector<{[key: string]: number}>({
     // Add requirements as dependency so intake recalculates when requirements change
     const requirements = get(requirementsAtom)
     let endpoint = '/logs/day_intake?date=' + tolocalDateString(day)
-    let response = await request(endpoint)
-    return response.body;
+    try {
+      let response = await request(endpoint)
+      if (response.status !== 200 || !response.body || typeof response.body !== 'object' || Array.isArray(response.body)) {
+        return {};
+      }
+      return response.body;
+    } catch (error) {
+      console.error('Failed to fetch day intake:', error);
+      return {};
+    }
   }
 })
 
@@ -160,9 +208,19 @@ const hoveredLogPanelData = selector<{[key: string]: number} | null>({
     }
 
     // Fetch new data
-    const response = await request('/food/panel?log_id=' + logId);
-    panelCache = { logId, data: response.body };
-    return response.body;
+    try {
+      const response = await request('/food/panel?log_id=' + logId);
+      if (response.status !== 200 || !response.body || typeof response.body !== 'object' || Array.isArray(response.body)) {
+        panelCache = { logId: null, data: null };
+        return null;
+      }
+      panelCache = { logId, data: response.body };
+      return response.body;
+    } catch (error) {
+      console.error('Failed to fetch hovered panel data:', error);
+      panelCache = { logId: null, data: null };
+      return null;
+    }
   }
 })
 
@@ -178,8 +236,16 @@ const averageIntake = selector<{[key : string] : number}>({
                 + tolocalDateString(dateRange.start)
                 + '&endDate='
                 + tolocalDateString(dateRange.end) + ''
-    let response = await request(endpoint)
-    return response.body;
+    try {
+      let response = await request(endpoint)
+      if (response.status !== 200 || !response.body || typeof response.body !== 'object' || Array.isArray(response.body)) {
+        return {};
+      }
+      return response.body;
+    } catch (error) {
+      console.error('Failed to fetch average intake:', error);
+      return {};
+    }
   }
 })
 
