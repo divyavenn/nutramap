@@ -235,7 +235,15 @@ function NewFood() {
       filesToProcess.forEach(file => formData.append('images', file));
 
       // Backend returns immediately; all processing runs in a background task.
-      await fetch(`${import.meta.env.VITE_API_URL}/food/process_and_add`, {
+      const rawApiUrl = import.meta.env.VITE_API_URL;
+      const apiBase = rawApiUrl
+        ? rawApiUrl.trim().replace(/[‐‑‒–—−]/g, '--').replace(/\/+$/, '')
+        : rawApiUrl;
+      if (!apiBase || apiBase === 'undefined') {
+        throw new Error('VITE_API_URL is not defined');
+      }
+
+      await fetch(`${apiBase}/food/process_and_add`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` },
         body: formData,

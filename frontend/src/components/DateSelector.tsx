@@ -253,11 +253,13 @@ function DateSelector() {
 
   const refreshLogs = useRefreshLogs();
   const refreshRequirements = useRefreshRequirements()
+  const startMs = dateRange.start.getTime();
+  const endMs = dateRange.end.getTime();
 
   useEffect(() => {
     refreshRequirements()
     refreshLogs()
-  }, [dateRange])
+  }, [startMs, endMs, refreshLogs, refreshRequirements])
 
   const handleNextMonth = () => {
     if (isLoginExpired()) {

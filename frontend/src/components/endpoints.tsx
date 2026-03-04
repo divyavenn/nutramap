@@ -79,9 +79,19 @@ function getHeader(authorized : boolean = true, hasData : boolean = false, data_
 }
 
 function proxy(endpoint : string ) {
-  const apiUrl = import.meta.env.VITE_API_URL;
-  console.log('Environment API URL:', apiUrl);
-  console.log('Full URL:', apiUrl + endpoint);
+  const rawApiUrl = import.meta.env.VITE_API_URL;
+  const apiUrl = rawApiUrl
+    ? rawApiUrl.trim().replace(/[‐‑‒–—−]/g, '--').replace(/\/+$/, '')
+    : rawApiUrl;
+
+  if (rawApiUrl && apiUrl !== rawApiUrl) {
+    console.warn('Normalized VITE_API_URL due to non-ASCII dash characters.');
+  }
+
+  if (import.meta.env.DEV) {
+    console.log('Environment API URL:', apiUrl);
+    console.log('Full URL:', (apiUrl || '') + endpoint);
+  }
 
   if (!apiUrl || apiUrl === 'undefined') {
     console.error('VITE_API_URL is not defined! Falling back to relative path.');

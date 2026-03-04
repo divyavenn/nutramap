@@ -4,6 +4,8 @@ from typing import List
 from typing_extensions import Annotated
 from bson import ObjectId
 from datetime import timedelta, datetime
+import os
+import pickle
 
 
 from src.databases.mongo import get_data
@@ -62,8 +64,29 @@ def get_logs_in_range(user, startDate : datetime, endDate: datetime, user_db):
 # New structure: logs with components
 # Each log has: meal_name, recipe_id, servings, date, components[]
 # Each component has: food_id, food_name, amount, weight_in_grams
+def _warm_food_name_cache(request: Request | None) -> None:
+    """Load food name cache into app state once to avoid repeated disk reads."""
+    if request is None:
+        return
+
+    if hasattr(request.app.state, "id_name_map") and isinstance(request.app.state.id_name_map, dict):
+        return
+
+    cache_path = os.getenv("FOOD_ID_CACHE")
+    if not cache_path:
+        return
+
+    try:
+        with open(cache_path, "rb") as f:
+            request.app.state.id_name_map = pickle.load(f)
+    except Exception as e:
+        # Non-fatal; get_food_name will fall back to MongoDB lookup.
+        print(f"Warning: could not warm FOOD_ID_CACHE for logs endpoint: {e}")
+
 def make_log_readable(logs, db, request: Request = None):
+    _warm_food_name_cache(request)
     logs = [serialize_document(log) for log in logs]
+    component_food_name_cache: dict[str, str] = {}
 
     # Batch-fetch all recipes referenced by these logs (one query instead of N)
     recipe_ids = {log["recipe_id"] for log in logs if log.get("recipe_id")}
@@ -82,7 +105,11 @@ def make_log_readable(logs, db, request: Request = None):
         # Add food names to each component
         if "components" in log:
             for component in log["components"]:
-                component["food_name"] = str(get_food_name(component["food_id"], db, request)).strip("(')',")
+                food_id = component.get("food_id")
+                cache_key = str(food_id)
+                if cache_key not in component_food_name_cache:
+                    component_food_name_cache[cache_key] = str(get_food_name(food_id, db, request)).strip("(')',")
+                component["food_name"] = component_food_name_cache[cache_key]
 
         # Attach recipe metadata from the batch-fetched map
         if log.get("recipe_id"):

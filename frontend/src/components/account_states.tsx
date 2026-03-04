@@ -5,8 +5,9 @@ import {
   useRecoilState,
   useSetRecoilState,
 } from 'recoil';
+import { useCallback } from 'react';
 import { requirementsAtom } from './dashboard_states';
-import { doWithData, request } from './endpoints';
+import { request } from './endpoints';
 
 interface AccountInfo{
   name : string,
@@ -68,14 +69,22 @@ const addNutrientsbyName = async () => {
 
 // you can only use hooks inside other hooks or inside components
 function useRefreshAccountInfo() {
-  const [info, setAccountInfo] = useRecoilState(accountInfoAtom);
+  const setAccountInfo = useSetRecoilState(accountInfoAtom);
   const fetchAutoFillData = useFetchAutoFillData();
 
-  const refreshAccountInfo = async () => {
-    console.log(info)
+  const refreshAccountInfo = useCallback(async () => {
     fetchAutoFillData();
-    doWithData('/user/info', setAccountInfo)
-  }
+    const response = await request('/user/info', 'GET');
+    if (response.status === 200 && response.body && typeof response.body === 'object' && !Array.isArray(response.body)) {
+      setAccountInfo((prev) => ({
+        ...prev,
+        ...response.body,
+        // Never persist a password from API payload.
+        password: "",
+      }));
+    }
+  }, [fetchAutoFillData, setAccountInfo]);
+
   return refreshAccountInfo;
 }
 
@@ -169,10 +178,53 @@ function useFetchAutoFillData(){
   const setNutrients = useSetRecoilState(nutrientDetailsByNameAtom);
   const setFoods = useSetRecoilState(foodsAtom);
 
-  const fetchLocalStorage = () => {
-    setNutrients(JSON.parse(localStorage.getItem('nutrients') || ""))
-    setFoods(JSON.parse(localStorage.getItem('foods') || ""))
-  }
+  const safeParseStorageObject = (key: string): Record<string, any> => {
+    const raw = localStorage.getItem(key);
+    if (!raw) return {};
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed;
+      }
+    } catch (error) {
+      console.warn(`Invalid JSON in localStorage for '${key}', ignoring cached value.`);
+    }
+    return {};
+  };
+
+  const fetchLocalStorage = useCallback(() => {
+    const nutrients = safeParseStorageObject('nutrients');
+    const foods = safeParseStorageObject('foods');
+
+    setNutrients(nutrients);
+    setFoods(foods);
+
+    const needsNutrients = Object.keys(nutrients).length === 0;
+    const needsFoods = Object.keys(foods).length === 0;
+
+    if (needsNutrients || needsFoods) {
+      Promise.allSettled([
+        needsNutrients ? request('/nutrients/all', 'GET') : Promise.resolve({ status: 200, body: nutrients }),
+        needsFoods ? request('/food/all', 'GET') : Promise.resolve({ status: 200, body: foods }),
+      ]).then(([nutrientsResult, foodsResult]) => {
+        if (nutrientsResult.status === 'fulfilled') {
+          const res = nutrientsResult.value as { status: number; body: any };
+          if (res.status === 200 && res.body && typeof res.body === 'object' && !Array.isArray(res.body)) {
+            setNutrients(res.body);
+            localStorage.setItem('nutrients', JSON.stringify(res.body));
+          }
+        }
+
+        if (foodsResult.status === 'fulfilled') {
+          const res = foodsResult.value as { status: number; body: any };
+          if (res.status === 200 && res.body && typeof res.body === 'object' && !Array.isArray(res.body)) {
+            setFoods(res.body);
+            localStorage.setItem('foods', JSON.stringify(res.body));
+          }
+        }
+      });
+    }
+  }, [setFoods, setNutrients]);
   // const fetchFromEndpoints = async () => {
   //   setNutrients(await (await request('/nutrients/all', 'GET')).body)
   //   setFoods(await (await request('/food/all', 'GET')).body)

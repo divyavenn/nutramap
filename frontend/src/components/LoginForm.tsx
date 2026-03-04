@@ -94,13 +94,26 @@ function LoginForm() {
           // Store the token in localStorage (or sessionStorage if desired)
           localStorage.setItem('access_token', token);
           sessionStorage.removeItem('isTrial');
-          localStorage.setItem('foods', JSON.stringify(await (await request('/food/all', 'GET')).body))
-          localStorage.setItem('nutrients', JSON.stringify(await (await request('/nutrients/all', 'GET')).body))
           console.log('Login successful.');
-          refreshAccountInfo();
-          // window.location.href = '/user/dashboard' // this calls page from backend
 
-          navigate('/dashboard'); // this uses react router (client side routing)
+          // Navigate immediately so login does not wait on large preload requests.
+          navigate('/dashboard');
+
+          // Warm commonly-used caches in the background.
+          Promise.allSettled([
+            request('/food/all', 'GET').then((res) => {
+              if (res.status === 200 && res.body) {
+                localStorage.setItem('foods', JSON.stringify(res.body));
+              }
+            }),
+            request('/nutrients/all', 'GET').then((res) => {
+              if (res.status === 200 && res.body) {
+                localStorage.setItem('nutrients', JSON.stringify(res.body));
+              }
+            }),
+          ]).then(() => {
+            refreshAccountInfo();
+          });
         }
         // raise HTTPException(status_code=404, detail="User not found")
         else if (response.status == 404){
