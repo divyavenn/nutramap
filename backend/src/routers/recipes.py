@@ -2222,8 +2222,12 @@ def sync_logs_to_recipe(user: user, db: db, recipe_id: str = Form(...)):
         new_components = []
         for ing in ingredients:
             base_amount = ing.get("amount", "")
+            resolved_food_name = ing.get("food_name")
+            if not resolved_food_name:
+                resolved_food_name = get_food_name(ing["food_id"], db, None)
             new_components.append({
                 "food_id": ing["food_id"],
+                "food_name": resolved_food_name,
                 "amount": scale_portion_text(base_amount, scale_ratio) if base_amount else "",
                 "weight_in_grams": ing["weight_in_grams"] * scale_ratio
             })

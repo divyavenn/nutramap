@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, Form, Request
+from fastapi import APIRouter, Depends, HTTPException, Form, Request, Query
 from pymongo.database import Database
-from typing import List
+from typing import Any, Dict, List, Optional
 from typing_extensions import Annotated
 from bson import ObjectId
 from datetime import timedelta, datetime
@@ -52,19 +52,33 @@ def get_logs_for_day(user, date: datetime, user_db):
     logs = user_db.logs.find(query)
     return logs
 
-def get_logs_in_range(user, startDate : datetime, endDate: datetime, user_db):
+def get_logs_in_range(
+    user,
+    startDate: datetime,
+    endDate: datetime,
+    user_db,
+    limit: Optional[int] = None,
+    offset: int = 0,
+    sort_desc: bool = False,
+):
     query = {"user_id": user["_id"],
              "date" : { "$gte" : startDate,
                         "$lte" : endDate}
             }
     logs = user_db.logs.find(query)
+    if sort_desc:
+        logs = logs.sort("date", -1)
+    if offset > 0:
+        logs = logs.skip(offset)
+    if limit is not None:
+        logs = logs.limit(limit)
     return logs
 
 # output form:
 # New structure: logs with components
 # Each log has: meal_name, recipe_id, servings, date, components[]
 # Each component has: food_id, food_name, amount, weight_in_grams
-def _warm_food_name_cache(request: Request | None) -> None:
+def _warm_food_name_cache(request: Optional[Request]) -> None:
     """Load food name cache into app state once to avoid repeated disk reads."""
     if request is None:
         return
@@ -83,10 +97,129 @@ def _warm_food_name_cache(request: Request | None) -> None:
         # Non-fatal; get_food_name will fall back to MongoDB lookup.
         print(f"Warning: could not warm FOOD_ID_CACHE for logs endpoint: {e}")
 
+
+def _extract_food_name(food_entry: Any) -> str:
+    if isinstance(food_entry, dict):
+        raw_name = food_entry.get("name") or food_entry.get("food_name") or ""
+        return str(raw_name).strip()
+    if isinstance(food_entry, str):
+        return food_entry.strip()
+    return ""
+
+
+def _normalize_food_lookup_id(food_id: Any) -> Any:
+    if isinstance(food_id, (int, ObjectId)):
+        return food_id
+    if isinstance(food_id, str):
+        stripped = food_id.strip()
+        if stripped.isdigit():
+            return int(stripped)
+        if len(stripped) == 24 and ObjectId.is_valid(stripped):
+            return ObjectId(stripped)
+        return stripped
+    return food_id
+
+
+def _resolve_food_names(
+    component_lookup_ids: Dict[str, Any],
+    db: Database,
+    request: Optional[Request] = None,
+) -> Dict[str, str]:
+    """
+    Resolve many component food IDs in batch.
+    Returns map of string cache-key -> food_name.
+    """
+    if not component_lookup_ids:
+        return {}
+
+    _warm_food_name_cache(request)
+    resolved: Dict[str, str] = {}
+    id_name_map: Dict[Any, Any] = {}
+    if request is not None and hasattr(request.app.state, "id_name_map") and isinstance(request.app.state.id_name_map, dict):
+        id_name_map = request.app.state.id_name_map
+
+    normalized_to_keys: Dict[Any, List[str]] = {}
+    for cache_key, normalized_id in component_lookup_ids.items():
+        normalized_to_keys.setdefault(normalized_id, []).append(cache_key)
+
+    # 1) Resolve from in-memory cache (fast path)
+    unresolved_ids: List[Any] = []
+    for normalized_id, keys in normalized_to_keys.items():
+        name = _extract_food_name(id_name_map.get(normalized_id))
+        if not name:
+            name = _extract_food_name(id_name_map.get(str(normalized_id)))
+
+        if name:
+            for key in keys:
+                resolved[key] = name
+        else:
+            unresolved_ids.append(normalized_id)
+
+    # 2) Resolve remaining IDs in one Mongo query (batch path)
+    if unresolved_ids:
+        unique_unresolved_ids = list(dict.fromkeys(unresolved_ids))
+        mongo_food_map: Dict[Any, str] = {}
+
+        for food in db.foods.find(
+            {"_id": {"$in": unique_unresolved_ids}},
+            {"_id": 1, "food_name": 1},
+        ):
+            mongo_food_map[food["_id"]] = food.get("food_name", "No data found.")
+
+        for normalized_id in unique_unresolved_ids:
+            found_name = mongo_food_map.get(normalized_id)
+            if found_name:
+                for key in normalized_to_keys.get(normalized_id, []):
+                    resolved[key] = found_name
+                if id_name_map is not None:
+                    cache_entry = {"name": found_name}
+                    id_name_map[normalized_id] = cache_entry
+                    id_name_map[str(normalized_id)] = cache_entry
+
+    return resolved
+
+
+def _ensure_components_have_food_names(
+    components: List[Dict[str, Any]],
+    db: Database,
+    request: Optional[Request] = None,
+) -> List[Dict[str, Any]]:
+    """Fill missing component.food_name values using batched ID lookup."""
+    if not components:
+        return components
+
+    lookup_ids: Dict[str, Any] = {}
+    for component in components:
+        if component.get("food_name"):
+            continue
+        food_id = component.get("food_id")
+        if food_id is None:
+            continue
+        cache_key = str(food_id)
+        if cache_key not in lookup_ids:
+            lookup_ids[cache_key] = _normalize_food_lookup_id(food_id)
+
+    resolved = _resolve_food_names(lookup_ids, db, request)
+    fallback_food_name_cache: Dict[str, str] = {}
+    for component in components:
+        if component.get("food_name"):
+            continue
+        food_id = component.get("food_id")
+        resolved_name = resolved.get(str(food_id), "")
+        if not resolved_name:
+            cache_key = str(food_id)
+            if cache_key not in fallback_food_name_cache:
+                # Last-resort fallback for malformed IDs
+                fallback_food_name_cache[cache_key] = str(get_food_name(food_id, db, request)).strip("(')',")
+            resolved_name = fallback_food_name_cache[cache_key]
+        component["food_name"] = resolved_name
+
+    return components
+
 def make_log_readable(logs, db, request: Request = None):
     _warm_food_name_cache(request)
     logs = [serialize_document(log) for log in logs]
-    component_food_name_cache: dict[str, str] = {}
+    component_lookup_ids: Dict[str, Any] = {}
 
     # Batch-fetch all recipes referenced by these logs (one query instead of N)
     recipe_ids = {log["recipe_id"] for log in logs if log.get("recipe_id")}
@@ -101,15 +234,37 @@ def make_log_readable(logs, db, request: Request = None):
                 if rid and rid in recipe_ids:
                     recipe_map[rid] = recipe
 
+    # Batch-resolve all unique food IDs missing denormalized names
+    for log in logs:
+        for component in log.get("components", []):
+            if component.get("food_name"):
+                continue
+            food_id = component.get("food_id")
+            if food_id is None:
+                continue
+            cache_key = str(food_id)
+            if cache_key not in component_lookup_ids:
+                component_lookup_ids[cache_key] = _normalize_food_lookup_id(food_id)
+
+    resolved_food_names = _resolve_food_names(component_lookup_ids, db, request)
+
+    fallback_food_name_cache: Dict[str, str] = {}
+
     for log in logs:
         # Add food names to each component
         if "components" in log:
             for component in log["components"]:
+                if component.get("food_name"):
+                    continue
+
                 food_id = component.get("food_id")
-                cache_key = str(food_id)
-                if cache_key not in component_food_name_cache:
-                    component_food_name_cache[cache_key] = str(get_food_name(food_id, db, request)).strip("(')',")
-                component["food_name"] = component_food_name_cache[cache_key]
+                resolved_name = resolved_food_names.get(str(food_id), "")
+                if not resolved_name:
+                    cache_key = str(food_id)
+                    if cache_key not in fallback_food_name_cache:
+                        fallback_food_name_cache[cache_key] = str(get_food_name(food_id, db, request)).strip("(')',")
+                    resolved_name = fallback_food_name_cache[cache_key]
+                component["food_name"] = resolved_name
 
         # Attach recipe metadata from the batch-fetched map
         if log.get("recipe_id"):
@@ -141,8 +296,26 @@ def count_unique_days(logs: List[Log]) -> int:
 #--------------------------------------end points------------------------------------------------------# 
 
 @router.get("/get", response_model = None)
-def get_logs(endDate : datetime, startDate : datetime, user : user, db: db, request: Request = None):
-    logs = list(get_logs_in_range(user, startDate, endDate, db))
+def get_logs(
+    endDate: datetime,
+    startDate: datetime,
+    user: user,
+    db: db,
+    request: Request = None,
+    limit: int = Query(default=500, ge=1, le=2000),
+    offset: int = Query(default=0, ge=0),
+):
+    logs = list(
+        get_logs_in_range(
+            user,
+            startDate,
+            endDate,
+            db,
+            limit=limit,
+            offset=offset,
+            sort_desc=True,
+        )
+    )
     return make_log_readable(logs, db, request)
   
   
@@ -186,19 +359,40 @@ async def add_log(user: user, log, db: db):
         # It's a Log object
         log_dict = log.model_dump()
 
-    # Validate that all component foods exist in MongoDB (new format)
+    # Validate component foods and denormalize food_name at write time (new format)
     if "components" in log_dict and isinstance(log_dict["components"], list):
-        valid_components = []
+        normalized_ids: List[Any] = []
+        components_with_normalized_ids: List[Dict[str, Any]] = []
         for component in log_dict["components"]:
             food_id = component.get("food_id")
-            if food_id:
-                # Convert string ObjectIds to ObjectId for custom foods
-                search_id = ObjectId(food_id) if isinstance(food_id, str) and len(str(food_id)) == 24 else food_id
-                food = db.foods.find_one({"_id": search_id})
-                if not food:
-                    print(f"Warning: skipping component with missing food ID {food_id}")
-                    continue
+            if not food_id:
+                continue
+            normalized_id = _normalize_food_lookup_id(food_id)
+            normalized_ids.append(normalized_id)
+            component_copy = component.copy()
+            component_copy["_normalized_food_id"] = normalized_id
+            components_with_normalized_ids.append(component_copy)
+
+        existing_foods = {
+            food["_id"]: food.get("food_name", "No data found.")
+            for food in db.foods.find(
+                {"_id": {"$in": list(dict.fromkeys(normalized_ids))}},
+                {"_id": 1, "food_name": 1},
+            )
+        }
+
+        valid_components: List[Dict[str, Any]] = []
+        for component in components_with_normalized_ids:
+            component_food_id = component.get("_normalized_food_id")
+            canonical_name = existing_foods.get(component_food_id)
+            if not canonical_name:
+                print(f"Warning: skipping component with missing food ID {component_food_id}")
+                continue
+            if not component.get("food_name"):
+                component["food_name"] = canonical_name
+            component.pop("_normalized_food_id", None)
             valid_components.append(component)
+
         log_dict["components"] = valid_components
         if not valid_components:
             raise HTTPException(status_code=404, detail="No valid food components found for this log")
@@ -479,9 +673,13 @@ async def add_component(
 
     from src.routers.parse import estimate_grams
     weight_in_grams = await estimate_grams(food_name, amount)
+    resolved_food_name = str(get_food_name(new_food_id, db, None)).strip("(')',")
+    if not resolved_food_name or resolved_food_name == "No data found.":
+        resolved_food_name = food_name
 
     new_component = {
         "food_id": new_food_id,
+        "food_name": resolved_food_name,
         "amount": amount,
         "weight_in_grams": weight_in_grams
     }
@@ -497,7 +695,7 @@ async def add_component(
     return {
         "status": "success",
         "weight_in_grams": weight_in_grams,
-        "food_name": food_name
+        "food_name": resolved_food_name
     }
 
 
@@ -607,11 +805,15 @@ async def edit_component(
     # Always recalculate grams based on the amount
     from src.routers.parse import estimate_grams
     weight_in_grams = await estimate_grams(food_name, amount)
+    resolved_food_name = str(get_food_name(new_food_id, db, None)).strip("(')',")
+    if not resolved_food_name or resolved_food_name == "No data found.":
+        resolved_food_name = food_name
 
     # Update the component
     updated_components = target_log["components"].copy()
     updated_components[component_index] = {
         "food_id": new_food_id,
+        "food_name": resolved_food_name,
         "amount": amount,
         "weight_in_grams": weight_in_grams
     }

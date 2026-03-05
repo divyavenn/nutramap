@@ -7,7 +7,6 @@ import { Heading } from '../components/Title'
 import { Header } from '../components/Sections'
 import NewSmartLog from '../components/MealNew'
 import { NutrientDashboard } from '../components/NutrientDash'
-import { useRefreshData } from '../components/dashboard_states'
 import AccountIcon from '../assets/images/account.svg?react'
 import DashboardIcon from '../assets/images/dashboard.svg?react'
 import FoodBowl from '../assets/images/food_bowl.svg?react'
@@ -154,18 +153,16 @@ function DashboardRoot() {
 function Dashboard() {
   const name = useRecoilValue(firstNameAtom)
   const refreshAccountInfo = useRefreshAccountInfo()
-  const refreshData = useRefreshData()
   const isLoggedIn = !isLoginExpired()
 
   useEffect(() => {
     const init = async () => {
       // Dashboard is viewable while logged out; only fetch protected data when authenticated.
       if (!isLoggedIn) return
-      await refreshData()
       await refreshAccountInfo()
     }
     init()
-  }, [isLoggedIn, refreshData, refreshAccountInfo])
+  }, [isLoggedIn, refreshAccountInfo])
 
   const greeting = name ? `Hello, ${name}` : 'Hello, you!'
 

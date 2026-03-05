@@ -18,6 +18,11 @@ function deepEqual(a: any, b: any): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
+const LOGS_PAGE_LIMIT = 500;
+let refreshDataInFlight: Promise<void> | null = null;
+let refreshLogsInFlight: Promise<void> | null = null;
+let refreshRequirementsInFlight: Promise<void> | null = null;
+
 // Define a type for pending foods with timestamps
 export interface PendingFood {
   name: string;
@@ -53,45 +58,56 @@ const hoveredLogAtom = atom<string[] | null>({
 
 function useRefreshData(){
   const refreshData = useRecoilCallback(({snapshot, set}) => async () => {
-    // Get current values without triggering re-render
-    const dateRange = await snapshot.getPromise(dateRangeAtom);
-    const currentLogs = await snapshot.getPromise(logsAtom);
-    const currentRequirements = await snapshot.getPromise(requirementsAtom);
+    if (refreshDataInFlight) return refreshDataInFlight;
 
-    try {
-      const [logData, requirementsData] = await Promise.all([
-        request('/logs/get?startDate='
-          + tolocalDateString(dateRange.start)
-          + '&endDate='
-          + tolocalDateString(dateRange.end) + ''),
-        request('/requirements/all')
-      ]);
+    refreshDataInFlight = (async () => {
+      // Get current values without triggering re-render
+      const dateRange = await snapshot.getPromise(dateRangeAtom);
+      const currentLogs = await snapshot.getPromise(logsAtom);
+      const currentRequirements = await snapshot.getPromise(requirementsAtom);
 
-      const nextLogs = (logData.status === 200 && Array.isArray(logData.body)) ? logData.body : [];
-      const nextRequirements = (
-        requirementsData.status === 200 &&
-        requirementsData.body &&
-        typeof requirementsData.body === 'object' &&
-        !Array.isArray(requirementsData.body)
-      ) ? requirementsData.body : {};
+      try {
+        const [logData, requirementsData] = await Promise.all([
+          request('/logs/get?startDate='
+            + tolocalDateString(dateRange.start)
+            + '&endDate='
+            + tolocalDateString(dateRange.end)
+            + '&limit='
+            + LOGS_PAGE_LIMIT
+            + '&offset=0'),
+          request('/requirements/all')
+        ]);
 
-      // Only update if data has actually changed
-      if (!deepEqual(currentLogs, nextLogs)) {
-        set(logsAtom, nextLogs);
-      }
+        const nextLogs = (logData.status === 200 && Array.isArray(logData.body)) ? logData.body : [];
+        const nextRequirements = (
+          requirementsData.status === 200 &&
+          requirementsData.body &&
+          typeof requirementsData.body === 'object' &&
+          !Array.isArray(requirementsData.body)
+        ) ? requirementsData.body : {};
 
-      if (!deepEqual(currentRequirements, nextRequirements)) {
-        set(requirementsAtom, nextRequirements);
+        // Only update if data has actually changed
+        if (!deepEqual(currentLogs, nextLogs)) {
+          set(logsAtom, nextLogs);
+        }
+
+        if (!deepEqual(currentRequirements, nextRequirements)) {
+          set(requirementsAtom, nextRequirements);
+        }
+      } catch (error) {
+        console.error('Failed to refresh dashboard data:', error);
+        if (!deepEqual(currentLogs, [])) {
+          set(logsAtom, []);
+        }
+        if (!deepEqual(currentRequirements, {})) {
+          set(requirementsAtom, {});
+        }
       }
-    } catch (error) {
-      console.error('Failed to refresh dashboard data:', error);
-      if (!deepEqual(currentLogs, [])) {
-        set(logsAtom, []);
-      }
-      if (!deepEqual(currentRequirements, {})) {
-        set(requirementsAtom, {});
-      }
-    }
+    })().finally(() => {
+      refreshDataInFlight = null;
+    });
+
+    return refreshDataInFlight;
   }, []);
 
   return refreshData;
@@ -99,28 +115,39 @@ function useRefreshData(){
 
 function useRefreshLogs() {
   const refreshLogs = useRecoilCallback(({snapshot, set}) => async () => {
-    // Get current values without triggering re-render
-    const dateRange = await snapshot.getPromise(dateRangeAtom);
-    const currentLogs = await snapshot.getPromise(logsAtom);
+    if (refreshLogsInFlight) return refreshLogsInFlight;
 
-    try {
-      const data = await request('/logs/get?startDate='
-        + tolocalDateString(dateRange.start)
-        + '&endDate='
-        + tolocalDateString(dateRange.end) + '');
+    refreshLogsInFlight = (async () => {
+      // Get current values without triggering re-render
+      const dateRange = await snapshot.getPromise(dateRangeAtom);
+      const currentLogs = await snapshot.getPromise(logsAtom);
 
-      const nextLogs = (data.status === 200 && Array.isArray(data.body)) ? data.body : [];
+      try {
+        const data = await request('/logs/get?startDate='
+          + tolocalDateString(dateRange.start)
+          + '&endDate='
+          + tolocalDateString(dateRange.end)
+          + '&limit='
+          + LOGS_PAGE_LIMIT
+          + '&offset=0');
 
-      // Only update if data has actually changed
-      if (!deepEqual(currentLogs, nextLogs)) {
-        set(logsAtom, nextLogs);
+        const nextLogs = (data.status === 200 && Array.isArray(data.body)) ? data.body : [];
+
+        // Only update if data has actually changed
+        if (!deepEqual(currentLogs, nextLogs)) {
+          set(logsAtom, nextLogs);
+        }
+      } catch (error) {
+        console.error('Failed to refresh logs:', error);
+        if (!deepEqual(currentLogs, [])) {
+          set(logsAtom, []);
+        }
       }
-    } catch (error) {
-      console.error('Failed to refresh logs:', error);
-      if (!deepEqual(currentLogs, [])) {
-        set(logsAtom, []);
-      }
-    }
+    })().finally(() => {
+      refreshLogsInFlight = null;
+    });
+
+    return refreshLogsInFlight;
   }, []);
 
   return refreshLogs;
@@ -128,28 +155,36 @@ function useRefreshLogs() {
 
 function useRefreshRequirements() {
   const refreshRequirements = useRecoilCallback(({snapshot, set}) => async () => {
-    // Get current values without triggering re-render
-    const currentRequirements = await snapshot.getPromise(requirementsAtom);
+    if (refreshRequirementsInFlight) return refreshRequirementsInFlight;
 
-    try {
-      const data = await request('/requirements/all');
-      const nextRequirements = (
-        data.status === 200 &&
-        data.body &&
-        typeof data.body === 'object' &&
-        !Array.isArray(data.body)
-      ) ? data.body : {};
+    refreshRequirementsInFlight = (async () => {
+      // Get current values without triggering re-render
+      const currentRequirements = await snapshot.getPromise(requirementsAtom);
 
-      // Only update if data has actually changed
-      if (!deepEqual(currentRequirements, nextRequirements)) {
-        set(requirementsAtom, nextRequirements);
+      try {
+        const data = await request('/requirements/all');
+        const nextRequirements = (
+          data.status === 200 &&
+          data.body &&
+          typeof data.body === 'object' &&
+          !Array.isArray(data.body)
+        ) ? data.body : {};
+
+        // Only update if data has actually changed
+        if (!deepEqual(currentRequirements, nextRequirements)) {
+          set(requirementsAtom, nextRequirements);
+        }
+      } catch (error) {
+        console.error('Failed to refresh requirements:', error);
+        if (!deepEqual(currentRequirements, {})) {
+          set(requirementsAtom, {});
+        }
       }
-    } catch (error) {
-      console.error('Failed to refresh requirements:', error);
-      if (!deepEqual(currentRequirements, {})) {
-        set(requirementsAtom, {});
-      }
-    }
+    })().finally(() => {
+      refreshRequirementsInFlight = null;
+    });
+
+    return refreshRequirementsInFlight;
   }, []);
 
   return refreshRequirements;

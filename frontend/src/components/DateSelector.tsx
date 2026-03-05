@@ -250,6 +250,7 @@ function DateSelector() {
   const toggleCalendar = () => setIsOpen(!isOpen);
   const [rangeType, setRangeType] = useRecoilState(rangeTypeAtom)
   const [dateRange, setDateRange] = useRecoilState(dateRangeAtom)
+  const lastRefreshWindowRef = useRef<string>('');
 
   const refreshLogs = useRefreshLogs();
   const refreshRequirements = useRefreshRequirements()
@@ -257,8 +258,14 @@ function DateSelector() {
   const endMs = dateRange.end.getTime();
 
   useEffect(() => {
-    refreshRequirements()
-    refreshLogs()
+    if (isLoginExpired()) return;
+
+    const refreshWindow = `${startMs}:${endMs}`;
+    if (lastRefreshWindowRef.current === refreshWindow) return;
+    lastRefreshWindowRef.current = refreshWindow;
+
+    void refreshRequirements();
+    void refreshLogs();
   }, [startMs, endMs, refreshLogs, refreshRequirements])
 
   const handleNextMonth = () => {
