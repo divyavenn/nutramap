@@ -16,6 +16,8 @@ interface AccountInfo{
   isTrial?: boolean;  // Optional flag to indicate trial user
 }
 
+const storageObjectCache: Record<string, { raw: string; parsed: Record<string, any> }> = {};
+
 
 const editingPasswordAtom = atom<boolean>({
   key: 'editingPassword',
@@ -144,7 +146,7 @@ export const availableNutrientsSelector = selector({
   },
 });
 
-const foodsAtom = atom<{[key : string] : number}>({
+const foodsAtom = atom<{[key : string] : number | string}>({
   key: 'foodDetails',
   default: {}
 });
@@ -181,9 +183,14 @@ function useFetchAutoFillData(){
   const safeParseStorageObject = (key: string): Record<string, any> => {
     const raw = localStorage.getItem(key);
     if (!raw) return {};
+    const cached = storageObjectCache[key];
+    if (cached && cached.raw === raw) {
+      return cached.parsed;
+    }
     try {
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        storageObjectCache[key] = { raw, parsed };
         return parsed;
       }
     } catch (error) {
@@ -211,7 +218,9 @@ function useFetchAutoFillData(){
           const res = nutrientsResult.value as { status: number; body: any };
           if (res.status === 200 && res.body && typeof res.body === 'object' && !Array.isArray(res.body)) {
             setNutrients(res.body);
-            localStorage.setItem('nutrients', JSON.stringify(res.body));
+            const raw = JSON.stringify(res.body);
+            localStorage.setItem('nutrients', raw);
+            storageObjectCache.nutrients = { raw, parsed: res.body };
           }
         }
 
@@ -219,7 +228,9 @@ function useFetchAutoFillData(){
           const res = foodsResult.value as { status: number; body: any };
           if (res.status === 200 && res.body && typeof res.body === 'object' && !Array.isArray(res.body)) {
             setFoods(res.body);
-            localStorage.setItem('foods', JSON.stringify(res.body));
+            const raw = JSON.stringify(res.body);
+            localStorage.setItem('foods', raw);
+            storageObjectCache.foods = { raw, parsed: res.body };
           }
         }
       });

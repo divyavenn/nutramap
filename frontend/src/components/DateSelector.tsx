@@ -251,6 +251,7 @@ function DateSelector() {
   const [rangeType, setRangeType] = useRecoilState(rangeTypeAtom)
   const [dateRange, setDateRange] = useRecoilState(dateRangeAtom)
   const lastRefreshWindowRef = useRef<string>('');
+  const requirementsLoadedRef = useRef(false);
 
   const refreshLogs = useRefreshLogs();
   const refreshRequirements = useRefreshRequirements()
@@ -259,14 +260,20 @@ function DateSelector() {
 
   useEffect(() => {
     if (isLoginExpired()) return;
+    if (requirementsLoadedRef.current) return;
+    requirementsLoadedRef.current = true;
+    void refreshRequirements();
+  }, [refreshRequirements]);
+
+  useEffect(() => {
+    if (isLoginExpired()) return;
 
     const refreshWindow = `${startMs}:${endMs}`;
     if (lastRefreshWindowRef.current === refreshWindow) return;
     lastRefreshWindowRef.current = refreshWindow;
 
-    void refreshRequirements();
     void refreshLogs();
-  }, [startMs, endMs, refreshLogs, refreshRequirements])
+  }, [startMs, endMs, refreshLogs])
 
   const handleNextMonth = () => {
     if (isLoginExpired()) {

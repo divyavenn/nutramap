@@ -12,10 +12,70 @@ import { request } from './endpoints';
 import { tolocalDateString } from './utlis';
 import { nutrientDetailsByIDAtom } from './account_states';
 
-// Deep comparison using JSON serialization
-// Works well for log/requirement data (dozens of items, not thousands)
-function deepEqual(a: any, b: any): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
+function toNum(value: unknown): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function toTime(value: unknown): number {
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? Number.NEGATIVE_INFINITY : parsed;
+  }
+  return Number.NEGATIVE_INFINITY;
+}
+
+function areRequirementsEqual(a: {[key: string]: any}, b: {[key: string]: any}): boolean {
+  if (a === b) return true;
+  const aKeys = Object.keys(a || {});
+  const bKeys = Object.keys(b || {});
+  if (aKeys.length !== bKeys.length) return false;
+
+  for (const key of aKeys) {
+    const left = a[key];
+    const right = b[key];
+    if (!right) return false;
+    if (toNum(left?.target) !== toNum(right?.target)) return false;
+    if (Boolean(left?.should_exceed) !== Boolean(right?.should_exceed)) return false;
+  }
+  return true;
+}
+
+function areComponentsEqual(leftComponents: any[], rightComponents: any[]): boolean {
+  if (leftComponents === rightComponents) return true;
+  if (leftComponents.length !== rightComponents.length) return false;
+  for (let i = 0; i < leftComponents.length; i++) {
+    const left = leftComponents[i];
+    const right = rightComponents[i];
+    if (!right) return false;
+    if (String(left?.food_id ?? '') !== String(right?.food_id ?? '')) return false;
+    if (String(left?.food_name ?? '') !== String(right?.food_name ?? '')) return false;
+    if (String(left?.amount ?? '') !== String(right?.amount ?? '')) return false;
+    if (toNum(left?.weight_in_grams) !== toNum(right?.weight_in_grams)) return false;
+  }
+  return true;
+}
+
+function areLogsEqual(leftLogs: LogProps[], rightLogs: LogProps[]): boolean {
+  if (leftLogs === rightLogs) return true;
+  if (!Array.isArray(leftLogs) || !Array.isArray(rightLogs)) return false;
+  if (leftLogs.length !== rightLogs.length) return false;
+
+  for (let i = 0; i < leftLogs.length; i++) {
+    const left = leftLogs[i];
+    const right = rightLogs[i];
+    if (!right) return false;
+    if (String(left?._id ?? '') !== String(right?._id ?? '')) return false;
+    if (toTime(left?.date) !== toTime(right?.date)) return false;
+    if (String(left?.meal_name ?? '') !== String(right?.meal_name ?? '')) return false;
+    if (String(left?.recipe_id ?? '') !== String(right?.recipe_id ?? '')) return false;
+    if (toNum(left?.servings) !== toNum(right?.servings)) return false;
+    if (toNum(left?.logged_weight_grams) !== toNum(right?.logged_weight_grams)) return false;
+    if (!areComponentsEqual(left?.components ?? [], right?.components ?? [])) return false;
+  }
+  return true;
 }
 
 const LOGS_PAGE_LIMIT = 500;
@@ -101,19 +161,19 @@ function useRefreshData(){
         ) ? requirementsData.body : {};
 
         // Only update if data has actually changed
-        if (!deepEqual(currentLogs, nextLogs)) {
+        if (!areLogsEqual(currentLogs, nextLogs)) {
           set(logsAtom, nextLogs);
         }
 
-        if (!deepEqual(currentRequirements, nextRequirements)) {
+        if (!areRequirementsEqual(currentRequirements, nextRequirements)) {
           set(requirementsAtom, nextRequirements);
         }
       } catch (error) {
         console.error('Failed to refresh dashboard data:', error);
-        if (!deepEqual(currentLogs, [])) {
+        if (!areLogsEqual(currentLogs, [])) {
           set(logsAtom, []);
         }
-        if (!deepEqual(currentRequirements, {})) {
+        if (!areRequirementsEqual(currentRequirements, {})) {
           set(requirementsAtom, {});
         }
       } finally {
@@ -142,7 +202,7 @@ function useRefreshLogs() {
     const hasFreshCache =
       !!cached && (Date.now() - cached.cachedAt) <= LOGS_CACHE_TTL_MS;
 
-    if (cached && !deepEqual(currentLogs, cached.data)) {
+    if (cached && !areLogsEqual(currentLogs, cached.data)) {
       // Show cached range data immediately for snappy month/day switches.
       set(logsAtom, cached.data);
     }
@@ -169,10 +229,12 @@ function useRefreshLogs() {
 
         const nextLogs = (data.status === 200 && Array.isArray(data.body)) ? data.body : [];
         logsRangeCache.set(rangeKey, { data: nextLogs, cachedAt: Date.now() });
-        set(logsAtom, nextLogs);
+        if (!areLogsEqual(currentLogs, nextLogs)) {
+          set(logsAtom, nextLogs);
+        }
       } catch (error) {
         console.error('Failed to refresh logs:', error);
-        if (!deepEqual(currentLogs, [])) {
+        if (!areLogsEqual(currentLogs, [])) {
           set(logsAtom, []);
         }
       } finally {
@@ -210,12 +272,12 @@ function useRefreshRequirements() {
         ) ? data.body : {};
 
         // Only update if data has actually changed
-        if (!deepEqual(currentRequirements, nextRequirements)) {
+        if (!areRequirementsEqual(currentRequirements, nextRequirements)) {
           set(requirementsAtom, nextRequirements);
         }
       } catch (error) {
         console.error('Failed to refresh requirements:', error);
-        if (!deepEqual(currentRequirements, {})) {
+        if (!areRequirementsEqual(currentRequirements, {})) {
           set(requirementsAtom, {});
         }
       } finally {

@@ -14,7 +14,7 @@ import { LogNewGlobalStyles, FormElementsWrapper, EntryFormBubble, NewLogButton 
 function NewLogForm(){
 
   // Mock food data for autocomplete
-  const foodList : Record<string, number> = useRecoilValue(foodsAtom)
+  const foodList : Record<string, number | string> = useRecoilValue(foodsAtom)
 
   const [formData, setFormData] = useState({
     food_name : '',

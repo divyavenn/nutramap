@@ -8,7 +8,7 @@ __package__ = "nutramap.databases"
 
 class LogComponent(BaseModel):
     """Individual food item within a log"""
-    food_id: int
+    food_id: Union[int, str]
     amount: str  # natural portion (e.g., "1 cup", "2 tablespoons")
     weight_in_grams: float
 
@@ -38,7 +38,7 @@ class LogCreate(BaseModel):
         }
 
 class LogEdit(BaseModel):
-    food_id: int
+    food_id: Union[int, str]
     amount: str
     weight_in_grams: float
     date: datetime
@@ -68,7 +68,7 @@ class Log(BaseModel):
         return v
 
 class RecipeIngredient(BaseModel):
-    food_id: int
+    food_id: Union[int, str]
     food_name: Optional[str] = None  # The matched food name from database
     amount: str  # e.g., "1 cup"
     weight_in_grams: float

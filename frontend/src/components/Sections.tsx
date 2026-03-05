@@ -51,7 +51,7 @@ function Header({linkIcons, children} : {linkIcons? : PageLinkIcon[], children?:
       <Link className="header-logo-container" to="/dashboard">
       <img src={foodPanelLogo}
             loading="lazy" alt="foodPanelAI logo" className = 'nutramap-logo'/>
-      <div className="nutra header">foodPanelAI</div>
+      <div className="nutra header">nutramap</div>
       </Link>
       <div style = {{width : '80%'}} ></div>
       {processedLinkIcons &&

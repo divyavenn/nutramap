@@ -1,4 +1,4 @@
-from pymongo import MongoClient, ASCENDING
+from pymongo import MongoClient, ASCENDING, DESCENDING
 import os
 from dotenv import load_dotenv
 
@@ -40,6 +40,33 @@ def _init_db():
         [("nutrient_id", ASCENDING), ("user_id", ASCENDING)],
         unique=True,
         name="unique_requirement_ndex"
+    )
+
+    # Speed up /logs/get range scans and sorts by date for each user.
+    _db.logs.create_index(
+        [("user_id", ASCENDING), ("date", DESCENDING)],
+        name="logs_user_date_idx",
+    )
+
+    # Retry queue for transient OpenAI embedding failures on custom foods.
+    _db.embedding_retry_jobs.create_index(
+        [("food_id", ASCENDING)],
+        unique=True,
+        name="embedding_retry_food_idx",
+    )
+    _db.embedding_retry_jobs.create_index(
+        [("status", ASCENDING), ("next_retry_at", ASCENDING)],
+        name="embedding_retry_schedule_idx",
+    )
+
+    # Auditable log of embedding failures (non-silent error tracking).
+    _db.embedding_failure_logs.create_index(
+        [("created_at", DESCENDING)],
+        name="embedding_failure_created_idx",
+    )
+    _db.embedding_failure_logs.create_index(
+        [("food_id", ASCENDING), ("created_at", DESCENDING)],
+        name="embedding_failure_food_created_idx",
     )
 
     if _db.users.count_documents({}) == 0:

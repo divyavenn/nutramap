@@ -57,7 +57,7 @@ const calculateColor = (percentage: number, shouldExceed: boolean) => {
   return `rgba(${r}, ${g}, ${b}, 0.85)`;
 };
 
-const getFoodID = (food_name : string, foodList : Record<string, number>) => {
+const getFoodID = (food_name : string, foodList : Record<string, number | string>) => {
   // Mock food data for autocomplete
   try {
     return foodList[food_name]

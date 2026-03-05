@@ -29,12 +29,20 @@ db = Annotated[Database, Depends(get_data)]
 # Load environment variables
 # load_dotenv()
 
+def _serialize_value(value: Any) -> Any:
+    """Recursively convert BSON types to JSON-safe values."""
+    if isinstance(value, ObjectId):
+        return str(value)
+    if isinstance(value, dict):
+        return {k: _serialize_value(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_serialize_value(v) for v in value]
+    return value
+
+
 def serialize_document(doc):
-    """Convert ObjectId fields to strings in a MongoDB document."""
-    for key, value in doc.items():
-        if isinstance(value, ObjectId):
-            doc[key] = str(value)
-    return doc
+    """Convert ObjectId fields (including nested fields) to strings."""
+    return {key: _serialize_value(value) for key, value in doc.items()}
 
 def get_logs_for_day(user, date: datetime, user_db):
         # Set the start of the day (00:00:00) for the given date
@@ -331,14 +339,14 @@ async def new_log(
     recipe_servings: str = Form(None)
 ):
     try:
-        log_data = Log.model_construct(
-            food_id=int(food_id),
-            amount=amount,
-            weight_in_grams=float(weight_in_grams),
-            date=datetime.fromisoformat(date),
-            recipe_id=recipe_id if recipe_id else None,
-            recipe_servings=float(recipe_servings) if recipe_servings else None
-        )
+        log_data = {
+            "food_id": _normalize_food_lookup_id(food_id),
+            "amount": amount,
+            "weight_in_grams": float(weight_in_grams),
+            "date": datetime.fromisoformat(date),
+            "recipe_id": recipe_id if recipe_id else None,
+            "recipe_servings": float(recipe_servings) if recipe_servings else None,
+        }
         return await add_log(user=user, log=log_data, db=db)
     except ValueError:
         raise HTTPException(status_code=400)
@@ -388,6 +396,7 @@ async def add_log(user: user, log, db: db):
             if not canonical_name:
                 print(f"Warning: skipping component with missing food ID {component_food_id}")
                 continue
+            component["food_id"] = component_food_id
             if not component.get("food_name"):
                 component["food_name"] = canonical_name
             component.pop("_normalized_food_id", None)
@@ -399,8 +408,8 @@ async def add_log(user: user, log, db: db):
     # Old format validation (for backward compatibility with /logs/new endpoint)
     elif "food_id" in log_dict:
         food_id = log_dict.get("food_id")
-        # Convert string ObjectIds to ObjectId for custom foods
-        search_id = ObjectId(food_id) if isinstance(food_id, str) and len(str(food_id)) == 24 else food_id
+        # Convert IDs safely (int USDA IDs, ObjectId custom IDs).
+        search_id = _normalize_food_lookup_id(food_id)
         food = db.foods.find_one({"_id": search_id})
         if not food:
             raise HTTPException(status_code=404, detail="Food not found")
@@ -671,6 +680,8 @@ async def add_component(
         except (ValueError, TypeError):
             pass
 
+    new_food_id = _normalize_food_lookup_id(new_food_id)
+
     from src.routers.parse import estimate_grams
     weight_in_grams = await estimate_grams(food_name, amount)
     resolved_food_name = str(get_food_name(new_food_id, db, None)).strip("(')',")
@@ -801,6 +812,8 @@ async def edit_component(
         else:
             # Food didn't change, keep the same food_id
             new_food_id = original_component["food_id"]
+
+    new_food_id = _normalize_food_lookup_id(new_food_id)
 
     # Always recalculate grams based on the amount
     from src.routers.parse import estimate_grams

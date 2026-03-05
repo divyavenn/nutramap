@@ -78,6 +78,23 @@ def _sum_ingredient_weight(ingredients: List[dict]) -> float:
     return total
 
 
+def _normalize_food_id(food_id):
+    """
+    Canonicalize food IDs:
+    - USDA foods -> int
+    - custom foods -> ObjectId
+    """
+    if isinstance(food_id, (int, ObjectId)):
+        return food_id
+    if isinstance(food_id, str):
+        stripped = food_id.strip()
+        if stripped.isdigit():
+            return int(stripped)
+        if len(stripped) == 24 and ObjectId.is_valid(stripped):
+            return ObjectId(stripped)
+    return food_id
+
+
 def _infer_recipe_servings_from_text(
     *,
     meal_description: str,
@@ -1578,7 +1595,7 @@ async def migrate_recipe_food_ids(user: user, db: db):
                     if food_id:
                         updated_ingredients.append({
                             **ingredient,
-                            "food_id": food_id
+                            "food_id": _normalize_food_id(food_id)
                         })
                         total_ingredients_updated += 1
                     else:
@@ -1799,6 +1816,8 @@ async def edit_recipe_ingredient(
                 pass  # Keep as string for custom foods
             print(f"Using provided food_id: {food_id}")
 
+        food_id = _normalize_food_id(food_id)
+
         # Use provided weight_in_grams if given, otherwise estimate from amount
         if weight_in_grams is None:
             from src.routers.parse import estimate_grams
@@ -1876,6 +1895,8 @@ async def add_recipe_ingredient(
             except (ValueError, TypeError):
                 pass  # Keep as string for custom foods
             print(f"Using provided food_id: {food_id}")
+
+        food_id = _normalize_food_id(food_id)
 
         # Use provided weight_in_grams if given, otherwise estimate from amount
         if weight_in_grams is None:
@@ -2037,6 +2058,8 @@ async def create_recipe(
                         detail=f"Could not find food: {ing['food_name']}"
                     )
 
+            food_id = _normalize_food_id(food_id)
+
             # If weight not provided, estimate from amount
             if not weight_in_grams and amount:
                 food = db.foods.find_one({"_id": food_id})
@@ -2124,6 +2147,7 @@ async def create_recipe_from_meal(
     for comp in components:
         food_id = comp.get("food_id")
         if food_id is not None:
+            food_id = _normalize_food_id(food_id)
             food_name_str = get_food_name(food_id, db, None)
             ingredients.append({
                 "food_id": food_id,
@@ -2222,11 +2246,12 @@ def sync_logs_to_recipe(user: user, db: db, recipe_id: str = Form(...)):
         new_components = []
         for ing in ingredients:
             base_amount = ing.get("amount", "")
+            normalized_food_id = _normalize_food_id(ing.get("food_id"))
             resolved_food_name = ing.get("food_name")
             if not resolved_food_name:
-                resolved_food_name = get_food_name(ing["food_id"], db, None)
+                resolved_food_name = get_food_name(normalized_food_id, db, None)
             new_components.append({
-                "food_id": ing["food_id"],
+                "food_id": normalized_food_id,
                 "food_name": resolved_food_name,
                 "amount": scale_portion_text(base_amount, scale_ratio) if base_amount else "",
                 "weight_in_grams": ing["weight_in_grams"] * scale_ratio

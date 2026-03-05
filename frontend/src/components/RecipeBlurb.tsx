@@ -10,7 +10,7 @@ import {
 } from './RecipeCard.styled';
 
 interface RecipeIngredient {
-  food_id: number;
+  food_id: number | string;
   amount: string;
   weight_in_grams: number;
   food_name?: string;

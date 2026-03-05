@@ -246,21 +246,27 @@ function Dashboard() {
       localStorage.setItem('access_token', response.body.access_token)
       sessionStorage.removeItem('isTrial')
       setBootstrapPhase('hydrating')
+      const hasFoodsCache = !!localStorage.getItem('foods')
+      const hasNutrientsCache = !!localStorage.getItem('nutrients')
 
       await Promise.allSettled([
         refreshAccountInfo(),
         refreshRequirements(),
         refreshLogs(),
-        request('/food/all', 'GET').then((res) => {
-          if (res.status === 200 && res.body) {
-            localStorage.setItem('foods', JSON.stringify(res.body))
-          }
-        }),
-        request('/nutrients/all', 'GET').then((res) => {
-          if (res.status === 200 && res.body) {
-            localStorage.setItem('nutrients', JSON.stringify(res.body))
-          }
-        }),
+        hasFoodsCache
+          ? Promise.resolve()
+          : request('/food/all', 'GET').then((res) => {
+              if (res.status === 200 && res.body) {
+                localStorage.setItem('foods', JSON.stringify(res.body))
+              }
+            }),
+        hasNutrientsCache
+          ? Promise.resolve()
+          : request('/nutrients/all', 'GET').then((res) => {
+              if (res.status === 200 && res.body) {
+                localStorage.setItem('nutrients', JSON.stringify(res.body))
+              }
+            }),
       ])
 
       if (cancelled) return

@@ -272,7 +272,19 @@ function MealHeader({
           style={{ cursor: 'pointer' }}
         >
           <FoodNameSpace as="span">
-            {meal_name}
+            {canOpenRecipe ? (
+              <ClickableMealName
+                className="tutorial-recipe-name-link"
+                onClick={(e: React.MouseEvent) => {
+                  e.stopPropagation();
+                  onNameClick();
+                }}
+              >
+                {meal_name}
+              </ClickableMealName>
+            ) : (
+              meal_name
+            )}
           </FoodNameSpace>
           <FoodDateSpace />
           <FoodPortionSpace as="span">

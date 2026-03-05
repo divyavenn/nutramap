@@ -1,7 +1,7 @@
 import { createContext } from 'react';
 
 export interface LogComponent {
-  food_id: number;
+  food_id: number | string;
   food_name: string;
   amount: string;
   weight_in_grams: number;

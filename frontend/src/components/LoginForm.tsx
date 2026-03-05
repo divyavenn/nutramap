@@ -10,13 +10,6 @@ import { useRecoilState } from 'recoil';
 import { debounce } from 'lodash';
 import { useRef } from 'react';
 
-type DashboardLoginBootstrapState = {
-  loginBootstrap: {
-    email: string;
-    password: string;
-    submittedAt: number;
-  };
-};
 type LoginLocationState = {
   loginError?: string;
 };
@@ -99,22 +92,38 @@ function LoginForm() {
     if (isSubmitting) return;
 
     try {
-      if (isEmail()){
-        setIsSubmitting(true);
-        setAccountInfo({ ...accountInfo, email: formData.email, password: '' });
-        navigate('/dashboard', {
-          state: {
-            loginBootstrap: {
-              email: formData.email,
-              password: formData.password,
-              submittedAt: Date.now(),
-            },
-          } as DashboardLoginBootstrapState,
-        });
+      if (!isEmail()) return;
+
+      setIsSubmitting(true);
+
+      // Authenticate first so token is available immediately after submit.
+      const response = await request(
+        '/auth/submit_login',
+        'POST',
+        { username: formData.email, password: formData.password },
+        'URLencode',
+        false
+      );
+
+      if (response.status !== 200 || !response.body?.access_token) {
+        const loginError = response.status === 403
+          ? 'Incorrect password. Please try again.'
+          : response.status === 404
+            ? 'Account not found. Create an account to continue.'
+            : 'Login failed. Please try again.';
+        navigate('/login', { replace: true, state: { loginError } });
+        return;
       }
+
+      localStorage.setItem('access_token', response.body.access_token);
+      sessionStorage.removeItem('isTrial');
+      setAccountInfo({ ...accountInfo, email: formData.email, password: '' });
+      navigate('/dashboard', { replace: true });
     } catch (error) {
-      setIsSubmitting(false);
       console.error('An unexpected error occurred:', error);
+      navigate('/login', { replace: true, state: { loginError: 'Login failed. Please try again.' } });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 

@@ -17,6 +17,7 @@ from typing import Dict
 import time
 from datetime import datetime, timedelta
 from collections import OrderedDict
+import re
 
 # When running as a module within the application, use relative imports
 try:
@@ -60,6 +61,131 @@ router = APIRouter(
 
 user = Annotated[dict, Depends(get_current_user)]
 db = Annotated[Database, Depends(get_data)]
+
+
+def _dedupe_autocomplete_results(results: list, max_items: int = 10) -> list:
+    deduped = []
+    seen_ids = set()
+    for item in results:
+        food_id = str(item.get("food_id", "")).strip()
+        food_name = str(item.get("food_name", "")).strip()
+        if not food_id or not food_name:
+            continue
+        if food_id in seen_ids:
+            continue
+        deduped.append({"food_id": food_id, "food_name": food_name})
+        seen_ids.add(food_id)
+        if len(deduped) >= max_items:
+            break
+    return deduped
+
+
+def _prompt_matches_food_name(prompt: str, food_name: str) -> bool:
+    normalized_prompt = (prompt or "").strip().lower()
+    normalized_name = (food_name or "").strip().lower()
+    if not normalized_prompt or not normalized_name:
+        return False
+    return normalized_prompt in normalized_name
+
+
+def upsert_custom_food_in_autocomplete_cache(user_id: str, food_id: str, food_name: str) -> int:
+    """
+    Add/update a custom-food suggestion in-place for this user's cached prompts.
+    This avoids full cache invalidation and makes new names show immediately.
+    """
+    prefix = f"{str(user_id)}:"
+    updated_entries = 0
+    normalized_id = str(food_id)
+    normalized_name = str(food_name).strip()
+
+    if not normalized_id or not normalized_name:
+        return 0
+
+    for key, entry in autocomplete_cache.items():
+        if not key.startswith(prefix):
+            continue
+
+        prompt = key[len(prefix):]
+        existing_results = list(entry.get("results", []))
+        without_food = [item for item in existing_results if str(item.get("food_id", "")) != normalized_id]
+
+        if _prompt_matches_food_name(prompt, normalized_name):
+            candidate_results = [{"food_id": normalized_id, "food_name": normalized_name}] + without_food
+        else:
+            # Keep the food in cache only when this prompt still matches its name.
+            candidate_results = without_food
+
+        deduped = _dedupe_autocomplete_results(candidate_results, max_items=10)
+        if deduped != existing_results:
+            entry["results"] = deduped
+            updated_entries += 1
+
+    if updated_entries:
+        print(f"Patched {updated_entries} autocomplete cache entries for user {user_id}")
+    return updated_entries
+
+
+def remove_custom_food_from_autocomplete_cache(user_id: str, food_id: str) -> int:
+    """Remove a deleted custom-food ID from this user's cached autocomplete results."""
+    prefix = f"{str(user_id)}:"
+    normalized_id = str(food_id)
+    updated_entries = 0
+
+    for key, entry in autocomplete_cache.items():
+        if not key.startswith(prefix):
+            continue
+        existing_results = list(entry.get("results", []))
+        filtered = [item for item in existing_results if str(item.get("food_id", "")) != normalized_id]
+        if filtered != existing_results:
+            entry["results"] = filtered
+            updated_entries += 1
+
+    if updated_entries:
+        print(f"Removed deleted food from {updated_entries} autocomplete cache entries for user {user_id}")
+    return updated_entries
+
+
+def _search_user_custom_foods(prompt: str, user: dict, db: Database, limit: int = 10) -> list[dict]:
+    """
+    Safety-net search for current user's custom foods directly in MongoDB.
+    Ensures autocomplete still returns custom foods if Typesense/FAISS is stale.
+    """
+    query = (prompt or "").strip()
+    if not query:
+        return []
+
+    escaped_query = re.escape(query)
+    regex_filter = {"$regex": escaped_query, "$options": "i"}
+
+    docs = list(
+        db.foods.find(
+            {
+                "source": user["_id"],
+                "$or": [{"food_name": regex_filter}, {"name": regex_filter}],
+            },
+            {"_id": 1, "food_name": 1, "name": 1},
+        ).limit(max(limit * 3, limit))
+    )
+
+    prompt_lower = query.lower()
+    ranked = []
+    for doc in docs:
+        food_name = str(doc.get("food_name") or doc.get("name") or "").strip()
+        if not food_name:
+            continue
+        name_lower = food_name.lower()
+        exact = int(name_lower == prompt_lower)
+        prefix = int(name_lower.startswith(prompt_lower))
+        contains_index = name_lower.find(prompt_lower)
+        if contains_index < 0:
+            contains_index = 10_000
+        ranked.append(((-exact, -prefix, contains_index, len(food_name)), str(doc["_id"]), food_name))
+
+    ranked.sort(key=lambda item: item[0])
+    output = []
+    for _, food_id, food_name in ranked[:limit]:
+        output.append({"food_id": food_id, "food_name": food_name})
+    return output
 
 
 async def rrf_fusion(
@@ -196,8 +322,12 @@ async def rrf_fusion(
 @router.post("/autocomplete")
 async def autocomplete(user : user, db : db, request : Request, prompt: str):
     try:
+        normalized_prompt = prompt.lower().strip()
+        if not normalized_prompt:
+            return []
+
         # Create cache key from user_id and normalized prompt
-        cache_key = f"{user['_id']}:{prompt.lower().strip()}"
+        cache_key = f"{user['_id']}:{normalized_prompt}"
 
         # FAST PATH: Check cache first
         if cache_key in autocomplete_cache:
@@ -237,6 +367,27 @@ async def autocomplete(user : user, db : db, request : Request, prompt: str):
             })
 
         await parallel_process(matches, add_food_data, [output, db, request])
+
+        # Guarantee custom foods appear even when external indexes are stale.
+        custom_matches = _search_user_custom_foods(prompt, user, db, limit=10)
+        existing_ids = set()
+        merged_output = []
+
+        for item in custom_matches:
+            item_id = str(item.get("food_id", ""))
+            if item_id and item_id not in existing_ids:
+                merged_output.append(item)
+                existing_ids.add(item_id)
+
+        for item in output:
+            item_id = str(item.get("food_id", ""))
+            if item_id and item_id not in existing_ids:
+                merged_output.append(item)
+                existing_ids.add(item_id)
+            elif not item_id:
+                merged_output.append(item)
+
+        output = merged_output[:10]
 
         print(f"Autocomplete results: {[item['food_name'] for item in output[:3]]}")  # Print first 3 results
 
