@@ -19,9 +19,11 @@ function deepEqual(a: any, b: any): boolean {
 }
 
 const LOGS_PAGE_LIMIT = 500;
+const LOGS_CACHE_TTL_MS = 45_000;
 let refreshDataInFlight: Promise<void> | null = null;
-let refreshLogsInFlight: Promise<void> | null = null;
+const refreshLogsInFlightByRange = new Map<string, Promise<void>>();
 let refreshRequirementsInFlight: Promise<void> | null = null;
+const logsRangeCache = new Map<string, { data: LogProps[]; cachedAt: number }>();
 
 // Define a type for pending foods with timestamps
 export interface PendingFood {
@@ -44,6 +46,16 @@ const logsAtom = atom<LogProps[]>({
   default : []
 })
 
+const logsLoadingAtom = atom<boolean>({
+  key: 'logsLoading',
+  default: false,
+})
+
+const requirementsLoadingAtom = atom<boolean>({
+  key: 'requirementsLoading',
+  default: false,
+})
+
 // Atom to store pending foods that are being processed
 const pendingFoodsAtom = atom<PendingFood[]>({
   key: 'pendingFoods',
@@ -61,6 +73,8 @@ function useRefreshData(){
     if (refreshDataInFlight) return refreshDataInFlight;
 
     refreshDataInFlight = (async () => {
+      set(logsLoadingAtom, true);
+      set(requirementsLoadingAtom, true);
       // Get current values without triggering re-render
       const dateRange = await snapshot.getPromise(dateRangeAtom);
       const currentLogs = await snapshot.getPromise(logsAtom);
@@ -102,6 +116,9 @@ function useRefreshData(){
         if (!deepEqual(currentRequirements, {})) {
           set(requirementsAtom, {});
         }
+      } finally {
+        set(logsLoadingAtom, false);
+        set(requirementsLoadingAtom, false);
       }
     })().finally(() => {
       refreshDataInFlight = null;
@@ -115,39 +132,60 @@ function useRefreshData(){
 
 function useRefreshLogs() {
   const refreshLogs = useRecoilCallback(({snapshot, set}) => async () => {
-    if (refreshLogsInFlight) return refreshLogsInFlight;
+    const dateRange = await snapshot.getPromise(dateRangeAtom);
+    const currentLogs = await snapshot.getPromise(logsAtom);
+    const startDate = tolocalDateString(dateRange.start);
+    const endDate = tolocalDateString(dateRange.end);
+    const rangeKey = `${startDate}|${endDate}|${LOGS_PAGE_LIMIT}|0`;
 
-    refreshLogsInFlight = (async () => {
-      // Get current values without triggering re-render
-      const dateRange = await snapshot.getPromise(dateRangeAtom);
-      const currentLogs = await snapshot.getPromise(logsAtom);
+    const cached = logsRangeCache.get(rangeKey);
+    const hasFreshCache =
+      !!cached && (Date.now() - cached.cachedAt) <= LOGS_CACHE_TTL_MS;
 
+    if (cached && !deepEqual(currentLogs, cached.data)) {
+      // Show cached range data immediately for snappy month/day switches.
+      set(logsAtom, cached.data);
+    }
+    if (hasFreshCache) {
+      return;
+    }
+
+    const inFlight = refreshLogsInFlightByRange.get(rangeKey);
+    if (inFlight) return inFlight;
+
+    if (!cached) {
+      set(logsLoadingAtom, true);
+    }
+
+    const refreshPromise = (async () => {
       try {
         const data = await request('/logs/get?startDate='
-          + tolocalDateString(dateRange.start)
+          + startDate
           + '&endDate='
-          + tolocalDateString(dateRange.end)
+          + endDate
           + '&limit='
           + LOGS_PAGE_LIMIT
           + '&offset=0');
 
         const nextLogs = (data.status === 200 && Array.isArray(data.body)) ? data.body : [];
-
-        // Only update if data has actually changed
-        if (!deepEqual(currentLogs, nextLogs)) {
-          set(logsAtom, nextLogs);
-        }
+        logsRangeCache.set(rangeKey, { data: nextLogs, cachedAt: Date.now() });
+        set(logsAtom, nextLogs);
       } catch (error) {
         console.error('Failed to refresh logs:', error);
         if (!deepEqual(currentLogs, [])) {
           set(logsAtom, []);
         }
+      } finally {
+        if (!cached) {
+          set(logsLoadingAtom, false);
+        }
       }
     })().finally(() => {
-      refreshLogsInFlight = null;
+      refreshLogsInFlightByRange.delete(rangeKey);
     });
 
-    return refreshLogsInFlight;
+    refreshLogsInFlightByRange.set(rangeKey, refreshPromise);
+    return refreshPromise;
   }, []);
 
   return refreshLogs;
@@ -158,6 +196,7 @@ function useRefreshRequirements() {
     if (refreshRequirementsInFlight) return refreshRequirementsInFlight;
 
     refreshRequirementsInFlight = (async () => {
+      set(requirementsLoadingAtom, true);
       // Get current values without triggering re-render
       const currentRequirements = await snapshot.getPromise(requirementsAtom);
 
@@ -179,6 +218,8 @@ function useRefreshRequirements() {
         if (!deepEqual(currentRequirements, {})) {
           set(requirementsAtom, {});
         }
+      } finally {
+        set(requirementsLoadingAtom, false);
       }
     })().finally(() => {
       refreshRequirementsInFlight = null;
@@ -399,5 +440,7 @@ export {dateRangeAtom,
   dayIntake,
   hoveredLogPanelData,
   pendingFoodsAtom,
-  hoveredLogAtom
+  hoveredLogAtom,
+  logsLoadingAtom,
+  requirementsLoadingAtom,
 }

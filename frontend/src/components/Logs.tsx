@@ -9,7 +9,7 @@ import { AddComponentForm } from './AddComponentForm';
 import { CreateRecipeModal } from './CreateRecipeModal';
 import { LogProps, LogComponent } from './structures';
 import {useRecoilValue, useSetRecoilState, useRecoilState} from 'recoil'
-import { logsAtom, currentDayAtom, hoveredLogAtom, useRefreshLogs, pendingFoodsAtom, PendingFood } from './dashboard_states';
+import { logsAtom, logsLoadingAtom, currentDayAtom, hoveredLogAtom, useRefreshLogs, pendingFoodsAtom, PendingFood } from './dashboard_states';
 import { AnimatePresence, motion } from 'framer-motion';
 import { MealLoading} from './MealLoading';
 import { RecipeCard } from './RecipeCard';
@@ -49,6 +49,7 @@ const getDayStart = (value: unknown): number => {
 
 function LogList (){
   const logs = useRecoilValue(logsAtom)
+  const logsLoading = useRecoilValue(logsLoadingAtom)
   const pendingFoods = useRecoilValue(pendingFoodsAtom)
   console.log('LogList: pendingFoods =', pendingFoods);
   // Track which log is being hovered
@@ -164,6 +165,27 @@ function LogList (){
       }
     } catch (e) {}
   };
+
+  // Early return AFTER all hooks
+  if (logsLoading && logs.length === 0 && pendingFoods.length === 0) {
+    return (
+      <LogListContainer className="log-list">
+        <GlobalEditStyles />
+        {[1, 2, 3].map((idx) => (
+          <LogWrapper key={`loading-${idx}`}>
+            <motion.div
+              initial={{ opacity: 0.35 }}
+              animate={{ opacity: [0.35, 0.9, 0.35] }}
+              transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut', delay: idx * 0.12 }}
+              style={{ width: '100%' }}
+            >
+              <MealLoading />
+            </motion.div>
+          </LogWrapper>
+        ))}
+      </LogListContainer>
+    );
+  }
 
   // Early return AFTER all hooks
   if (logs.length === 0 && pendingFoods.length === 0) {

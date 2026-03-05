@@ -1,16 +1,25 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { LoginButton } from './Sections.styled';
 import SubmitButton from '../assets/images/login.svg?react'
 import SubmitButtonHollow from '../assets/images/login-hollow.svg?react'
 import {Link} from 'react-router-dom';
-import { useRefreshAccountInfo } from './account_states';
 import { request } from './endpoints';
 import { accountInfoAtom } from './account_states';
 import { useRecoilState } from 'recoil';
 import { debounce } from 'lodash';
-import { useFetchAutoFillData } from './account_states';
-import { useRef, useEffect } from 'react';
+import { useRef } from 'react';
+
+type DashboardLoginBootstrapState = {
+  loginBootstrap: {
+    email: string;
+    password: string;
+    submittedAt: number;
+  };
+};
+type LoginLocationState = {
+  loginError?: string;
+};
 
 function LoginForm() {
   // State to store the email and password
@@ -26,11 +35,13 @@ function LoginForm() {
   const [emailIncorrect, setEmailIncorrect] = useState(false);
   const [passwordIncorrect, setPasswordIncorrect] = useState(false);
   const [loginHovered, setLoginHovered] = useState(false);
-  const refreshAccountInfo = useRefreshAccountInfo()
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const nextInputRef = useRef<HTMLInputElement>(null);
 
   const navigate = useNavigate(); // React Router's navigation hook
+  const location = useLocation();
+  const loginErrorMessage = ((location.state as LoginLocationState | null) || {}).loginError || '';
 
 
   // Event object is automatically passed to handler
@@ -85,55 +96,25 @@ function LoginForm() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault(); // Prevent default form submission
+    if (isSubmitting) return;
 
     try {
       if (isEmail()){
-        const response = await request('/auth/submit_login', 'POST', { username : formData.email, password : formData.password}, 'URLencode',false)
-        if (response.status == 200) {
-          const token = response.body.access_token;
-          // Store the token in localStorage (or sessionStorage if desired)
-          localStorage.setItem('access_token', token);
-          sessionStorage.removeItem('isTrial');
-          console.log('Login successful.');
-
-          // Navigate immediately so login does not wait on large preload requests.
-          navigate('/dashboard');
-
-          // Warm commonly-used caches in the background.
-          Promise.allSettled([
-            request('/food/all', 'GET').then((res) => {
-              if (res.status === 200 && res.body) {
-                localStorage.setItem('foods', JSON.stringify(res.body));
-              }
-            }),
-            request('/nutrients/all', 'GET').then((res) => {
-              if (res.status === 200 && res.body) {
-                localStorage.setItem('nutrients', JSON.stringify(res.body));
-              }
-            }),
-          ]).then(() => {
-            refreshAccountInfo();
-          });
-        }
-        // raise HTTPException(status_code=404, detail="User not found")
-        else if (response.status == 404){
-          console.log("hi!")
-          setEmailIncorrect(true)
-          setTimeout(() => setEmailIncorrect(false), 300);
-          setRedirect({url : '/hello', message : 'create account'})
-        }
-        // raise HTTPException(status_code=403, detail="Incorrect password")
-        else if (response.status == 403){
-          setPasswordIncorrect(true)
-          setTimeout(() => setPasswordIncorrect(false), 300);
-          setRedirect({url : '/oops', message : 'forgot? reset password'})
-        }
-        else {
-          console.error('Unexpected error:', response);
-        }
+        setIsSubmitting(true);
+        setAccountInfo({ ...accountInfo, email: formData.email, password: '' });
+        navigate('/dashboard', {
+          state: {
+            loginBootstrap: {
+              email: formData.email,
+              password: formData.password,
+              submittedAt: Date.now(),
+            },
+          } as DashboardLoginBootstrapState,
+        });
       }
     } catch (error) {
-        console.error('An unexpected error occurred:', error);
+      setIsSubmitting(false);
+      console.error('An unexpected error occurred:', error);
     }
   };
 
@@ -173,12 +154,19 @@ function LoginForm() {
           </div>
             <LoginButton
               type="submit"
+              disabled={isSubmitting}
+              style={{ opacity: isSubmitting ? 0.65 : 1 }}
               onMouseEnter={() => setLoginHovered(true)}
               onMouseLeave={() => setLoginHovered(false)}>
               {loginHovered ? <SubmitButton/> : <SubmitButtonHollow/>}
             </LoginButton>
         </form>
         <div>
+              {loginErrorMessage && (
+                <div className='form-field'>
+                  <div style={{ textAlign: 'center', color: '#f7b4d8' }}>{loginErrorMessage}</div>
+                </div>
+              )}
               {redirect && (
                 <div className = 'form-field'>
                 <Link style = {{textAlign: 'center'}}to={redirect.url}> {redirect.message}</Link>
