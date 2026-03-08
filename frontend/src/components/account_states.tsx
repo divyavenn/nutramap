@@ -17,6 +17,35 @@ interface AccountInfo{
 }
 
 const storageObjectCache: Record<string, { raw: string; parsed: Record<string, any> }> = {};
+const NUTRIENTS_CACHE_VERSION_KEY = 'nutrients_cache_version';
+const NUTRIENTS_CACHE_VERSION = '2';
+
+type NutrientNameMap = Record<string, { id: number; unit: string }>;
+
+const normalizeNutrientNameMap = (input: Record<string, any>): NutrientNameMap => {
+  const normalized: NutrientNameMap = {};
+  let legacyEnergyEntry: { id: number; unit: string } | null = null;
+
+  for (const [name, details] of Object.entries(input)) {
+    if (!details || typeof details !== 'object') continue;
+    const id = Number((details as any).id);
+    const unit = String((details as any).unit ?? "");
+    if (!Number.isFinite(id) || !unit) continue;
+
+    const entry = { id, unit };
+    if (name === "Energy" || id === 1008) {
+      legacyEnergyEntry = entry;
+      continue;
+    }
+    normalized[name] = entry;
+  }
+
+  if (legacyEnergyEntry) {
+    normalized["Calories"] = legacyEnergyEntry;
+  }
+
+  return normalized;
+};
 
 
 const editingPasswordAtom = atom<boolean>({
@@ -61,13 +90,6 @@ const accountInfoAtom = atom<AccountInfo>({
 })
 
 
-const addFoodsToLocalStorage = async () => {
-  localStorage.setItem('foods', JSON.stringify(await (await request('/food/all', 'GET')).body))
-}
-
-const addNutrientsbyName = async () => {
-  localStorage.setItem('nutrients', JSON.stringify(await (await request('/nutrients/all', 'GET')).body))
-}
 
 // you can only use hooks inside other hooks or inside components
 function useRefreshAccountInfo() {
@@ -199,40 +221,87 @@ function useFetchAutoFillData(){
     return {};
   };
 
+  const parseCustomFoodsCache = (raw: string | null): Record<string, string> => {
+    if (!raw) return {};
+    try {
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return {};
+      const map: Record<string, string> = {};
+      for (const food of arr) {
+        if (food.name && food._id) map[food.name] = food._id;
+      }
+      return map;
+    } catch {
+      return {};
+    }
+  };
+
   const fetchLocalStorage = useCallback(() => {
-    const nutrients = safeParseStorageObject('nutrients');
-    const foods = safeParseStorageObject('foods');
+    const cachedNutrientsVersion = localStorage.getItem(NUTRIENTS_CACHE_VERSION_KEY);
+    if (cachedNutrientsVersion !== NUTRIENTS_CACHE_VERSION) {
+      localStorage.removeItem('nutrients');
+      delete storageObjectCache.nutrients;
+      localStorage.setItem(NUTRIENTS_CACHE_VERSION_KEY, NUTRIENTS_CACHE_VERSION);
+    }
+
+    const parsedNutrients = safeParseStorageObject('nutrients');
+    const nutrients = normalizeNutrientNameMap(parsedNutrients);
+    const usdaFoods = safeParseStorageObject('foods');
+    const customFoodsRaw = localStorage.getItem('custom_foods_cache');
+    const customFoodsMap = parseCustomFoodsCache(customFoodsRaw);
+
+    if (JSON.stringify(nutrients) !== JSON.stringify(parsedNutrients)) {
+      const raw = JSON.stringify(nutrients);
+      localStorage.setItem('nutrients', raw);
+      storageObjectCache.nutrients = { raw, parsed: nutrients };
+    }
 
     setNutrients(nutrients);
-    setFoods(foods);
+    setFoods({ ...usdaFoods, ...customFoodsMap });
 
     const needsNutrients = Object.keys(nutrients).length === 0;
-    const needsFoods = Object.keys(foods).length === 0;
+    const needsFoods = Object.keys(usdaFoods).length === 0;
+    const needsCustomFoods = customFoodsRaw === null;
 
-    if (needsNutrients || needsFoods) {
+    if (needsNutrients || needsFoods || needsCustomFoods) {
       Promise.allSettled([
         needsNutrients ? request('/nutrients/all', 'GET') : Promise.resolve({ status: 200, body: nutrients }),
-        needsFoods ? request('/food/all', 'GET') : Promise.resolve({ status: 200, body: foods }),
-      ]).then(([nutrientsResult, foodsResult]) => {
+        needsFoods ? request('/food/all', 'GET') : Promise.resolve({ status: 200, body: usdaFoods }),
+        needsCustomFoods ? request('/food/custom-foods', 'GET') : Promise.resolve({ status: 200, body: null }),
+      ]).then(([nutrientsResult, foodsResult, customFoodsResult]) => {
+        let resolvedUsda = usdaFoods;
+        let resolvedCustom = customFoodsMap;
+
         if (nutrientsResult.status === 'fulfilled') {
           const res = nutrientsResult.value as { status: number; body: any };
           if (res.status === 200 && res.body && typeof res.body === 'object' && !Array.isArray(res.body)) {
-            setNutrients(res.body);
-            const raw = JSON.stringify(res.body);
+            const normalized = normalizeNutrientNameMap(res.body);
+            setNutrients(normalized);
+            const raw = JSON.stringify(normalized);
             localStorage.setItem('nutrients', raw);
-            storageObjectCache.nutrients = { raw, parsed: res.body };
+            storageObjectCache.nutrients = { raw, parsed: normalized };
           }
         }
 
         if (foodsResult.status === 'fulfilled') {
           const res = foodsResult.value as { status: number; body: any };
           if (res.status === 200 && res.body && typeof res.body === 'object' && !Array.isArray(res.body)) {
-            setFoods(res.body);
+            resolvedUsda = res.body;
             const raw = JSON.stringify(res.body);
             localStorage.setItem('foods', raw);
             storageObjectCache.foods = { raw, parsed: res.body };
           }
         }
+
+        if (customFoodsResult.status === 'fulfilled') {
+          const res = customFoodsResult.value as { status: number; body: any };
+          if (res.status === 200 && Array.isArray(res.body)) {
+            localStorage.setItem('custom_foods_cache', JSON.stringify(res.body));
+            resolvedCustom = parseCustomFoodsCache(JSON.stringify(res.body));
+          }
+        }
+
+        setFoods({ ...resolvedUsda, ...resolvedCustom });
       });
     }
   }, [setFoods, setNutrients]);

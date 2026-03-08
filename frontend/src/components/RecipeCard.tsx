@@ -41,6 +41,8 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink }: Re
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [hasEdits, setHasEdits] = useState(false);
   const [showSyncConfirm, setShowSyncConfirm] = useState(false);
+  // When opened from a meal log, start in read-only mode
+  const [isEditMode, setIsEditMode] = useState(!logId);
 
   // Unified title state
   const [recipeName, setRecipeName] = useState(recipe.description);
@@ -254,7 +256,7 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink }: Re
                 <RecipeNameDisplay as="div" $saving>
                   <AnimatedText text={titleDisplayText()} />
                 </RecipeNameDisplay>
-              ) : isEditingTitle ? (
+              ) : isEditingTitle && isEditMode ? (
                 <RecipeTitleEditRow
                   ref={titleRowRef}
                   onBlur={handleTitleBlur}
@@ -290,10 +292,11 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink }: Re
                 </RecipeTitleEditRow>
               ) : (
                 <RecipeNameDisplay
-                  onClick={() => {
+                  onClick={isEditMode ? () => {
                     setIsEditingTitle(true);
                     setTimeout(() => nameInputRef.current?.focus(), 0);
-                  }}
+                  } : undefined}
+                  style={isEditMode ? undefined : { cursor: 'default' }}
                 >
                   {recipeName}
                   {servingLabel && servingGrams && (
@@ -306,40 +309,79 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink }: Re
             <ModalContent>
               <IngredientsSection>
                 {editedIngredients.map((ingredient, index) => (
+                  isEditMode ? (
+                    <EditIngredientForm
+                      key={index}
+                      food_name={ingredient.food_name || ''}
+                      amount={ingredient.amount}
+                      weight_in_grams={ingredient.weight_in_grams}
+                      food_id={ingredient.food_id}
+                      componentIndex={index}
+                      recipeId={recipe.recipe_id}
+                      onSave={handleIngredientSave}
+                      onDelete={handleIngredientDelete}
+                      onCancel={() => setEditingIndex(null)}
+                    />
+                  ) : (
+                    <div key={index} style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'baseline',
+                      padding: '6px 0',
+                      borderBottom: '1px solid rgba(255,255,255,0.06)',
+                      fontFamily: 'Inconsolata, monospace',
+                      fontSize: 13,
+                      color: 'rgba(255,255,255,0.75)',
+                    }}>
+                      <span>{ingredient.food_name || 'Unknown'}</span>
+                      <span style={{ color: 'rgba(255,255,255,0.4)', marginLeft: 12 }}>
+                        {ingredient.amount || `${Math.round(ingredient.weight_in_grams)}g`}
+                      </span>
+                    </div>
+                  )
+                ))}
+                {isEditMode && (
                   <EditIngredientForm
-                    key={index}
-                    food_name={ingredient.food_name || ''}
-                    amount={ingredient.amount}
-                    weight_in_grams={ingredient.weight_in_grams}
-                    food_id={ingredient.food_id}
-                    componentIndex={index}
+                    food_name={''}
+                    amount={''}
+                    weight_in_grams={0}
                     recipeId={recipe.recipe_id}
                     onSave={handleIngredientSave}
                     onDelete={handleIngredientDelete}
                     onCancel={() => setEditingIndex(null)}
                   />
-                ))}
-                <EditIngredientForm
-                  food_name={''}
-                  amount={''}
-                  weight_in_grams={0}
-                  recipeId={recipe.recipe_id}
-                  onSave={handleIngredientSave}
-                  onDelete={handleIngredientDelete}
-                  onCancel={() => setEditingIndex(null)}
-                />
+                )}
               </IngredientsSection>
             </ModalContent>
 
-            {logId && (
+            {/* Bottom buttons: Edit+Unlink when opened from log (read-only), Delete when in edit mode */}
+            {logId && !isEditMode && (
               <div style={{
                 position: 'absolute',
-                bottom: 35,
+                bottom: 24,
                 left: 0,
                 right: 0,
                 display: 'flex',
                 justifyContent: 'center',
+                gap: 16,
               }}>
+                <button
+                  onClick={() => setIsEditMode(true)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'rgba(255,255,255,0.4)',
+                    fontFamily: 'Inconsolata, monospace',
+                    fontSize: 13,
+                    cursor: 'pointer',
+                    padding: '6px 10px',
+                    transition: 'color 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => { (e.target as HTMLButtonElement).style.color = 'rgba(255,255,255,0.85)'; }}
+                  onMouseLeave={(e) => { (e.target as HTMLButtonElement).style.color = 'rgba(255,255,255,0.4)'; }}
+                >
+                  edit
+                </button>
                 <button
                   className="tutorial-unlink-btn"
                   onClick={handleUnlinkFromLog}
@@ -356,12 +398,12 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink }: Re
                   onMouseEnter={(e) => { (e.target as HTMLButtonElement).style.color = 'rgba(255,255,255,0.85)'; }}
                   onMouseLeave={(e) => { (e.target as HTMLButtonElement).style.color = 'rgba(255,255,255,0.4)'; }}
                 >
-                  unlink from this meal
+                  unlink
                 </button>
               </div>
             )}
 
-            {!logId && (
+            {isEditMode && (
               <ModalFooter>
                 <DeleteRecipeIconButton
                   as={motion.button}

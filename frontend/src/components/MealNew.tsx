@@ -28,12 +28,14 @@ function NewSmartLog() {
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollCountRef = useRef(0);
+  const knownLogCountRef = useRef<number | null>(null);
 
   // Poll for log updates while there are pending foods.
   useEffect(() => {
     if (pendingFoods.length === 0) {
       if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null; }
       if (pollTimeoutRef.current) { clearTimeout(pollTimeoutRef.current); pollTimeoutRef.current = null; }
+      knownLogCountRef.current = null;
       return;
     }
 
@@ -41,10 +43,20 @@ function NewSmartLog() {
     if (pollIntervalRef.current !== null) return;
 
     pollCountRef.current = 0;
+    knownLogCountRef.current = null;
 
     pollIntervalRef.current = setInterval(async () => {
       pollCountRef.current++;
-      await refreshLogs();
+      const latestLogs = await refreshLogs({ force: true });
+      if (Array.isArray(latestLogs)) {
+        if (knownLogCountRef.current === null) {
+          knownLogCountRef.current = latestLogs.length;
+        } else if (latestLogs.length > knownLogCountRef.current) {
+          const added = latestLogs.length - knownLogCountRef.current;
+          knownLogCountRef.current = latestLogs.length;
+          setPendingFoods(prev => prev.slice(added));
+        }
+      }
       requestAnimationFrame(() => {
         if (document.querySelector('.recipe-bubble')) {
           tutorialEvent('tutorial:log-ready');
@@ -137,7 +149,7 @@ function NewSmartLog() {
       // Remove from pending on error
       setPendingFoods(prev => prev.filter(p => p.timestamp !== pendingMeal.timestamp));
       // Still refresh to show any partial results
-      refreshLogs();
+      refreshLogs({ force: true });
     }
   };
 

@@ -3,19 +3,31 @@
 The web app is hosted live on nutramap.vercel.app but to test the mcp you'll have to run it locally.
 Nutramap is a proof of concept for a human-LLM collaborative workflow + the first ever nutrition tracker with an agentic interface. if you'd like to see it in production please add your email to the list. 
 
-## MCP + CLI tool Quickstart.
+## MCP Quickstart.
 
 Use this if you want an assistant to chat about meals, ask follow-up questions, and log entries using Nutramap.
 First, clone this repo to your desktop. 
 
-### 1) Install CLI + MCP package from this repo
+### 1) Install and run MCP server from this repo
 
 ```bash
 chmod +x run-mcp.sh
 ./run-mcp.sh
 ```
 
-### 2) Verify from terminal (optional)
+## Binary Quickstart.
+
+Use this if you want an assistant to chat about meals, ask follow-up questions, and log entries using Nutramap.
+First, clone this repo to your desktop. 
+
+### 1) Install binary
+
+```bash
+chmod +x install-binary.sh
+./install-binary.sh
+```
+
+### 2) Verify from terminal 
 
 Open a new terminal and test out the CLI. 
 ```bash
@@ -29,7 +41,83 @@ foodpanel today
 
 ## 3) LLM Assistant Integration
 
+### Claude Code with CLI
+
+Make sure you have the binary installed.
+
+1. Install the local skill file for Claude Code:
+
+```bash
+mkdir -p ~/.claude/skills/foodpanel-cli
+cp /path/to/nutramap/skills/foodpanel-cli/SKILL.md ~/.claude/skills/foodpanel-cli/SKILL.md
+```
+
+Or symlink so updates to the repo are picked up automatically in every new chat (recommended if you keep the repo at a stable path):
+
+```bash
+mkdir -p ~/.claude/skills/foodpanel-cli
+ln -sf /path/to/nutramap/skills/foodpanel-cli/SKILL.md ~/.claude/skills/foodpanel-cli/SKILL.md
+```
+
+
+ln -sf /Users/divyavenn/Documents/GitHub/nutramap/skills/foodpanel-cli/SKILL.md ~/.claude/skills/foodpanel-cli/SKILL.md
+
+
+2. (Optional) Pre-approve foodpanel commands so Claude Code never prompts for permission:
+
+Create or edit `.claude/settings.json` in your project root:
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(foodpanel *)",
+      "Bash(foodPanel *)"
+    ]
+  }
+}
+```
+You can also just start claude code and tell claude to do this step.
+
+3. Start Claude Code in your project and invoke the skill:
+
+```text
+Use $foodpanel-cli for this session. Check what we've eaten today.
+```
+
+### Codex with CLI
+
+Make sure you have the binary installed. 
+
+These steps assume Codex Desktop UI (no manual config file edits).
+
+1. From sidebar, open **Skills**.
+2. Use skill installer and tell it to install the skill from https://github.com/divyavenn/nutramap/tree/main/skills/foodpanel-cli
+3. Select this folder:
+   - `/path/to/nutramap/skills/foodpanel-cli`
+4. Confirm installation and enable the skill.
+5. Restart Codex Desktop.
+
+Then start a chat with:
+
+```text
+Use $foodpanel-cli for this session.
+```
+
+
+## Verify it's running
+In chat, run a simple tool call request like:
+```text
+Use $foodpanel-agent for this session. Call session_info now and show the tool result.
+```
+
+If it returns server info (base_url, has_access_token), MCP is working.
+
+
 ### ChatGPT Desktop
+
+Make sure you have the MCP installed and running. 
+
 - Open ChatGPT Desktop.
 - Go to Settings.
 - Open Connectors / Tools / MCP Servers.
@@ -61,7 +149,9 @@ Ask follow-up questions if anything is unclear, then log it.
 Use $foodpanel-agent. Show my logs and stats for yesterday.
 ```
 
-### Claude Code
+### Claude Code with MCP
+
+Make sure you have the MCP installed and running. 
 
 These steps are for the Claude Code CLI workflow (not desktop UI).
 
@@ -83,13 +173,19 @@ claude mcp list
 claude mcp get foodpanel
 ```
 
-3. Install/update the local skill file for Claude Code:
+3. Install the local skill file for Claude Code:
 
 ```bash
 mkdir -p ~/.claude/skills/foodpanel-agent
 cp /path/to/nutramap/skills/foodpanel-agent/SKILL.md ~/.claude/skills/foodpanel-agent/SKILL.md
 ```
-cp /Users/divyavenn/Documents/GitHub/nutramap/skills/foodpanel-agent/SKILL.md ~/.claude/skills/foodpanel-agent/SKILL.md
+
+Or symlink so updates to the repo are picked up automatically in every new chat (recommended if you keep the repo at a stable path):
+
+```bash
+mkdir -p ~/.claude/skills/foodpanel-agent
+ln -sf /path/to/nutramap/skills/foodpanel-agent/SKILL.md ~/.claude/skills/foodpanel-agent/SKILL.md
+```
 
 4. Start Claude Code in your project and invoke the skill:
 
@@ -97,7 +193,10 @@ cp /Users/divyavenn/Documents/GitHub/nutramap/skills/foodpanel-agent/SKILL.md ~/
 Use $foodpanel-agent for this session. Call session_info now and show the tool result.
 ```
 
-### Codex
+
+### Codex with MCP
+
+Make sure you have the MCP installed and running. 
 
 These steps assume Codex Desktop UI (no manual config file edits).
 
@@ -128,9 +227,7 @@ Use $foodpanel-agent. I had one small cup vegan chilli. Ask follow-up questions 
 ## Verify it's running
 In chat, run a simple tool call request like:
 ```text
-
-
-
+Use $foodpanel-agent for this session. Call session_info now and show the tool result.
 ```
 
 If it returns server info (base_url, has_access_token), MCP is working.

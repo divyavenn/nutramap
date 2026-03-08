@@ -6,6 +6,7 @@ import SubmitButtonHollow from '../assets/images/login-hollow.svg?react'
 import {Link} from 'react-router-dom';
 import { request } from './endpoints';
 import { accountInfoAtom } from './account_states';
+import { clearUserCaches } from './utlis';
 import { useRecoilState } from 'recoil';
 import { debounce } from 'lodash';
 import { useRef } from 'react';
@@ -115,6 +116,9 @@ function LoginForm() {
         return;
       }
 
+      if (accountInfo.email && accountInfo.email !== formData.email) {
+        clearUserCaches();
+      }
       localStorage.setItem('access_token', response.body.access_token);
       sessionStorage.removeItem('isTrial');
       setAccountInfo({ ...accountInfo, email: formData.email, password: '' });

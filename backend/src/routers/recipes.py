@@ -1649,16 +1649,27 @@ def list_recipes(user: user, db: db):
 
     # Add usage counts to recipes (O(1) lookup instead of N database queries)
     for recipe in recipes:
-        recipe["usage_count"] = usage_counts.get(recipe["recipe_id"], 0)
+        recipe["usage_count"] = usage_counts.get(recipe.get("recipe_id"), 0)
 
     # Sort alphabetically by description
-    recipes.sort(key=lambda r: r["description"].lower())
+    recipes.sort(key=lambda r: (r.get("description") or "").lower())
 
-    # Remove embeddings from response (too large)
+    def _serialize(obj):
+        if isinstance(obj, ObjectId):
+            return str(obj)
+        if isinstance(obj, dict):
+            return {k: _serialize(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [_serialize(i) for i in obj]
+        return obj
+
+    # Remove embeddings from response (too large) and serialize ObjectIds
+    serialized = []
     for recipe in recipes:
         recipe.pop("embedding", None)
+        serialized.append(_serialize(recipe))
 
-    return {"recipes": recipes}
+    return {"recipes": serialized}
 
 
 @router.post("/update-ingredients")

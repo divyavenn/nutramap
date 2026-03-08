@@ -13,6 +13,7 @@ import { RecipeCard } from '../components/RecipeCard';
 import type { Recipe } from '../components/RecipeBlurb';
 import { tutorialEvent } from '../components/TryTutorial';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import {
   MyRecipesPage,
   MyRecipesContainer,
@@ -37,8 +38,13 @@ function MyRecipes() {
   const [newRecipeName, setNewRecipeName] = useState('');
   const [creating, setCreating] = useState(false);
   const name = useRecoilValue(firstNameAtom);
+  const navigate = useNavigate();
   const overlayTransition = { duration: 0.2, ease: 'easeOut' } as const;
   const modalTransition = { duration: 0.22, ease: [0.22, 1, 0.36, 1] } as const;
+
+  const clearRecipeCaches = () => {
+    localStorage.removeItem('recipes_cache');
+  };
 
   useEffect(() => {
     initializeRecipes();
@@ -53,8 +59,10 @@ function MyRecipes() {
   };
 
   const fetchRecipes = async (forceRefresh = false) => {
+    let usedCachedRecipes = false;
+
     try {
-      // Check cache first (unless forced refresh)
+      // Hydrate from cache first for fast paint, but always revalidate from API.
       if (!forceRefresh) {
         try {
           const cached = localStorage.getItem('recipes_cache');
@@ -62,10 +70,9 @@ function MyRecipes() {
             const parsed = JSON.parse(cached);
             if (Array.isArray(parsed)) {
               setRecipes(parsed);
-              setLoading(false);
-              return;
+              usedCachedRecipes = true;
             } else {
-              localStorage.removeItem('recipes_cache');
+              clearRecipeCaches();
             }
           }
         } catch (storageError) {
@@ -73,20 +80,28 @@ function MyRecipes() {
         }
       }
 
-      // Cache miss - fetch from API
       const response = await request('/recipes/list', 'GET');
-      if (response && response.body && Array.isArray(response.body.recipes)) {
-        const recipes = response.body.recipes;
-        setRecipes(recipes);
+      if (response.status === 200 && response.body && Array.isArray(response.body.recipes)) {
+        const apiRecipes = response.body.recipes;
+        setRecipes(apiRecipes);
         try {
-          localStorage.setItem('recipes_cache', JSON.stringify(recipes));
+          localStorage.setItem('recipes_cache', JSON.stringify(apiRecipes));
         } catch (storageError) {
           // localStorage not available - skip caching
         }
+      } else if (response.status === 401) {
+        clearRecipeCaches();
+        navigate('/login', { replace: true, state: { loginError: 'Please log in to view recipes.' } });
+      } else if (!usedCachedRecipes) {
+        setRecipes([]);
+        console.warn('Unexpected /recipes/list response', response.status, response.body);
       }
-      setLoading(false);
     } catch (error) {
       console.error('Error fetching recipes:', error);
+      if (!usedCachedRecipes) {
+        setRecipes([]);
+      }
+    } finally {
       setLoading(false);
     }
   };
@@ -113,7 +128,7 @@ function MyRecipes() {
       const response = await request('/recipes/create', 'POST', formData);
 
       if (response.status === 200 && response.body?.recipe) {
-        try { localStorage.removeItem('recipes_cache'); } catch (e) {}
+        clearRecipeCaches();
         await fetchRecipes(true);
         setShowCreateModal(false);
         setNewRecipeName('');
@@ -142,7 +157,7 @@ function MyRecipes() {
       console.log('Delete response:', response);
 
       // Invalidate cache regardless of result to sync with backend
-      try { localStorage.removeItem('recipes_cache'); } catch (e) {}
+      clearRecipeCaches();
 
       if (response.status !== 200) {
         console.error('Delete failed with status:', response.status, response.body);
@@ -161,7 +176,7 @@ function MyRecipes() {
       console.error('Error deleting recipe:', error);
       alert('Failed to delete recipe. Please try again.');
       // Force refresh to sync with backend state
-      try { localStorage.removeItem('recipes_cache'); } catch (e) {}
+      clearRecipeCaches();
       await fetchRecipes(true);
     }
   };
@@ -208,7 +223,7 @@ function MyRecipes() {
                 onDelete={handleDeleteRecipe}
                 onUpdate={() => {
                   // Invalidate cache and force refresh after recipe updates
-                  try { localStorage.removeItem('recipes_cache'); } catch (e) {}
+                  clearRecipeCaches();
                   fetchRecipes(true);
                 }}
               />

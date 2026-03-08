@@ -178,8 +178,17 @@ const cleanLocalStorage = () => {
   localStorage.getItem('foods') ? localStorage.removeItem('foods') : null;
   localStorage.getItem('accountInfo') ? localStorage.removeItem('accountInfo') : null;
   localStorage.getItem('nutrients') ? localStorage.removeItem('nutrients') : null;
+  localStorage.removeItem('custom_foods_cache');
+  localStorage.removeItem('recipes_cache');
   sessionStorage.getItem('isTrial') ? sessionStorage.removeItem('isTrial') : null;
-}  
+}
 
-export {calculateColor, getFoodID, formatTime, getCurrentPeriod, formatDayForFrontend, 
-  Typewriter, tolocalDateString, getNutrientInfo, isLoginExpired, cleanLocalStorage}
+// Clears user-specific caches when switching accounts.
+// Does NOT clear global caches (foods, nutrients) since those are the same for all users.
+const clearUserCaches = () => {
+  localStorage.removeItem('recipes_cache');
+  localStorage.removeItem('custom_foods_cache');
+};
+
+export {calculateColor, getFoodID, formatTime, getCurrentPeriod, formatDayForFrontend,
+  Typewriter, tolocalDateString, getNutrientInfo, isLoginExpired, cleanLocalStorage, clearUserCaches}

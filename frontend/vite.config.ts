@@ -50,6 +50,10 @@ export default defineConfig(({ mode }) => {
         '/food': {
           target: env.VITE_API_URL,
           changeOrigin: true,
+        },
+        '/recipes': {
+          target: env.VITE_API_URL,
+          changeOrigin: true,
         }
       },
     },

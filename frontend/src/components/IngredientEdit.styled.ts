@@ -63,7 +63,7 @@ export const DeleteButtonContainer = styled.div<DeleteButtonContainerProps>`
   display: flex;
   width: 40px;
   margin-left: 40px;
-  align-items: start;
+  align-items: center;
 
   ${props => props.$hide && css`
     opacity: 0;

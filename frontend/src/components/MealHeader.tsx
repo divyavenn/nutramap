@@ -46,7 +46,7 @@ function MealHeader({
   const refreshLogs = useRefreshLogs();
 
   const weightPerServing = servings > 0 ? total_weight_grams / servings : null;
-  const canOpenRecipe = Boolean(recipe_id) && Boolean(recipe_exists);
+  const canOpenRecipe = Boolean(recipe_id);
 
   // Sync inputs from props when not in edit mode
   useEffect(() => {
@@ -152,7 +152,7 @@ function MealHeader({
     onDeleteStart();
     try {
       await request(`/logs/delete?log_id=${log_id}`, 'DELETE');
-      refreshLogs();
+      refreshLogs({ force: true });
     } catch (error) {
       console.error('Error deleting log:', error);
       setIsDeleting(false);

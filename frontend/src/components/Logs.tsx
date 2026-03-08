@@ -78,6 +78,7 @@ function LogList (){
     };
   }, []);
 
+
   // Handle mouse enter for a specific log - debounced to prevent jitter
   // NOTE: These hooks MUST be before any conditional returns
   const handleLogMouseEnter = useCallback((logId: string, blurb: string) => {
@@ -111,12 +112,13 @@ function LogList (){
 
   // Fetch recipes from cache or API, then find recipe by ID
   const handleRecipeClick = useCallback(async (recipeId: string, logId?: string) => {
+    const recipeIdKey = String(recipeId).trim();
     try {
       // Try localStorage cache first
       const cached = localStorage.getItem('recipes_cache');
       if (cached) {
         const recipes: Recipe[] = JSON.parse(cached);
-        const recipe = recipes.find(r => r.recipe_id === recipeId);
+        const recipe = recipes.find(r => String(r.recipe_id).trim() === recipeIdKey);
         if (recipe) {
           setSelectedRecipe(recipe);
           setSelectedRecipeLogId(logId ?? null);
@@ -130,7 +132,7 @@ function LogList (){
       if (response.body?.recipes && Array.isArray(response.body.recipes)) {
         const recipes: Recipe[] = response.body.recipes;
         try { localStorage.setItem('recipes_cache', JSON.stringify(recipes)); } catch (e) {}
-        const recipe = recipes.find(r => r.recipe_id === recipeId);
+        const recipe = recipes.find(r => String(r.recipe_id).trim() === recipeIdKey);
         if (recipe) {
           setSelectedRecipe(recipe);
           setSelectedRecipeLogId(logId ?? null);
@@ -148,7 +150,7 @@ function LogList (){
       await request(`/recipes/delete?recipe_id=${recipeId}`, 'DELETE');
       try { localStorage.removeItem('recipes_cache'); } catch (e) {}
       setSelectedRecipe(null);
-      refreshLogs();
+      refreshLogs({ force: true });
     } catch (error) {
       console.error('Error deleting recipe:', error);
     }
@@ -302,7 +304,7 @@ function LogList (){
                 const isExpanded = expandedLogId === log._id;
 
                 const handleMealNameClick = () => {
-                  if (log.recipe_id && log.recipe_exists) {
+                  if (log.recipe_id) {
                     handleRecipeClick(log.recipe_id, log._id);
                   } else {
                     setCreateRecipeLogId(log._id);
@@ -363,6 +365,7 @@ function LogList (){
                                 logId={log._id}
                                 componentIndex={idx}
                                 isStandalone={isStandaloneFood}
+                                hasRecipe={!!log.recipe_id}
                                 logDate={new Date(log.date)}
                                 logServings={log.servings}
                                 onMouseEnter={() => handleLogMouseEnter(componentId, formatLogDescription([component]))}
@@ -389,19 +392,20 @@ function LogList (){
         );
       })}
 
-      <AnimatePresence>
-        {selectedRecipe && createPortal(
+      {selectedRecipe && createPortal(
+        <AnimatePresence>
           <RecipeCard
+            key={selectedRecipe.recipe_id}
             recipe={selectedRecipe}
             onClose={() => { setSelectedRecipe(null); setSelectedRecipeLogId(null); }}
             onDelete={handleDeleteRecipe}
             onUpdate={handleRecipeUpdate}
             logId={selectedRecipeLogId ?? undefined}
             onUnlink={() => { setSelectedRecipe(null); setSelectedRecipeLogId(null); refreshLogs(); }}
-          />,
-          document.body
-        )}
-      </AnimatePresence>
+          />
+        </AnimatePresence>,
+        document.body
+      )}
 
       {createRecipeLogId && (() => {
         const log = logs.find(l => l._id === createRecipeLogId);

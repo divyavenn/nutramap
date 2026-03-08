@@ -81,9 +81,25 @@ function areLogsEqual(leftLogs: LogProps[], rightLogs: LogProps[]): boolean {
 const LOGS_PAGE_LIMIT = 500;
 const LOGS_CACHE_TTL_MS = 45_000;
 let refreshDataInFlight: Promise<void> | null = null;
-const refreshLogsInFlightByRange = new Map<string, Promise<void>>();
+const refreshLogsInFlightByRange = new Map<string, Promise<LogProps[]>>();
 let refreshRequirementsInFlight: Promise<void> | null = null;
 const logsRangeCache = new Map<string, { data: LogProps[]; cachedAt: number }>();
+let logsCacheAuthKey: string | null = null;
+
+function getLogsCacheAuthKey(): string {
+  const token = localStorage.getItem('access_token');
+  if (!token) return 'anon';
+  try {
+    const [, payloadBase64] = token.split('.');
+    if (!payloadBase64) return 'anon';
+    const payload = JSON.parse(atob(payloadBase64));
+    const userId = typeof payload?._id === 'string' ? payload._id.trim() : '';
+    const email = typeof payload?.email === 'string' ? payload.email.trim().toLowerCase() : '';
+    return userId || email || 'anon';
+  } catch {
+    return 'anon';
+  }
+}
 
 // Define a type for pending foods with timestamps
 export interface PendingFood {
@@ -191,26 +207,39 @@ function useRefreshData(){
 }
 
 function useRefreshLogs() {
-  const refreshLogs = useRecoilCallback(({snapshot, set}) => async () => {
+  const refreshLogs = useRecoilCallback(({snapshot, set}) => async (options?: { force?: boolean }) => {
     const dateRange = await snapshot.getPromise(dateRangeAtom);
     const currentLogs = await snapshot.getPromise(logsAtom);
+    const force = Boolean(options?.force);
+    const authKey = getLogsCacheAuthKey();
+
+    if (logsCacheAuthKey !== authKey) {
+      logsRangeCache.clear();
+      refreshLogsInFlightByRange.clear();
+      logsCacheAuthKey = authKey;
+    }
+
     const startDate = tolocalDateString(dateRange.start);
     const endDate = tolocalDateString(dateRange.end);
-    const rangeKey = `${startDate}|${endDate}|${LOGS_PAGE_LIMIT}|0`;
+    const rangeKey = `${authKey}|${startDate}|${endDate}|${LOGS_PAGE_LIMIT}|0`;
+
+    if (force) {
+      logsRangeCache.delete(rangeKey);
+    }
 
     const cached = logsRangeCache.get(rangeKey);
     const hasFreshCache =
-      !!cached && (Date.now() - cached.cachedAt) <= LOGS_CACHE_TTL_MS;
+      !force && !!cached && (Date.now() - cached.cachedAt) <= LOGS_CACHE_TTL_MS;
 
     if (cached && !areLogsEqual(currentLogs, cached.data)) {
       // Show cached range data immediately for snappy month/day switches.
       set(logsAtom, cached.data);
     }
     if (hasFreshCache) {
-      return;
+      return cached?.data ?? currentLogs;
     }
 
-    const inFlight = refreshLogsInFlightByRange.get(rangeKey);
+    const inFlight = !force ? refreshLogsInFlightByRange.get(rangeKey) : undefined;
     if (inFlight) return inFlight;
 
     if (!cached) {
@@ -232,11 +261,13 @@ function useRefreshLogs() {
         if (!areLogsEqual(currentLogs, nextLogs)) {
           set(logsAtom, nextLogs);
         }
+        return nextLogs;
       } catch (error) {
         console.error('Failed to refresh logs:', error);
         if (!areLogsEqual(currentLogs, [])) {
           set(logsAtom, []);
         }
+        return [];
       } finally {
         if (!cached) {
           set(logsLoadingAtom, false);

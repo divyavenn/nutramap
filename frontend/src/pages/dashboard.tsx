@@ -15,6 +15,7 @@ import {
   useRefreshLogs,
   useRefreshRequirements,
 } from '../components/dashboard_states'
+import { clearUserCaches } from '../components/utlis'
 import AccountIcon from '../assets/images/account.svg?react'
 import DashboardIcon from '../assets/images/dashboard.svg?react'
 import FoodBowl from '../assets/images/food_bowl.svg?react'
@@ -243,6 +244,10 @@ function Dashboard() {
         return
       }
 
+      const previousEmail = (() => { try { return JSON.parse(localStorage.getItem('accountInfo') ?? '{}').email ?? ''; } catch { return ''; } })();
+      if (previousEmail && previousEmail !== loginBootstrap.email) {
+        clearUserCaches();
+      }
       localStorage.setItem('access_token', response.body.access_token)
       sessionStorage.removeItem('isTrial')
       setBootstrapPhase('hydrating')

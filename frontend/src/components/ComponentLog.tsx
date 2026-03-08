@@ -18,6 +18,7 @@ interface ComponentLogProps {
   logId: string;
   componentIndex: number;
   isStandalone: boolean;
+  hasRecipe?: boolean;
   logDate?: Date;
   logServings?: number;
   onDelete?: () => void;
@@ -26,7 +27,7 @@ interface ComponentLogProps {
 }
 
 function ComponentLog({
-  component, logId, componentIndex, isStandalone,
+  component, logId, componentIndex, isStandalone, hasRecipe = false,
   logDate, logServings,
   onDelete, onMouseEnter, onMouseLeave,
 }: ComponentLogProps) {
@@ -256,7 +257,7 @@ function ComponentLog({
           'DELETE'
         );
       }
-      refreshLogs();
+      refreshLogs({ force: true });
       onDelete?.();
     } catch (error) {
       console.error('Error deleting component:', error);
@@ -347,7 +348,10 @@ function ComponentLog({
           )}
         </FormDropdownWrapper>
       ) : (
-        <LogBubble onClick={() => setIsEditable(true)} style={{ cursor: 'pointer' }}>
+        <LogBubble
+          onClick={hasRecipe ? undefined : () => setIsEditable(true)}
+          style={{ cursor: hasRecipe ? 'default' : 'pointer' }}
+        >
           <FoodNameSpace>{component.food_name}</FoodNameSpace>
           <FoodDateSpace />
           <FoodPortionSpace>
@@ -358,7 +362,7 @@ function ComponentLog({
         </LogBubble>
       )}
 
-      <HoverDeleteBtn onClick={handleDelete} aria-label="Delete">×</HoverDeleteBtn>
+      {!hasRecipe && <HoverDeleteBtn onClick={handleDelete} aria-label="Delete">×</HoverDeleteBtn>}
     </MealRowContainer>
   );
 }

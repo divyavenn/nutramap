@@ -1,5 +1,11 @@
 {
   "enabledPlugins": {
     "figma@claude-plugins-official": true
+  },
+  "permissions": {
+    "allow": [
+      "Bash(foodpanel *)",
+      "Bash(foodPanel *)"
+    ]
   }
 }

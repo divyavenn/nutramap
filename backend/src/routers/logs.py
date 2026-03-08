@@ -230,7 +230,7 @@ def make_log_readable(logs, db, request: Request = None):
     component_lookup_ids: Dict[str, Any] = {}
 
     # Batch-fetch all recipes referenced by these logs (one query instead of N)
-    recipe_ids = {log["recipe_id"] for log in logs if log.get("recipe_id")}
+    recipe_ids = {str(log["recipe_id"]).strip() for log in logs if log.get("recipe_id")}
     recipe_map: dict = {}
     if recipe_ids:
         for user_doc in db.users.find(
@@ -239,8 +239,9 @@ def make_log_readable(logs, db, request: Request = None):
         ):
             for recipe in user_doc.get("recipes", []):
                 rid = recipe.get("recipe_id")
-                if rid and rid in recipe_ids:
-                    recipe_map[rid] = recipe
+                rid_key = str(rid).strip() if rid is not None else ""
+                if rid_key and rid_key in recipe_ids:
+                    recipe_map[rid_key] = recipe
 
     # Batch-resolve all unique food IDs missing denormalized names
     for log in logs:
@@ -276,7 +277,7 @@ def make_log_readable(logs, db, request: Request = None):
 
         # Attach recipe metadata from the batch-fetched map
         if log.get("recipe_id"):
-            recipe = recipe_map.get(log["recipe_id"])
+            recipe = recipe_map.get(str(log["recipe_id"]).strip())
             log["recipe_exists"] = bool(recipe)
             if log.get("serving_unit"):
                 log["serving_size_label"] = f"1 {str(log['serving_unit']).strip()}"
@@ -352,13 +353,6 @@ async def new_log(
         raise HTTPException(status_code=400)
 
 async def add_log(user: user, log, db: db):
-    # Check if trial user has reached log limit
-    if is_trial_user(user) and not can_create_log(db, user):
-        raise HTTPException(
-            status_code=403,
-            detail="Trial user log limit reached (10 logs maximum). Please create an account to continue."
-        )
-
     # Check if log is a dictionary or a Log object
     print(log)
     if isinstance(log, dict):

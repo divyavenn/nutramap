@@ -7,9 +7,9 @@ from mcp.server.fastmcp import Context, FastMCP
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
-from foodpanel import FoodpanelClient
-from foodpanel.config import ConfigStore
-from foodpanel.errors import FoodpanelError
+from agent_tools import FoodpanelClient
+from agent_tools.config import ConfigStore
+from agent_tools.errors import FoodpanelError
 
 
 SERVER_NAME = "foodpanel"
@@ -196,6 +196,12 @@ def logout(ctx: Optional[Context] = None) -> Dict[str, Any]:
 
 
 @mcp.tool()
+def whoami(ctx: Optional[Context] = None) -> str:
+    """Return current user identity: 'trial mode' for trial users, or 'Name <email>' for real users."""
+    return _safe_call(lambda: _with_client(lambda c: c.whoami(), ctx=ctx))
+
+
+@mcp.tool()
 def log_meal(meal_description: str, date_value: Optional[str] = None, ctx: Optional[Context] = None) -> Dict[str, Any]:
     """
     Log a meal from natural language text.
@@ -221,6 +227,36 @@ def get_day_logs(day: str, ctx: Optional[Context] = None) -> List[Dict[str, Any]
 
 
 @mcp.tool()
+def get_log_nutrition(log_id: str, ctx: Optional[Context] = None) -> Dict[str, Any]:
+    """
+    Get total nutrition for a logged meal (all components combined), scaled to the logged portion.
+    Returns human-readable nutrient names and amounts, e.g. {"Protein (g)": 12.5, "Energy (kcal)": 230}.
+    Use get_day_logs first to find the log _id.
+
+    Args:
+        log_id: The log's _id string (from get_day_logs).
+    """
+    return _safe_call(lambda: _with_client(lambda c: c.get_log_nutrition(log_id), ctx=ctx))
+
+
+@mcp.tool()
+def get_component_nutrition(
+    food_id: str,
+    weight_in_grams: float,
+    ctx: Optional[Context] = None,
+) -> Dict[str, Any]:
+    """
+    Get nutrition for a single food component scaled to its consumed weight.
+    Use get_day_logs to get the components list (food_id and weight_in_grams per item).
+
+    Args:
+        food_id: USDA integer ID or custom food ObjectId string from the log component.
+        weight_in_grams: Consumed weight from the log component's weight_in_grams field.
+    """
+    return _safe_call(lambda: _with_client(lambda c: c.get_component_nutrition(food_id, weight_in_grams), ctx=ctx))
+
+
+@mcp.tool()
 def get_day_intake(day: str, ctx: Optional[Context] = None) -> Dict[str, Any]:
     """
     Get nutrient intake totals for a single day based on user requirements.
@@ -230,6 +266,45 @@ def get_day_intake(day: str, ctx: Optional[Context] = None) -> Dict[str, Any]:
     """
 
     return _safe_call(lambda: _with_client(lambda c: c.get_day_intake(day), ctx=ctx))
+
+
+@mcp.tool()
+def get_top_foods(
+    nutrient_id: int,
+    per_nutrient_id: Optional[int] = None,
+    limit: int = 20,
+    ctx: Optional[Context] = None,
+) -> Dict[str, Any]:
+    """
+    Return top foods ranked by nutrient content or nutrient ratio (USDA + user custom foods).
+
+    Args:
+        nutrient_id: Rank by this nutrient's amount per 100g (numerator if using ratio).
+        per_nutrient_id: Optional. When provided, rank by nutrient_id / per_nutrient_id ratio.
+            Example: protein-per-calorie efficiency → nutrient_id=1003, per_nutrient_id=1008.
+        limit: Number of results, 1–50 (default 20).
+
+    Common nutrient IDs:
+        1003 Protein (g), 1004 Total Fat (g), 1005 Carbohydrate (g), 1008 Energy (kcal),
+        1079 Fiber (g), 1087 Calcium (mg), 1089 Iron (mg), 1092 Potassium (mg),
+        1093 Sodium (mg), 1258 Saturated fat (g), 1292 Polyunsaturated fat / PUFAs (g).
+    """
+    return _safe_call(
+        lambda: _with_client(
+            lambda c: c.get_top_foods(nutrient_id, per_nutrient_id=per_nutrient_id, limit=limit),
+            ctx=ctx,
+        )
+    )
+
+
+@mcp.tool()
+def list_requirements(ctx: Optional[Context] = None) -> List[Dict[str, Any]]:
+    """
+    List all nutrient requirements set by the user.
+    Returns nutrient name, unit, target amount, and direction (should_exceed=True means min target).
+    Use alongside get_day_intake to compute gaps and generate meal suggestions.
+    """
+    return _safe_call(lambda: _with_client(lambda c: c.list_requirements(), ctx=ctx))
 
 
 @mcp.tool()

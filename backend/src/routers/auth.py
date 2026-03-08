@@ -94,14 +94,15 @@ def get_current_user(token:Annotated[str, Depends(oauth2_bearer)]):
     payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
 
     email = payload.get('email')
-    user_id = ObjectId(payload.get('_id'))
+    raw_id = payload.get('_id')
+    user_id = ObjectId(raw_id) if raw_id else None
     role = payload.get('role')
     name = payload.get('name')
     trial = payload.get('trial', False)  # Extract trial flag from token
     if email is None or user_id is None or role is None or name is None:
       raise HTTPException(status_code = 401, detail = "Unauthorized; could not validate credentials.")
     return {'email' : email, '_id' : user_id, "role" : role, "name" : name, "trial": trial}
-  except JWTError:
+  except (JWTError, Exception):
       raise HTTPException(status_code = 401, detail = "Unauthorized; could not validate credentials.")
 
 #--------------------------------------end points------------------------------------------------------# 

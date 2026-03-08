@@ -1,6 +1,6 @@
 from typing import Optional
 from typing_extensions import Annotated
-from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, BackgroundTasks, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from pymongo.database import Database
 from pymongo import ReturnDocument
@@ -1548,6 +1548,147 @@ def update_food_nutrients(
         print(f"Error updating food nutrients: {e}")
         raise HTTPException(status_code=500, detail=f"Error updating nutrients: {str(e)}")
 
+@router.get("/top", response_model=None)
+async def get_top_foods(
+    nutrient_id: int,
+    per_nutrient_id: Optional[int] = None,
+    limit: int = Query(default=20, ge=1, le=50),
+    db: Annotated[Database, Depends(get_data)] = None,
+):
+    """
+    Return top foods ranked by nutrient content or nutrient ratio.
+
+    - nutrient_id only: rank by grams/mg of that nutrient per 100g of food.
+    - nutrient_id + per_nutrient_id: rank by nutrient_id / per_nutrient_id ratio
+      (e.g. protein per calorie: nutrient_id=1003, per_nutrient_id=1008).
+
+    Includes both USDA and user custom foods. All values are per 100g of food.
+    """
+    try:
+        # Look up nutrient metadata for the response labels.
+        def _get_nutrient_meta(nid):
+            doc = db.nutrients.find_one({"_id": nid})
+            if doc:
+                return doc.get("nutrient_name", f"Nutrient {nid}"), doc.get("unit", "")
+            return f"Nutrient {nid}", ""
+
+        nutrient_name, unit = _get_nutrient_meta(nutrient_id)
+
+        # Include all foods: USDA (no source field or source=="USDA") and custom foods.
+        # Exclude embedding_retry and other non-food documents by requiring food_name exists.
+        usda_filter = {"food_name": {"$exists": True}}
+
+        if per_nutrient_id is None:
+            # --- absolute content ---
+            pipeline = [
+                {"$match": usda_filter},
+                {"$project": {
+                    "food_name": 1,
+                    "target": {
+                        "$arrayElemAt": [
+                            {"$filter": {
+                                "input": "$nutrients",
+                                "as": "n",
+                                "cond": {"$eq": ["$$n.nutrient_id", nutrient_id]},
+                            }},
+                            0,
+                        ]
+                    },
+                }},
+                {"$match": {"target.amt": {"$gt": 0}}},
+                {"$project": {
+                    "food_name": 1,
+                    "value": "$target.amt",
+                }},
+                {"$sort": {"value": -1}},
+                {"$limit": limit},
+            ]
+
+            results = [
+                {"food_id": str(doc["_id"]), "food_name": doc["food_name"], "value": doc["value"]}
+                for doc in db.foods.aggregate(pipeline)
+            ]
+
+            return {
+                "nutrient_id": nutrient_id,
+                "nutrient_name": nutrient_name,
+                "unit": unit,
+                "metric": f"{nutrient_name} per 100g",
+                "results": results,
+            }
+
+        else:
+            # --- ratio ---
+            per_nutrient_name, per_unit = _get_nutrient_meta(per_nutrient_id)
+
+            pipeline = [
+                {"$match": usda_filter},
+                {"$project": {
+                    "food_name": 1,
+                    "numerator": {
+                        "$arrayElemAt": [
+                            {"$filter": {
+                                "input": "$nutrients",
+                                "as": "n",
+                                "cond": {"$eq": ["$$n.nutrient_id", nutrient_id]},
+                            }},
+                            0,
+                        ]
+                    },
+                    "denominator": {
+                        "$arrayElemAt": [
+                            {"$filter": {
+                                "input": "$nutrients",
+                                "as": "n",
+                                "cond": {"$eq": ["$$n.nutrient_id", per_nutrient_id]},
+                            }},
+                            0,
+                        ]
+                    },
+                }},
+                {"$match": {
+                    "numerator.amt": {"$gt": 0},
+                    "denominator.amt": {"$gt": 0},
+                }},
+                {"$project": {
+                    "food_name": 1,
+                    "value": {"$divide": ["$numerator.amt", "$denominator.amt"]},
+                    "nutrient_per_100g": "$numerator.amt",
+                    "per_nutrient_per_100g": "$denominator.amt",
+                }},
+                {"$sort": {"value": -1}},
+                {"$limit": limit},
+            ]
+
+            results = [
+                {
+                    "food_id": str(doc["_id"]),
+                    "food_name": doc["food_name"],
+                    "value": doc["value"],
+                    "nutrient_per_100g": doc["nutrient_per_100g"],
+                    "per_nutrient_per_100g": doc["per_nutrient_per_100g"],
+                }
+                for doc in db.foods.aggregate(pipeline)
+            ]
+
+            return {
+                "nutrient_id": nutrient_id,
+                "nutrient_name": nutrient_name,
+                "unit": unit,
+                "per_nutrient_id": per_nutrient_id,
+                "per_nutrient_name": per_nutrient_name,
+                "per_nutrient_unit": per_unit,
+                "metric": f"{nutrient_name} per {per_unit or per_nutrient_name}",
+                "results": results,
+            }
+
+    except Exception as e:
+        print(f"Error in get_top_foods: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/all")
 async def get_all_foods(db: Annotated[Database, Depends(get_data)] = None):
     """
@@ -1556,11 +1697,11 @@ async def get_all_foods(db: Annotated[Database, Depends(get_data)] = None):
     """
     try:
         foods = {}
-        cursor = db.foods.find({}, {"_id": 1, "food_name": 1, "name": 1})
+        cursor = db.foods.find({"source": {"$exists": False}}, {"_id": 1, "food_name": 1, "name": 1})
         for food in cursor:
             food_name = str(food.get("food_name") or food.get("name") or "").strip()
             if food_name:
-                foods[food_name] = food["_id"]
+                foods[food_name] = str(food["_id"])
         return foods
     except Exception as e:
         print(f"Error fetching all foods: {e}")
@@ -1679,10 +1820,25 @@ async def _process_and_add_food_bg(
                         model="gpt-4o-mini",
                         messages=[{"role": "user", "content": [
                             {"type": "text", "text": (
-                                "Extract all nutritional information from this nutrition facts label and convert to per 100g.\n\n"
-                                "CRITICAL: (amount / serving_size_grams) * 100 for every nutrient.\n\n"
-                                'Return ONLY JSON:\n{"serving_size":"33g","nutrients":[{"name":"Energy","amount":250,"unit":"KCAL"},...]}\n\n'
-                                "Use standard USDA names. Energy in KCAL, G/MG/UG for mass. Return ONLY the JSON."
+                                """ Extract all nutritional information from this nutrition facts label and convert to per 100g.\n\n
+                                
+                                IMPORTANT:
+                                - If label says "Calories" or "Energy", output it as {"name":"Calories","unit":"KCAL"}.
+                                - Never output nutrient name "Energy".
+                                - Convert every nutrient to per 100g using: (label_amount / serving_size_grams) * 100.
+                                - Return ONLY valid JSON.
+
+                                Example:
+                                If serving size is 33g and label has:
+                                Calories 110
+                                Protein 9g
+                                Total Fat 1.5g
+                                Sodium 180mg
+                                Total Carbohydrate 14g
+                                Total Sugars 6g
+
+                                Return:
+                                {"serving_size":"33g","nutrients":[{"name":"Calories","amount":333.3,"unit":"KCAL"},{"name":"Protein","amount":27.3,"unit":"G"},{"name":"Total lipid (fat)","amount":4.5,"unit":"G"},{"name":"Sodium, Na","amount":545.5,"unit":"MG"},{"name":"Carbohydrate, by difference","amount":42.4,"unit":"G"},{"name":"Sugars, total including NLEA","amount":18.2,"unit":"G"}]}"""
                             )},
                             {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}},
                         ]}],
@@ -1706,7 +1862,7 @@ async def _process_and_add_food_bg(
                     messages=[{"role": "user", "content": [
                         {"type": "text", "text": (
                             "Estimate nutritional content per 100g for this food.\n"
-                            'Return ONLY JSON:\n{"nutrients":[{"name":"Energy","amount":250,"unit":"KCAL"},...]}\n'
+                            'Return ONLY JSON:\n{"nutrients":[{"name":"Calories","amount":250,"unit":"KCAL"},...]}\n'
                             "Use standard USDA names. Return ONLY the JSON."
                         )},
                         {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{food_b64s[0]}"}},
@@ -1730,7 +1886,8 @@ async def _process_and_add_food_bg(
             "fiber": "Fiber, total dietary", "dietary fiber": "Fiber, total dietary",
             "sugars": "Sugars, total including NLEA",
             "protein": "Protein", "sodium": "Sodium, Na",
-            "potassium": "Potassium, K", "iron": "Iron, Fe", "energy": "Energy",
+            "potassium": "Potassium, K", "iron": "Iron, Fe", "energy": "Calories",
+            "calories": "Calories", "calorie": "Calories",
         }
         nutrients_to_save: list = []
         for nutrient in result_nutrients:
@@ -2008,12 +2165,14 @@ async def process_food_images(
                                     1. First, identify the serving size on the label (e.g., "33g", "10g", "1 cup (240ml)")
                                     2. Convert ALL nutrient amounts to per 100g by calculating: (amount / serving_size_in_grams) * 100
                                     3. If serving size is in volume (cups, ml), estimate the weight (e.g., 1 cup = ~240g for liquids)
+                                    4. If label says "Calories" or "Energy", return it as {"name":"Calories","unit":"KCAL"}
+                                    5. Never output nutrient name "Energy"
 
                                     Return ONLY a JSON object with this exact format:
                                     {
                                       "serving_size": "33g",
                                       "nutrients": [
-                                        {"name": "Energy", "amount": 250, "unit": "KCAL"},
+                                        {"name": "Calories", "amount": 250, "unit": "KCAL"},
                                         {"name": "Protein", "amount": 5.2, "unit": "G"},
                                         {"name": "Total lipid (fat)", "amount": 12.0, "unit": "G"},
                                         {"name": "Carbohydrate, by difference", "amount": 30.5, "unit": "G"}
@@ -2024,7 +2183,7 @@ async def process_food_images(
                                     - ALL nutrient values MUST be converted to per 100g
                                     - serving_size field is for reference only, shows the original serving size on the label
                                     - Use standard USDA nutrient names when possible
-                                    - Energy should be in KCAL
+                                    - Calories should be in KCAL
                                     - Use G for grams, MG for milligrams, UG for micrograms
                                     - Include as many nutrients as visible on the label
                                     - Return ONLY the JSON, no other text
@@ -2080,7 +2239,7 @@ async def process_food_images(
                                 Return ONLY a JSON object with this exact format:
                                 {
                                   "nutrients": [
-                                    {"name": "Energy", "amount": 250, "unit": "KCAL"},
+                                    {"name": "Calories", "amount": 250, "unit": "KCAL"},
                                     {"name": "Protein", "amount": 5.2, "unit": "G"},
                                     {"name": "Total lipid (fat)", "amount": 12.0, "unit": "G"},
                                     {"name": "Carbohydrate, by difference", "amount": 30.5, "unit": "G"}
@@ -2139,7 +2298,9 @@ async def process_food_images(
                     "sodium": "Sodium, Na",
                     "potassium": "Potassium, K",
                     "iron": "Iron, Fe",
-                    "energy": "Energy"
+                    "energy": "Calories",
+                    "calories": "Calories",
+                    "calorie": "Calories",
                 }
 
                 mapped_name = name_mappings.get(nutrient_name)

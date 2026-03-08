@@ -49,6 +49,13 @@ function NewFood() {
   const knownFoodsCountRef = useRef<number | null>(null);
   const imageTransition = { type: 'spring', stiffness: 420, damping: 32, mass: 0.6 };
 
+  const normalizeFoodName = (value: unknown): string => {
+    return String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, ' ');
+  };
+
   // Poll GET /food/custom-foods while foods are pending.
   // When a new food appears, remove the oldest pending entry.
   // Restarts automatically if the component remounts after navigation.
@@ -70,6 +77,19 @@ function NewFood() {
       try {
         const response = await request('/food/custom-foods', 'GET');
         if (response.body && Array.isArray(response.body)) {
+          const existingFoodNames = new Set(
+            response.body
+              .map((food: any) => normalizeFoodName(food?.name ?? food?.food_name ?? ''))
+              .filter(Boolean)
+          );
+
+          // Clear pending entries as soon as their names exist server-side.
+          setPendingCustomFoods(prev => prev.filter((pending) => {
+            const pendingName = normalizeFoodName(pending.name);
+            if (!pendingName || pendingName === 'new food') return true;
+            return !existingFoodNames.has(pendingName);
+          }));
+
           const currentCount: number = response.body.length;
           if (knownFoodsCountRef.current === null) {
             knownFoodsCountRef.current = currentCount; // establish baseline
@@ -77,7 +97,20 @@ function NewFood() {
             const added = currentCount - knownFoodsCountRef.current;
             knownFoodsCountRef.current = currentCount;
             try { localStorage.removeItem('custom_foods_cache'); } catch (e) {}
-            setPendingCustomFoods(prev => prev.slice(added));
+            // Fallback for image-only submissions where pending name is generic.
+            // Remove up to `added` oldest generic pending entries.
+            setPendingCustomFoods(prev => {
+              let remainingToClear = added;
+              return prev.filter((pending) => {
+                if (remainingToClear <= 0) return true;
+                const pendingName = normalizeFoodName(pending.name);
+                if (!pendingName || pendingName === 'new food') {
+                  remainingToClear--;
+                  return false;
+                }
+                return true;
+              });
+            });
           }
         }
       } catch (e) { /* network error — keep polling */ }
