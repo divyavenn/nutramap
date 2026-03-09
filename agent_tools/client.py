@@ -351,6 +351,15 @@ class FoodpanelClient:
     def delete_custom_food(self, food_id: str) -> Dict[str, Any]:
         return self._request("DELETE", f"/food/custom_foods/{food_id}")
 
+    def delete_log(self, log_id: str) -> Dict[str, Any]:
+        return self._request("DELETE", "/logs/delete", params={"log_id": log_id})
+
+    def delete_log_component(self, log_id: str, component_index: int) -> Dict[str, Any]:
+        return self._request(
+            "DELETE", "/logs/delete-component",
+            params={"log_id": log_id, "component_index": component_index},
+        )
+
     # Recipes
     def list_recipes(self) -> Dict[str, Any]:
         payload = self._request("GET", "/recipes/list")

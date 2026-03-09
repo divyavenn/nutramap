@@ -31,44 +31,57 @@ import {
   TutorialPrevBtn,
   TutorialNextBtn,
 } from './TutorialStyles';
+import startClaudeUrl from '../assets/start_claude.png';
+import todayProgressUrl from '../assets/today_progress.png';
+import improveRecipesUrl from '../assets/improve_recipes_1.png';
 
 const steps: TutorialStep[] = [
+  
+ new TutorialStep({
+    message: 'Nutramap is the first ever nutrition tracker with an agentic interface..',
+  }),
+  new TutorialStep({
+    message: 'Use our binary or MCP server + skills file to turn your go-to LLM into an incredible nutritionist. (you can install this from our Github)',
+    mediaUrl: startClaudeUrl,
+  }),
+  new TutorialStep({
+    message: 'That can log your meals, track your progress, and take the mental load of deciding what to eat off your mind.',
+    mediaUrl: todayProgressUrl,
+  }),
+  new TutorialStep({
+    message: 'It`ll even tell you how to tweak what you already eat to reach your goals better.',
+    mediaUrl: improveRecipesUrl,
+  }),
+  new TutorialStep({
+    message: 'foodPanelAI is currently just a proof of concept. if you\'d like to see it on the App Store, enter your email!',
+  }),
 new TutorialStep({
     message: 'start by logging a meal. describe what you ate, like \'matcha latte yesterday\' or \'500 grams of chocolate and 2 scoops of collagen powder.\'',
     selector: '.form-elements-wrapper',
     eventName: 'tutorial:log-created',
   }),
   new TutorialStep({ message: 'other nutrition trackers ask you to enter everything manually...', selector: '.log-list', highlightOnly: true }),
-  new TutorialStep({ message: 'or make a lot of hidden assumptions about how things are made.', selector: '.log-list', highlightOnly: true }),
-  new TutorialStep({ message: 'we store your meals as recipes. each recipe consists of ingredients whose nutrition info is verified by the USDA.', selector: '.log-list', highlightOnly: true }),
+  new TutorialStep({ message: 'or make a lot of hidden assumptions about how things are made. Nutramap was built with ease, transparency, and auditabilitiy in mind.', selector: '.log-list', highlightOnly: true }),
+  new TutorialStep({ message: 'We built a search index over the 2.7 millions foods whose nutrition info is verified by the USDA...', selector: '.log-list', highlightOnly: true }),
+  new TutorialStep({ message: 'And break down your description down into recipes with verified ingredients, so we can calculate your intake with unparalleled accuracy.', selector: '.log-list', highlightOnly: true }),
   new TutorialStep({
-    message: 'click on the meal to edit it.',
-    selector: '.tutorial-meal-with-recipe',
-    eventName: 'tutorial:log-clicked',
+    message: 'Most people have go-to meals they eat over and over, so every recipe is automatically stored here.',
+    selector: 'a[href="/myrecipes"]',
   }),
-  new TutorialStep({
-    message: 'click the name of meal to see the linked recipe card',
-    selector: '.tutorial-recipe-name-link',
-    eventName: 'tutorial:recipe-opened',
-  }),
-  new TutorialStep({
-    message: 'Recipes are easy to edit. Try tweaking the ingredients, amounts....even the exact weight conversions (for people who like exact metrics and own kitchen scales)',
+    new TutorialStep({
+    message: 'Recipes are easy to edit. Try tweaking the ingredients, amounts....even the exact weight conversions (for people who like precision and kitchen scales)',
     selector: '.recipe-detail-modal .ingredients-section',
     eventName: 'tutorial:ingredient-edited',
   }),
   new TutorialStep({
-    message: 'Now close the recipe to save your changes.',
+    message: 'Now close to save your changes. Going forward this recipe - the one you checked and edited - is what we use.',
     selector: '.recipe-detail-modal .modal-close-x',
     eventName: 'tutorial:sync-shown',
   }),
   new TutorialStep({
-    message: 'Decide if you want to update all previous entries for this recipe or only use the new version going forward.',
+    message: 'Decide if you want to update all previous logs with this recipe as well.',
     selector: '.confirm-modal',
     eventName: 'tutorial:recipe-synced',
-  }),
-  new TutorialStep({
-    message: 'most people have go-to meals they eat over and over, so all recipes are automatically stored here',
-    selector: 'a[href="/myrecipes"]',
   }),
   new TutorialStep({
     message: 'you can also add custom foods by typing in a description or uploading a picture of a nutrition label.',
@@ -94,7 +107,41 @@ new TutorialStep({
     selector: '.tutorial-home-link',
   }),
   new TutorialStep({
-    message: 'our nutrition dashboard compares your progress towards your nutrition goals today...',
+    message: 'Home cooks usually improvise based on what\'s available...',
+    eventName: 'tutorial:recipe-opened',
+  }),
+  new TutorialStep({
+    message: 'So you can also change an individual meal without updating the default recipe.',
+    selector: '.tutorial-unlink-btn',
+    highlightOnly: true
+  }),
+ new TutorialStep({
+    message: 'click on a meal to edit it.',
+    selector: '.tutorial-meal-with-recipe',
+    eventName: 'tutorial:log-clicked',
+  }),
+  new TutorialStep({
+    message: 'click the name to see the linked recipe card',
+    selector: '.tutorial-recipe-name-link',
+    eventName: 'tutorial:recipe-opened',
+  }),
+  new TutorialStep({
+    message: 'And click unlink.',
+    selector: '.tutorial-recipe-name-link',
+    eventName: 'tutorial:recipe-opened',
+  }),
+  new TutorialStep({
+    message: 'Now you can edit the meal\'s ingredents directly',
+    selector: '.tutorial-meal-without-recipe .tutorial-meal-toggle',
+    eventName: 'tutorial:meal-expanded',
+  }),
+  new TutorialStep({
+    message: 'Try substituting an ingredient!',
+    selector: '.tutorial-meal-components',
+    eventName: 'tutorial:component-added',
+  }),
+  new TutorialStep({
+    message: 'our nutrition dashboard helps you compares your progress towards your nutrition goals today...',
     selector: '.today-stats-wrapper .progress-bar-container',
     highlightOnly: true,
   }),
@@ -134,23 +181,19 @@ new TutorialStep({
     highlightOnly: true,
   }),
   new TutorialStep({
-    message: 'Home cooks usually improvise based on what\'s available. You can change a single meal without updating the recipe. Open the recipe card again...',
-    eventName: 'tutorial:recipe-opened',
+    message: 'Nutramap is the first ever nutrition tracker with an agentic interface..',
   }),
   new TutorialStep({
-    message: '...and unlink the recipe using this button.',
-    selector: '.tutorial-unlink-btn',
-    eventName: 'tutorial:recipe-unlinked',
+    message: 'Use our binary or MCP server + skills file to turn your go-to LLM into an incredible nutritionist. (you can install this from our Github)',
+    mediaUrl: startClaudeUrl,
   }),
   new TutorialStep({
-    message: 'Click the toggle on the meal to reveal the components...',
-    selector: '.tutorial-meal-without-recipe .tutorial-meal-toggle',
-    eventName: 'tutorial:meal-expanded',
+    message: 'That can log your meals, track your progress, and take the mental load of deciding what to eat off your mind.',
+    mediaUrl: todayProgressUrl,
   }),
   new TutorialStep({
-    message: '...and try adding or editing one.',
-    selector: '.tutorial-meal-components',
-    eventName: 'tutorial:component-added',
+    message: 'It`ll even tell you how to tweak what you already eat to reach your goals better.',
+    mediaUrl: improveRecipesUrl,
   }),
   new TutorialStep({
     message: 'foodPanelAI is currently just a proof of concept. if you\'d like to see it on the App Store, enter your email!',
@@ -216,7 +259,9 @@ export default function TryTutorial() {
   const currentSelector = currentCompiledStep.selector;
   const canAdvanceManually = canAdvanceManuallyForStep(currentCompiledStep);
   const interactionLockSelector = lockedInteractionSelector(currentCompiledStep);
-  const currentMedia = tutorialMediaByStep[currentStep] ?? null;
+  const currentMedia = currentCompiledStep.mediaUrl
+    ? { type: 'image' as const, src: currentCompiledStep.mediaUrl, alt: '' }
+    : (tutorialMediaByStep[currentStep] ?? null);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [cardStyle, setCardStyle] = useState<CSSProperties>({});
   const [anchorReady, setAnchorReady] = useState(false);
@@ -518,6 +563,7 @@ export default function TryTutorial() {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as Element | null;
       if (target && target.closest('.tutorial-email-form')) return;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
       if (e.key === 'Enter') {
         dispatchMachine({ type: 'NEXT_MANUAL' });
       }
@@ -591,6 +637,7 @@ export default function TryTutorial() {
           ref={cardRef}
           key={currentStep}
           $centered={!currentSelector}
+          $hasMedia={!!currentMedia}
           style={tutorialCardStyle}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

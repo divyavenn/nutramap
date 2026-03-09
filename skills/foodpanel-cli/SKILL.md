@@ -184,178 +184,78 @@ Use `avg` when the user asks about recent trends or "how am I doing". Use `stats
 | When to use | Command |
 |---|---|
 | See all set requirements | `foodpanel --json req list` |
-| Add a new requirement | `foodpanel --json req add --nutrient-id <ID> --target <N> --direction <min\|max>` |
-| Edit an existing requirement | `foodpanel --json req edit --nutrient-id <ID> --target <N> --direction <min\|max>` |
-| Change which nutrient a requirement tracks | `foodpanel --json req edit --nutrient-id <OLD_ID> --new-nutrient-id <NEW_ID> --target <N> --direction <min\|max>` |
-| Remove a requirement | `foodpanel --json req remove --nutrient-id <ID>` |
+| Add | `foodpanel --json req add --nutrient-id <ID> --target <N> --direction <min\|max>` |
+| Edit | `foodpanel --json req edit --nutrient-id <ID> --target <N> --direction <min\|max>` |
+| Change nutrient | `foodpanel --json req edit --nutrient-id <OLD> --new-nutrient-id <NEW> --target <N> --direction <min\|max>` |
+| Remove | `foodpanel --json req remove --nutrient-id <ID>` |
 
-`--direction min` = must meet or exceed target. `--direction max` = must stay below target.
-
-Run `req list` first if you don't know the nutrient ID. The output includes `nutrient_id` for each requirement.
+`--direction min` = meet/exceed. `--direction max` = stay below. Run `req list` first to get IDs.
 
 ### Custom Foods
 
 | When to use | Command |
 |---|---|
-| See all custom foods | `foodpanel --json food list` |
-| Create a new custom food | `foodpanel --json food add --name "Name" --nutrients-json '<JSON>'` |
-| Edit a custom food's name or nutrients | `foodpanel --json food edit --food-id "<ID>" --name "New Name" --nutrients-json '<JSON>'` |
+| List | `foodpanel --json food list` |
+| Add | `foodpanel --json food add --name "Name" --nutrients-json '<JSON>'` |
+| Edit | `foodpanel --json food edit --food-id "<ID>" --name "Name" --nutrients-json '<JSON>'` |
+| Delete | `foodpanel --json food remove --food-id "<ID>"` |
+| Top by nutrient | `foodpanel --json food top --nutrient-id <ID> --limit 20` |
+| Top by ratio | `foodpanel --json food top --nutrient-id <ID> --per-nutrient-id <ID> --limit 20` |
 
-Run `food list` first when the user doesn't provide an ID — get `_id` from the output.
+Run `food list` first when the user doesn't provide an ID.
+
+### Log Deletion
+
+| When to use | Command |
+|---|---|
+| Delete a whole log entry | `foodpanel --json log-delete --log-id "<ID>"` |
+| Delete one ingredient from a log | `foodpanel --json log-delete-component --log-id "<ID>" --component-index <N>` |
+
+Run `foodpanel --json today` (or `logs YYYY-MM-DD`) first to get `_id` values and component indices.
+`log-delete-component` deletes the whole log if it was the last component.
 
 ### Recipes
 
 | When to use | Command |
 |---|---|
-| See all recipes | `foodpanel --json recipe list` |
-| Create a recipe | `foodpanel --json recipe add --name "Name" --ingredients-json '<JSON>'` |
-| Rename or resize a recipe | `foodpanel --json recipe edit --recipe-id "<ID>" --name "New Name" --serving-size-label "1 bowl" --serving-size-grams 320` |
-| Delete a recipe | `foodpanel --json recipe remove --recipe-id "<ID>"` |
+| List | `foodpanel --json recipe list` |
+| Add | `foodpanel --json recipe add --name "Name" --ingredients-json '<JSON>'` |
+| Edit name/serving | `foodpanel --json recipe edit --recipe-id "<ID>" --name "Name" --serving-size-label "1 bowl" --serving-size-grams 320` |
+| Delete | `foodpanel --json recipe remove --recipe-id "<ID>"` |
 
-Run `recipe list` first when the user doesn't provide an ID — get `_id` from the output.
-For `recipe edit`, all fields except `--recipe-id` are optional — only pass what needs to change.
-
-> **Note:** To add or edit individual ingredients within a recipe, switch to the MCP skill (`foodpanel-agent`) which has `add_recipe_ingredient` and `edit_recipe_ingredient` tools. There is no CLI equivalent.
+`recipe edit` fields other than `--recipe-id` are optional. To add/edit individual ingredients, use the MCP skill (`foodpanel-agent`).
 
 ---
 
 ## Nutritionist Workflows
 
-These workflows turn the agent into a proactive nutritionist — reasoning over goals, trends, and the user's recipe library to make practical, personalized recommendations.
+Run `req list` before any advisory response. If no requirements, ask the user to set goals first.
+Ask about dietary restrictions once per session, then respect them throughout.
+Be specific: name portions ("1 filet salmon"), state nutrient yield ("→ ~34g protein"), use OR between alternatives.
 
-### Daily Gap Analysis
+### Gap Analysis
+`req list` + `avg` (or `stats progress`). Compare averages to targets. Rank deficits by severity (% of target). Present top 2–3 deficits and any excesses.
 
-The full procedure is defined in **Viewing a Day's Logs** above. That procedure runs automatically after every day view — it is not a separate opt-in step.
+### Recipe Recommendations
+Gap analysis → `recipe list` → reason about each recipe's nutritional profile from ingredients → recommend top 2–3 by how well they address deficits.
 
----
+### Recipe Modifications
+`recipe list` → identify target recipe → for each deficit: propose ingredient swaps or additions with quantified benefit → ask if user wants changes applied (MCP skill for ingredient edits).
 
-### Ground Rules
+Substitution quick ref: protein↑ → legumes/Greek yogurt/hemp seeds/tofu; fiber↑ → beans/oats/chia; iron↑ → lentils/spinach/pumpkin seeds + vitamin C; sodium↓ → low-sodium swaps/herbs.
 
-- **Always pull goals before advising.** Run `foodpanel --json req list` first. If no requirements are set, ask the user about their health goals before proceeding.
-- **Ask about dietary restrictions once per session.** At the start of any nutritionist workflow, ask: *"Do you have any dietary restrictions or preferences I should know about (e.g., vegetarian, gluten-free, no dairy)?"* Then respect these throughout all suggestions.
-- **Rank gaps by severity.** A nutrient at 20% of target is more urgent than one at 80%. Prioritize the largest gaps.
-- **Be specific and actionable.** Don't say "eat more protein." Say "Adding 2 tbsp of hemp seeds to your morning smoothie would add ~10g of protein."
-- **You do the reasoning.** The CLI returns raw numbers. You interpret them, compare to goals, and form recommendations using your nutritional knowledge.
+### Food Recommendations
+Gap analysis → ask dietary restrictions → for each deficit:
+```bash
+foodpanel --json food top --nutrient-id <id> --limit 20          # absolute
+foodpanel --json food top --nutrient-id <id> --per-nutrient-id 1008 --limit 20  # calorie-efficient
+```
+Filter by restrictions. Cross-reference `recipe list` — if a top food is in a saved recipe, recommend making it more often.
 
----
-
-### Workflow 1: Nutritional Gap Analysis
-
-Use when the user asks: *"How am I doing?"* / *"What am I missing?"* / *"What should I eat more of?"*
-
-**Steps:**
-1. `foodpanel --json req list` — get all requirements (targets + directions).
-2. `foodpanel --json avg` — get 30-day averages, or use `stats progress --start ... --end ...` for a custom window. Last 7–14 days is usually most actionable.
-3. For each requirement, compare average intake to target:
-   - **Under `min` target**: gap = target − average. Flag as deficit.
-   - **Over `max` target**: excess = average − target. Flag as excess.
-4. Rank by severity (% off target).
-5. Present a concise summary: top 2–3 deficits, any excesses, one-line context each.
-
-**Example output framing:**
-> Based on your last 7 days, your biggest gaps are:
-> - **Iron**: averaging 8mg vs. your 18mg goal (44% of target)
-> - **Fiber**: averaging 18g vs. your 25g goal (72% of target)
-> Your sodium is above your 2300mg limit at ~2800mg/day.
-
----
-
-### Workflow 2: Recipe Recommendations (Which to Make More)
-
-Use when the user asks: *"Which of my recipes should I eat more of?"* / *"What should I cook this week to hit my goals?"*
-
-**Steps:**
-1. Run gap analysis (Workflow 1) to identify top nutrient deficits.
-2. `foodpanel --json recipe list` — get all saved recipes and their ingredient lists.
-3. For each recipe, reason about its nutritional profile from the ingredients using your nutritional knowledge. If you need measured data for a recent instance, run `foodpanel --json logs YYYY-MM-DD` to find when it was last logged, then `foodpanel --json nutrition <LOG_ID>`.
-4. Score each recipe by how well it addresses the top deficits.
-5. Recommend the top 2–3 recipes, explaining which deficit each addresses and how often to eat it.
-6. If no existing recipe strongly covers a key deficit, say so and move to Workflow 4 (food recommendations).
-
-**Example output framing:**
-> To close your iron and fiber gaps, I'd prioritize:
-> - **Lentil soup** (3×/week) — lentils are one of the best plant-based iron sources, and the recipe has ~9g fiber per serving.
-> - **Spinach stir-fry** (2×/week) — adds meaningful iron; pair with something vitamin C-rich to boost absorption.
-
----
-
-### Workflow 3: Recipe Modifications (How to Improve a Recipe)
-
-Use when the user asks: *"How can I improve this recipe?"* / *"Can you make my chili higher in protein?"* / *"What would I change to hit my fiber goal?"*
-
-**Steps:**
-1. Identify the target recipe (ask if unclear).
-2. `foodpanel --json recipe list` — find the recipe and note its ingredients.
-3. Run gap analysis (Workflow 1) if not done, or focus on the specific nutrient mentioned.
-4. For each deficient nutrient, identify:
-   - Which existing ingredients contribute to it (and could be increased in quantity).
-   - Which ingredients could be swapped for a denser alternative.
-   - Which new ingredients could be added without disrupting the dish.
-5. Propose 1–3 concrete changes, ordered by impact. For each, name the change, state the nutritional benefit, and note any taste/texture impact.
-6. Ask if the user wants to apply the changes. If yes, recommend they switch to the MCP skill for `add_recipe_ingredient` / `edit_recipe_ingredient`, or offer to do it now if the MCP is available.
-
-**Practical substitution patterns:**
-- Low protein → add legumes, Greek yogurt, hemp seeds, tofu, or edamame; swap refined grains for quinoa or lentils
-- Low fiber → add vegetables, beans, oats, chia/flax seeds; swap white grains for whole grains
-- Low iron → add lentils, spinach, pumpkin seeds, tofu; pair with vitamin C for absorption
-- Low calcium → add dairy, fortified plant milk, tahini, white beans, kale
-- Low omega-3 → add walnuts, flax/chia seeds, fatty fish, hemp seeds
-- High sodium → reduce added salt, swap canned goods for low-sodium versions, use herbs/acid instead
-- High saturated fat → swap butter for olive oil, reduce cheese, use leaner proteins
-
-**Example output framing:**
-> Your chili averages 18g protein per serving. To hit your 30g target:
-> 1. **Add 1 can of black beans** (+7g protein, +8g fiber, minimal flavor change)
-> 2. **Swap ground beef for 90/10 lean beef or turkey** (+3g protein, −5g sat fat)
-> Want me to update the recipe with these changes?
-
----
-
-### Workflow 4: Food Recommendations (What to Add to Your Diet)
-
-Use when the user asks: *"What foods should I eat more of?"* / *"What can I add to my diet?"* / *"I'm low on X, what should I eat?"*
-
-**Steps:**
-1. Run gap analysis (Workflow 1) if not already done.
-2. If not yet asked this session: *"Any dietary restrictions or preferences I should keep in mind?"*
-3. For each top deficit nutrient, run:
-   ```bash
-   foodpanel --json food top --nutrient-id <id> --limit 20
-   ```
-   If calories are a constraint, use the ratio form:
-   ```bash
-   foodpanel --json food top --nutrient-id <id> --per-nutrient-id 1008 --limit 20
-   ```
-   Filter results against dietary restrictions and practical serving sizes.
-4. Group suggestions by meal context (breakfast additions, easy snacks, dinner staples) for actionability.
-5. Cross-reference with the user's existing recipes (`foodpanel --json recipe list`): if a top food appears in one of their saved recipes, point that out and recommend making it more often.
-
-**Example output framing:**
-> You're low on calcium (averaging 600mg vs. your 1000mg goal). Since you're dairy-free, here are practical sources:
-> - **Fortified oat milk** (300mg/cup) — easy swap in smoothies or cereal
-> - **Tahini** (130mg/2 tbsp) — add to sauces, dressings, or hummus
-> - **White beans** (130mg/½ cup) — works in soups, salads, or your existing minestrone recipe
-> - **Kale** (100mg/cup cooked) — add to stir-fries or smoothies
->
-> Your minestrone already uses white beans — making that 2–3×/week would meaningfully close the gap.
-
----
-
-### Workflow 5: Daily Check-In
-
-Use when the user asks: *"How did I do today?"* / *"What should I eat for dinner to round out the day?"*
-
-This executes the same **Viewing a Day's Logs** procedure defined in the Command Map section. Since the user is explicitly asking, add a brief narrative intro before the progress table and weight suggestions toward dinner/snack options if it's late in the day.
-
----
-
-## Meal Logging Clarification Rules
-
-1. Ask follow-ups only when critical fields are missing (portion, key preparation method, or date/time when ambiguous).
-2. Ask one concise question at a time.
-3. If the user says "just log it", proceed with minimal assumptions and state them clearly.
-4. Map relative time words to explicit dates before logging (`today` → current date, `yesterday` → prior date, etc.).
-5. Never silently invent meal components.
+## Logging Rules
+- Ask follow-ups only for missing critical fields (portion, prep method, ambiguous date).
+- Map relative time to explicit dates before logging.
+- Never invent meal components.
 
 ---
 

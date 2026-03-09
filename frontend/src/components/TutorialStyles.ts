@@ -39,6 +39,7 @@ export const TutorialDim = styled.div`
 
 interface TutorialTextProps {
   $centered?: boolean;
+  $hasMedia?: boolean;
 }
 
 export const TutorialText = styled(motion.div)<TutorialTextProps>`
@@ -50,10 +51,13 @@ export const TutorialText = styled(motion.div)<TutorialTextProps>`
   flex-direction: column;
   gap: 16px;
   ${({ $centered }) => $centered && `
-    top: 20%;
-    right: 5%;
-    left: auto;
-    transform: none;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  `}
+  ${({ $centered, $hasMedia }) => $centered && $hasMedia && `
+    width: 92vw;
+    max-width: 1200px;
   `}
 `;
 
@@ -78,7 +82,7 @@ export const TutorialMedia = styled.div`
 
 export const TutorialMediaAsset = styled.img`
   width: 100%;
-  max-height: 220px;
+  max-height: 78vh;
   object-fit: contain;
   border-radius: 8px;
   background: rgba(15, 15, 30, 0.6);

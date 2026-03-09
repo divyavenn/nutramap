@@ -18,6 +18,11 @@ export const LogNewGlobalStyles = createGlobalStyle`
     background-color: transparent;
   }
 
+  .entry-form-bubble:hover input::placeholder,
+  .entry-form-bubble:hover textarea::placeholder {
+    color: rgba(30, 0, 46, 0.45) !important;
+  }
+
   input, textarea {
     font-family: inherit;
     font-size: inherit;
@@ -90,7 +95,7 @@ export const EntryFormBubble = styled.div`
 
   &:hover {
     background-color: var(--hover-white);
-    color: var(--white);
+    color: #1e002e;
   }
 `;
 

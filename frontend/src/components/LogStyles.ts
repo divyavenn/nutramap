@@ -94,6 +94,7 @@ export const DayButton = styled.button`
 export const DeletingWrapper = styled.div<{ $isDeleting?: boolean }>`
   width: 100%;
   max-width: calc(var(--modal-width) + 150px);
+  margin: 0 auto;
   ${p => p.$isDeleting && css`
     animation: ${logGroupExit} 0.45s ease-in forwards;
     pointer-events: none;

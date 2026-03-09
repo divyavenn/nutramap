@@ -5,6 +5,7 @@ type TutorialStepParams = {
   selector?: string | null;
   eventName?: string | null;
   highlightOnly?: boolean;
+  mediaUrl?: string | null;
 };
 
 export class TutorialStep {
@@ -12,12 +13,14 @@ export class TutorialStep {
   selector: string | null;
   eventName: string | null;
   highlightOnly: boolean;
+  mediaUrl: string | null;
 
-  constructor({ message, selector = null, eventName = null, highlightOnly = false }: TutorialStepParams) {
+  constructor({ message, selector = null, eventName = null, highlightOnly = false, mediaUrl = null }: TutorialStepParams) {
     this.message = message;
     this.selector = selector;
     this.eventName = eventName;
     this.highlightOnly = highlightOnly;
+    this.mediaUrl = mediaUrl;
   }
 }
 
@@ -34,6 +37,7 @@ export interface CompiledTutorialStep {
   selector: string | null;
   eventName: string | null;
   highlightOnly: boolean;
+  mediaUrl: string | null;
   kind: TutorialStepKind;
 }
 
@@ -77,7 +81,8 @@ export function compileTutorialStep(step: TutorialStep): CompiledTutorialStep {
     kind = 'event_only';
   }
 
-  return { message, selector, eventName, highlightOnly, kind };
+  const mediaUrl = step.mediaUrl;
+  return { message, selector, eventName, highlightOnly, mediaUrl, kind };
 }
 
 export function getCompiledStep(steps: TutorialStep[], stepIndex: number): CompiledTutorialStep {

@@ -54,8 +54,13 @@ Custom foods (interactive):
   foodpanel food add
   foodpanel food edit
   foodpanel food list
+  foodpanel food remove --food-id <id>
   foodpanel food top --nutrient-id 1003
   foodpanel food top --nutrient-id 1003 --per-nutrient-id 1008   (protein per calorie)
+
+Log deletion:
+  foodpanel log-delete --log-id <id>
+  foodpanel log-delete-component --log-id <id> --component-index 0
 
 Recipes (interactive):
   foodpanel recipe add
@@ -148,6 +153,15 @@ def _build_parser() -> argparse.ArgumentParser:
     food_top.add_argument("--nutrient-id", type=int, required=True, help="Rank by this nutrient (e.g. 1003=Protein, 1079=Fiber, 1089=Iron)")
     food_top.add_argument("--per-nutrient-id", type=int, help="Optional: rank by nutrient-id / per-nutrient-id ratio (e.g. 1008=Calories for efficiency)")
     food_top.add_argument("--limit", type=int, default=20, help="Number of results (1-50, default 20)")
+    food_remove = food_sub.add_parser("remove", help="Delete a custom food")
+    food_remove.add_argument("--food-id", required=True, help="Food ID to delete")
+
+    log_delete_parser = subparsers.add_parser("log-delete", help="Delete a log entry")
+    log_delete_parser.add_argument("--log-id", required=True, help="Log ID to delete (from 'foodpanel logs' output)")
+
+    log_delete_comp_parser = subparsers.add_parser("log-delete-component", help="Delete one component from a log")
+    log_delete_comp_parser.add_argument("--log-id", required=True, help="Log ID")
+    log_delete_comp_parser.add_argument("--component-index", type=int, required=True, help="0-based index of the component to remove")
 
     recipe_parser = subparsers.add_parser("recipe", help="Recipe operations")
     recipe_sub = recipe_parser.add_subparsers(dest="action", required=True)
@@ -586,6 +600,10 @@ def main(argv: List[str] | None = None) -> int:
                     nutrients = _json_list(nutrients_raw)
                     _print_json(client.add_custom_food(name, nutrients))
                     return 0
+                if args.action == "remove":
+                    _print_json(client.delete_custom_food(args.food_id))
+                    return 0
+
                 if args.action == "top":
                     payload = client.get_top_foods(
                         args.nutrient_id,
@@ -619,6 +637,14 @@ def main(argv: List[str] | None = None) -> int:
                         result["nutrient_update"] = client.update_custom_food_nutrients(food_id, _json_list(nutrients_raw))
                     _print_json(result)
                     return 0
+
+            if args.resource == "log-delete":
+                _print_json(client.delete_log(args.log_id))
+                return 0
+
+            if args.resource == "log-delete-component":
+                _print_json(client.delete_log_component(args.log_id, args.component_index))
+                return 0
 
             if args.resource == "recipe":
                 if args.action == "list":

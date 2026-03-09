@@ -2079,6 +2079,7 @@ async def create_recipe(
 
             processed_ingredients.append({
                 "food_id": food_id,
+                "food_name": ing.get("food_name", ""),
                 "amount": amount,
                 "weight_in_grams": float(weight_in_grams)
             })

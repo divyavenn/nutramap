@@ -103,6 +103,7 @@ function NewSmartLog() {
 
     setIsSubmitting(true);
     setIsJiggling(true);
+    tutorialEvent('tutorial:log-created');
 
     // Add to pending foods immediately
     const pendingMeal: PendingFood = {
@@ -137,7 +138,6 @@ function NewSmartLog() {
       setMealDescription('');
       setIsJiggling(false);
       setIsSubmitting(false);
-      tutorialEvent('tutorial:log-created');
 
       // Invalidate recipes cache since parse-meal can create new recipes
       try { localStorage.removeItem('recipes_cache'); } catch (e) {}

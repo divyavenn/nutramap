@@ -479,6 +479,30 @@ def delete_recipe(recipe_id: str, ctx: Optional[Context] = None) -> Dict[str, An
     return _safe_call(lambda: _with_client(lambda c: c.delete_recipe(recipe_id), ctx=ctx))
 
 
+@mcp.tool()
+def delete_log(log_id: str, ctx: Optional[Context] = None) -> Dict[str, Any]:
+    """Delete a log entry by ID. Use get_day_logs to find the log _id first."""
+
+    return _safe_call(lambda: _with_client(lambda c: c.delete_log(log_id), ctx=ctx))
+
+
+@mcp.tool()
+def delete_log_component(
+    log_id: str,
+    component_index: int,
+    ctx: Optional[Context] = None,
+) -> Dict[str, Any]:
+    """
+    Delete one component (ingredient) from a log entry by its 0-based index.
+    If it is the last component, the whole log is deleted.
+    Use get_day_logs to find the log _id and the components list.
+    """
+
+    return _safe_call(
+        lambda: _with_client(lambda c: c.delete_log_component(log_id, component_index), ctx=ctx)
+    )
+
+
 T = TypeVar("T")
 
 

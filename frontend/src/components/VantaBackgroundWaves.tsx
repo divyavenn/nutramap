@@ -16,9 +16,13 @@ const VantaBackgroundWaves: React.FC<VantaBackgroundProps> = ({ children }) => {
   const [vantaEffect, setVantaEffect] = useState<any>(null);
 
   useEffect(() => {
-    // Wait a bit to ensure the DOM is fully loaded
-    const timer = setTimeout(() => {
-      if (!vantaEffect && vantaRef.current && window.VANTA) {
+    if (vantaEffect) return;
+
+    let timer: ReturnType<typeof setTimeout>;
+    let attempts = 0;
+
+    const tryInit = () => {
+      if (vantaRef.current && window.VANTA?.WAVES) {
         setVantaEffect(
           window.VANTA.WAVES({
             el: vantaRef.current,
@@ -33,13 +37,15 @@ const VantaBackgroundWaves: React.FC<VantaBackgroundProps> = ({ children }) => {
             shininess: 1.00
           })
         );
+      } else if (attempts < 40) {
+        attempts++;
+        timer = setTimeout(tryInit, 150);
       }
-    }, 100);
-
-    return () => {
-      clearTimeout(timer);
-      if (vantaEffect) vantaEffect.destroy();
     };
+
+    timer = setTimeout(tryInit, 100);
+
+    return () => clearTimeout(timer);
   }, [vantaEffect]);
 
   return (

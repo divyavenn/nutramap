@@ -205,6 +205,202 @@ async def get_trial_requirements():
     """Get default requirements for trial users"""
     return JSONResponse(content=DEFAULT_REQUIREMENTS, status_code=200)
 
+@router.post("/seed")
+async def seed_trial_data(user_db: db):
+    """
+    Seed trial user with 6 demo recipes and daily logs for Jan 1 – Mar 8 2026.
+    Deletes all existing logs and recipes; preserves custom foods.
+    """
+    try:
+        from .recipes import generate_recipe_embedding
+
+        trial_user = user_db.users.find_one({
+            "email": "trial@nutramap.app",
+            "is_permanent_trial": True
+        })
+        if not trial_user:
+            raise HTTPException(status_code=404, detail="Trial user not found")
+
+        user_id = trial_user["_id"]
+
+        # Delete all logs; preserve custom foods
+        deleted_logs = user_db.logs.delete_many({"user_id": user_id})
+        user_db.recipes.delete_many({"user_id": user_id})  # separate collection if any
+
+        # Define seed recipes (food_ids confirmed from prior creation)
+        SEED_RECIPES = [
+            {
+                "description": "matcha latte",
+                "serving_size_label": "1 mug",
+                "ingredients": [
+                    {"food_id": 171917, "food_name": "Tea, green", "amount": "1 tsp", "weight_in_grams": 2.0},
+                    {"food_id": 171265, "food_name": "Milk, whole", "amount": "1 cup", "weight_in_grams": 240.0},
+                    {"food_id": 169640, "food_name": "Honey", "amount": "1 tbsp", "weight_in_grams": 21.0},
+                ],
+            },
+            {
+                "description": "overnight oats",
+                "serving_size_label": "1 bowl",
+                "ingredients": [
+                    {"food_id": 169705, "food_name": "Oats", "amount": "1/2 cup", "weight_in_grams": 40.0},
+                    {"food_id": 171265, "food_name": "Milk, whole", "amount": "1 cup", "weight_in_grams": 240.0},
+                    {"food_id": 171711, "food_name": "Blueberries", "amount": "1/2 cup", "weight_in_grams": 74.0},
+                    {"food_id": 170554, "food_name": "Chia seeds", "amount": "1 tbsp", "weight_in_grams": 12.0},
+                ],
+            },
+            {
+                "description": "lentil soup",
+                "serving_size_label": "1 bowl",
+                "ingredients": [
+                    {"food_id": 172421, "food_name": "Lentils", "amount": "1/2 cup", "weight_in_grams": 96.0},
+                    {"food_id": 170051, "food_name": "Tomatoes", "amount": "1 cup", "weight_in_grams": 149.0},
+                    {"food_id": 170393, "food_name": "Carrots", "amount": "1 medium", "weight_in_grams": 61.0},
+                    {"food_id": 169988, "food_name": "Celery", "amount": "1 stalk", "weight_in_grams": 40.0},
+                    {"food_id": 171413, "food_name": "Olive oil", "amount": "1 tbsp", "weight_in_grams": 14.0},
+                    {"food_id": 170923, "food_name": "Cumin", "amount": "1 tsp", "weight_in_grams": 2.0},
+                ],
+            },
+            {
+                "description": "avocado toast",
+                "serving_size_label": "1 plate",
+                "ingredients": [
+                    {"food_id": 174925, "food_name": "Bread, whole wheat", "amount": "2 slices", "weight_in_grams": 66.0},
+                    {"food_id": 171705, "food_name": "Avocado", "amount": "1/2 avocado", "weight_in_grams": 75.0},
+                    {"food_id": 172186, "food_name": "Egg, poached", "amount": "1 large", "weight_in_grams": 50.0},
+                    {"food_id": 167747, "food_name": "Lemon juice", "amount": "1 tsp", "weight_in_grams": 5.0},
+                ],
+            },
+            {
+                "description": "buddha bowl",
+                "serving_size_label": "1 bowl",
+                "ingredients": [
+                    {"food_id": 168917, "food_name": "Quinoa", "amount": "1/2 cup", "weight_in_grams": 85.0},
+                    {"food_id": 173757, "food_name": "Chickpeas", "amount": "1/2 cup", "weight_in_grams": 82.0},
+                    {"food_id": 168462, "food_name": "Spinach", "amount": "2 cups", "weight_in_grams": 60.0},
+                    {"food_id": 168483, "food_name": "Sweet potato", "amount": "1 medium", "weight_in_grams": 130.0},
+                    {"food_id": 170189, "food_name": "Tahini", "amount": "2 tbsp", "weight_in_grams": 30.0},
+                ],
+            },
+            {
+                "description": "pasta primavera",
+                "serving_size_label": "1 bowl",
+                "ingredients": [
+                    {"food_id": 168927, "food_name": "Pasta", "amount": "2 oz", "weight_in_grams": 56.0},
+                    {"food_id": 168565, "food_name": "Zucchini", "amount": "1 medium", "weight_in_grams": 196.0},
+                    {"food_id": 170457, "food_name": "Tomatoes", "amount": "1 cup", "weight_in_grams": 149.0},
+                    {"food_id": 171413, "food_name": "Olive oil", "amount": "1 tbsp", "weight_in_grams": 14.0},
+                    {"food_id": 169230, "food_name": "Garlic", "amount": "2 cloves", "weight_in_grams": 6.0},
+                    {"food_id": 173431, "food_name": "Parmesan cheese", "amount": "2 tbsp", "weight_in_grams": 10.0},
+                ],
+            },
+        ]
+
+        # Clear user's embedded recipes array and regenerate
+        user_db.users.update_one({"_id": user_id}, {"$set": {"recipes": []}})
+
+        now = datetime.now(timezone.utc)
+        created_recipes = []
+        for recipe_data in SEED_RECIPES:
+            recipe_id = str(uuid.uuid4())
+            embedding = await generate_recipe_embedding(recipe_data["description"])
+            total_weight = sum(ing["weight_in_grams"] for ing in recipe_data["ingredients"])
+            serving_label = recipe_data.get("serving_size_label", "1 serving")
+            recipe_doc = {
+                "recipe_id": recipe_id,
+                "description": recipe_data["description"],
+                "embedding": embedding,
+                "ingredients": recipe_data["ingredients"],
+                "serving_size_label": serving_label,
+                "serving_size_grams": total_weight,
+                "created_at": now,
+                "updated_at": now,
+            }
+            user_db.users.update_one({"_id": user_id}, {"$push": {"recipes": recipe_doc}})
+            created_recipes.append({
+                "description": recipe_data["description"],
+                "recipe_id": recipe_id,
+                "serving_size_label": serving_label,
+                "serving_size_grams": total_weight,
+                "ingredients": recipe_data["ingredients"],
+            })
+
+        print(f"Created {len(created_recipes)} seed recipes for trial user")
+
+        # Build log entries Jan 1 – Mar 8 2026
+        recipe_map = {r["description"]: r for r in created_recipes}
+        breakfasts = ["matcha latte", "overnight oats"]
+        lunches    = ["avocado toast", "lentil soup"]
+        dinners    = ["buddha bowl", "pasta primavera", "lentil soup"]
+        # Snacks cycle: blueberries / apple / almonds / none
+        snacks = [
+            {"food_id": 171711, "food_name": "Blueberries", "amount": "1/2 cup", "weight_in_grams": 74.0},
+            {"food_id": 171688, "food_name": "Apple, raw",  "amount": "1 medium",  "weight_in_grams": 182.0},
+            {"food_id": 170567, "food_name": "Almonds",     "amount": "1 oz",      "weight_in_grams": 28.0},
+            None,
+        ]
+
+        from datetime import date as date_type
+        start = date_type(2026, 1, 1)
+        end   = date_type(2026, 3, 8)
+
+        log_docs = []
+        day_index = 0
+        current = start
+        while current <= end:
+            dt = datetime(current.year, current.month, current.day, tzinfo=timezone.utc)
+            for meal_name in [breakfasts[day_index % 2], lunches[day_index % 2], dinners[day_index % 3]]:
+                recipe = recipe_map[meal_name]
+                log_docs.append({
+                    "_id": ObjectId(),
+                    "user_id": user_id,
+                    "recipe_id": recipe["recipe_id"],
+                    "meal_name": meal_name,
+                    "servings": 1.0,
+                    "serving_unit": None,
+                    "serving_size_label": recipe["serving_size_label"],
+                    "logged_weight_grams": recipe["serving_size_grams"],
+                    "date": dt,
+                    "components": recipe["ingredients"],
+                })
+            snack = snacks[day_index % 4]
+            if snack:
+                log_docs.append({
+                    "_id": ObjectId(),
+                    "user_id": user_id,
+                    "recipe_id": None,
+                    "meal_name": snack["food_name"],
+                    "servings": 1.0,
+                    "serving_unit": None,
+                    "serving_size_label": snack["amount"],
+                    "logged_weight_grams": snack["weight_in_grams"],
+                    "date": dt,
+                    "components": [{"food_id": snack["food_id"], "amount": snack["amount"], "weight_in_grams": snack["weight_in_grams"]}],
+                })
+            current += timedelta(days=1)
+            day_index += 1
+
+        if log_docs:
+            user_db.logs.insert_many(log_docs)
+
+        print(f"Created {len(log_docs)} log entries for trial user")
+
+        return {
+            "status": "success",
+            "deleted_logs": deleted_logs.deleted_count,
+            "created_recipes": len(created_recipes),
+            "created_logs": len(log_docs),
+            "message": "Trial user data seeded successfully",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error seeding trial user data: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to seed trial user data: {str(e)}")
+
+
 def is_trial_user(user: dict) -> bool:
     """Check if user is a trial user"""
     # Check for trial flag in user dict (from JWT token)
