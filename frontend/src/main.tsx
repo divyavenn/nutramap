@@ -14,6 +14,7 @@ import VantaBackgroundWaves from './components/VantaBackgroundWaves';
 import FoodsPage from './pages/foods';
 import MyRecipes from './pages/myrecipes';
 import TryTutorial from './components/TryTutorial';
+import MobileGate from './components/MobileGate';
 
 // Load Vanta.js scripts
 const loadScript = (src: string): Promise<void> => {
@@ -44,6 +45,7 @@ let rootElem = document.getElementById('root')
 if (rootElem) {
   createRoot(rootElem).render(
     <RecoilRoot>
+      <MobileGate>
       <VantaBackgroundWaves>
         <Router>
           <Routes>
@@ -60,6 +62,7 @@ if (rootElem) {
           <TryTutorial />
         </Router>
       </VantaBackgroundWaves>
+      </MobileGate>
     </RecoilRoot>
   )
 }
