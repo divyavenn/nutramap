@@ -31,6 +31,9 @@ import {
   TutorialPrevBtn,
   TutorialNextBtn,
 } from './TutorialStyles';
+import startClaudeUrl from '../assets/start_claude.png';
+import todayProgressUrl from '../assets/today_progress.png';
+import improveRecipesUrl from '../assets/improve_recipes_1.png';
 
 const steps: TutorialStep[] = [
   
@@ -659,7 +662,12 @@ export default function TryTutorial() {
             </TutorialEmailForm>
           )}
           {currentMedia && (
-            <TutorialMedia>
+            <TutorialMedia
+              key={currentMedia.src}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, delay: 0.2 }}
+            >
               {currentMedia.type === 'image' ? (
                 <TutorialMediaAsset
                   src={currentMedia.src}

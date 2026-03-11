@@ -76,7 +76,7 @@ export const TutorialNav = styled.div`
   margin-top: 4px;
 `;
 
-export const TutorialMedia = styled.div`
+export const TutorialMedia = styled(motion.div)`
   margin-top: 4px;
 `;
 

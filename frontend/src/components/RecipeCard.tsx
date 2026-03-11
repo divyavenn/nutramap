@@ -242,6 +242,7 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink }: Re
           <RecipeDetailModal className="recipe-detail-modal" onClick={(e) => e.stopPropagation()}>
             <ModalCloseX
               as={motion.button}
+              className="modal-close-x"
               onClick={handleClose}
               aria-label="Close"
               whileHover={{ rotate: -12, scale: 1.05, y: -1 }}
@@ -307,7 +308,7 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink }: Re
             </ModalHeader>
 
             <ModalContent>
-              <IngredientsSection>
+              <IngredientsSection className="ingredients-section">
                 {editedIngredients.map((ingredient, index) => (
                   isEditMode ? (
                     <EditIngredientForm
