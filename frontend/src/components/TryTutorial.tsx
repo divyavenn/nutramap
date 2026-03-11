@@ -31,45 +31,46 @@ import {
   TutorialPrevBtn,
   TutorialNextBtn,
 } from './TutorialStyles';
-import startClaudeUrl from '../assets/start_claude.png';
-import todayProgressUrl from '../assets/today_progress.png';
-import improveRecipesUrl from '../assets/improve_recipes_1.png';
 
 const steps: TutorialStep[] = [
   
+  /** 
  new TutorialStep({
-    message: 'Nutramap is the first ever nutrition tracker with an agentic interface..',
+    message: 'Nutramap is the first ever nutrition tracker with an agentic interface.',
   }),
   new TutorialStep({
-    message: 'Use our binary or MCP server + skills file to turn your go-to LLM into an incredible nutritionist. (you can install this from our Github)',
+    message: 'Use our binary or MCP server + skills file to turn your go-to LLM into an incredible nutritionist. (You can install this from our GitHub)',
     mediaUrl: startClaudeUrl,
   }),
   new TutorialStep({
-    message: 'That can log your meals, track your progress, and take the mental load of deciding what to eat off your mind.',
+    message: 'It can log your meals, track your progress, and take the mental load of deciding what to eat off your mind.',
     mediaUrl: todayProgressUrl,
   }),
   new TutorialStep({
-    message: 'It`ll even tell you how to tweak what you already eat to reach your goals better.',
+    message: "It'll even tell you how to tweak what you already eat to reach your goals better.",
     mediaUrl: improveRecipesUrl,
   }),
+  new TutorialStep({ message: 'Other nutrition trackers ask you to enter everything manually...'}),
+  new TutorialStep({ message: 'Or make a lot of hidden assumptions about how things are made. Nutramap was built with ease, transparency, and auditability in mind.'}),
+  new TutorialStep({ message: 'We built a search index over 2.7 million foods whose nutrition info is verified by the USDA...'}),
+  new TutorialStep({ message: 'And break your description into recipes with verified ingredients, so we can calculate your intake with unparalleled accuracy.'}),
   new TutorialStep({
-    message: 'foodPanelAI is currently just a proof of concept. if you\'d like to see it on the App Store, enter your email!',
-  }),
-new TutorialStep({
-    message: 'start by logging a meal. describe what you ate, like \'matcha latte yesterday\' or \'500 grams of chocolate and 2 scoops of collagen powder.\'',
+    message: "Start by logging a meal. Describe what you ate, like 'matcha latte yesterday' or '500 grams of chocolate and 2 scoops of collagen powder.'",
     selector: '.form-elements-wrapper',
     eventName: 'tutorial:log-created',
   }),
-  new TutorialStep({ message: 'other nutrition trackers ask you to enter everything manually...', selector: '.log-list', highlightOnly: true }),
-  new TutorialStep({ message: 'or make a lot of hidden assumptions about how things are made. Nutramap was built with ease, transparency, and auditabilitiy in mind.', selector: '.log-list', highlightOnly: true }),
-  new TutorialStep({ message: 'We built a search index over the 2.7 millions foods whose nutrition info is verified by the USDA...', selector: '.log-list', highlightOnly: true }),
-  new TutorialStep({ message: 'And break down your description down into recipes with verified ingredients, so we can calculate your intake with unparalleled accuracy.', selector: '.log-list', highlightOnly: true }),
+  **/
   new TutorialStep({
     message: 'Most people have go-to meals they eat over and over, so every recipe is automatically stored here.',
     selector: 'a[href="/myrecipes"]',
   }),
-    new TutorialStep({
-    message: 'Recipes are easy to edit. Try tweaking the ingredients, amounts....even the exact weight conversions (for people who like precision and kitchen scales)',
+  new TutorialStep({
+    message: 'Recipes are easy to edit. Click on one.',
+    selector: '.recipe-card',
+    eventName: 'tutorial:recipe-opened',
+  }),
+  new TutorialStep({
+    message: "You can edit or add any ingredient and its amount (in natural language). We'll convert measurements like 1 tsp or 1 pinch to grams, but if you want you can whip out a kitchen scale and edit the exact gram amount as well.",
     selector: '.recipe-detail-modal .ingredients-section',
     eventName: 'tutorial:ingredient-edited',
   }),
@@ -179,21 +180,6 @@ new TutorialStep({
     message: 'We have 72+ nutrients in our database, everything from protein to PUFAs.',
     selector: '.nutrient-dashboard',
     highlightOnly: true,
-  }),
-  new TutorialStep({
-    message: 'Nutramap is the first ever nutrition tracker with an agentic interface..',
-  }),
-  new TutorialStep({
-    message: 'Use our binary or MCP server + skills file to turn your go-to LLM into an incredible nutritionist. (you can install this from our Github)',
-    mediaUrl: startClaudeUrl,
-  }),
-  new TutorialStep({
-    message: 'That can log your meals, track your progress, and take the mental load of deciding what to eat off your mind.',
-    mediaUrl: todayProgressUrl,
-  }),
-  new TutorialStep({
-    message: 'It`ll even tell you how to tweak what you already eat to reach your goals better.',
-    mediaUrl: improveRecipesUrl,
   }),
   new TutorialStep({
     message: 'foodPanelAI is currently just a proof of concept. if you\'d like to see it on the App Store, enter your email!',

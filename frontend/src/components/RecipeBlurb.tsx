@@ -34,7 +34,7 @@ interface RecipeBlurbProps {
 
 function RecipeBlurb({ recipe, onClick }: RecipeBlurbProps) {
   return (
-    <RecipeCardEl onClick={onClick}>
+    <RecipeCardEl className="recipe-card" onClick={onClick}>
       <RecipeCardHeader>
         <RecipeTitleEl>{recipe.description}</RecipeTitleEl>
         <RecipeUsageCount>

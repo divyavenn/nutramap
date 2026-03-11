@@ -108,7 +108,6 @@ function MyRecipes() {
 
   const handleRecipeClick = (recipe: Recipe) => {
     setSelectedRecipe(recipe);
-    tutorialEvent('tutorial:recipe-opened');
   };
 
   const handleCloseModal = () => {
