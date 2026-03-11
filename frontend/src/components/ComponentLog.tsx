@@ -352,9 +352,9 @@ function ComponentLog({
           onClick={hasRecipe ? undefined : () => setIsEditable(true)}
           style={{ cursor: hasRecipe ? 'default' : 'pointer' }}
         >
-          <FoodNameSpace>{component.food_name}</FoodNameSpace>
+          <FoodNameSpace style={hasRecipe ? { color: 'oklch(0.637 0.185 295 / 70%)' } : undefined}>{component.food_name}</FoodNameSpace>
           <FoodDateSpace />
-          <FoodPortionSpace>
+          <FoodPortionSpace style={hasRecipe ? { color: 'oklch(0.637 0.185 295 / 42%)' } : undefined}>
             {component.amount
               ? `${component.amount} (${Math.round(component.weight_in_grams)}g)`
               : `${Math.round(component.weight_in_grams)}g`}

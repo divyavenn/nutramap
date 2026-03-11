@@ -137,7 +137,7 @@ export const FoodNameSpace = styled.div`
 `;
 
 export const FoodNameInput = styled.textarea`
-  font-family: 'Inconsolata', monospace;
+  font-family: 'Funnel Sans';
   font-size: var(--recipe-card-font-size);
   color: var(--white);
   border: none;
@@ -147,7 +147,7 @@ export const FoodNameInput = styled.textarea`
   resize: none;
   overflow: hidden;
   min-height: var(--ingredient-input-height);
-  line-height: 1;
+  line-height: .5;
 
   &::placeholder {
     color: rgba(190, 140, 255, 0.5);

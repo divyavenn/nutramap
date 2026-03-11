@@ -271,7 +271,7 @@ interface VisibilityProps {
 
 export const GoalMessage = styled.div<VisibilityProps>`
   position: absolute;
-  font-family: Inconsolata;
+  font-family: 'Funnel Sans';
   font-size: var(--inconsolata-font-size);
   transition: opacity 0.3s ease, transform 0.3s ease;
   width: 100%;

@@ -198,15 +198,8 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink, onSy
     }
   };
 
-  const handleUnlinkFromLog = async () => {
+  const handleUnlinkFromLog = () => {
     if (!logId) return;
-    try {
-      const fd = new FormData();
-      fd.append('log_id', logId);
-      await request('/recipes/unlink-log', 'POST', fd);
-    } catch (error) {
-      console.error('Error unlinking log from recipe:', error);
-    }
     tutorialEvent('tutorial:recipe-unlinked');
     onUnlink?.();
     onClose();
@@ -364,7 +357,7 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink, onSy
             {logId && !isEditMode && (
               <div style={{
                 position: 'absolute',
-                bottom: 24,
+                bottom: 50,
                 left: 0,
                 right: 0,
                 display: 'flex',
@@ -378,7 +371,7 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink, onSy
                     border: 'none',
                     color: 'rgba(255,255,255,0.4)',
                     fontFamily: 'Inconsolata, monospace',
-                    fontSize: 13,
+                    fontSize: 20,
                     cursor: 'pointer',
                     padding: '6px 10px',
                     transition: 'color 0.15s ease',
@@ -396,7 +389,7 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink, onSy
                     border: 'none',
                     color: 'rgba(255,255,255,0.4)',
                     fontFamily: 'Inconsolata, monospace',
-                    fontSize: 13,
+                    fontSize: 20,
                     cursor: 'pointer',
                     padding: '6px 10px',
                     transition: 'color 0.15s ease',

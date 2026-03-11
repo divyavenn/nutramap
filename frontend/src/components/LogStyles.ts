@@ -15,7 +15,7 @@ export const FoodNameSpace = styled.div`
   padding-right: 10px;
   width: var(--log-name-width);
   min-width: 0;
-  font-family: Inconsolata;
+  font-family: Funnel Sans;
   font-size: 19px;
   color: oklch(0.924 0.063 295 / 92%);
   display: flex;

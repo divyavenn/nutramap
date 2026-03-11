@@ -60,6 +60,8 @@ function LogList (){
   const [deletingLogId, setDeletingLogId] = useState<string | null>(null);
   // Track recipe IDs currently being synced to all logs
   const [syncingRecipeIds, setSyncingRecipeIds] = useState<Set<string>>(new Set());
+  // Track log IDs currently being unlinked from their recipe
+  const [unlinkingLogIds, setUnlinkingLogIds] = useState<Set<string>>(new Set());
   // Track which meal log has its components expanded
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   // Recipe card modal — store recipe + the log it was opened from (for unlink button)
@@ -185,6 +187,25 @@ function LogList (){
     setSyncingRecipeIds(prev => {
       const next = new Set(prev);
       next.delete(recipeId);
+      return next;
+    });
+  }, [refreshLogs]);
+
+  const handleUnlinkLog = useCallback(async (logId: string) => {
+    setSelectedRecipe(null);
+    setSelectedRecipeLogId(null);
+    setUnlinkingLogIds(prev => new Set(prev).add(logId));
+    try {
+      const fd = new FormData();
+      fd.append('log_id', logId);
+      await request('/recipes/unlink-log', 'POST', fd);
+    } catch (error) {
+      console.error('Error unlinking log from recipe:', error);
+    }
+    await refreshLogs({ force: true });
+    setUnlinkingLogIds(prev => {
+      const next = new Set(prev);
+      next.delete(logId);
       return next;
     });
   }, [refreshLogs]);
@@ -323,7 +344,7 @@ function LogList (){
                     : log.components.reduce((sum, c) => sum + c.weight_in_grams, 0)
                 );
                 const isExpanded = expandedLogId === log._id;
-                const isSyncing = syncingRecipeIds.has(log.recipe_id ?? '');
+                const isSyncing = syncingRecipeIds.has(log.recipe_id ?? '') || unlinkingLogIds.has(log._id);
 
                 const handleMealNameClick = () => {
                   if (log.recipe_id) {
@@ -427,7 +448,7 @@ function LogList (){
             onDelete={handleDeleteRecipe}
             onUpdate={handleRecipeUpdate}
             logId={selectedRecipeLogId ?? undefined}
-            onUnlink={() => { setSelectedRecipe(null); setSelectedRecipeLogId(null); refreshLogs(); }}
+            onUnlink={selectedRecipeLogId ? () => handleUnlinkLog(selectedRecipeLogId) : undefined}
             onSyncLogs={handleSyncLogs}
           />
         </AnimatePresence>,

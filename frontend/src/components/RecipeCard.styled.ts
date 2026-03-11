@@ -156,8 +156,9 @@ export const RecipeDetailModal = styled.div`
     oklch(0.183 0.027 295 / 95%) 100%
   );
   border-radius: 16px;
-  max-width: 800px;
-  width: 100%;
+  width: fit-content;
+  min-width: 420px;
+  max-width: min(800px, 50vw);
   min-height: 420px;
   padding: 20px 20px 72px;
   max-height: 90vh;
@@ -228,15 +229,17 @@ export const RecipeNameDisplay = styled.h2<RecipeNameDisplayProps>`
   padding: 0;
   margin: 0;
   cursor: text;
+  white-space: nowrap;
   ${({ $saving }) => $saving && 'min-height: 1.4em;'}
 `;
 
 export const RecipeTitleEditRow = styled.div`
   display: flex;
   align-items: baseline;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0;
   padding: 2px 0;
+  white-space: nowrap;
 `;
 
 export const RecipeTitleInput = styled.input`
