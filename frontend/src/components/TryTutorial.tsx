@@ -41,8 +41,9 @@ const steps: TutorialStep[] = [
     message: 'Nutramap is the first ever nutrition tracker with an agentic interface.',
   }),
   new TutorialStep({
-    message: 'Use our binary or MCP server + skills file to turn your go-to LLM into an incredible nutritionist. (You can install this from our GitHub)',
+    message: 'Use our binary or MCP server + skills file to turn your go-to LLM into an incredible nutritionist.',
     mediaUrl: startClaudeUrl,
+    link: { label: 'install from our GitHub →', url: 'https://github.com/divyavenn/nutramap' },
   }),
   new TutorialStep({
     message: 'It can log your meals, track your progress, and take the mental load of deciding what to eat off your mind.',
@@ -632,7 +633,7 @@ export default function TryTutorial() {
         >
           <TutorialMessage>
             <Typewriter
-              speed={10}
+              speed={.1}
               variance="natural"
               play={!hideUntilAnchored}
               replace="all"
@@ -643,6 +644,30 @@ export default function TryTutorial() {
               {tutorialMessage}
             </Typewriter>
           </TutorialMessage>
+          {currentCompiledStep.link && (
+            <a
+              href={currentCompiledStep.link.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-block',
+                marginTop: 10,
+                fontFamily: 'Inconsolata, monospace',
+                fontSize: 17,
+                color: 'oklch(0.637 0.185 295 / 80%)',
+                textDecoration: 'none',
+                transition: 'color 0.15s ease',
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLAnchorElement).style.color = 'oklch(0.637 0.185 295)';
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLAnchorElement).style.color = 'oklch(0.637 0.185 295 / 80%)';
+              }}
+            >
+              {currentCompiledStep.link.label}
+            </a>
+          )}
           {isLastStep && mailingStatus !== 'success' && (
             <TutorialEmailForm className="tutorial-email-form" onSubmit={handleMailingSubmit}>
               <TutorialEmailInput
