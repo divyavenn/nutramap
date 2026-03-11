@@ -34,7 +34,6 @@ import {
 
 const steps: TutorialStep[] = [
   
-  /** 
  new TutorialStep({
     message: 'Nutramap is the first ever nutrition tracker with an agentic interface.',
   }),
@@ -59,7 +58,6 @@ const steps: TutorialStep[] = [
     selector: '.form-elements-wrapper',
     eventName: 'tutorial:log-created',
   }),
-  **/
   new TutorialStep({
     message: 'Most people have go-to meals they eat over and over, so every recipe is automatically stored here.',
     selector: 'a[href="/myrecipes"]',
