@@ -1,32 +1,24 @@
 # nutramap/foodPanelAI (name undecided)
 
-Nutramap is a proof of concept for a human-LLM collaborative workflow + the first ever nutrition tracker with an agentic interface. if you'd like to see it in production please add your email to the list. The web app is hosted live on nutramap.vercel.app but to test the mcp you'll have to run it locally.
+Nutramap is a proof of concept for using LLMs heavily in data pipelines but in a transparent, auditable way. It's also the first ever nutrition tracker with an agentic interface. It can turn any chatbot into the best nutritionist money can buy, guaranteed. The web app is hosted live on nutramap.vercel.app but to test agent capablities you'll have to run it locally. If you'd like to see it in production please add your email to the list.
 
-## MCP Quickstart.
-
-Use this if you want an assistant to chat about meals, ask follow-up questions, and log entries using Nutramap.
-First, clone this repo to your desktop. 
-
-### 1) Install and run MCP server from this repo
-
-```bash
-chmod +x run-mcp.sh
-./run-mcp.sh
-```
-
-## Binary Quickstart.
+### Agent Setup
 
 Use this if you want an assistant to chat about meals, ask follow-up questions, and log entries using Nutramap.
-First, clone this repo to your desktop. 
+First, clone this repo to your desktop. If you're using Codex or Claude Code, the binary is recommended. If you're using an LLM without
+shell permissions (like bog-standard ChatGPT) you'll have to run the MCP server.
 
-### 1) Install binary
+
+###  Binary quickstart
+
+1) Install binary
 
 ```bash
 chmod +x install-binary.sh
 ./install-binary.sh
 ```
 
-### 2) Verify from terminal 
+2) Verify from terminal 
 
 Open a new terminal and test out the CLI. 
 ```bash
@@ -35,8 +27,12 @@ foodPanel log "one small cup vegan chilli"
 foodpanel today
 ```
 
+### MCP server quickstart
 
-
+```bash
+chmod +x run-mcp.sh
+./run-mcp.sh
+```
 
 ## 3) LLM Assistant Integration
 
