@@ -1,7 +1,6 @@
-# foodPanelAI
+# nutramap/foodPanelAI (name undecided)
 
-The web app is hosted live on nutramap.vercel.app but to test the mcp you'll have to run it locally.
-Nutramap is a proof of concept for a human-LLM collaborative workflow + the first ever nutrition tracker with an agentic interface. if you'd like to see it in production please add your email to the list. 
+Nutramap is a proof of concept for a human-LLM collaborative workflow + the first ever nutrition tracker with an agentic interface. if you'd like to see it in production please add your email to the list. The web app is hosted live on nutramap.vercel.app but to test the mcp you'll have to run it locally.
 
 ## MCP Quickstart.
 
