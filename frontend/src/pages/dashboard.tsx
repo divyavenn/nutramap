@@ -193,8 +193,6 @@ function DashboardRoot() {
 
 function Dashboard() {
   const name = useRecoilValue(firstNameAtom)
-  const logsLoading = useRecoilValue(logsLoadingAtom)
-  const requirementsLoading = useRecoilValue(requirementsLoadingAtom)
   const refreshAccountInfo = useRefreshAccountInfo()
   const refreshLogs = useRefreshLogs()
   const refreshRequirements = useRefreshRequirements()
@@ -286,7 +284,6 @@ function Dashboard() {
   }, [loginBootstrap, isLoggedIn, navigate, refreshAccountInfo, refreshRequirements, refreshLogs])
 
   const greeting = name ? `Hello, ${name}` : 'Hello, you!'
-  const showLoadingRail = bootstrapPhase !== 'idle' || logsLoading || requirementsLoading
 
   return (
     <StrictMode>
@@ -298,46 +295,6 @@ function Dashboard() {
       ]} />
 
       <Heading words={greeting} />
-      <AnimatePresence>
-        {showLoadingRail && (
-          <LoadRail
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.24 }}
-          >
-            <LoadChip
-              $active={bootstrapPhase === 'authenticating' || bootstrapPhase === 'hydrating'}
-              animate={{
-                opacity: bootstrapPhase === 'authenticating' || bootstrapPhase === 'hydrating'
-                  ? [0.6, 1, 0.6]
-                  : 0.5
-              }}
-              transition={{ duration: 1.1, repeat: Infinity, ease: 'easeInOut' }}
-            >
-              {bootstrapPhase === 'authenticating' ? 'Signing in' : 'Session ready'}
-            </LoadChip>
-            <LoadChip
-              $active={bootstrapPhase === 'hydrating' || logsLoading}
-              animate={{
-                opacity: bootstrapPhase === 'hydrating' || logsLoading ? [0.6, 1, 0.6] : 0.5
-              }}
-              transition={{ duration: 1.1, repeat: Infinity, ease: 'easeInOut', delay: 0.12 }}
-            >
-              Loading logs
-            </LoadChip>
-            <LoadChip
-              $active={bootstrapPhase === 'hydrating' || requirementsLoading}
-              animate={{
-                opacity: bootstrapPhase === 'hydrating' || requirementsLoading ? [0.6, 1, 0.6] : 0.5
-              }}
-              transition={{ duration: 1.1, repeat: Infinity, ease: 'easeInOut', delay: 0.24 }}
-            >
-              Loading targets
-            </LoadChip>
-          </LoadRail>
-        )}
-      </AnimatePresence>
       <Center>
         <DateSelector />
       </Center>

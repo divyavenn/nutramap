@@ -34,9 +34,10 @@ interface RecipeCardProps {
   onUpdate: () => void;
   logId?: string;
   onUnlink?: () => void;
+  onSyncLogs?: (recipeId: string) => void;
 }
 
-function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink }: RecipeCardProps) {
+function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink, onSyncLogs }: RecipeCardProps) {
   const [editedIngredients, setEditedIngredients] = useState<RecipeIngredient[]>(recipe.ingredients);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [hasEdits, setHasEdits] = useState(false);
@@ -180,17 +181,21 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink }: Re
   };
 
   const handleSyncLogs = async () => {
-    try {
-      const formData = new FormData();
-      formData.append('recipe_id', recipe.recipe_id);
-      await request('/recipes/sync-logs', 'POST', formData);
-    } catch (error) {
-      console.error('Error syncing logs:', error);
-    }
     setShowSyncConfirm(false);
-    onUpdate();
     onClose();
     tutorialEvent('tutorial:recipe-synced');
+    if (onSyncLogs) {
+      onSyncLogs(recipe.recipe_id);
+    } else {
+      try {
+        const formData = new FormData();
+        formData.append('recipe_id', recipe.recipe_id);
+        await request('/recipes/sync-logs', 'POST', formData);
+      } catch (error) {
+        console.error('Error syncing logs:', error);
+      }
+      onUpdate();
+    }
   };
 
   const handleUnlinkFromLog = async () => {
@@ -208,6 +213,9 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink }: Re
   };
 
   const handleUnlinkLogs = async () => {
+    setShowSyncConfirm(false);
+    onClose();
+    tutorialEvent('tutorial:recipe-synced');
     try {
       const formData = new FormData();
       formData.append('recipe_id', recipe.recipe_id);
@@ -215,10 +223,7 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink }: Re
     } catch (error) {
       console.error('Error unlinking logs:', error);
     }
-    setShowSyncConfirm(false);
     onUpdate();
-    tutorialEvent('tutorial:recipe-synced');
-    onClose();
   };
 
   const overlayTransition = { duration: 0.2, ease: 'easeOut' } as const;

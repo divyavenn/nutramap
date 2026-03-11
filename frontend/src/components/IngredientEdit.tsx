@@ -192,19 +192,11 @@ useEffect(() => {
     }
   };
 
-  // Prevent Enter key from creating new lines in textarea
+  // Enter on food name only selects a suggestion — never submits directly
   const handleTextareaKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    // Call the general key handler first
     handleKeyDown(e);
-
-    // Prevent Enter from creating a new line
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-
-      // If no suggestions are shown or none selected, submit the form
-      if (!showSuggestions || selectedSuggestionIndex < 0) {
-        handleSubmit(e as any);
-      }
     }
   };
 
@@ -246,20 +238,8 @@ useEffect(() => {
         return;
       }
 
-      // Set a new debounce timer (300ms delay)
-      debounceTimerRef.current = setTimeout(async () => {
-        try {
-          const response = await request('/match/autocomplete' + '?prompt=' + value, 'POST', {}, 'JSON');
-          if (response.body) {
-            setSuggestions(response.body);
-            setShowSuggestions(value.length > 0 && response.body.length > 0);
-          }
-        } catch (error) {
-          console.error('Error fetching autocomplete suggestions:', error);
-          setSuggestions([]);
-          setShowSuggestions(false);
-        }
-      }, 300); // 300ms debounce delay
+      // Fetch immediately on every keystroke
+      handleAdvancedSearch(value);
     }
   };
 

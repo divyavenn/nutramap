@@ -58,6 +58,8 @@ function LogList (){
   const [animationLock] = useState(false);
   // Track which log group is animating out on delete
   const [deletingLogId, setDeletingLogId] = useState<string | null>(null);
+  // Track recipe IDs currently being synced to all logs
+  const [syncingRecipeIds, setSyncingRecipeIds] = useState<Set<string>>(new Set());
   // Track which meal log has its components expanded
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   // Recipe card modal — store recipe + the log it was opened from (for unlink button)
@@ -168,12 +170,31 @@ function LogList (){
     } catch (e) {}
   };
 
+  const handleSyncLogs = useCallback(async (recipeId: string) => {
+    setSelectedRecipe(null);
+    setSelectedRecipeLogId(null);
+    setSyncingRecipeIds(prev => new Set(prev).add(recipeId));
+    try {
+      const formData = new FormData();
+      formData.append('recipe_id', recipeId);
+      await request('/recipes/sync-logs', 'POST', formData);
+    } catch (error) {
+      console.error('Error syncing logs:', error);
+    }
+    await refreshLogs({ force: true });
+    setSyncingRecipeIds(prev => {
+      const next = new Set(prev);
+      next.delete(recipeId);
+      return next;
+    });
+  }, [refreshLogs]);
+
   // Early return AFTER all hooks
   if (logsLoading && logs.length === 0 && pendingFoods.length === 0) {
     return (
       <LogListContainer className="log-list">
         <GlobalEditStyles />
-        {[1, 2, 3].map((idx) => (
+        {[1].map((idx) => (
           <LogWrapper key={`loading-${idx}`}>
             <motion.div
               initial={{ opacity: 0.35 }}
@@ -302,6 +323,7 @@ function LogList (){
                     : log.components.reduce((sum, c) => sum + c.weight_in_grams, 0)
                 );
                 const isExpanded = expandedLogId === log._id;
+                const isSyncing = syncingRecipeIds.has(log.recipe_id ?? '');
 
                 const handleMealNameClick = () => {
                   if (log.recipe_id) {
@@ -322,9 +344,13 @@ function LogList (){
                     key={log._id}
                     layout
                     initial={{ opacity: 0, y: 12, scale: 0.98 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    animate={isSyncing
+                      ? { opacity: [1, 0.35, 1], y: 0, scale: 1 }
+                      : { opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -10, scale: 0.98 }}
-                    transition={rowTransition}
+                    transition={isSyncing
+                      ? { duration: 0.9, repeat: Infinity, ease: 'easeInOut' }
+                      : rowTransition}
                     style={{ width: '100%' }}
                   >
                     <DeletingWrapper $isDeleting={deletingLogId === log._id}>
@@ -402,6 +428,7 @@ function LogList (){
             onUpdate={handleRecipeUpdate}
             logId={selectedRecipeLogId ?? undefined}
             onUnlink={() => { setSelectedRecipe(null); setSelectedRecipeLogId(null); refreshLogs(); }}
+            onSyncLogs={handleSyncLogs}
           />
         </AnimatePresence>,
         document.body

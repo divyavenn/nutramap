@@ -106,7 +106,7 @@ function AddComponentForm({ logId, onAdd }: AddComponentFormProps) {
     setFoodId(null);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!val.trim()) { setSuggestions([]); setShowSuggestions(false); return; }
-    debounceRef.current = setTimeout(() => fetchSuggestions(val), 300);
+    fetchSuggestions(val);
   };
 
   const handleSuggestionClick = (s: { food_id: string; food_name: string }) => {
@@ -169,8 +169,7 @@ function AddComponentForm({ logId, onAdd }: AddComponentFormProps) {
       }
     }
     if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      if (!showSuggestions || selectedSuggestionIndex < 0) handleSubmit();
+      e.preventDefault(); // Enter on food name only selects a suggestion, never submits
     }
   };
 
