@@ -209,8 +209,14 @@ export const NutrientSuggestionsList = styled.ul`
   scrollbar-width: none;
   font-family: 'Funnel Sans';
   border-radius: 0 0 10px 10px;
-  background-color: oklch(0.279 0.075 295 / 88%);
-  backdrop-filter: blur(10px);
+  background: linear-gradient(
+    160deg,
+    oklch(0.222 0.044 295 / 97%) 0%,
+    oklch(0.183 0.027 295 / 97%) 100%
+  );
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 8px 24px oklch(0 0 0 / 45%), inset 0 1px 0 oklch(0.924 0.063 295 / 6%);
 
   &::-webkit-scrollbar {
     display: none;
@@ -230,12 +236,12 @@ export const NutrientSuggestionItem = styled.li<NutrientSuggestionItemProps>`
   transition: background-color 0.15s ease, color 0.15s ease;
 
   ${({ $selected }) => $selected && css`
-    background-color: oklch(0.924 0.063 295 / 65%);
-    color: oklch(0.214 0.038 295);
+    background-color: oklch(0.924 0.063 295 / 8%);
+    color: oklch(0.924 0.063 295 / 95%);
   `}
 
   &:hover {
-    background-color: oklch(0.924 0.063 295 / 65%);
-    color: oklch(0.214 0.038 295);
+    background-color: oklch(0.924 0.063 295 / 8%);
+    color: oklch(0.924 0.063 295 / 95%);
   }
 `;

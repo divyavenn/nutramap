@@ -237,8 +237,15 @@ export const SuggestionsList = styled.ul`
   margin: 0;
   max-height: 300px;
   overflow-y: auto;
-  background: linear-gradient(135deg, #2a0042 0%, #150020 100%);
-  border-radius: 8px;
+  background: linear-gradient(
+    160deg,
+    oklch(0.222 0.044 295 / 97%) 0%,
+    oklch(0.183 0.027 295 / 97%) 100%
+  );
+  border-radius: 10px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px oklch(0 0 0 / 50%), inset 0 1px 0 oklch(0.924 0.063 295 / 6%);
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 
@@ -262,17 +269,17 @@ export const SuggestionItem = styled.li<SuggestionItemProps>`
   padding: 12px 24px;
   font-family: 'Inconsolata', monospace;
   font-size: var(--recipe-card-font-size);
-  color: rgba(255, 255, 255, 0.8);
+  color: oklch(0.924 0.063 295 / 72%);
   cursor: pointer;
-  transition: background-color 0.1s ease, color 0.1s ease;
+  transition: background-color 0.12s ease, color 0.12s ease;
 
   ${props => props.$selected && css`
-    background-color: rgba(255, 255, 255, 0.1);
-    color: var(--white);
+    background-color: oklch(0.924 0.063 295 / 8%);
+    color: oklch(0.924 0.063 295 / 95%);
   `}
 
   &:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-    color: var(--white);
+    background-color: oklch(0.924 0.063 295 / 8%);
+    color: oklch(0.924 0.063 295 / 95%);
   }
 `;

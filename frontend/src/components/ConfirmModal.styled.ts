@@ -14,11 +14,20 @@ export const ConfirmModal = styled.div`
   width: min(500px, 92vw);
   min-height: 300px;
   flex-direction: column;
-  border-radius: 30px;
-  background-color: #0e003d;
-  color: rgba(255, 255, 255, 0.92);
+  border-radius: 20px;
+  background: linear-gradient(
+    160deg,
+    oklch(0.222 0.044 295 / 95%) 0%,
+    oklch(0.183 0.027 295 / 95%) 100%
+  );
+  color: oklch(0.924 0.063 295 / 92%);
   font-family: 'Inconsolata', monospace;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow:
+    inset 0 1px 0 oklch(0.924 0.063 295 / 9%),
+    0 40px 96px oklch(0 0 0 / 70%),
+    0 8px 28px oklch(0 0 0 / 40%);
 `;
 
 export const DialogText = styled.div`
@@ -53,16 +62,17 @@ export const OptionButton = styled.button<OptionButtonProps>`
   flex: 1 0 0;
   height: 90px;
   background: transparent;
-  color: rgba(171, 82, 255, 0.92);
+  color: oklch(0.637 0.185 295 / 75%);
   border: none;
   cursor: pointer;
-  transition: transform 0.16s ease, color 0.16s ease;
-  border-bottom-left-radius: ${({ $side }) => $side === 'left' ? '30px' : '0'};
-  border-bottom-right-radius: ${({ $side }) => $side === 'right' ? '30px' : '0'};
+  transition: transform 0.16s ease, color 0.16s ease, background-color 0.16s ease;
+  border-bottom-left-radius: ${({ $side }) => $side === 'left' ? '20px' : '0'};
+  border-bottom-right-radius: ${({ $side }) => $side === 'right' ? '20px' : '0'};
 
   &:hover {
     transform: translateY(-1px);
-    color: rgba(192, 132, 252, 1);
+    color: oklch(0.637 0.185 295);
+    background-color: oklch(0.924 0.063 295 / 4%);
   }
 `;
 
