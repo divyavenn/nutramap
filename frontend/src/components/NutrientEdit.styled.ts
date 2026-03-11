@@ -100,21 +100,7 @@ export const NutrientFormBubble = styled.div<NutrientFormBubbleProps>`
     opacity: 1;
   }
 
-  &:hover {
-    background-color: oklch(0.924 0.063 295 / 4%);
-  }
 
-  ${({ $newEntry }) => $newEntry && css`
-    background-color: oklch(0.279 0.075 295 / 10%);
-    border-top: 1px solid oklch(0.637 0.185 295 / 15%);
-    margin-top: 8px;
-    border-radius: 0 0 10px 10px;
-    padding: 8px 14px;
-
-    &:hover {
-      background-color: oklch(0.279 0.075 295 / 18%);
-    }
-  `}
 `;
 
 export const NewNutrientNameWrapper = styled.div`

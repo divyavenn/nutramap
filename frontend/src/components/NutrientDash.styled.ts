@@ -35,12 +35,11 @@ export const NutrientDashboardContainer = styled.div<NutrientDashboardContainerP
   border-radius: 14px;
   background-color: ${({ $foodHovered }) =>
     $foodHovered
-      ? 'oklch(0.279 0.075 295 / 88%)'
-      : 'oklch(0.214 0.038 295 / 82%)'};
+      ? 'oklch(0.279 0.075 295 / 95%)'
+      : 'oklch(0.214 0.038 295 / 95%)'};
   color: oklch(0.924 0.063 295);
   border: none;
   box-shadow:
-    0 0 0 1px oklch(0.637 0.185 295 / 4%),
     0 8px 32px oklch(0 0 0 / 45%),
     inset 0 1px 0 oklch(0.924 0.063 295 / 4%);
   backdrop-filter: blur(16px);

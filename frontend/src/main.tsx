@@ -10,40 +10,19 @@ import AccountRoot from './pages/account'
 import { DeleteAccount } from './pages/goodbye';
 import NewAccount from './pages/hello';
 import { RecoilRoot } from 'recoil';
-import VantaBackgroundWaves from './components/VantaBackgroundWaves';
+import GrainBackground from './components/GrainBackground';
 import FoodsPage from './pages/foods';
 import MyRecipes from './pages/myrecipes';
 import TryTutorial from './components/TryTutorial';
 import MobileGate from './components/MobileGate';
 
-// Load Vanta.js scripts
-const loadScript = (src: string): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = src;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
-    document.head.appendChild(script);
-  });
-};
-
-// Load scripts in sequence
-const loadVantaScripts = async () => {
-  try {
-    await loadScript('/vanta.waves.min.js');
-  } catch (error) {
-    console.error('Failed to load Vanta scripts:', error);
-  }
-};
-
-loadVantaScripts();
 
 let rootElem = document.getElementById('root')
 if (rootElem) {
   createRoot(rootElem).render(
     <RecoilRoot>
       <MobileGate>
-      <VantaBackgroundWaves>
+      <GrainBackground>
         <Router>
           <Routes>
             <Route path="/" element={<Home />} />
@@ -58,7 +37,7 @@ if (rootElem) {
           </Routes>
           <TryTutorial />
         </Router>
-      </VantaBackgroundWaves>
+      </GrainBackground>
       </MobileGate>
     </RecoilRoot>
   )

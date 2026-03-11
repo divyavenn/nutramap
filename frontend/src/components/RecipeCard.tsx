@@ -333,10 +333,10 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink, onSy
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'baseline',
-                      padding: '6px 0',
+                      padding: '10px 0',
                       borderBottom: '1px solid rgba(255,255,255,0.06)',
                       fontFamily: 'Inconsolata, monospace',
-                      fontSize: 13,
+                      fontSize: 17,
                       color: 'rgba(255,255,255,0.75)',
                     }}>
                       <span>{ingredient.food_name || 'Unknown'}</span>

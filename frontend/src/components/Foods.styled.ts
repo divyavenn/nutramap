@@ -239,50 +239,106 @@ export const TutorialFoodDetailModal = styled.div`
     width: 100%;
     margin: 0;
     max-height: 90vh;
-    padding: 34px 56px 44px;
+    padding: 36px 56px 48px;
     border-radius: 20px;
-    background: oklch(0.279 0.075 295 / 92%);
-    box-shadow: 0 20px 60px oklch(0 0 0 / 50%);
-    backdrop-filter: blur(16px);
+    background: linear-gradient(
+      160deg,
+      oklch(0.222 0.044 295 / 95%) 0%,
+      oklch(0.183 0.027 295 / 95%) 100%
+    );
+    box-shadow:
+      inset 0 1px 0 oklch(0.924 0.063 295 / 9%),
+      0 40px 96px oklch(0 0 0 / 70%),
+      0 8px 28px oklch(0 0 0 / 40%);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
   }
 
+  /* ── Title ── */
   ${NutrientPanelTitle} {
     font-family: 'Abyssinica SIL', Georgia, Times, 'Times New Roman', serif;
-    font-size: 28px;
+    font-size: 22px;
     font-weight: 400;
+    letter-spacing: 0.02em;
     text-align: center;
+    color: oklch(0.924 0.063 295 / 96%);
     margin-bottom: 2px;
   }
 
   ${NutrientEditListWrapper} {
     width: 100%;
-    padding-top: 24px;
+    padding-top: 28px;
   }
 
   ${NewNutrientWrapper} {
-    padding-bottom: 10px;
+    padding-bottom: 0;
   }
 
+  /* ── Rows ── */
   ${NutrientFormBubble} {
     min-height: 48px;
     display: grid;
-    grid-template-columns: 28px minmax(0, 1fr) auto 28px;
+    grid-template-columns: 28px minmax(0, 1fr) 120px 28px;
     align-items: center;
     column-gap: 28px;
     justify-content: initial;
+    border-bottom: 1px solid oklch(0.637 0.185 295 / 10%);
+    border-radius: 0;
+    padding: 0;
+
+    &:hover {
+      background-color: oklch(0.924 0.063 295 / 3%);
+    }
   }
 
-  ${NewRequirementNutrientName},
-  ${InputRequirementAmt},
-  ${InputRequirementAmtWrapper} span {
+  /* No separator after the last row (placeholder) */
+  ${NewNutrientWrapper}:last-child ${NutrientFormBubble} {
+    border-bottom: none;
+  }
+
+  /* ── Label (nutrient name) — dim ── */
+  ${NewRequirementNutrientName} {
+    font-family: 'Funnel Sans', sans-serif;
+    font-size: 17px;
+    line-height: 1.4;
+    color: oklch(0.924 0.063 295 / 55%);
+    letter-spacing: 0.01em;
+  }
+
+  ${AnimatedNutrientName} {
+    font-family: 'Funnel Sans', sans-serif;
+    font-size: 17px;
+    line-height: 1.4;
+    color: oklch(0.924 0.063 295 / 55%);
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+  }
+
+  /* ── Value (number) — bright + right-aligned ── */
+  ${InputRequirementAmt} {
     font-family: 'Inconsolata', monospace;
-    font-size: 22px;
+    font-size: 18px;
     line-height: 1.3;
-    color: oklch(0.924 0.063 295 / 88%);
+    color: oklch(0.924 0.063 295 / 92%);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    min-width: 5ch;
+  }
+
+  /* ── Unit — dimmest ── */
+  ${InputRequirementAmtWrapper} span {
+    font-family: 'Funnel Sans', sans-serif;
+    font-size: 11px;
+    color: oklch(0.924 0.063 295 / 32%);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    min-width: 4ch;
   }
 
   ${NewNutrientNameWrapper},
-  ${InputRequirementAmtWrapper},
   ${NewNutrientButtonContainer} {
     width: auto;
     padding: 0;
@@ -293,11 +349,10 @@ export const TutorialFoodDetailModal = styled.div`
   }
 
   ${InputRequirementAmtWrapper} {
-    justify-self: start;
-  }
-
-  ${InputRequirementAmt} {
-    text-align: left;
+    width: 120px;
+    justify-self: end;
+    justify-content: flex-end;
+    gap: 6px;
   }
 
   ${NewNutrientButtonContainer} {
@@ -311,9 +366,9 @@ export const TutorialFoodDetailModal = styled.div`
   }
 
   ${DeleteRequirementButtonContainer} .delete-button svg {
-    fill: oklch(0.214 0.038 295 / 92%) !important;
-    width: 22px;
-    height: 22px;
+    fill: oklch(0.924 0.063 295 / 55%) !important;
+    width: 18px;
+    height: 18px;
   }
 
   ${DeleteRequirementButtonContainer} .delete-button {
@@ -323,7 +378,7 @@ export const TutorialFoodDetailModal = styled.div`
   }
 
   ${DeleteRequirementButtonContainer} .delete-button:hover svg {
-    fill: oklch(0.183 0.027 295 / 95%) !important;
+    fill: oklch(0.924 0.063 295 / 90%) !important;
   }
 
   ${NutrientFormBubble}:hover ${DeleteRequirementButtonContainer} .delete-button,
@@ -332,34 +387,49 @@ export const TutorialFoodDetailModal = styled.div`
     pointer-events: auto;
   }
 
-  ${NewRequirementNutrientName}::placeholder,
-  ${InputRequirementAmt}::placeholder {
-    color: oklch(0.853 0.107 295 / 55%);
+  /* ── Placeholder row (last / add-new) — clearly inactive ── */
+  ${NewNutrientWrapper}:last-child ${NutrientFormBubble} {
+    background-color: oklch(0.924 0.063 295 / 2%);
+    border-radius: 0 0 10px 10px;
+    margin-top: 2px;
   }
 
-  ${AnimatedNutrientName} {
-    display: block;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    pointer-events: none;
+  ${NewNutrientWrapper}:last-child ${NewRequirementNutrientName} {
+    color: oklch(0.924 0.063 295 / 28%);
+    font-style: italic;
+  }
+
+  ${NewNutrientWrapper}:last-child ${InputRequirementAmt} {
+    color: oklch(0.924 0.063 295 / 28%);
+  }
+
+  ${NewRequirementNutrientName}::placeholder {
+    color: oklch(0.924 0.063 295 / 25%);
+    font-style: italic;
+  }
+
+  ${InputRequirementAmt}::placeholder {
+    color: oklch(0.924 0.063 295 / 25%);
   }
 
   @media (max-width: 1180px) {
     ${NutrientPanelTitle} {
-      font-size: 24px;
+      font-size: 19px;
     }
 
     ${NutrientFormBubble} {
-      grid-template-columns: 24px minmax(0, 1fr) auto 24px;
+      grid-template-columns: 24px minmax(0, 1fr) 100px 24px;
       column-gap: 16px;
-      min-height: 42px;
+      min-height: 44px;
     }
 
     ${NewRequirementNutrientName},
-    ${InputRequirementAmt},
-    ${InputRequirementAmtWrapper} span {
-      font-size: 19px;
+    ${AnimatedNutrientName} {
+      font-size: 15px;
+    }
+
+    ${InputRequirementAmt} {
+      font-size: 16px;
     }
   }
 `;

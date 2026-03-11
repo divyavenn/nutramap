@@ -13,7 +13,6 @@ import {
   RequirementEditWrapper,
   NutrientEditListWrapper,
   NutrientEditPanelTitle,
-  NutrientEditSubtitle,
   NutrientListWrapper,
   NoReqMessage,
   NutrientDashTitle,
@@ -148,7 +147,6 @@ function NutrientDashboard(){
                 >
                   <NutrientEditListWrapper className="nutrient-edit-list-wrapper">
                     <NutrientEditPanelTitle>nutritional targets</NutrientEditPanelTitle>
-                    <NutrientEditSubtitle>daily goals tracked against your intake</NutrientEditSubtitle>
                     {requirements.length > 0 &&
                       requirements.map((n, index) =>
                         {return(

@@ -138,7 +138,9 @@ export const ModalOverlay = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.8);
+  background-color: oklch(0 0 0 / 75%);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -148,16 +150,24 @@ export const ModalOverlay = styled.div`
 
 export const RecipeDetailModal = styled.div`
   position: relative;
-  background: #1c002b;
+  background: linear-gradient(
+    160deg,
+    oklch(0.222 0.044 295 / 95%) 0%,
+    oklch(0.183 0.027 295 / 95%) 100%
+  );
   border-radius: 16px;
   max-width: 800px;
   width: 100%;
+  min-height: 420px;
   padding: 20px 20px 72px;
   max-height: 90vh;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    inset 0 1px 0 oklch(0.924 0.063 295 / 9%),
+    0 40px 96px oklch(0 0 0 / 70%),
+    0 8px 28px oklch(0 0 0 / 40%);
 
   &::-webkit-scrollbar {
     display: none;
@@ -197,9 +207,9 @@ export const ModalHeader = styled.div`
   justify-content: space-between;
   align-items: center;
   margin: 44px 44px 0;
-  color: rgba(255, 255, 255, 0.92);
+  color: oklch(0.924 0.063 295 / 96%);
   font-family: 'Abyssinica SIL', Georgia, Times, 'Times New Roman', serif;
-  font-size: 28px;
+  font-size: 26px;
 `;
 
 interface RecipeNameDisplayProps {
@@ -210,7 +220,7 @@ export const RecipeNameDisplay = styled.h2<RecipeNameDisplayProps>`
   font-family: 'Abyssinica SIL', Georgia, Times, 'Times New Roman', serif;
   font-size: inherit;
   font-weight: normal;
-  color: rgba(255, 255, 255, 0.92);
+  color: oklch(0.924 0.063 295 / 96%);
   background: transparent;
   border: none;
   outline: none;
@@ -232,8 +242,8 @@ export const RecipeTitleEditRow = styled.div`
 export const RecipeTitleInput = styled.input`
   background: none;
   border: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
-  color: bisque;
+  border-bottom: 1px solid oklch(0.637 0.185 295 / 25%);
+  color: oklch(0.924 0.063 295 / 90%);
   font-family: 'Inconsolata', monospace;
   outline: none;
   padding: 0 2px 2px;
@@ -264,7 +274,7 @@ export const RecipeServingSuffix = styled.span`
 export const RecipeTitleSep = styled.span`
   font-family: 'Inconsolata', monospace;
   font-size: 22px;
-  color: rgba(255, 245, 220, 0.45);
+  color: oklch(0.924 0.063 295 / 28%);
   white-space: pre;
 `;
 
