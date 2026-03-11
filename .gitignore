@@ -169,6 +169,5 @@ backend/deploy-modal.sh
 backend/deploy-modal.sh
 backend/.env.local
 
-*.sh
-*.sh
+backend/deploy-modal.sh
 backend/deploy-modal.sh
