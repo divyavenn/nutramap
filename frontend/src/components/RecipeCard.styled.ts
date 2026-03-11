@@ -43,7 +43,7 @@ export const CreateRecipeButton = styled.button`
   transition: all 0.2s ease;
 
   &:hover {
-    background-color: rgba(102, 0, 255, 0.85);
+    background-color: oklch(0.33 0.105 295 / 90%);
     transform: translateY(-2px);
   }
 
@@ -90,9 +90,9 @@ export const RecipeCardEl = styled.div`
   transition: all 0.2s ease;
 
   &:hover {
-    background-color: rgba(102, 0, 255, 0.85);
+    background-color: oklch(0.279 0.075 295 / 95%);
     transform: translateY(-4px);
-    box-shadow: 0 8px 20px rgba(102, 0, 255, 0.3);
+    box-shadow: 0 8px 24px oklch(0 0 0 / 45%), 0 0 0 1px oklch(0.637 0.185 295 / 15%);
   }
 `;
 

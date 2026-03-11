@@ -1680,15 +1680,17 @@ label {
 }
 
 .greeting {
-  color: #ffffffc0;
+  color: oklch(0.924 0.063 295 / 55%);
   text-align: center;
   align-self: center;
   margin-top: 0;
   padding-top: 0;
   padding-bottom: 0;
-  font-family: Georgia, Times, Times New Roman, serif;
-  font-size: 70px;
+  font-family: 'Abyssinica SIL', Georgia, 'Times New Roman', serif;
+  font-size: 44px;
   font-weight: 400;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
 }
 
 .nutra {

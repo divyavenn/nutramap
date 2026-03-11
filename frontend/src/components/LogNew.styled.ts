@@ -14,13 +14,13 @@ export const LogNewGlobalStyles = createGlobalStyle`
 
   .entry-form-bubble:hover input,
   .entry-form-bubble:hover textarea {
-    color: #1e002e;
+    color: oklch(0.214 0.038 295);
     background-color: transparent;
   }
 
   .entry-form-bubble:hover input::placeholder,
   .entry-form-bubble:hover textarea::placeholder {
-    color: rgba(30, 0, 46, 0.45) !important;
+    color: oklch(0.214 0.038 295 / 45%) !important;
   }
 
   input, textarea {
@@ -35,18 +35,16 @@ export const LogNewGlobalStyles = createGlobalStyle`
   }
 
   ::placeholder {
-    color: #a6a5a5 !important;
-    opacity: 0.9 !important;
+    color: oklch(0.853 0.107 295 / 45%) !important;
+    opacity: 1 !important;
   }
 
   :-ms-input-placeholder {
-    color: #a6a5a5 !important;
-    opacity: 0.9 !important;
+    color: oklch(0.853 0.107 295 / 45%) !important;
   }
 
   ::-ms-input-placeholder {
-    color: #a6a5a5 !important;
-    opacity: 0.9 !important;
+    color: oklch(0.853 0.107 295 / 45%) !important;
   }
 
   @keyframes jiggle {
@@ -80,7 +78,7 @@ export const FormElementsWrapper = styled.form`
 // .entry-form-bubble — keep className="entry-form-bubble" for nested hover selectors
 export const EntryFormBubble = styled.div`
   display: flex;
-  padding: 15px;
+  padding: 18px 22px;
   border-radius: 14px;
   align-items: center;
   color: var(--white);
@@ -90,12 +88,17 @@ export const EntryFormBubble = styled.div`
   resize: vertical;
   will-change: transform;
   opacity: 1;
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: oklch(0.924 0.063 295 / 7%);
+  border: none;
+  box-shadow: 0 2px 20px oklch(0 0 0 / 35%), inset 0 1px 0 oklch(0.924 0.063 295 / 5%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   justify-content: space-between;
 
   &:hover {
     background-color: var(--hover-white);
-    color: #1e002e;
+    color: oklch(0.214 0.038 295);
+    box-shadow: 0 4px 24px oklch(0 0 0 / 30%);
   }
 `;
 
@@ -120,18 +123,20 @@ export const NewLogInputJournal = styled.textarea<NewLogInputJournalProps>`
   width: calc(100% - 60px);
   resize: none;
   font-family: Inconsolata;
+  font-size: 16px;
+  line-height: 1.5;
   color: inherit;
   background: none;
-  padding-top: 10px;
-  padding-bottom: 10px;
-  padding-left: 10px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 4px;
   border: none;
   outline: none;
   transition: background-color 0.3s ease, color 0.3s ease;
 
   &::placeholder {
     text-align: left;
-    color: rgba(255, 255, 255, 0.642);
+    color: oklch(0.853 0.107 295 / 45%);
   }
 
   ${({ $jiggling }) =>
@@ -145,18 +150,29 @@ export const NewLogInputJournal = styled.textarea<NewLogInputJournalProps>`
 // Styled submit button for the log form — overrides SvgButton sizing/colors
 export const NewLogButton = styled(SvgButton)`
   align-items: center;
-  margin-right: 5px;
+  justify-content: center;
+  margin-right: 2px;
   order: 1;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background-color: oklch(0.637 0.185 295 / 15%);
+  transition: background-color 0.18s ease;
+  flex-shrink: 0;
 
   svg {
-    fill: #ffffffa8;
-    width: 15px;
-    height: 15px;
+    fill: oklch(0.924 0.063 295 / 80%);
+    width: 18px;
+    height: 18px;
+  }
+
+  &:hover {
+    background-color: oklch(0.637 0.185 295 / 30%);
   }
 
   &:hover svg {
-    fill: #1e002e;
-    width: 15px;
-    height: 15px;
+    fill: oklch(0.214 0.038 295);
+    width: 18px;
+    height: 18px;
   }
 `;

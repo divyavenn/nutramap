@@ -33,8 +33,18 @@ export const NutrientDashboardContainer = styled.div<NutrientDashboardContainerP
   flex-shrink: 0;
   flex-basis: auto;
   border-radius: 14px;
-  background-color: ${({ $foodHovered }) => $foodHovered ? 'rgba(140, 60, 255, 0.55)' : 'var(--purple)'};
-  color: white;
+  background-color: ${({ $foodHovered }) =>
+    $foodHovered
+      ? 'oklch(0.279 0.075 295 / 88%)'
+      : 'oklch(0.214 0.038 295 / 82%)'};
+  color: oklch(0.924 0.063 295);
+  border: none;
+  box-shadow:
+    0 0 0 1px oklch(0.637 0.185 295 / 4%),
+    0 8px 32px oklch(0 0 0 / 45%),
+    inset 0 1px 0 oklch(0.924 0.063 295 / 4%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   transition: background-color 0.3s ease, transform 0.3s ease;
 `;
 
@@ -53,7 +63,7 @@ export const NutrientEditButton = styled(SvgButton)`
   }
 
   &:hover {
-    background-color: rgba(255, 255, 255, 0.08);
+    background-color: oklch(0.924 0.063 295 / 8%);
     transform: translateY(-1px);
   }
 
@@ -80,17 +90,28 @@ export const NutrientEditListWrapper = styled.div`
   width: 100%;
   flex-direction: column;
   justify-content: center;
-  padding-left: -20px;
+  padding-left: 0;
 `;
 
 export const NutrientEditPanelTitle = styled.div`
-  font-family: 'Figtree';
-  font-size: 25px;
+  font-family: 'Funnel Sans', sans-serif;
+  font-size: 28px;
   font-weight: 400;
-  color: rgba(255, 255, 255, 0.92);
-  text-align: center;
-  margin-bottom: 10px;
+  color: oklch(0.924 0.063 295 / 92%);
+  text-align: left;
+  margin-bottom: 4px;
   margin-top: 8px;
+  padding-left: 14px;
+`;
+
+export const NutrientEditSubtitle = styled.div`
+  font-family: 'Funnel Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  color: oklch(0.924 0.063 295 / 38%);
+  text-align: left;
+  margin-bottom: 14px;
+  padding-left: 14px;
 `;
 
 export const NutrientPanelTitle = styled.div`
@@ -100,6 +121,7 @@ export const NutrientPanelTitle = styled.div`
   color: var(--white);
   margin: 0;
   margin-bottom: 20px;
+  text-wrap: balance;
 `;
 
 export const NutrientListWrapper = styled.div`
@@ -109,8 +131,8 @@ export const NutrientListWrapper = styled.div`
   width: 100%;
   flex-direction: column;
   justify-content: center;
-  padding-top: 30px;
-  padding-bottom: 20px;
+  padding-top: 20px;
+  padding-bottom: 12px;
 `;
 
 export const NoReqMessage = styled.div`
@@ -139,10 +161,11 @@ export const NutrientDashTitle = styled.div<NutrientDashTitleProps>`
       ? "'Abyssinica SIL', Georgia, 'Times New Roman', serif"
       : "'Funnel Sans'"};
   color: ${({ $foodMode }) =>
-    $foodMode ? 'rgba(255, 255, 255, 0.92)' : 'rgb(156, 49, 255)'};
-  font-size: var(--inconsolata-font-size);
-  font-weight: ${({ $foodMode }) => ($foodMode ? '400' : '300')};
-  text-transform: none;
+    $foodMode ? 'oklch(0.924 0.063 295 / 92%)' : 'oklch(0.924 0.063 295 / 32%)'};
+  font-size: ${({ $foodMode }) => ($foodMode ? 'var(--inconsolata-font-size)' : '11px')};
+  font-weight: ${({ $foodMode }) => ($foodMode ? '400' : '500')};
+  letter-spacing: ${({ $foodMode }) => ($foodMode ? 'normal' : '0.08em')};
+  text-transform: ${({ $foodMode }) => ($foodMode ? 'none' : 'uppercase')};
   overflow: hidden;
   white-space: nowrap;
   text-align: center;
@@ -154,7 +177,7 @@ export const DashboardRow = styled.div`
   display: flex;
   box-sizing: border-box;
   width: 100%;
-  margin-bottom: 10px;
+  margin-bottom: 16px;
   justify-content: center;
   align-items: flex-start;
   align-self: center;
@@ -187,12 +210,16 @@ export const NutrientName = styled.div`
   cursor: pointer;
   font-family: 'Funnel Sans';
   font-size: 20px;
+  font-variant-numeric: tabular-nums;
   transition: all 0.3s ease;
 `;
 
 export const TodayStatsWrapper = styled.div`
   position: relative;
   width: 60%;
+  padding-left: 16px;
+  padding-right: 16px;
+  box-sizing: border-box;
   font-family: Poppins;
   font-size: 18px;
   align-self: center;
@@ -203,11 +230,12 @@ export const TodayStatsWrapper = styled.div`
 
 export const AvgIntake = styled.div`
   font-family: 'Funnel Sans';
-  font-size: var(--inconsolata-font-size);
+  font-size: 15px;
   font-weight: 300;
   cursor: default;
-  text-align: center;
-  color: white;
+  text-align: right;
+  color: oklch(0.924 0.063 295 / 55%);
+  font-variant-numeric: tabular-nums;
   transition: color 0.3s ease;
 `;
 
@@ -219,7 +247,7 @@ export const AvgStatsWrapper = styled.div<AvgStatsWrapperProps>`
   position: relative;
   width: 20%;
   align-self: center;
-  text-align: center;
+  text-align: right;
   opacity: ${({ $hidden }) => ($hidden ? '0' : '1')};
   pointer-events: ${({ $hidden }) => ($hidden ? 'none' : 'auto')};
   transition: opacity 0.3s ease;
@@ -249,6 +277,7 @@ export const GoalMessage = styled.div<VisibilityProps>`
   transition: opacity 0.3s ease, transform 0.3s ease;
   width: 100%;
   text-align: center;
+  font-variant-numeric: tabular-nums;
   opacity: ${({ $visible }) => ($visible ? '1' : '0')};
   transform: ${({ $visible }) => ($visible ? 'translateY(0)' : 'translateY(5px)')};
   pointer-events: ${({ $visible }) => ($visible ? 'auto' : 'none')};
@@ -258,7 +287,7 @@ export const DailyIntake = styled.div<VisibilityProps>`
   position: relative;
   height: 13px;
   width: 100%;
-  background-color: #12000e42;
+  background-color: oklch(0.924 0.063 295 / 8%);
   border-radius: 100px;
   cursor: pointer;
   display: flex;

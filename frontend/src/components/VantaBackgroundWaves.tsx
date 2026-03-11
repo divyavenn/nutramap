@@ -31,10 +31,10 @@ const VantaBackgroundWaves: React.FC<VantaBackgroundProps> = ({ children }) => {
             gyroControls: false,
             minHeight: 200.00,
             minWidth: 200.00,
-            scale: 2.0,
+            scale: 4.0,
             scaleMobile: 1.00,
-            color: 0x04000f,
-            shininess: 1.00
+            color: 0x08060f,
+            shininess: 0
           })
         );
       } else if (attempts < 40) {

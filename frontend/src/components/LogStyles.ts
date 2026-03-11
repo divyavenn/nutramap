@@ -9,13 +9,15 @@ const logGroupExit = keyframes`
 // ── Column spaces (shared with edit forms) ────────────────────────────
 
 export const FoodNameSpace = styled.div`
-  padding-top: 10px;
-  padding-bottom: 10px;
+  padding-top: 12px;
+  padding-bottom: 12px;
   padding-left: 27px;
   padding-right: 10px;
   width: var(--log-name-width);
   min-width: 0;
   font-family: Inconsolata;
+  font-size: 19px;
+  color: oklch(0.924 0.063 295 / 92%);
   display: flex;
   align-items: center;
   overflow: hidden;
@@ -24,8 +26,8 @@ export const FoodNameSpace = styled.div`
 `;
 
 export const FoodPortionSpace = styled.div`
-  padding-top: 10px;
-  padding-bottom: 10px;
+  padding-top: 12px;
+  padding-bottom: 12px;
   padding-left: 12px;
   width: var(--log-portion-width);
   min-width: 0;
@@ -33,6 +35,9 @@ export const FoodPortionSpace = styled.div`
   align-items: center;
   white-space: nowrap;
   overflow: hidden;
+  font-size: 19px;
+  color: oklch(0.924 0.063 295 / 42%);
+  font-variant-numeric: tabular-nums;
 `;
 
 export const FoodWeightSpace = styled.div`
@@ -71,22 +76,30 @@ export const FoodTimeSpace = styled.div`
 export const DateDividerEl = styled.div`
   width: 100%;
   max-width: calc(var(--modal-width) + 150px);
-  margin-bottom: 10px;
+  margin-top: 28px;
+  margin-bottom: 12px;
   border-bottom-style: solid;
   border-bottom-width: .5px;
-  border-bottom-color: #a855f7;
+  border-bottom-color: oklch(0.637 0.185 295 / 20%);
 `;
 
 export const DayButton = styled.button`
-  margin-bottom: 0;
-  font-family: Inconsolata;
-  color: #a855f7;
-  font-size: 15px;
-  font-weight: 300;
+  margin-bottom: 4px;
+  font-family: 'Funnel Sans', sans-serif;
+  color: oklch(0.637 0.185 295 / 65%);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
   background-color: transparent;
   border: none;
   cursor: pointer;
   padding: 0;
+  transition: color 0.15s ease;
+
+  &:hover {
+    color: oklch(0.637 0.185 295 / 90%);
+  }
 `;
 
 // ── Log wrappers ──────────────────────────────────────────────────────
@@ -153,7 +166,7 @@ export const LogBubble = styled.div`
   align-self: center;
   align-items: center;
   font-family: Inconsolata;
-  font-size: 16px;
+  font-size: 19px;
   border-radius: 14px;
   background-color: transparent;
   color: var(--white);
@@ -171,7 +184,7 @@ export const RecipeBubble = styled.div<{ $expanded?: boolean }>`
   align-self: center;
   align-items: center;
   font-family: Inconsolata;
-  font-size: 16px;
+  font-size: 19px;
   border-radius: 14px;
   background-color: transparent;
   color: var(--white);
@@ -180,7 +193,7 @@ export const RecipeBubble = styled.div<{ $expanded?: boolean }>`
   box-sizing: border-box;
 
   ${p => p.$expanded && css`
-    background-color: rgba(140, 60, 255, 0.55);
+    background-color: oklch(0.279 0.075 295 / 75%);
     margin-bottom: 0;
   `}
 `;
@@ -189,7 +202,7 @@ export const MealToggleBtn = styled.button<{ $expanded?: boolean }>`
   background: none;
   border: none;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.5);
+  color: oklch(0.924 0.063 295 / 25%);
   font-size: 20px;
   line-height: 1;
   padding: 0;
@@ -203,11 +216,11 @@ export const MealToggleBtn = styled.button<{ $expanded?: boolean }>`
 
   ${p => p.$expanded && css`
     transform: rotate(90deg);
-    color: rgba(255, 255, 255, 0.9);
+    color: oklch(0.924 0.063 295 / 90%);
   `}
 
   &:hover {
-    color: rgba(255, 255, 255, 0.9);
+    color: oklch(0.924 0.063 295 / 90%);
   }
 `;
 
@@ -227,13 +240,13 @@ export const HoverDeleteBtn = styled.button`
   cursor: pointer;
   padding: 4px 5px;
   flex-shrink: 0;
-  color: rgba(255, 255, 255, 0.4);
+  color: oklch(0.924 0.063 295 / 40%);
   font-size: 16px;
   line-height: 1;
   transition: color 0.15s ease, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 
   &:hover {
-    color: rgba(255, 255, 255, 0.9);
+    color: oklch(0.924 0.063 295 / 90%);
     transform: scale(1.3) rotate(90deg);
   }
 `;
@@ -293,7 +306,7 @@ export const LoadingRecipeBubble = styled.div`
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   border-radius: 14px;
-  background-color: rgba(140, 60, 255, 0.55);
+  background-color: oklch(0.279 0.075 295 / 75%);
   color: var(--white);
   justify-content: flex-start;
   transition: all 0.1s ease;

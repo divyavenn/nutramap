@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { request } from '../components/endpoints';
 import { Header } from '../components/Sections';
 import { Heading } from '../components/Title';
@@ -22,20 +22,12 @@ import {
   LoadingMessage,
   NoRecipesMessage,
   RecipesGrid,
-  ModalOverlay,
-  RecipeDetailModal,
-  ModalCloseX,
-  ModalHeader,
-  RecipeNameDisplay,
-  ModalContent,
 } from '../components/RecipeCard.styled';
 
 function MyRecipes() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newRecipeName, setNewRecipeName] = useState('');
   const [creating, setCreating] = useState(false);
   const name = useRecoilValue(firstNameAtom);
   const navigate = useNavigate();
@@ -114,24 +106,18 @@ function MyRecipes() {
     setSelectedRecipe(null);
   };
 
-  const handleCreateRecipe = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = newRecipeName.trim();
-    if (!trimmed || creating) return;
-
+  const handleCreateRecipe = async () => {
+    if (creating) return;
     setCreating(true);
     try {
       const formData = new FormData();
-      formData.append('description', trimmed);
+      formData.append('description', 'New Recipe');
       formData.append('ingredients', '[]');
       const response = await request('/recipes/create', 'POST', formData);
 
       if (response.status === 200 && response.body?.recipe) {
         clearRecipeCaches();
         await fetchRecipes(true);
-        setShowCreateModal(false);
-        setNewRecipeName('');
-        // Auto-open the newly created recipe for editing
         setSelectedRecipe(response.body.recipe);
       }
     } catch (error) {
@@ -191,9 +177,10 @@ function MyRecipes() {
       ( <MyRecipesContainer>
           <MyRecipesHeader>
             <CreateRecipeButton
-              onClick={() => setShowCreateModal(true)}
+              onClick={handleCreateRecipe}
+              disabled={creating}
             >
-              + Create New Recipe
+              {creating ? 'Creating...' : '+ New Recipe'}
             </CreateRecipeButton>
           </MyRecipesHeader>
 
@@ -229,68 +216,6 @@ function MyRecipes() {
             )}
           </AnimatePresence>
 
-          <AnimatePresence>
-            {showCreateModal && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={overlayTransition}
-              >
-                <ModalOverlay onClick={() => { setShowCreateModal(false); setNewRecipeName(''); }}>
-                  <motion.div
-                    initial={{ opacity: 0, y: 16, scale: 0.98 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 12, scale: 0.98 }}
-                    transition={modalTransition}
-                  >
-                    <RecipeDetailModal
-                      className="recipe-detail-modal"
-                      onClick={(e) => e.stopPropagation()}
-                      style={{ maxWidth: '400px' }}
-                    >
-                      <ModalCloseX
-                        onClick={() => { setShowCreateModal(false); setNewRecipeName(''); }}
-                        aria-label="Close"
-                      >
-                        ×
-                      </ModalCloseX>
-                      <ModalHeader>
-                        <RecipeNameDisplay>New Recipe</RecipeNameDisplay>
-                      </ModalHeader>
-                      <ModalContent>
-                        <form onSubmit={handleCreateRecipe} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                          <input
-                            type="text"
-                            value={newRecipeName}
-                            onChange={(e) => setNewRecipeName(e.target.value)}
-                            placeholder="Recipe name"
-                            autoFocus
-                            style={{
-                              padding: '10px 14px',
-                              fontSize: '16px',
-                              background: 'rgba(255,255,255,0.08)',
-                              border: '1px solid rgba(255,255,255,0.2)',
-                              borderRadius: '8px',
-                              color: 'bisque',
-                              fontFamily: 'Inconsolata',
-                              outline: 'none',
-                            }}
-                          />
-                          <CreateRecipeButton
-                            type="submit"
-                            disabled={creating || !newRecipeName.trim()}
-                          >
-                            {creating ? 'Creating...' : 'Create'}
-                          </CreateRecipeButton>
-                        </form>
-                      </ModalContent>
-                    </RecipeDetailModal>
-                  </motion.div>
-                </ModalOverlay>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </MyRecipesContainer> )
     }
     </MyRecipesPage>

@@ -32,96 +32,133 @@ export const FoodsGlobalStyles = createGlobalStyle`
   }
 
   ::placeholder {
-    color: #a6a5a5 !important;
-    opacity: 0.9 !important;
+    color: oklch(0.924 0.063 295 / 38%) !important;
+    opacity: 1 !important;
   }
 
   :-ms-input-placeholder {
-    color: #a6a5a5 !important;
-    opacity: 0.9 !important;
+    color: oklch(0.924 0.063 295 / 38%) !important;
   }
 
   ::-ms-input-placeholder {
-    color: #a6a5a5 !important;
-    opacity: 0.9 !important;
+    color: oklch(0.924 0.063 295 / 38%) !important;
   }
+`;
+
+// --- Page header ---
+
+export const FoodsPageTitle = styled.h1`
+  font-family: 'Funnel Sans', sans-serif;
+  font-size: 26px;
+  font-weight: 400;
+  color: oklch(0.924 0.063 295 / 90%);
+  margin: 0 0 5px 0;
+  letter-spacing: -0.01em;
+`;
+
+export const FoodsPageSubtitle = styled.p`
+  font-family: 'Funnel Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  color: oklch(0.924 0.063 295 / 38%);
+  margin: 0 0 24px 0;
 `;
 
 // --- Foods page layout ---
 
-// Scopes EntryFormBubble background overrides to the foods page
 export const FoodsContainer = styled.div`
-  max-width: 800px;
+  max-width: 760px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 20px 40px 40px;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
 
   ${EntryFormBubble} {
-    background-color: rgba(28, 0, 43, 0.92);
-    border-radius: 14px;
+    background-color: oklch(0.214 0.038 295 / 70%);
+    border-radius: 12px;
+    padding: 12px 18px;
+    box-shadow: 0 2px 16px oklch(0 0 0 / 28%), inset 0 1px 0 oklch(0.924 0.063 295 / 4%);
 
     &:hover {
-      background-color: rgba(43, 14, 72, 0.95);
+      background-color: oklch(0.279 0.075 295 / 65%);
     }
 
     &:hover input,
     &:hover textarea {
-      color: rgba(255, 255, 255, 0.92);
+      color: oklch(0.924 0.063 295 / 92%);
     }
   }
 `;
 
 export const NoFoodsMessage = styled.div`
-  text-align: center;
-  color: var(--white);
-  font-family: Inconsolata;
-  margin-top: 40px;
+  font-family: 'Funnel Sans', sans-serif;
+  color: oklch(0.924 0.063 295 / 32%);
+  font-size: 14px;
+  font-style: italic;
+  margin-top: 20px;
 `;
 
 // --- Food tags ---
 
 const shimmerAnimation = keyframes`
   0% {
-    background: linear-gradient(
-      90deg,
-      rgba(96, 62, 146, 0.489) 0%,
-      rgba(96, 62, 146, 0.489) 40%,
-      rgba(255, 255, 255, 0.6) 50%,
-      rgba(96, 62, 146, 0.489) 60%,
-      rgba(96, 62, 146, 0.489) 100%
-    );
+    background: oklch(0.376 0.129 295 / 49%);
     background-size: 200% 100%;
     background-position: 200% 0;
     transform: scale(1);
-    box-shadow: 0 0 0 rgba(102, 0, 255, 0);
+    box-shadow: 0 0 0 oklch(0 0 0 / 0%);
   }
   15% {
-    transform: scale(1.05);
-    box-shadow: 0 4px 20px rgba(102, 0, 255, 0.6);
+    transform: scale(1.04);
+    box-shadow: 0 3px 16px oklch(0.637 0.185 295 / 35%);
   }
   30%, 70% {
     background-position: -200% 0;
-    transform: scale(1.03);
-  }
-  85% {
     transform: scale(1.02);
   }
+  85% {
+    transform: scale(1.01);
+  }
   100% {
-    background: rgba(96, 62, 146, 0.489);
+    background: oklch(0.376 0.129 295 / 49%);
     background-position: -200% 0;
     transform: scale(1);
-    box-shadow: 0 0 0 rgba(102, 0, 255, 0);
+    box-shadow: 0 0 0 oklch(0 0 0 / 0%);
+  }
+`;
+
+// ── Delete — defined before FoodTag so it can be referenced ──
+
+export const FoodTagDelete = styled.button`
+  background: none;
+  border: none;
+  color: oklch(0.924 0.063 295 / 45%);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: max-width 0.22s ease, padding 0.22s ease, opacity 0.15s ease, color 0.15s ease;
+
+  &:hover {
+    color: oklch(0.924 0.063 295 / 90%);
   }
 `;
 
 export const FoodsTagsContainer = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: 9px;
-  margin-top: 20px;
-  margin-bottom: 30px;
+  gap: 7px;
+  margin-top: 16px;
+  margin-bottom: 24px;
+  width: 100%;
 `;
 
 interface FoodTagProps {
@@ -133,69 +170,49 @@ interface FoodTagProps {
 export const FoodTag = styled.div<FoodTagProps>`
   display: inline-flex;
   align-items: center;
-  gap: 9px;
+  gap: 0;
   min-height: 42px;
   padding: 20px 25px;
-  background-color: #2f125b;
+  background-color: oklch(0.279 0.075 295 / 55%);
   border: none;
   border-radius: 30px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease;
   font-family: 'Abyssinica SIL', Georgia, Times, 'Times New Roman', serif;
   font-size: 23px;
   line-height: 26px;
-  color: rgba(255, 255, 255, 0.92);
+  color: oklch(0.924 0.063 295 / 92%);
 
   &:hover {
-    background-color: #47129a;
+    background-color: oklch(0.376 0.129 295 / 60%);
   }
 
-  ${({ $selected }) =>
-    $selected &&
-    `
-    background-color: #4b16a0;
-    box-shadow: none;
+  ${({ $selected }) => $selected && css`
+    background-color: oklch(0.495 0.172 295 / 55%);
   `}
 
-  ${({ $shimmer }) =>
-    $shimmer &&
-    css`
-      animation: ${shimmerAnimation} 2s ease-in-out;
-      animation-fill-mode: forwards;
-    `}
+  ${({ $shimmer }) => $shimmer && css`
+    animation: ${shimmerAnimation} 2s ease-in-out forwards;
+  `}
 
-  ${({ $pending }) =>
-    $pending &&
-    `
-    background-color: rgba(28, 0, 43, 0.6);
+  ${({ $pending }) => $pending && css`
+    background-color: oklch(0.214 0.038 295 / 60%);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     cursor: default;
   `}
+
+  &:hover ${FoodTagDelete} {
+    max-width: 36px;
+    padding: 0 0 0 10px;
+    opacity: 1;
+  }
 `;
 
 export const FoodTagName = styled.span`
   flex: 1;
   line-height: 1;
   white-space: nowrap;
-`;
-
-export const FoodTagDelete = styled.button`
-  background: none;
-  border: none;
-  color: rgba(168, 85, 247, 0.95);
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0 0 0 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: color 0.2s ease;
-
-  &:hover {
-    color: rgba(192, 132, 252, 1);
-  }
 `;
 
 // --- Food detail modal ---
@@ -206,7 +223,7 @@ export const FoodModalOverlay = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.8);
+  background-color: oklch(0 0 0 / 80%);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -224,8 +241,9 @@ export const TutorialFoodDetailModal = styled.div`
     max-height: 90vh;
     padding: 34px 56px 44px;
     border-radius: 20px;
-    background: #3a0a84;
-    box-shadow: none;
+    background: oklch(0.279 0.075 295 / 92%);
+    box-shadow: 0 20px 60px oklch(0 0 0 / 50%);
+    backdrop-filter: blur(16px);
   }
 
   ${NutrientPanelTitle} {
@@ -260,7 +278,7 @@ export const TutorialFoodDetailModal = styled.div`
     font-family: 'Inconsolata', monospace;
     font-size: 22px;
     line-height: 1.3;
-    color: rgba(255, 255, 255, 0.88);
+    color: oklch(0.924 0.063 295 / 88%);
   }
 
   ${NewNutrientNameWrapper},
@@ -293,7 +311,7 @@ export const TutorialFoodDetailModal = styled.div`
   }
 
   ${DeleteRequirementButtonContainer} .delete-button svg {
-    fill: rgba(13, 2, 33, 0.92) !important;
+    fill: oklch(0.214 0.038 295 / 92%) !important;
     width: 22px;
     height: 22px;
   }
@@ -305,7 +323,7 @@ export const TutorialFoodDetailModal = styled.div`
   }
 
   ${DeleteRequirementButtonContainer} .delete-button:hover svg {
-    fill: rgba(30, 8, 58, 0.95) !important;
+    fill: oklch(0.183 0.027 295 / 95%) !important;
   }
 
   ${NutrientFormBubble}:hover ${DeleteRequirementButtonContainer} .delete-button,
@@ -316,7 +334,7 @@ export const TutorialFoodDetailModal = styled.div`
 
   ${NewRequirementNutrientName}::placeholder,
   ${InputRequirementAmt}::placeholder {
-    color: rgba(195, 167, 240, 0.86);
+    color: oklch(0.853 0.107 295 / 55%);
   }
 
   ${AnimatedNutrientName} {
@@ -351,9 +369,8 @@ export const TutorialFoodDetailModal = styled.div`
 export const FoodFormWrapper = styled.form`
   width: min(760px, 100%);
   display: flex;
-  margin-top: 20px;
   flex-direction: column;
-  border-radius: 14px;
+  border-radius: 12px;
   position: relative;
   overflow: hidden;
 `;
@@ -395,12 +412,10 @@ export const FoodJournalInput = styled.textarea<FoodJournalInputProps>`
   transition: background-color 0.3s ease, color 0.3s ease;
   text-align: left;
 
-  ${({ $jiggling }) =>
-    $jiggling &&
-    css`
-      animation: ${jiggleAnim} 0.3s ease 3.33, ${fadeOutAnim} 1s ease forwards;
-      will-change: opacity, transform;
-    `}
+  ${({ $jiggling }) => $jiggling && css`
+    animation: ${jiggleAnim} 0.3s ease 3.33, ${fadeOutAnim} 1s ease forwards;
+    will-change: opacity, transform;
+  `}
 `;
 
 export const ImageUploadContainer = styled.div`
@@ -411,7 +426,7 @@ export const ImageUploadContainer = styled.div`
 `;
 
 export const ImageUploadButton = styled.button`
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: oklch(0.924 0.063 295 / 10%);
   color: var(--white);
   border: none;
   border-radius: 5px;
@@ -426,7 +441,7 @@ export const ImageUploadButton = styled.button`
   height: 36px;
 
   &:hover {
-    background-color: rgba(255, 255, 255, 0.2);
+    background-color: oklch(0.924 0.063 295 / 20%);
   }
 `;
 
@@ -446,13 +461,13 @@ export const FoodLogButton = styled(HoverButton)`
   order: 1;
 
   svg {
-    fill: #ffffffa8;
+    fill: oklch(0.924 0.063 295 / 66%);
     width: 15px;
     height: 15px;
   }
 
   &:hover svg {
-    fill: #1e002e;
+    fill: oklch(0.214 0.038 295);
     width: 15px;
     height: 15px;
   }
@@ -471,7 +486,7 @@ export const ImagePreviewContainer = styled.div`
   height: 80px;
   border-radius: 8px;
   overflow: hidden;
-  background-color: rgba(0, 0, 0, 0.2);
+  background-color: oklch(0 0 0 / 20%);
 `;
 
 export const ImagePreviewEl = styled.img`
@@ -485,8 +500,8 @@ export const RemoveImageButton = styled.button`
   position: absolute;
   top: 2px;
   right: 2px;
-  background-color: rgba(0, 0, 0, 0.6);
-  color: rgb(255, 255, 255);
+  background-color: oklch(0 0 0 / 60%);
+  color: var(--white);
   border: none;
   border-radius: 50%;
   width: 20px;
@@ -502,6 +517,6 @@ export const RemoveImageButton = styled.button`
   padding: 0;
 
   &:hover {
-    background-color: rgba(255, 0, 0, 0.8);
+    background-color: oklch(0.5 0.2 25 / 80%);
   }
 `;

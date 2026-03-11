@@ -301,7 +301,7 @@ function NewFood() {
           <FoodJournalInput
             ref={textareaRef}
             $jiggling={isJiggling}
-            placeholder="Describe your food or upload images (nutrition label, food photo, etc.)"
+            placeholder="Describe a food or drop a nutrition label image"
             value={foodDescription}
             onChange={handleTyping}
             onKeyDown={handleKeyDown}

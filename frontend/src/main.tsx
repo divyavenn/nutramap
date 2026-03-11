@@ -30,10 +30,7 @@ const loadScript = (src: string): Promise<void> => {
 // Load scripts in sequence
 const loadVantaScripts = async () => {
   try {
-    await loadScript('/three.r134.min.js');
-    await loadScript('/vanta.fog.min.js');
     await loadScript('/vanta.waves.min.js');
-    await loadScript('/vanta.cells.min.js');
   } catch (error) {
     console.error('Failed to load Vanta scripts:', error);
   }

@@ -85,7 +85,7 @@ const RightCol = styled.div`
 /* Sticky-centered: pins its visual center to 50vh regardless of document offset */
 const RightContent = styled.div`
   position: sticky;
-  margin-top: 10%;
+  margin-top: 4%;
   display: flex;
   flex-direction: column;
   align-items: center;

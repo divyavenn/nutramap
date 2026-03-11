@@ -2,7 +2,7 @@ import styled, { createGlobalStyle } from 'styled-components';
 import { ImageButton } from './Sections';
 
 export const DashboardMenu = styled.div`
-  margin-top: 100px;
+  margin-top: 10px;
   display: flex;
   flex-direction: column;
   justify-content: center;

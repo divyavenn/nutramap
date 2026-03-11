@@ -8,32 +8,39 @@ export const SvgButton = styled.button`
   cursor: pointer;
 
   svg {
-    fill: #b9b0b0;
+    fill: oklch(0.853 0.107 295 / 55%);
     width: 50px;
     height: 50px;
   }
 
   &:hover svg {
-    fill: #ffffff;
+    fill: oklch(0.924 0.063 295);
   }
 `;
 
 export const HeaderLinkButton = styled(Link)`
   background: none;
   border: none;
-  padding: 0;
+  padding: 6px;
   cursor: pointer;
-  margin-right: 20px;
+  margin-right: 4px;
   display: flex;
   align-items: center;
+  border-radius: 8px;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
 
   svg {
-    fill: #ffffff;
-    height: 30px;
+    fill: oklch(0.924 0.063 295 / 65%);
+    height: 28px;
+    transition: fill 0.15s ease;
+  }
+
+  &:hover {
+    background-color: oklch(0.924 0.063 295 / 6%);
   }
 
   &:hover svg {
-    fill: #a855f7;
+    fill: var(--accent-purple);
   }
 `;
 
@@ -46,12 +53,12 @@ export const LoginButton = styled.button`
   cursor: pointer;
 
   svg {
-    fill: #ffffffa8;
+    fill: oklch(0.924 0.063 295 / 66%);
     width: 30px;
     height: 30px;
   }
 
   &:hover svg {
-    fill: #ffffff;
+    fill: oklch(0.924 0.063 295);
   }
 `;

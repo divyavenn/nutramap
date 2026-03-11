@@ -16,6 +16,7 @@ import { AnimatedText } from '../components/AnimatedText';
 import {
   FoodsGlobalStyles,
   FoodsContainer,
+  FoodsPageSubtitle,
   NoFoodsMessage,
   FoodsTagsContainer,
   FoodTag,
@@ -260,9 +261,10 @@ function Foods() {
     <>
       <FoodsGlobalStyles />
       <Header linkIcons={[{to: "/dashboard", img: <DashboardIcon/>}, {to: '/account', img: <AccountIcon/>}, {to: '/myfoods', img: <FoodBowl/>}, {to: '/myrecipes', img: <RecipesIcon/>}]}/>
-      <Heading words={name ? `${name}'s Foods` : 'Your Foods'} />
+      <Heading words={name ? `${name}'s Foods` : 'Foods'} />
 
       <FoodsContainer>
+        <FoodsPageSubtitle>Track items you eat often, edit them, or add new ones.</FoodsPageSubtitle>
         <NewFood />
 
         {foods.length === 0 && pendingCustomFoods.length === 0 ? (
