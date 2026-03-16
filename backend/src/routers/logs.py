@@ -778,7 +778,6 @@ async def edit_component(
             pass
     else:
         # No food_id provided, check if food name changed
-        from src.routers.foods import get_food_name
         original_food_name = get_food_name(original_component["food_id"], db, None)
         food_changed = food_name.strip().lower() != original_food_name.strip().lower()
 

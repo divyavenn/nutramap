@@ -21,24 +21,24 @@ let rootElem = document.getElementById('root')
 if (rootElem) {
   createRoot(rootElem).render(
     <RecoilRoot>
-      <MobileGate>
       <GrainBackground>
-        <Router>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/try" element={<TryFoodPanelRoot/>} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/dashboard" element={<DashboardRoot/>} />
-            <Route path="/account" element={<AccountRoot/>}  />
-            <Route path = '/goodbye' element={<DeleteAccount/>} />
-            <Route path = '/hello' element={<NewAccount/>} />
-            <Route path="/myfoods" element={<FoodsPage />} />
-            <Route path="/myrecipes" element={<MyRecipes />} />
-          </Routes>
-          <TryTutorial />
-        </Router>
+        <MobileGate>
+          <Router>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/try" element={<TryFoodPanelRoot/>} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/dashboard" element={<DashboardRoot/>} />
+              <Route path="/account" element={<AccountRoot/>}  />
+              <Route path = '/goodbye' element={<DeleteAccount/>} />
+              <Route path = '/hello' element={<NewAccount/>} />
+              <Route path="/myfoods" element={<FoodsPage />} />
+              <Route path="/myrecipes" element={<MyRecipes />} />
+            </Routes>
+            <TryTutorial />
+          </Router>
+        </MobileGate>
       </GrainBackground>
-      </MobileGate>
     </RecoilRoot>
   )
 }

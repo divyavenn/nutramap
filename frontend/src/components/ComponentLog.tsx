@@ -12,6 +12,7 @@ import {
   SuggestionsContainer, SuggestionsList, SuggestionItem, FormDropdownWrapper,
 } from './EditLogStyles';
 import type { LogComponent } from './structures';
+import { tutorialEvent } from './TryTutorial';
 
 interface ComponentLogProps {
   component: LogComponent;
@@ -192,6 +193,7 @@ function ComponentLog({
       if (response.status === 200 && response.body) {
         setGramsDisplay(response.body.weight_in_grams);
       }
+      tutorialEvent('tutorial:component-added');
       refreshLogs();
       setIsEditable(false);
     } catch (error) {

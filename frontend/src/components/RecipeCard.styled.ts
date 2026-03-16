@@ -123,6 +123,7 @@ export const RecipeIngredientsPreview = styled.div`
 
 export const IngredientPreviewItem = styled.div`
   margin: 4px 0;
+  line-height: 1.5;
 `;
 
 export const MoreIngredients = styled.div`

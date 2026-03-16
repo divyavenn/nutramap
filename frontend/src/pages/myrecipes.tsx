@@ -83,7 +83,12 @@ function MyRecipes() {
         }
       } else if (response.status === 401) {
         clearRecipeCaches();
-        navigate('/login', { replace: true, state: { loginError: 'Please log in to view recipes.' } });
+        if (sessionStorage.getItem('isTrial') === 'true') {
+          localStorage.removeItem('access_token');
+          navigate('/try', { replace: true });
+        } else {
+          navigate('/login', { replace: true, state: { loginError: 'Please log in to view recipes.' } });
+        }
       } else if (!usedCachedRecipes) {
         setRecipes([]);
         console.warn('Unexpected /recipes/list response', response.status, response.body);

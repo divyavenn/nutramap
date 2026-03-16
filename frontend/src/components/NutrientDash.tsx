@@ -348,6 +348,7 @@ function NutrientStatRow({ name, target, dayIntake = 0, avgIntake = 0, shouldExc
         $hidden={!!hoveredLog}
       >
         <AvgIntake
+          className="avg-intake"
           style={{
             '--avg-color': avgColor
           } as React.CSSProperties}

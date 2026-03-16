@@ -296,7 +296,7 @@ function NewFood() {
 
   return (
     <>
-      <FoodFormWrapper ref={formRef} onSubmit={handleProcess}>
+      <FoodFormWrapper ref={formRef} onSubmit={handleProcess} className="form-elements-wrapper">
         <EntryFormBubble>
           <FoodJournalInput
             ref={textareaRef}

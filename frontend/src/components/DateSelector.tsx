@@ -363,7 +363,7 @@ function DateSelector() {
   };
 
   return (
-    <DashboardMenu>
+    <DashboardMenu className="dashboard-menu">
       <DateSelectorGlobalStyles />
       <RangeSelector>
         {!isOpen && (

@@ -1,6 +1,44 @@
 import styled, { createGlobalStyle } from 'styled-components';
 import { motion } from 'framer-motion';
 
+export const LockedNextWrapper = styled.div`
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+`;
+
+export const NextLockedOverlay = styled(motion.div)`
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  background: oklch(0 0 0 / 35%);
+  pointer-events: none;
+`;
+
+export const NextLockedCard = styled(motion.div)`
+  width: min(360px, 82vw);
+  padding: 36px 40px;
+  border-radius: 20px;
+  background: oklch(0.82 0.06 295 / 75%);
+  color: oklch(0.22 0.044 295);
+  font-family: 'Public Sans', 'Ubuntu', system-ui, sans-serif;
+  font-size: 18px;
+  font-weight: 300;
+  line-height: 1.65;
+  text-align: center;
+  box-shadow: 0 24px 64px oklch(0 0 0 / 50%);
+
+  strong {
+    color: oklch(0.35 0.12 295);
+    font-weight: 600;
+  }
+`;
+
 export const TutorialGlobalStyles = createGlobalStyle`
   .tutorial-typewriter-text {
     color: inherit;
@@ -10,20 +48,6 @@ export const TutorialGlobalStyles = createGlobalStyle`
     background-color: rgba(168, 85, 247, 0.92) !important;
   }
 
-  body[data-tutorial-active='true'] .recipe-detail-modal::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.82);
-    z-index: 100;
-    border-radius: 16px;
-    pointer-events: none;
-  }
-
-  body[data-tutorial-active='true'] .tutorial-unlink-btn {
-    position: relative;
-    z-index: 101;
-  }
 `;
 
 export const TutorialDim = styled.div`
@@ -50,6 +74,10 @@ export const TutorialText = styled(motion.div)<TutorialTextProps>`
   display: flex;
   flex-direction: column;
   gap: 16px;
+  padding: 20px 24px;
+  border-radius: 14px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   ${({ $centered }) => $centered && `
     top: 50%;
     left: 50%;
@@ -62,7 +90,7 @@ export const TutorialText = styled(motion.div)<TutorialTextProps>`
 `;
 
 export const TutorialMessage = styled.div`
-  font-family: 'Public Sans';
+  font-family: 'Public Sans', 'Ubuntu', system-ui, sans-serif;
   font-size: 25px;
   font-weight: lighter;
   line-height: 1.5;
@@ -161,7 +189,7 @@ export const TutorialNextBtn = styled.button`
   }
 
   &:disabled {
-    color: rgba(168, 85, 247, 0.35);
+    color: rgba(168, 85, 247, 0.45);
     cursor: default;
   }
 `;

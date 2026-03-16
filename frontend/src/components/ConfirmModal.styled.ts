@@ -69,10 +69,11 @@ export const OptionButton = styled.button<OptionButtonProps>`
   border-bottom-left-radius: ${({ $side }) => $side === 'left' ? '20px' : '0'};
   border-bottom-right-radius: ${({ $side }) => $side === 'right' ? '20px' : '0'};
 
-  &:hover {
+  &:hover, &:focus, &:active {
     transform: translateY(-1px);
     color: oklch(0.637 0.185 295);
-    background-color: oklch(0.924 0.063 295 / 4%);
+    background-color: transparent;
+    outline: none;
   }
 `;
 

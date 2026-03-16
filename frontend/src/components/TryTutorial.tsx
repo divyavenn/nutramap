@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, type CSSProperties } from 're
 import { createPortal } from 'react-dom';
 import { Typewriter } from 'motion-plus/react';
 import { computePosition, flip, offset, shift, type Placement } from '@floating-ui/dom';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useRecoilState, useSetRecoilState } from 'recoil';
 import {
   TutorialStep,
@@ -17,6 +17,7 @@ import { dateRangeAtom, rangeTypeAtom } from './dashboard_states';
 import { getCurrentPeriod, RangeType } from './structures';
 import { request } from './endpoints';
 import nutritionLabelUrl from '../assets/images/nutrition_label.png';
+import { AnimatePresence } from 'framer-motion';
 import {
   TutorialGlobalStyles,
   TutorialDim,
@@ -30,33 +31,45 @@ import {
   TutorialEmailFeedback,
   TutorialPrevBtn,
   TutorialNextBtn,
+  LockedNextWrapper,
+  NextLockedOverlay,
+  NextLockedCard,
 } from './TutorialStyles';
 import startClaudeUrl from '../assets/start_claude.png';
 import todayProgressUrl from '../assets/today_progress.png';
 import improveRecipesUrl from '../assets/improve_recipes_1.png';
 
 const steps: TutorialStep[] = [
-  
- new TutorialStep({
-    message: 'Nutramap is the first ever nutrition tracker with an agentic interface.',
+  /** 
+  new TutorialStep({
+    message: 'Nutramap is a one-of-a-kind nutrition tracker designed for ease, accuracy, AND transparency.'
   }),
   new TutorialStep({
-    message: 'Use our binary or MCP server + skills file to turn your go-to LLM into an incredible nutritionist.',
-    mediaUrl: startClaudeUrl,
+    message: 'Other nutrition trackers ask you to enter everything manually...',
+    media: { type: 'video', src: '/traditional_trackers.mp4', autoPlay: true, loop: true, muted: true, controls: false },
+  }),
+  new TutorialStep({
+    message: 'Or make a lot of hidden assumptions about how things are made.',
+    media: { type: 'video', src: '/cal_ai.mp4', autoPlay: true, loop: true, muted: true, controls: false },
+  }),
+  new TutorialStep({ message: 'We built a search index over 2.7 million foods whose nutrition info is verified by the USDA...' }),
+  new TutorialStep({ 
+    message: 'And break your description into recipes with verified ingredients, so we can calculate your intake with unparalleled accuracy.',
+    media: { type: 'video', src: '/nutramap_logging.mp4', autoPlay: true, loop: true, muted: true, controls: false }, 
+  }),
+  new TutorialStep({
+    message: 'Nutramap is also the first-ever nutrition tracker to have an agentic interface. Use our binary or MCP server + skills file to turn your go-to LLM into an incredible nutritionist.',
+    media: { type: 'image', src: startClaudeUrl },
     link: { label: 'install from our GitHub →', url: 'https://github.com/divyavenn/nutramap' },
   }),
   new TutorialStep({
     message: 'It can log your meals, track your progress, and take the mental load of deciding what to eat off your mind.',
-    mediaUrl: todayProgressUrl,
+    media: { type: 'image', src: todayProgressUrl },
   }),
   new TutorialStep({
     message: "It'll even tell you how to tweak what you already eat to reach your goals better.",
-    mediaUrl: improveRecipesUrl,
+    media: { type: 'image', src: improveRecipesUrl },
   }),
-  new TutorialStep({ message: 'Other nutrition trackers ask you to enter everything manually...'}),
-  new TutorialStep({ message: 'Or make a lot of hidden assumptions about how things are made. Nutramap was built with ease, transparency, and auditability in mind.'}),
-  new TutorialStep({ message: 'We built a search index over 2.7 million foods whose nutrition info is verified by the USDA...'}),
-  new TutorialStep({ message: 'And break your description into recipes with verified ingredients, so we can calculate your intake with unparalleled accuracy.'}),
   new TutorialStep({
     message: "Start by logging a meal. Describe what you ate, like 'matcha latte yesterday' or '500 grams of chocolate and 2 scoops of collagen powder.'",
     selector: '.form-elements-wrapper',
@@ -94,48 +107,31 @@ const steps: TutorialStep[] = [
     message: 'The nutrition label for some cookies is copied to your clipboard. Type in "chocolate chip cookies" + the Paste shortcut.',
     selector: '.form-elements-wrapper',
     eventName: 'tutorial:food-created',
-  }),
-  new TutorialStep({
-    message: 'It will auto-detect nutrition info and use it in recipes and meals!',
-    selector: '.food-tag',
-    eventName: 'tutorial:food-tag-clicked',
-  }),
-  new TutorialStep({
-    message: 'The custom food feature lets you log any vitamins you take, unlike most tracking apps. After all, too much of a nutrient can be as bad as too little.',
-    selector: '.tutorial-food-detail-modal',
-    highlightOnly: true,
+    media: { type: 'image', src: nutritionLabelUrl },
   }),
   new TutorialStep({
     message: 'Now return home.',
     selector: '.tutorial-home-link',
   }),
   new TutorialStep({
-    message: 'Home cooks usually improvise based on what\'s available...',
-    eventName: 'tutorial:recipe-opened',
+    message: "Home cooks usually improvise based on what's available...",
   }),
   new TutorialStep({
     message: 'So you can also change an individual meal without updating the default recipe.',
-    selector: '.tutorial-unlink-btn',
-    highlightOnly: true
-  }),
- new TutorialStep({
-    message: 'click on a meal to edit it.',
-    selector: '.tutorial-meal-with-recipe',
-    eventName: 'tutorial:log-clicked',
   }),
   new TutorialStep({
-    message: 'click the name to see the linked recipe card',
+    message: 'click on a meal name to see the linked recipe',
     selector: '.tutorial-recipe-name-link',
     eventName: 'tutorial:recipe-opened',
   }),
   new TutorialStep({
     message: 'And click unlink.',
-    selector: '.tutorial-recipe-name-link',
-    eventName: 'tutorial:recipe-opened',
+    selector: '.recipe-detail-modal',
+    eventName: 'tutorial:recipe-unlinked',
   }),
   new TutorialStep({
-    message: 'Now you can edit the meal\'s ingredents directly',
-    selector: '.tutorial-meal-without-recipe .tutorial-meal-toggle',
+    message: 'Toggle the meal to view and edit its ingredients directly',
+    selector: '.tutorial-meal-without-recipe',
     eventName: 'tutorial:meal-expanded',
   }),
   new TutorialStep({
@@ -143,40 +139,16 @@ const steps: TutorialStep[] = [
     selector: '.tutorial-meal-components',
     eventName: 'tutorial:component-added',
   }),
+  **/
   new TutorialStep({
-    message: 'our nutrition dashboard helps you compares your progress towards your nutrition goals today...',
-    selector: '.today-stats-wrapper .progress-bar-container',
+    message: 'our nutrition dashboard helps you compare your progress towards your nutrition goals today...',
+    selector: '.progress-bar-container',
     highlightOnly: true,
   }),
   new TutorialStep({
     message: 'with your monthly average.',
-    selector: '.avg-stats-wrapper .avg-intake',
+    selector: '.avg-intake',
     highlightOnly: true,
-  }),
-  new TutorialStep({
-    message: 'Click on the date divider to see a different day\'s stats...',
-    selector: '.tutorial-day-button',
-    eventName: 'tutorial:day-changed',
-  }),
-  new TutorialStep({
-    message: 'and hover to see the stats for a specific food.',
-    selector: '.log-list',
-    eventName: 'tutorial:log-hovered',
-  }),
-  new TutorialStep({
-    message: 'Click the arrows or the date to see your average intake for a different time period',
-    selector: '.dashboard-menu',
-    eventName: 'tutorial:range-changed',
-  }),
-  new TutorialStep({
-    message: 'Click the edit button on the panel to change the dashboard settings',
-    selector: '.tutorial-nutrient-edit-button',
-    eventName: 'tutorial:editing-panel',
-  }),
-  new TutorialStep({
-    message: 'Try adding a nutrient to track.',
-    selector: '.nutrient-edit-list-wrapper',
-    eventName: 'tutorial:nutrient-added',
   }),
   new TutorialStep({
     message: 'We have 72+ nutrients in our database, everything from protein to PUFAs.',
@@ -184,36 +156,25 @@ const steps: TutorialStep[] = [
     highlightOnly: true,
   }),
   new TutorialStep({
-    message: 'foodPanelAI is currently just a proof of concept. if you\'d like to see it on the App Store, enter your email!',
+    message: 'Click on the edit button to track another nutrient',
+    selector: '.tutorial-nutrient-edit-button',
+    eventName: 'tutorial:editing-panel',
+  }),
+  new TutorialStep({
+    message: 'And add or change a requirement',
+    selector: '.nutrient-edit-list-wrapper',
+    eventName: 'tutorial:nutrient-added',
+  }),
+  new TutorialStep({
+    message: "Nutramap is currently just a proof of concept. if you'd like to see it on the App Store, enter your email!",
   }),
 ];
 
 const TUTORIAL_ACTIVE_ATTR = 'data-tutorial-active';
 const TUTORIAL_APP_EVENT = 'tutorial:app-event';
 
-// Step index of the "try pressing Command+V" step
-const PASTE_STEP = steps.findIndex((s) => s.message.includes('Paste shortcut') || s.message.includes('Command+V'));
-
-type TutorialMediaAssetType =
-  | { type: 'image'; src: string; alt: string }
-  | {
-      type: 'video';
-      src: string;
-      poster?: string;
-      autoPlay?: boolean;
-      loop?: boolean;
-      muted?: boolean;
-      controls?: boolean;
-    };
-
-const tutorialMediaByStep: Record<number, TutorialMediaAssetType> = {};
-if (PASTE_STEP >= 0) {
-  tutorialMediaByStep[PASTE_STEP] = {
-    type: 'image',
-    src: nutritionLabelUrl,
-    alt: 'Sample nutrition label',
-  };
-}
+// Step index of the clipboard-paste step (used to trigger clipboard copy)
+const PASTE_STEP = steps.findIndex((s) => s.message.includes('Paste shortcut'));
 
 /** Load the sample nutrition label image and copy it to the clipboard */
 async function copyNutritionLabelToClipboard() {
@@ -240,6 +201,7 @@ export function tutorialEvent(name: string) {
 
 export default function TryTutorial() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [machineState, setMachineState] = useRecoilState(tutorialMachineAtom);
   const currentStep = Math.max(0, Math.min(machineState.stepIndex, steps.length - 1));
   const isActive = machineState.isActive;
@@ -247,14 +209,15 @@ export default function TryTutorial() {
   const currentSelector = currentCompiledStep.selector;
   const canAdvanceManually = canAdvanceManuallyForStep(currentCompiledStep);
   const interactionLockSelector = lockedInteractionSelector(currentCompiledStep);
-  const currentMedia = currentCompiledStep.mediaUrl
-    ? { type: 'image' as const, src: currentCompiledStep.mediaUrl, alt: '' }
-    : (tutorialMediaByStep[currentStep] ?? null);
+  const currentMedia = currentCompiledStep.media;
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [cardStyle, setCardStyle] = useState<CSSProperties>({});
   const [anchorReady, setAnchorReady] = useState(false);
   const [mailingEmail, setMailingEmail] = useState('');
   const [mailingStatus, setMailingStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [nextTooltipVisible, setNextTooltipVisible] = useState(false);
+  const nextTooltipVisibleRef = useRef(false);
+  const canAdvanceManuallyRef = useRef(canAdvanceManually);
   const machineRef = useRef(machineState);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const setDateRange = useSetRecoilState(dateRangeAtom);
@@ -265,8 +228,9 @@ export default function TryTutorial() {
     setMachineState((prev) => reduceTutorialState(prev, action, steps));
   }, [setMachineState]);
 
-  // Keep ref in sync with state for event handlers with stable subscriptions.
+  // Keep refs in sync with state for event handlers with stable subscriptions.
   useEffect(() => { machineRef.current = machineState; }, [machineState]);
+  useEffect(() => { canAdvanceManuallyRef.current = canAdvanceManually; }, [canAdvanceManually]);
 
   // Reset date range back to current period when the tutorial ends.
   useEffect(() => {
@@ -399,7 +363,6 @@ export default function TryTutorial() {
     const lifted: Array<{ node: HTMLElement; position: string; zIndex: string }> = [];
     const overlayZ = 2000;
     let retryTimer: number | null = null;
-
     const resetLift = () => {
       for (const item of lifted) {
         item.node.style.position = item.position;
@@ -434,8 +397,8 @@ export default function TryTutorial() {
       resetLift();
       const el = getStepElement(currentSelector);
       if (!el) {
-        if (attempt < 12) {
-          retryTimer = window.setTimeout(() => applyLift(attempt + 1), 120);
+        if (attempt < 30) {
+          retryTimer = window.setTimeout(() => applyLift(attempt + 1), 200);
         }
         return;
       }
@@ -523,9 +486,13 @@ export default function TryTutorial() {
       if (cancelled) return;
       const el = getStepElement(currentSelector);
       if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        setTimeout(computeRect, 400);
-      } else if (attempts < 10) {
+        const rect = el.getBoundingClientRect();
+        const inView = rect.top >= 0 && rect.bottom <= window.innerHeight;
+        if (!inView) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        setTimeout(computeRect, inView ? 0 : 400);
+      } else if (attempts < 30) {
         attempts++;
         setTimeout(tryFind, 200);
       }
@@ -533,6 +500,27 @@ export default function TryTutorial() {
     tryFind();
     return () => { cancelled = true; };
   }, [computeRect, currentSelector, getStepElement, isActive, location.pathname]);
+
+  // MutationObserver fallback: if the target element appears after the retry
+  // window (e.g. data loaded from API), re-trigger positioning immediately.
+  useEffect(() => {
+    if (!isActive || !currentSelector || anchorReady) return;
+
+    const observer = new MutationObserver(() => {
+      const el = getStepElement(currentSelector);
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        const inView = rect.top >= 0 && rect.bottom <= window.innerHeight;
+        if (!inView) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        setTimeout(computeRect, inView ? 0 : 400);
+      }
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, [isActive, currentSelector, anchorReady, getStepElement, computeRect]);
 
   // Recalculate on resize/scroll
   useEffect(() => {
@@ -545,20 +533,32 @@ export default function TryTutorial() {
     };
   }, [isActive, computeRect]);
 
-  // Pressing Enter attempts manual progression for narrative steps.
+  // Pressing Enter advances narrative steps; Tab while locked-next tooltip is open skips tutorial.
   useEffect(() => {
     if (!isActive) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as Element | null;
       if (target && target.closest('.tutorial-email-form')) return;
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
-      if (e.key === 'Enter') {
-        dispatchMachine({ type: 'NEXT_MANUAL' });
+      if (e.key === 'Tab' && nextTooltipVisibleRef.current) {
+        e.preventDefault();
+        dispatchMachine({ type: 'STOP' });
+        navigate('/dashboard');
+      } else if (e.key === 'Enter') {
+        if (canAdvanceManuallyRef.current) {
+          setNextTooltipVisible(false);
+          nextTooltipVisibleRef.current = false;
+          dispatchMachine({ type: 'NEXT_MANUAL' });
+        } else {
+          const next = !nextTooltipVisibleRef.current;
+          setNextTooltipVisible(next);
+          nextTooltipVisibleRef.current = next;
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [dispatchMachine, isActive]);
+  }, [dispatchMachine, isActive, navigate]);
 
   const prev = () => {
     dispatchMachine({ type: 'PREV' });
@@ -718,10 +718,40 @@ export default function TryTutorial() {
                 previous
               </TutorialPrevBtn>
             )}
-            {canAdvanceManually && (
-              <TutorialNextBtn onClick={next}>
-                {isLastStep ? 'done' : 'next'}
-              </TutorialNextBtn>
+            {!isLastStep && (
+              <LockedNextWrapper
+                onMouseEnter={() => { if (!canAdvanceManually) { setNextTooltipVisible(true); nextTooltipVisibleRef.current = true; } }}
+                onMouseLeave={() => { setNextTooltipVisible(false); nextTooltipVisibleRef.current = false; }}
+              >
+                <TutorialNextBtn
+                  onClick={canAdvanceManually ? next : undefined}
+                  disabled={!canAdvanceManually}
+                >
+                  next
+                </TutorialNextBtn>
+                <AnimatePresence>
+                  {nextTooltipVisible && !canAdvanceManually && (
+                    <NextLockedOverlay
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <NextLockedCard
+                        initial={{ opacity: 0, scale: 0.96, y: 10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.96, y: 10 }}
+                        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                      >
+                        Finish the task to continue, or press <strong>Tab</strong> to skip the tutorial and explore on your own.
+                      </NextLockedCard>
+                    </NextLockedOverlay>
+                  )}
+                </AnimatePresence>
+              </LockedNextWrapper>
+            )}
+            {isLastStep && canAdvanceManually && (
+              <TutorialNextBtn onClick={next}>done</TutorialNextBtn>
             )}
           </TutorialNav>
         </TutorialText>,
