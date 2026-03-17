@@ -8,7 +8,7 @@ import styled from 'styled-components';
 const Root = styled.div`
   position: fixed;
   inset: 0;
-  z-index: 0;
+  z-index: -1;
   pointer-events: none;
   overflow: hidden;
 `;
@@ -234,7 +234,7 @@ const GrainBackground: React.FC<GrainBackgroundProps> = ({ children }) => {
         <LayerCanvas ref={grainRef} />
       </Root>
       {/* Content sits above the entire background stack */}
-      <div style={{ position: 'relative', zIndex: 1 }}>
+      <div style={{ position: 'relative' }}>
         {children}
       </div>
     </>

@@ -76,6 +76,14 @@ async def lifespan(fastapi_app: FastAPI):
     except Exception as e:
         print(f"⚠ Failed to load food ID cache: {e}")
 
+    # Pre-populate the module-level cache in dense.py so background tasks
+    # (which run without a request object) never have to load from disk.
+    from src.routers import dense as dense_module
+    if fastapi_app.state.faiss_index is not None:
+        dense_module._index_cache['faiss_index'] = fastapi_app.state.faiss_index
+    if fastapi_app.state.id_list is not None:
+        dense_module._id_list_cache['id_list'] = fastapi_app.state.id_list
+
     print("App state initialized successfully at startup")
 
     yield

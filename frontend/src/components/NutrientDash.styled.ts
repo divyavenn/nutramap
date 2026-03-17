@@ -19,10 +19,10 @@ interface NutrientDashboardContainerProps {
 export const NutrientDashboardContainer = styled.div<NutrientDashboardContainerProps>`
   display: flex;
   width: var(--dashboard-width);
-  margin-top: 0px;
+  margin-top: 30px;
   margin-bottom: 20px;
   padding-top: 40px;
-  padding-bottom: 20px;
+  padding-bottom: 50px;
   padding-right: 40px;
   padding-left: 40px;
   flex-direction: column;
@@ -42,8 +42,6 @@ export const NutrientDashboardContainer = styled.div<NutrientDashboardContainerP
   box-shadow:
     0 8px 32px oklch(0 0 0 / 45%),
     inset 0 1px 0 oklch(0.924 0.063 295 / 4%);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   transition: background-color 0.3s ease, transform 0.3s ease;
 `;
 

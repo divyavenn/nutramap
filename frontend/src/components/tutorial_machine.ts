@@ -52,7 +52,6 @@ export interface CompiledTutorialStep {
 export interface TutorialMachineState {
   isActive: boolean;
   stepIndex: number;
-  routePath: string;
   runId: number;
 }
 
@@ -62,13 +61,11 @@ export type TutorialMachineAction =
   | { type: 'PREV' }
   | { type: 'NEXT_MANUAL' }
   | { type: 'TARGET_CLICK'; matchesCurrentTarget: boolean }
-  | { type: 'APP_EVENT'; name: string }
-  | { type: 'ROUTE_CHANGED'; path: string };
+  | { type: 'APP_EVENT'; name: string };
 
 const INITIAL_STATE: TutorialMachineState = {
   isActive: false,
   stepIndex: 0,
-  routePath: '',
   runId: 0,
 };
 
@@ -132,10 +129,6 @@ export function reduceTutorialState(
   action: TutorialMachineAction,
   steps: TutorialStep[]
 ): TutorialMachineState {
-  if (action.type === 'ROUTE_CHANGED') {
-    return { ...state, routePath: action.path };
-  }
-
   if (action.type === 'START') {
     return {
       ...state,

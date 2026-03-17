@@ -17,6 +17,9 @@ import { dateRangeAtom, rangeTypeAtom } from './dashboard_states';
 import { getCurrentPeriod, RangeType } from './structures';
 import { request } from './endpoints';
 import nutritionLabelUrl from '../assets/images/nutrition_label.png';
+import startClaudeUrl from '../assets/start_claude.png';
+import todayProgressUrl from '../assets/today_progress.png';
+import improveRecipesUrl from '../assets/improve_recipes_1.png';
 import { AnimatePresence } from 'framer-motion';
 import {
   TutorialGlobalStyles,
@@ -35,9 +38,6 @@ import {
   NextLockedOverlay,
   NextLockedCard,
 } from './TutorialStyles';
-import startClaudeUrl from '../assets/start_claude.png';
-import todayProgressUrl from '../assets/today_progress.png';
-import improveRecipesUrl from '../assets/improve_recipes_1.png';
 
 const steps: TutorialStep[] = [
   /** 
@@ -53,9 +53,9 @@ const steps: TutorialStep[] = [
     media: { type: 'video', src: '/cal_ai.mp4', autoPlay: true, loop: true, muted: true, controls: false },
   }),
   new TutorialStep({ message: 'We built a search index over 2.7 million foods whose nutrition info is verified by the USDA...' }),
-  new TutorialStep({ 
+  new TutorialStep({
     message: 'And break your description into recipes with verified ingredients, so we can calculate your intake with unparalleled accuracy.',
-    media: { type: 'video', src: '/nutramap_logging.mp4', autoPlay: true, loop: true, muted: true, controls: false }, 
+    media: { type: 'video', src: '/nutramap_logging.mp4', autoPlay: true, loop: true, muted: true, controls: false },
   }),
   new TutorialStep({
     message: 'Nutramap is also the first-ever nutrition tracker to have an agentic interface. Use our binary or MCP server + skills file to turn your go-to LLM into an incredible nutritionist.',
@@ -113,6 +113,7 @@ const steps: TutorialStep[] = [
     message: 'Now return home.',
     selector: '.tutorial-home-link',
   }),
+  **/
   new TutorialStep({
     message: "Home cooks usually improvise based on what's available...",
   }),
@@ -139,10 +140,9 @@ const steps: TutorialStep[] = [
     selector: '.tutorial-meal-components',
     eventName: 'tutorial:component-added',
   }),
-  **/
   new TutorialStep({
     message: 'our nutrition dashboard helps you compare your progress towards your nutrition goals today...',
-    selector: '.progress-bar-container',
+    selector: '.today-stats-wrapper',
     highlightOnly: true,
   }),
   new TutorialStep({
@@ -181,7 +181,6 @@ async function copyNutritionLabelToClipboard() {
   try {
     const response = await fetch(nutritionLabelUrl);
     const blob = await response.blob();
-    // Ensure it's typed as image/png for the Clipboard API
     const pngBlob = new Blob([blob], { type: 'image/png' });
     await navigator.clipboard.write([
       new ClipboardItem({ 'image/png': pngBlob })
@@ -210,7 +209,7 @@ export default function TryTutorial() {
   const canAdvanceManually = canAdvanceManuallyForStep(currentCompiledStep);
   const interactionLockSelector = lockedInteractionSelector(currentCompiledStep);
   const currentMedia = currentCompiledStep.media;
-  const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
+  const [dimZIndex, setDimZIndex] = useState<number>(2000);
   const [cardStyle, setCardStyle] = useState<CSSProperties>({});
   const [anchorReady, setAnchorReady] = useState(false);
   const [mailingEmail, setMailingEmail] = useState('');
@@ -242,10 +241,6 @@ export default function TryTutorial() {
   }, [isActive, setDateRange, setRangeType]);
 
   useEffect(() => {
-    dispatchMachine({ type: 'ROUTE_CHANGED', path: location.pathname });
-  }, [dispatchMachine, location.pathname]);
-
-  useEffect(() => {
     if (isActive) {
       document.body.setAttribute(TUTORIAL_ACTIVE_ATTR, 'true');
     } else {
@@ -256,14 +251,6 @@ export default function TryTutorial() {
       document.body.removeAttribute(TUTORIAL_ACTIVE_ATTR);
     };
   }, [isActive]);
-
-  useEffect(() => {
-    if (!isActive) {
-      setAnchorReady(false);
-      return;
-    }
-    setAnchorReady(!currentSelector);
-  }, [isActive, currentStep, currentSelector]);
 
   const getStepElement = useCallback((selector: string | null) => {
     if (!selector) return null;
@@ -318,19 +305,8 @@ export default function TryTutorial() {
   }, [currentSelector, getStepElement]);
 
   const computeRect = useCallback(() => {
-    if (!currentSelector) {
-      setTargetRect(null);
-      void computeCardPosition();
-      return;
-    }
-    const el = getStepElement(currentSelector);
-    if (el) {
-      setTargetRect(el.getBoundingClientRect());
-    } else {
-      setTargetRect(null);
-    }
     void computeCardPosition();
-  }, [computeCardPosition, currentSelector, getStepElement]);
+  }, [computeCardPosition]);
 
   // Listen for 'start-tutorial' event from anywhere in the app
   useEffect(() => {
@@ -342,6 +318,7 @@ export default function TryTutorial() {
     return () => window.removeEventListener('start-tutorial', handler);
   }, [dispatchMachine]);
 
+
   // Copy a sample nutrition label to clipboard at the paste step
   useEffect(() => {
     if (isActive && currentStep === PASTE_STEP && PASTE_STEP >= 0) {
@@ -349,74 +326,177 @@ export default function TryTutorial() {
     }
   }, [isActive, currentStep]);
 
-  // Recompute tooltip placement after each step render.
+  // Reset anchor state and recompute card position on each step change.
   useEffect(() => {
-    if (!isActive) return;
+    if (!isActive) {
+      setAnchorReady(false);
+      return;
+    }
+    setAnchorReady(!currentSelector); // eagerly show/hide card before positioning completes
     void computeCardPosition();
-  }, [isActive, currentStep, computeCardPosition]);
+  }, [isActive, currentStep, currentSelector, computeCardPosition]);
 
   // Keep the active target above the dim overlay.
   useEffect(() => {
     if (!isActive) return;
     if (!currentSelector) return;
 
-    const lifted: Array<{ node: HTMLElement; position: string; zIndex: string }> = [];
-    const overlayZ = 2000;
+    // Map-based save ensures each node's original styles are captured exactly once.
+    const saved = new Map<HTMLElement, { position: string; zIndex: string; opacity: string; transition: string }>();
+    const dimmed = new Set<HTMLElement>(); // subset of saved that had opacity reduced
+    const hoverListeners: Array<{ el: HTMLElement; enter: () => void; leave: () => void }> = [];
     let retryTimer: number | null = null;
-    const resetLift = () => {
-      for (const item of lifted) {
-        item.node.style.position = item.position;
-        item.node.style.zIndex = item.zIndex;
+
+    const save = (node: HTMLElement) => {
+      if (!saved.has(node)) {
+        saved.set(node, { position: node.style.position, zIndex: node.style.zIndex, opacity: node.style.opacity, transition: node.style.transition });
       }
-      lifted.length = 0;
     };
 
-    const lift = (node: HTMLElement, ensurePosition: boolean) => {
-      lifted.push({ node, position: node.style.position, zIndex: node.style.zIndex });
-      const computed = getComputedStyle(node);
-      if (ensurePosition && computed.position === 'static') {
-        node.style.position = 'relative';
+    const resetLift = () => {
+      for (const [node, s] of saved) {
+        node.style.position = s.position;
+        node.style.zIndex = s.zIndex;
+        node.style.opacity = s.opacity;
+        node.style.transition = s.transition;
       }
-      node.style.zIndex = String(overlayZ + 1);
+      saved.clear();
+      dimmed.clear();
+      for (const { el, enter, leave } of hoverListeners) {
+        el.removeEventListener('mouseenter', enter);
+        el.removeEventListener('mouseleave', leave);
+      }
+      hoverListeners.length = 0;
     };
 
     const createsStackingContext = (node: HTMLElement) => {
-      const style = getComputedStyle(node);
-      if (style.position === 'fixed') return true;
-      if (style.zIndex !== 'auto' && style.position !== 'static') return true;
-      if (style.opacity !== '1') return true;
-      if (style.transform !== 'none') return true;
-      if (style.filter !== 'none') return true;
-      if (style.perspective !== 'none') return true;
-      if (style.isolation === 'isolate') return true;
-      if (style.mixBlendMode !== 'normal') return true;
-      return false;
+      const s = getComputedStyle(node);
+      return (
+        s.position === 'fixed' ||
+        (s.zIndex !== 'auto' && s.position !== 'static') ||
+        s.opacity !== '1' ||
+        s.transform !== 'none' ||
+        s.filter !== 'none' ||
+        s.backdropFilter !== 'none' ||
+        s.perspective !== 'none' ||
+        s.isolation === 'isolate' ||
+        s.mixBlendMode !== 'normal'
+      );
     };
 
-    const applyLift = (attempt = 0) => {
+    let cancelled = false;
+
+    const applyLift = () => {
+      if (cancelled) return;
       resetLift();
-      const el = getStepElement(currentSelector);
-      if (!el) {
-        if (attempt < 30) {
-          retryTimer = window.setTimeout(() => applyLift(attempt + 1), 200);
-        }
+
+      // All visible elements matching the selector (e.g. one .progress-bar-container per row).
+      const targets = Array.from(document.querySelectorAll(currentSelector))
+        .filter((el): el is HTMLElement => el instanceof HTMLElement && el.getClientRects().length > 0);
+
+      if (targets.length === 0) {
+        retryTimer = window.setTimeout(applyLift, 200);
         return;
       }
-      lift(el, true);
-      let parent = el.parentElement;
-      while (parent && parent !== document.body) {
-        if (createsStackingContext(parent)) lift(parent, false);
-        parent = parent.parentElement;
+
+      const primary = targets[0];
+
+      // Compute liftZ from highest ancestor z-index.
+      let maxZ = 0;
+      for (let p: HTMLElement | null = primary.parentElement; p && p !== document.body; p = p.parentElement) {
+        const z = parseInt(getComputedStyle(p).zIndex, 10);
+        if (!isNaN(z)) maxZ = Math.max(maxZ, z);
+      }
+      const liftZ = Math.max(maxZ + 1, 2);
+      setDimZIndex(liftZ - 1);
+
+      // Find the lowest common ancestor of all targets, then find the closest
+      // stacking-context ancestor at or above it — so the container encompasses
+      // every matching element, not just the first one.
+      const getAncestors = (el: HTMLElement): HTMLElement[] => {
+        const chain: HTMLElement[] = [];
+        for (let p: HTMLElement | null = el; p && p !== document.body; p = p.parentElement) chain.push(p);
+        return chain;
+      };
+      let lca: HTMLElement = primary;
+      if (targets.length > 1) {
+        const chain0 = getAncestors(primary);
+        for (const ancestor of chain0) {
+          if (targets.every(t => ancestor.contains(t))) { lca = ancestor; break; }
+        }
+      }
+      let container: HTMLElement | null = null;
+      for (let p: HTMLElement | null = lca; p && p !== document.body; p = p.parentElement) {
+        if (createsStackingContext(p)) { container = p; break; }
+      }
+
+      if (container) {
+        // Lift container and all stacking-context ancestors above it to liftZ.
+        for (let p: HTMLElement | null = container; p && p !== document.body; p = p.parentElement) {
+          if (p === container || createsStackingContext(p)) {
+            save(p);
+            if (getComputedStyle(p).position === 'static') p.style.position = 'relative';
+            p.style.zIndex = String(liftZ);
+          }
+        }
+
+        // Build the set of nodes that should stay fully visible:
+        // each target plus all of its ancestors up to (not including) the container.
+        const targetSet = new Set(targets);
+        const pathSet = new Set<HTMLElement>();
+        for (const t of targets) {
+          for (let n: HTMLElement | null = t; n && n !== container; n = n.parentElement) {
+            pathSet.add(n);
+          }
+        }
+
+        // Walk the container's subtree. Dim everything not in the path.
+        // Stop recursing into targets (their children are always visible).
+        const dimNonPath = (parent: HTMLElement) => {
+          for (const child of parent.children) {
+            if (!(child instanceof HTMLElement)) continue;
+            if (pathSet.has(child)) {
+              if (!targetSet.has(child)) dimNonPath(child);
+            } else {
+              save(child);
+              child.style.transition = 'opacity 0.15s ease';
+              child.style.opacity = '0.07';
+              dimmed.add(child);
+            }
+          }
+        };
+        dimNonPath(container);
+
+        // For each target, hovering it reveals its dimmed siblings (value labels, etc.)
+        for (const t of targets) {
+          const siblings = Array.from(t.parentElement?.children ?? [])
+            .filter((c): c is HTMLElement => c instanceof HTMLElement && c !== t && dimmed.has(c));
+          if (siblings.length === 0) continue;
+          const enter = () => siblings.forEach(s => { s.style.opacity = '1'; });
+          const leave = () => siblings.forEach(s => { s.style.opacity = '0.07'; });
+          t.addEventListener('mouseenter', enter);
+          t.addEventListener('mouseleave', leave);
+          hoverListeners.push({ el: t, enter, leave });
+        }
+
+      } else {
+        // No stacking context — lift all targets directly.
+        for (const t of targets) {
+          save(t);
+          if (getComputedStyle(t).position === 'static') t.style.position = 'relative';
+          t.style.zIndex = String(liftZ);
+        }
       }
     };
 
     applyLift();
 
     return () => {
+      cancelled = true;
       if (retryTimer !== null) window.clearTimeout(retryTimer);
       resetLift();
     };
-  }, [currentSelector, getStepElement, isActive, location.pathname, targetRect]);
+  }, [currentSelector, isActive, location.pathname]);
 
   // Advance on click when step has a selector but no event.
   useEffect(() => {
@@ -538,13 +618,17 @@ export default function TryTutorial() {
     if (!isActive) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as Element | null;
-      if (target && target.closest('.tutorial-email-form')) return;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+      // Tab while the locked-next tooltip is visible always skips the tutorial,
+      // even if focus is inside an input — check this before any early returns.
       if (e.key === 'Tab' && nextTooltipVisibleRef.current) {
         e.preventDefault();
         dispatchMachine({ type: 'STOP' });
         navigate('/dashboard');
-      } else if (e.key === 'Enter') {
+        return;
+      }
+      if (target && target.closest('.tutorial-email-form')) return;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+      if (e.key === 'Enter') {
         if (canAdvanceManuallyRef.current) {
           setNextTooltipVisible(false);
           nextTooltipVisibleRef.current = false;
@@ -618,7 +702,7 @@ export default function TryTutorial() {
   return (
     <>
       <TutorialGlobalStyles />
-      <TutorialDim />
+      <TutorialDim style={{ zIndex: dimZIndex }} />
 
       {createPortal(
         <TutorialText
