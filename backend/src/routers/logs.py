@@ -224,7 +224,7 @@ def _ensure_components_have_food_names(
 
     return components
 
-def make_log_readable(logs, db, request: Request = None):
+def make_log_readable(logs, db, request: Request = None, user_id=None):
     _warm_food_name_cache(request)
     logs = [serialize_document(log) for log in logs]
     component_lookup_ids: Dict[str, Any] = {}
@@ -233,10 +233,11 @@ def make_log_readable(logs, db, request: Request = None):
     recipe_ids = {str(log["recipe_id"]).strip() for log in logs if log.get("recipe_id")}
     recipe_map: dict = {}
     if recipe_ids:
-        for user_doc in db.users.find(
-            {"recipes.recipe_id": {"$in": list(recipe_ids)}},
-            {"recipes": 1}
-        ):
+        # Narrow to the owning user's document when possible to avoid a full collection scan
+        user_filter: dict = {"recipes.recipe_id": {"$in": list(recipe_ids)}}
+        if user_id is not None:
+            user_filter["_id"] = user_id
+        for user_doc in db.users.find(user_filter, {"recipes": 1}):
             for recipe in user_doc.get("recipes", []):
                 rid = recipe.get("recipe_id")
                 rid_key = str(rid).strip() if rid is not None else ""
@@ -325,7 +326,7 @@ def get_logs(
             sort_desc=True,
         )
     )
-    return make_log_readable(logs, db, request)
+    return make_log_readable(logs, db, request, user_id=user["_id"])
   
   
 @router.post("/new")

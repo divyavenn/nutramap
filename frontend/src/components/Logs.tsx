@@ -10,7 +10,7 @@ import { CreateRecipeModal } from './CreateRecipeModal';
 import { LogProps, LogComponent } from './structures';
 import {useRecoilValue, useSetRecoilState, useRecoilState} from 'recoil'
 import { logsAtom, logsLoadingAtom, currentDayAtom, hoveredLogAtom, useRefreshLogs, pendingFoodsAtom, PendingFood } from './dashboard_states';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 import { MealLoading} from './MealLoading';
 import { RecipeCard } from './RecipeCard';
 import { request } from './endpoints';
@@ -282,6 +282,7 @@ function LogList (){
   return (
     <LogListContainer className="log-list">
       <GlobalEditStyles />
+      <LayoutGroup>
       {sortedDays.map(([dayStart, { logs: dateLogs, pending: datePending }], dayIndex) => {
         // Sort logs by time (newest first); break ties by id for stable ordering.
         const sortedLogs = [...dateLogs].sort((a, b) => {
@@ -438,6 +439,7 @@ function LogList (){
           </LogsWrapper>
         );
       })}
+      </LayoutGroup>
 
       {selectedRecipe && createPortal(
         <AnimatePresence>

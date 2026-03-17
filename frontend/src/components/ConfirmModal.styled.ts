@@ -22,8 +22,6 @@ export const ConfirmModal = styled.div`
   );
   color: oklch(0.924 0.063 295 / 92%);
   font-family: 'Inconsolata', monospace;
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
   box-shadow:
     inset 0 1px 0 oklch(0.924 0.063 295 / 9%),
     0 40px 96px oklch(0 0 0 / 70%),

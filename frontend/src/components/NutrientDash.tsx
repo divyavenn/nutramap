@@ -6,7 +6,7 @@ import {useRecoilValue, useRecoilValueLoadable} from 'recoil'
 import { currentDayAtom, hoveredLogAtom, hoveredLogPanelData } from './dashboard_states';
 import { requirementsAtom, RequirementData, requirementsDataAtom, dayIntake, averageIntake } from './dashboard_states';
 import { tutorialEvent } from './TryTutorial';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 import {
   NutrientDashboardContainer,
   NutrientEditButton,
@@ -94,6 +94,7 @@ function NutrientDashboard(){
     : 300; // fallback for "no requirements" state
 
   return (
+    <LayoutGroup>
     <motion.div layout transition={dashboardLayoutTransition}>
       <NutrientDashboardContainer
         className="nutrient-dashboard"
@@ -184,6 +185,7 @@ function NutrientDashboard(){
         </AnimatePresence>
       </NutrientDashboardContainer>
     </motion.div>
+    </LayoutGroup>
   )
 }
 

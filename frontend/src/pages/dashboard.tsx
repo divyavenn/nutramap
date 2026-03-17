@@ -1,7 +1,7 @@
 /// <reference types="vite-plugin-svgr/client" />
 import { StrictMode, useEffect, useState } from 'react'
 import styled from 'styled-components'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, LayoutGroup, motion } from 'framer-motion'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { LogList } from '../components/Logs'
 import { DateSelector } from '../components/DateSelector'
@@ -299,6 +299,7 @@ function Dashboard() {
         <DateSelector />
       </Center>
 
+      <LayoutGroup id="dashboard">
       <TwoCol>
         <LeftCol>
           <LeftContent>
@@ -315,6 +316,7 @@ function Dashboard() {
           </RightContent>
         </RightCol>
       </TwoCol>
+      </LayoutGroup>
     </StrictMode>
   )
 }

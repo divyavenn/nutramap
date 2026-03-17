@@ -84,6 +84,12 @@ async def lifespan(fastapi_app: FastAPI):
     if fastapi_app.state.id_list is not None:
         dense_module._id_list_cache['id_list'] = fastapi_app.state.id_list
 
+    # Pre-load the SentenceTransformer model in a thread so the first recipe
+    # request doesn't stall waiting for a 1.3 GB model to load.
+    import asyncio
+    from src.routers.recipes import load_embedding_model
+    await asyncio.to_thread(load_embedding_model)
+
     print("App state initialized successfully at startup")
 
     yield

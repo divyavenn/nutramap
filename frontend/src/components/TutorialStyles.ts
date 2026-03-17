@@ -70,7 +70,6 @@ export const TutorialText = styled(motion.div)<TutorialTextProps>`
   position: fixed;
   max-width: 420px;
   width: 85vw;
-  z-index: 9999;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -199,7 +198,7 @@ export const TutorialSkipBtn = styled.button`
   top: 20px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 10001;
+  z-index: 2147483647;
   background: none;
   border: none;
   color: rgba(168, 85, 247, 0.9);

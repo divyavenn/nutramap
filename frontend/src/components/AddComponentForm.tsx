@@ -128,7 +128,7 @@ function AddComponentForm({ logId, onAdd }: AddComponentFormProps) {
       if (foodId) fd.append('food_id', foodId);
       await request('/logs/add-component', 'POST', fd);
       tutorialEvent('tutorial:component-added');
-      refreshLogs();
+      refreshLogs({ force: true });
       onAdd();
       setFoodName('');
       setFoodId(null);

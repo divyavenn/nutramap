@@ -17,9 +17,6 @@ import { dateRangeAtom, rangeTypeAtom } from './dashboard_states';
 import { getCurrentPeriod, RangeType } from './structures';
 import { request } from './endpoints';
 import nutritionLabelUrl from '../assets/images/nutrition_label.png';
-import startClaudeUrl from '../assets/start_claude.png';
-import todayProgressUrl from '../assets/today_progress.png';
-import improveRecipesUrl from '../assets/improve_recipes_1.png';
 import { AnimatePresence } from 'framer-motion';
 import {
   TutorialGlobalStyles,
@@ -40,7 +37,12 @@ import {
   NextLockedCard,
 } from './TutorialStyles';
 
+import startClaudeUrl from '../assets/start_claude.png';                                 
+import todayProgressUrl from '../assets/today_progress.png';                      
+import improveRecipesUrl from '../assets/improve_recipes_1.png'; 
+
 const steps: TutorialStep[] = [
+  /** 
   new TutorialStep({
     message: 'Nutramap is a one-of-a-kind nutrition tracker designed for ease, accuracy, AND transparency.'
   }),
@@ -75,6 +77,7 @@ const steps: TutorialStep[] = [
     selector: '.form-elements-wrapper',
     eventName: 'tutorial:log-created',
   }),
+  **/
   new TutorialStep({
     message: 'Most people have go-to meals they eat over and over, so every recipe is automatically stored here.',
     selector: 'a[href="/myrecipes"]',
@@ -571,7 +574,7 @@ export default function TryTutorial() {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
         setTimeout(computeRect, inView ? 0 : 400);
-      } else if (attempts < 30) {
+      } else {
         attempts++;
         setTimeout(tryFind, 200);
       }
@@ -580,35 +583,20 @@ export default function TryTutorial() {
     return () => { cancelled = true; };
   }, [computeRect, currentSelector, getStepElement, isActive, location.pathname]);
 
-  // MutationObserver fallback: if the target element appears after the retry
-  // window (e.g. data loaded from API), re-trigger positioning immediately.
-  useEffect(() => {
-    if (!isActive || !currentSelector || anchorReady) return;
-
-    const observer = new MutationObserver(() => {
-      const el = getStepElement(currentSelector);
-      if (el) {
-        const rect = el.getBoundingClientRect();
-        const inView = rect.top >= 0 && rect.bottom <= window.innerHeight;
-        if (!inView) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-        setTimeout(computeRect, inView ? 0 : 400);
-      }
-    });
-
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
-    return () => observer.disconnect();
-  }, [isActive, currentSelector, anchorReady, getStepElement, computeRect]);
-
-  // Recalculate on resize/scroll
+// Recalculate on resize/scroll, throttled to one call per animation frame
   useEffect(() => {
     if (!isActive) return;
-    window.addEventListener('resize', computeRect);
-    window.addEventListener('scroll', computeRect, true);
+    let rafId: number | null = null;
+    const throttled = () => {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => { rafId = null; computeRect(); });
+    };
+    window.addEventListener('resize', throttled);
+    window.addEventListener('scroll', throttled, true);
     return () => {
-      window.removeEventListener('resize', computeRect);
-      window.removeEventListener('scroll', computeRect, true);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', throttled);
+      window.removeEventListener('scroll', throttled, true);
     };
   }, [isActive, computeRect]);
 
@@ -694,9 +682,11 @@ export default function TryTutorial() {
   const tutorialMessage = isFinalEmailSubmitted
     ? 'thank you, stay tuned'
     : (hideUntilAnchored ? '' : currentCompiledStep.message);
+  // Card must always sit above the dim (dimZIndex) and the lifted target (dimZIndex+1).
+  const cardZIndex = dimZIndex + 2;
   const tutorialCardStyle: CSSProperties = hideUntilAnchored
-    ? { ...cardStyle, visibility: 'hidden' }
-    : cardStyle;
+    ? { ...cardStyle, visibility: 'hidden', zIndex: cardZIndex }
+    : { ...cardStyle, zIndex: cardZIndex };
 
   const skipTutorial = () => {
     dispatchMachine({ type: 'STOP' });

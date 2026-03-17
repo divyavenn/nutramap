@@ -138,7 +138,7 @@ function ComponentLog({
       fd.append('servings', String(logServings));
       fd.append('date', dateInput.toISOString());
       await request('/logs/edit-recipe-log', 'POST', fd);
-      refreshLogs();
+      refreshLogs({ force: true });
     } catch (error) {
       console.error('Error saving date:', error);
       if (logDate) setDateInput(new Date(logDate));
@@ -194,7 +194,7 @@ function ComponentLog({
         setGramsDisplay(response.body.weight_in_grams);
       }
       tutorialEvent('tutorial:component-added');
-      refreshLogs();
+      refreshLogs({ force: true });
       setIsEditable(false);
     } catch (error) {
       console.error('Error saving component:', error);

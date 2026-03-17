@@ -31,7 +31,7 @@ Install commands:
 
 ```bash
 npm install recoil @floating-ui/dom framer-motion
-npm install \"https://api.motion.dev/registry.tgz?package=motion-plus&version=2.8.0&token=YOUR_AUTH_TOKEN\"
+npm install "https://api.motion.dev/registry.tgz?package=motion-plus&version=2.8.0&token=YOUR_AUTH_TOKEN"
 ```
 
 If Motion+ token is unavailable, stop and request one. Do not silently swap to a custom typewriter implementation.
@@ -44,7 +44,8 @@ If Motion+ token is unavailable, stop and request one. Do not silently swap to a
 
 2. **Pure machine/reducer**
    - No DOM side effects inside reducer.
-   - Reducer handles actions only: `START`, `STOP`, `PREV`, `NEXT_MANUAL`, `TARGET_CLICK`, `APP_EVENT`, `ROUTE_CHANGED`.
+   - Reducer handles actions only: `START`, `STOP`, `PREV`, `NEXT_MANUAL`, `TARGET_CLICK`, `APP_EVENT`.
+   - Do NOT add a `ROUTE_CHANGED` action — route changes do not need to be dispatched into the machine. The DOM adapter re-runs its effects when `location.pathname` changes naturally via React Router.
 
 3. **Step class/model**
    - Use object steps, not tuple arrays.
@@ -56,7 +57,6 @@ class TutorialStep {
   selector: string | null;
   eventName: string | null;
   highlightOnly: boolean;
-  // Keep media on each step object.
   media?: TutorialMedia;
 }
 ```
@@ -66,6 +66,50 @@ class TutorialStep {
    - Positions card near target (Floating UI or equivalent).
    - Applies dim overlay + lifts target above overlay.
    - Installs/removes listeners based on current step.
+
+## File structure
+
+```
+src/
+  components/
+    tutorial_machine.ts      # pure FSM: types, reducer, atom, step helpers
+    TryTutorial.tsx          # DOM adapter: effects, applyLift, card render
+    TutorialStyles.ts        # all styled-components for the tutorial UI
+```
+
+Mount `<TryTutorial />` inside the router but outside all page components — typically at the app root alongside `<Header />`:
+
+```tsx
+// App.tsx or router root
+<RecoilRoot>
+  <BrowserRouter>
+    <Header />
+    <TryTutorial />   {/* ← always mounted, survives route changes */}
+    <Routes>...</Routes>
+  </BrowserRouter>
+</RecoilRoot>
+```
+
+## Starting the tutorial from anywhere
+
+Fire a `start-tutorial` window event from any component to start the tutorial without a direct import:
+
+```ts
+window.dispatchEvent(new Event('start-tutorial'));
+```
+
+`TryTutorial` listens for this event and calls `dispatchMachine({ type: 'START' })`. Guard against starting when already active:
+
+```ts
+useEffect(() => {
+  const handler = () => {
+    if (machineRef.current.isActive) return;
+    dispatchMachine({ type: 'START' });
+  };
+  window.addEventListener('start-tutorial', handler);
+  return () => window.removeEventListener('start-tutorial', handler);
+}, [dispatchMachine]);
+```
 
 ## Step semantics (do not deviate)
 
@@ -91,6 +135,96 @@ Implement these exact rules:
 5. `selector!=null`, `eventName=null`, `highlightOnly=true`
    - Highlight-only step.
    - Highlight target, but progress manually (next/Enter).
+
+**When to use event-only instead of a selector step:** if the target element has a `backdrop-filter` CSS property that cannot be removed, do not add a selector — use `eventName` only. `backdrop-filter` creates a stacking context that breaks the `applyLift` highlighting logic (see Stacking Context Gotchas below).
+
+## Inserting selectors into app components
+
+**Use a dedicated tutorial class, not a generic one.** Generic selectors (`.modal`, `.button`, `.list-item`) will match unintended elements. Prefix with `tutorial-`:
+
+```tsx
+// Good
+<div className="recipe-detail-modal tutorial-recipe-modal">
+
+// Bad — too generic, may match other modals
+<div className="recipe-detail-modal">
+```
+
+**Selector type guide:**
+
+| Target | Preferred selector |
+|---|---|
+| Nav link | `a[href="/myrecipes"]` — no class needed |
+| Modal container | `.tutorial-recipe-modal` added to the modal root div |
+| Form wrapper | `.tutorial-log-form` added to the `<form>` or its wrapper |
+| A specific card in a list | `.tutorial-first-recipe-card` on the intended item only |
+| A button inside a modal | `.tutorial-recipe-modal .modal-close-x` — scope with parent |
+
+**For lists/repeated content:** add the tutorial class only to the intended item (e.g., the first recipe card), not to every item in the list. Compute which item gets the class based on index or a flag:
+
+```tsx
+{recipes.map((recipe, i) => (
+  <RecipeCard
+    key={recipe.id}
+    className={i === 0 ? 'recipe-card tutorial-first-recipe' : 'recipe-card'}
+  />
+))}
+```
+
+**`getStepElement` implementation — always filter by visibility:**
+
+```ts
+const getStepElement = (selector: string | null) => {
+  if (!selector) return null;
+  const candidates = Array.from(document.querySelectorAll(selector)) as HTMLElement[];
+  // Only return elements that are actually rendered (have layout rects)
+  return candidates.find(el => el.getClientRects().length > 0) ?? null;
+};
+```
+
+This prevents matching hidden/unmounted elements that are technically in the DOM.
+
+## Inserting events into app components
+
+**The `tutorialEvent` helper** — call this from app code. It is a no-op when the tutorial is not active:
+
+```ts
+const TUTORIAL_ACTIVE_ATTR = 'data-tutorial-active';
+const TUTORIAL_APP_EVENT = 'tutorial:app-event';
+
+export function tutorialEvent(name: string) {
+  if (document.body.getAttribute(TUTORIAL_ACTIVE_ATTR) !== 'true') return;
+  window.dispatchEvent(new CustomEvent(TUTORIAL_APP_EVENT, { detail: { name } }));
+}
+```
+
+`TryTutorial` sets `data-tutorial-active="true"` on `document.body` when active and removes it when inactive. This is the guard that makes `tutorialEvent` safe to call anywhere.
+
+**Where to place event calls:**
+
+| What happened | Where to emit | Why |
+|---|---|---|
+| Modal opened | `useEffect(() => { tutorialEvent('tutorial:modal-opened'); }, [])` inside the modal component | Fires on mount, not just on the click that opened it |
+| Form submitted successfully | After the API `await`, before closing/clearing | Timing: element still in DOM |
+| Item saved/updated | After the successful response | Not on button click — request could fail |
+| User closed a modal that should show a confirm dialog | After `setShowConfirm(true)` state update — but see timing warning below | |
+| Recipe synced/dismissed | After `setShowConfirm(false)` and the close handler | |
+
+**Timing warning — state updates are async:** React batches state updates. If you call `setState(true)` and immediately `tutorialEvent(...)`, the event fires before the re-render that mounts the next step's target. This is fine because `tryFind` polls every 200ms and will find the element after the render. But do NOT emit an event that is supposed to advance past a selector step before that selector's element is in the DOM — the step machine will advance and `tryFind` will start looking for the NEXT step's target, which may never mount.
+
+**Common mistake — emitting before the UI updates:**
+
+```ts
+// Wrong: event fires before the confirm modal renders
+setShowConfirmModal(true);
+tutorialEvent('tutorial:close-pressed');
+
+// Correct: the event fires after mount, inside the confirm modal component
+// In ConfirmModal.tsx:
+useEffect(() => {
+  tutorialEvent('tutorial:confirm-shown');
+}, []);
+```
 
 ## Event model
 
@@ -120,72 +254,360 @@ For `selector + eventName` steps:
 
 - For click-to-advance links, defer progression (`setTimeout(...,0)`) so route navigation runs first.
 - Keep tutorial mounted globally, not per-page.
-- Dispatch `ROUTE_CHANGED` from location changes.
+- Do NOT dispatch `ROUTE_CHANGED` into the machine — it is dead weight. Effects that depend on the current route should simply list `location.pathname` in their dependency array.
 
-## Highlight behavior
+## anchorReady — merged effect pattern
 
-- If using dim overlay without cutout:
-  - keep overlay `pointer-events:none`.
-  - raise selected element (and stacking-context ancestors) above overlay via `z-index` + temporary `position` fix.
-- For list-specific targets (e.g., “second day divider”), assign dedicated tutorial classes to the intended row/element.
-
-## Media support
-
-Support optional step media under text:
+Do NOT have two separate effects for "reset anchor on step change" and "recompute card position". Merge them into one. Two separate effects on the same deps produce extra cleanup/setup cycles that wipe highlighting on the first step:
 
 ```ts
-type TutorialMedia =
-  | { type: 'image'; src: string; alt: string }
-  | { type: 'video'; src: string; poster?: string; autoPlay?: boolean; loop?: boolean; muted?: boolean; controls?: boolean };
+// Wrong — two effects on same deps cause extra resetLift() cycles
+useEffect(() => {
+  setAnchorReady(false);
+}, [isActive, currentStep]);
+
+useEffect(() => {
+  void computeCardPosition();
+}, [isActive, currentStep, computeCardPosition]);
+
+// Correct — one effect handles both
+useEffect(() => {
+  if (!isActive) {
+    setAnchorReady(false);
+    return;
+  }
+  // Eagerly mark ready if no selector (card can show immediately)
+  setAnchorReady(!currentSelector);
+  void computeCardPosition();
+}, [isActive, currentStep, currentSelector, computeCardPosition]);
 ```
 
-Use `media?` directly on `TutorialStep` as the default approach.
-Do not use a separate `stepIndex -> media` map unless there is a hard external-content requirement.
-If media URLs differ by deployment, resolve `src` from deployment-specific env vars at build/runtime.
-
-Example:
+**`computeCardPosition` implementation:**
 
 ```ts
-new TutorialStep({
-  message: "Watch how to edit a nutrient",
-  selector: ".nutrient-edit-panel",
-  eventName: null,
-  highlightOnly: true,
-  media: {
-    type: "video",
-    src: import.meta.env.VITE_TUTORIAL_EDIT_NUTRIENT_VIDEO,
-    poster: import.meta.env.VITE_TUTORIAL_EDIT_NUTRIENT_POSTER,
-    muted: true,
-    autoPlay: true,
-    loop: true,
-    controls: false,
-  },
-})
+const computeCardPosition = useCallback(async () => {
+  const cardEl = cardRef.current;
+  if (!cardEl) return;
+
+  if (!currentSelector) {
+    setCardStyle({});
+    setAnchorReady(true);
+    return;
+  }
+
+  const targetEl = getStepElement(currentSelector);
+  if (!targetEl) {
+    setCardStyle({});
+    setAnchorReady(false);  // still waiting — keep card hidden
+    return;
+  }
+
+  const cardWidth = Math.min(360, window.innerWidth * 0.4);
+  cardEl.style.width = `${cardWidth}px`;
+
+  const isHeaderLink = currentSelector.startsWith('a[href=');
+  const placement = isHeaderLink ? 'bottom-end' : 'right';
+  const fallbacks: Placement[] = isHeaderLink
+    ? ['bottom', 'left', 'top', 'right']
+    : ['bottom', 'top', 'left', 'right'];
+
+  const { x, y } = await computePosition(targetEl, cardEl, {
+    strategy: 'fixed',
+    placement,
+    middleware: [offset(30), flip({ fallbackPlacements: fallbacks }), shift({ padding: 12 })],
+  });
+
+  setCardStyle({ width: cardWidth, left: x, top: y, right: 'auto', transform: 'none' });
+  setAnchorReady(true);
+}, [currentSelector, getStepElement]);
 ```
 
-## Typewriter spec (required)
+**`hideUntilAnchored` and card style:**
 
-Use Motion+ `Typewriter` from `motion-plus/react` for tutorial copy animation.
-
-```tsx
-import { Typewriter } from "motion-plus/react"
+```ts
+const cardZIndex = dimZIndex + 2;  // always dynamic
+const hideUntilAnchored = Boolean(currentSelector) && !anchorReady;
+const tutorialCardStyle: CSSProperties = hideUntilAnchored
+  ? { ...cardStyle, visibility: 'hidden', zIndex: cardZIndex }
+  : { ...cardStyle, zIndex: cardZIndex };
 ```
 
-Required behavior:
+Use `visibility: hidden` (not `display: none`) so the card is measured by floating-ui but not visible. The Typewriter `play` prop should also be gated on `!hideUntilAnchored`.
 
-- Render step message using `<Typewriter>` (not a custom interval-based typewriter).
-- Use `play` control when needed (for viewport/anchor gating).
-- Keep cursor styling consistent via `cursorClassName`/`cursorStyle`.
-- Respect accessibility with proper text semantics and avoid hiding content from screen readers.
+## Highlight behavior (applyLift)
+
+Run `applyLift` in a `useEffect` with deps `[currentSelector, isActive, location.pathname]`. It must be a separate effect from the card-positioning effect.
+
+**Full algorithm:**
+
+```ts
+useEffect(() => {
+  if (!isActive || !currentSelector) return;
+
+  const saved = new Map<HTMLElement, { position: string; zIndex: string; opacity: string; transition: string }>();
+  const dimmed = new Set<HTMLElement>();
+  const hoverListeners: Array<{ el: HTMLElement; enter: () => void; leave: () => void }> = [];
+  let retryTimer: number | null = null;
+  let cancelled = false;
+
+  const save = (node: HTMLElement) => {
+    if (!saved.has(node)) {
+      saved.set(node, {
+        position: node.style.position,
+        zIndex: node.style.zIndex,
+        opacity: node.style.opacity,
+        transition: node.style.transition,
+      });
+    }
+  };
+
+  const resetLift = () => {
+    for (const [node, s] of saved) {
+      node.style.position = s.position;
+      node.style.zIndex = s.zIndex;
+      node.style.opacity = s.opacity;
+      node.style.transition = s.transition;
+    }
+    saved.clear();
+    dimmed.clear();
+    for (const { el, enter, leave } of hoverListeners) {
+      el.removeEventListener('mouseenter', enter);
+      el.removeEventListener('mouseleave', leave);
+    }
+    hoverListeners.length = 0;
+  };
+
+  const createsStackingContext = (node: HTMLElement) => {
+    const s = getComputedStyle(node);
+    return (
+      s.position === 'fixed' ||
+      (s.zIndex !== 'auto' && s.position !== 'static') ||
+      s.opacity !== '1' ||
+      s.transform !== 'none' ||
+      s.filter !== 'none' ||
+      s.backdropFilter !== 'none' ||
+      s.perspective !== 'none' ||
+      s.isolation === 'isolate' ||
+      s.mixBlendMode !== 'normal'
+    );
+  };
+
+  const applyLift = () => {
+    if (cancelled) return;
+    resetLift();
+
+    // All visible targets
+    const targets = Array.from(document.querySelectorAll(currentSelector))
+      .filter((el): el is HTMLElement => el instanceof HTMLElement && el.getClientRects().length > 0);
+
+    if (targets.length === 0) {
+      retryTimer = window.setTimeout(applyLift, 200);
+      return;
+    }
+
+    const primary = targets[0];
+
+    // Compute liftZ from highest ancestor z-index
+    let maxZ = 0;
+    for (let p = primary.parentElement; p && p !== document.body; p = p.parentElement) {
+      const z = parseInt(getComputedStyle(p).zIndex, 10);
+      if (!isNaN(z)) maxZ = Math.max(maxZ, z);
+    }
+    const liftZ = Math.max(maxZ + 1, 2);
+    setDimZIndex(liftZ - 1);  // dim sits just below the lifted target
+
+    // Find lowest common ancestor of all targets, then nearest stacking-context ancestor
+    const getAncestors = (el: HTMLElement): HTMLElement[] => {
+      const chain: HTMLElement[] = [];
+      for (let p = el as HTMLElement | null; p && p !== document.body; p = p.parentElement) chain.push(p);
+      return chain;
+    };
+    let lca: HTMLElement = primary;
+    if (targets.length > 1) {
+      for (const ancestor of getAncestors(primary)) {
+        if (targets.every(t => ancestor.contains(t))) { lca = ancestor; break; }
+      }
+    }
+    let container: HTMLElement | null = null;
+    for (let p = lca as HTMLElement | null; p && p !== document.body; p = p.parentElement) {
+      if (createsStackingContext(p)) { container = p; break; }
+    }
+
+    if (container) {
+      // Lift container and all stacking-context ancestors to liftZ
+      for (let p = container as HTMLElement | null; p && p !== document.body; p = p.parentElement) {
+        if (p === container || createsStackingContext(p)) {
+          save(p);
+          if (getComputedStyle(p).position === 'static') p.style.position = 'relative';
+          p.style.zIndex = String(liftZ);
+        }
+      }
+
+      // Build path set: all ancestors from each target up to (not including) container
+      const targetSet = new Set(targets);
+      const pathSet = new Set<HTMLElement>();
+      for (const t of targets) {
+        for (let n: HTMLElement | null = t; n && n !== container; n = n.parentElement) {
+          pathSet.add(n);
+        }
+      }
+
+      // Dim everything in container's subtree that is not in the path
+      const dimNonPath = (parent: HTMLElement) => {
+        for (const child of parent.children) {
+          if (!(child instanceof HTMLElement)) continue;
+          if (pathSet.has(child)) {
+            if (!targetSet.has(child)) dimNonPath(child);  // recurse into path but not into targets
+          } else {
+            save(child);
+            child.style.transition = 'opacity 0.15s ease';
+            child.style.opacity = '0.07';
+            dimmed.add(child);
+          }
+        }
+      };
+      dimNonPath(container);
+
+      // Hover reveal: hovering a target temporarily restores its dimmed siblings
+      for (const t of targets) {
+        const siblings = Array.from(t.parentElement?.children ?? [])
+          .filter((c): c is HTMLElement => c instanceof HTMLElement && c !== t && dimmed.has(c));
+        if (siblings.length === 0) continue;
+        const enter = () => siblings.forEach(s => { s.style.opacity = '1'; });
+        const leave = () => siblings.forEach(s => { s.style.opacity = '0.07'; });
+        t.addEventListener('mouseenter', enter);
+        t.addEventListener('mouseleave', leave);
+        hoverListeners.push({ el: t, enter, leave });
+      }
+    } else {
+      // No stacking context — lift targets directly
+      for (const t of targets) {
+        save(t);
+        if (getComputedStyle(t).position === 'static') t.style.position = 'relative';
+        t.style.zIndex = String(liftZ);
+      }
+    }
+  };
+
+  applyLift();
+
+  return () => {
+    cancelled = true;
+    if (retryTimer !== null) window.clearTimeout(retryTimer);
+    resetLift();
+  };
+}, [currentSelector, isActive, location.pathname]);
+```
+
+**Critical z-index rule:** the tutorial card's z-index must always be computed as `dimZIndex + 2`, not a hardcoded constant like `9999`. App modals can have arbitrary z-indexes (e.g., `10000`). A hardcoded card z-index will end up below the dim when a high-z-index modal is the target.
+
+```
+dim: dimZIndex
+lifted target: dimZIndex + 1  (= liftZ)
+tutorial card: dimZIndex + 2
+```
+
+## Stacking context gotchas
+
+These CSS properties create a stacking context and will confuse `applyLift`:
+
+- `backdrop-filter` (including `-webkit-backdrop-filter`)
+- `transform` (including identity transforms — `translateY(0px)` still counts)
+- `opacity < 1`
+- `position: fixed` or `position: sticky` with a non-`auto` `z-index`
+- `filter`
+- `isolation: isolate`
+- `mix-blend-mode` (non-normal)
+- `perspective`
+- `will-change` (some browsers)
+
+**`backdrop-filter` on the target element:** if the target itself has `backdrop-filter`, `createsStackingContext()` returns true for it, causing `applyLift` to identify it as its own container and then walk its subtree — dimming its own children. Fix: remove `backdrop-filter` from tutorial target elements. If you cannot remove it, use an event-only step (no selector).
+
+**framer-motion `motion.div` always has a stacking context:** even after an animation completes with `y: 0, scale: 1`, framer-motion leaves an inline `transform` style (e.g., `translateY(0px) scale(1)`) which is a non-`none` transform and therefore always creates a stacking context. Account for this when tracing the container hierarchy.
+
+**`position: fixed` inside a transformed parent:** CSS traps `position: fixed` elements inside their nearest transformed ancestor's stacking context. Their `z-index` only applies within that ancestor — not relative to the viewport. If a tutorial target's `position: fixed` wrapper is inside a transformed element, the effective z-index seen by the dim overlay may be much lower than the declared value.
+
+## Element finding
+
+**Do not use MutationObserver.** It fires on every React render, framer-motion animation frame, and API-driven DOM update — potentially hundreds of times per second. The overhead is significant during tutorial use.
+
+Instead, poll with `setTimeout`:
+
+```ts
+const tryFind = () => {
+  if (cancelled) return;
+  const el = getStepElement(currentSelector);
+  if (el) {
+    // scroll into view + compute position
+  } else {
+    attempts++;
+    setTimeout(tryFind, 200);  // retry indefinitely — no cap
+  }
+};
+tryFind();
+return () => { cancelled = true; };
+```
+
+**No retry cap.** The old pattern `if (attempts < 30)` (6 seconds) misses elements that load from slow API responses. Remove the cap — the cleanup cancellation flag is sufficient to stop retrying when the step changes.
+
+The `applyLift` effect should also retry indefinitely with its own 200ms timer when the target is not yet in the DOM.
+
+## Scroll and resize handling
+
+Throttle the scroll and resize handlers with `requestAnimationFrame`. Calling `computeRect` (which triggers floating-ui layout calculation) on every scroll pixel causes jank:
+
+```ts
+let rafId: number | null = null;
+const throttled = () => {
+  if (rafId !== null) return;
+  rafId = requestAnimationFrame(() => { rafId = null; computeRect(); });
+};
+window.addEventListener('resize', throttled);
+window.addEventListener('scroll', throttled, true);
+return () => {
+  if (rafId !== null) cancelAnimationFrame(rafId);
+  window.removeEventListener('resize', throttled);
+  window.removeEventListener('scroll', throttled, true);
+};
+```
 
 ## Keyboard behavior
 
-- Enter should perform `NEXT_MANUAL` only on manual/manual-highlight steps.
+- Enter performs `NEXT_MANUAL` only on manual/manual-highlight steps.
+- **Tab to skip:** check the Tab shortcut BEFORE any early returns for `INPUT`/`TEXTAREA`. If you check for focused form controls first, Tab is silently swallowed when an input has focus:
+
+```ts
+const handleKeyDown = (e: KeyboardEvent) => {
+  // Tab check MUST come before the input/textarea early return
+  if (e.key === 'Tab' && nextTooltipVisible) {
+    e.preventDefault();
+    dispatchMachine({ type: 'STOP' });
+    navigate('/dashboard');
+    return;
+  }
+  if (target?.closest('.tutorial-email-form')) return;
+  if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA') return;
+  // ... Enter handler
+};
+```
+
 - Ignore global Enter handler when focus is inside form controls (especially final-step email forms), otherwise submission gets swallowed.
+
+## Data refresh after mutations
+
+When the tutorial triggers a state mutation (edit ingredient, add food, sync recipe), always force-refresh to bypass any client-side cache TTL:
+
+```ts
+// Wrong — respects cache, change doesn't appear until TTL expires
+refreshLogs();
+
+// Correct — bypasses cache immediately after write
+refreshLogs({ force: true });
+```
 
 ## Date-range/calendar gotchas
 
-For “change date range” steps:
+For "change date range" steps:
 
 - Do **not** emit progress event on first date click if range selection requires two clicks.
 - Emit when range actually changed and is complete (e.g., `startDate != endDate`), or when arrow/month navigation changes range.
@@ -211,7 +633,7 @@ Treat these as shipping blockers. The implementation is incomplete unless each i
 
 ### Mounting and async rendering specs
 
-- Modal/portal/async targets must use retry-with-timeout resolution before failing placement.
+- Modal/portal/async targets must use indefinite retry resolution (not retry-with-timeout).
 - Event progression must be emitted from lifecycle truth points (mount/open/saved), not only click paths.
 - Route/data fetch transitions must not progress until target is mounted and anchor is ready.
 
@@ -220,7 +642,7 @@ Treat these as shipping blockers. The implementation is incomplete unless each i
 - Deduplicate event listeners per run and remove on step change/unmount.
 - Prevent stale listeners from prior tutorial runs via run/session id checks.
 - Guard against double progression from duplicate events in the same frame.
-- Ensure tutorial-mode layout toggles (for example sticky -> static) do not trigger duplicate progression events from remounts/rerenders.
+- Ensure tutorial-mode layout toggles do not trigger duplicate progression events from remounts/rerenders.
 
 ### Interactivity lock specs
 
@@ -230,10 +652,11 @@ Treat these as shipping blockers. The implementation is incomplete unless each i
 
 ### Positioning and layering specs
 
-- No first-frame tooltip flash at default coordinates; hide until anchored.
+- No first-frame tooltip flash at default coordinates; hide until anchored (`anchorReady`).
 - Support nested scroll containers (not only window scroll) when auto-scrolling target into view.
-- Handle stacking contexts (`transform`, `opacity`, `filter`, `position: fixed`) so target remains undimmed and visible above overlay.
-- Recompute placement on resize, scroll, content expansion, and route change.
+- Handle stacking contexts (`transform`, `opacity`, `filter`, `backdrop-filter`, `position: fixed`) so target remains undimmed and visible above overlay.
+- Tutorial card `z-index` must be `dimZIndex + 2` — never a hardcoded constant.
+- Recompute placement on resize and scroll (RAF-throttled), and on step/route change.
 
 ### Sticky layout + dim overlay rule (required)
 
@@ -249,7 +672,7 @@ Treat these as shipping blockers. The implementation is incomplete unless each i
 
 ### Input and keyboard specs
 
-- Global Enter handler must ignore focused form controls within tutorial card.
+- Tab shortcut check must come before `INPUT`/`TEXTAREA` early returns — see Keyboard behavior section.
 - Tutorial must not swallow form submit/textarea behavior unexpectedly.
 - Mobile keyboard/open viewport changes must not break placement or lock behavior.
 
@@ -262,7 +685,7 @@ Treat these as shipping blockers. The implementation is incomplete unless each i
 ## Styling spec (required)
 
 - Define tutorial design tokens (overlay opacity, z-index layers, spacing, radii, font sizes, colors, motion durations/easings).
-- Use one layering contract: `overlay` < `lifted target` < `tutorial card` (or documented equivalent).
+- Use one layering contract: `overlay` < `lifted target` < `tutorial card` (or documented equivalent). The card z-index must be computed dynamically — not hardcoded.
 - Preserve accessibility:
   - contrast-compliant text/actions,
   - visible focus styles,
@@ -284,6 +707,145 @@ Treat these as shipping blockers. The implementation is incomplete unless each i
 - Add load/error states so media failure never blocks tutorial progression.
 - Prefetch next-step media when feasible to reduce flicker/jank.
 - For instructional video, support captions/transcript path when product requires accessibility parity.
+
+## tutorial_machine.ts — complete reference
+
+```ts
+// Step kinds derived from (selector, eventName, highlightOnly)
+export type TutorialStepKind =
+  | 'manual'            // no selector, no event → next/Enter
+  | 'manual_highlight'  // selector, no event, highlightOnly=true → next/Enter
+  | 'target_click'      // selector, no event, highlightOnly=false → click target
+  | 'event_only'        // no selector, eventName → wait for event
+  | 'target_and_event'  // selector + eventName → lock to target, wait for event
+  | 'highlight_and_event'; // selector + eventName + highlightOnly → highlight, wait for event
+
+// Derived helpers used in TryTutorial.tsx
+export function canAdvanceManually(step: CompiledStep): boolean {
+  return step.kind === 'manual' || step.kind === 'manual_highlight';
+}
+export function canAdvanceOnTargetClick(step: CompiledStep): boolean {
+  return step.kind === 'target_click';
+}
+export function requiredEventName(step: CompiledStep): string | null {
+  return step.eventName;
+}
+// Returns selector to lock interactions to, or null if no locking needed
+export function lockedInteractionSelector(step: CompiledStep): string | null {
+  return step.kind === 'target_and_event' ? step.selector : null;
+}
+
+// Machine state — keep minimal
+export interface TutorialMachineState {
+  isActive: boolean;
+  stepIndex: number;
+  runId: number;  // incremented on START, used to detect stale listeners
+}
+
+// Actions — no ROUTE_CHANGED
+export type TutorialMachineAction =
+  | { type: 'START' }
+  | { type: 'STOP' }
+  | { type: 'PREV' }
+  | { type: 'NEXT_MANUAL' }
+  | { type: 'TARGET_CLICK'; matchesCurrentTarget: boolean }
+  | { type: 'APP_EVENT'; name: string };
+```
+
+## TutorialStyles.ts — UI component checklist
+
+Create styled-components (or CSS modules) for each of these. Keep z-index out of the styled definitions — set it via `style` prop at render time:
+
+| Component | Purpose |
+|---|---|
+| `TutorialDim` | `position: fixed; inset: 0; background: rgba(0,0,0,0.82); pointer-events: none; z-index: {dynamic}` |
+| `TutorialText` | `position: fixed; max-width: 420px; backdrop-filter: blur(14px)` — NO hardcoded z-index |
+| `TutorialMessage` | Typewriter text container — font, color, line-height |
+| `TutorialNav` | `display: flex; justify-content: space-between` |
+| `TutorialPrevBtn` | Ghost button, muted color |
+| `TutorialNextBtn` | Ghost button, accent color, disabled state |
+| `TutorialSkipBtn` | `position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 2147483647` — max int, always on top |
+| `LockedNextWrapper` | `position: relative; display: inline-flex` — wraps next button for tooltip positioning |
+| `NextLockedOverlay` | `position: fixed; inset: 0; backdrop-filter: blur(6px); pointer-events: none` — shown on hover of disabled next |
+| `NextLockedCard` | The "finish this step or press Tab to skip" message card |
+| `TutorialMedia` | Container for step image/video |
+| `TutorialMediaAsset` | `styled.img` with `as="video"` override — `width: 100%; object-fit: contain` |
+| `TutorialEmailForm` | Final-step email capture form |
+| `TutorialEmailInput` | Styled email input |
+
+**`TutorialSkipBtn` z-index must be `2147483647`** (max 32-bit int). It must never be buried by any app modal.
+
+## TryTutorial.tsx — render section reference
+
+```tsx
+if (!isActive) return null;
+
+const cardZIndex = dimZIndex + 2;
+const hideUntilAnchored = Boolean(currentSelector) && !anchorReady;
+const tutorialCardStyle = hideUntilAnchored
+  ? { ...cardStyle, visibility: 'hidden' as const, zIndex: cardZIndex }
+  : { ...cardStyle, zIndex: cardZIndex };
+
+return (
+  <>
+    <TutorialGlobalStyles />
+    <TutorialSkipBtn onClick={skipTutorial}>skip tutorial →</TutorialSkipBtn>
+    <TutorialDim style={{ zIndex: dimZIndex }} />
+
+    {createPortal(
+      <TutorialText
+        ref={cardRef}
+        key={currentStep}           // remount card on step change → resets typewriter
+        $centered={!currentSelector}
+        $hasMedia={!!currentMedia}
+        style={tutorialCardStyle}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
+        <TutorialMessage>
+          <Typewriter
+            speed={0.1}
+            variance="natural"
+            play={!hideUntilAnchored}   // don't type while card is hidden
+            replace="all"
+          >
+            {tutorialMessage}
+          </Typewriter>
+        </TutorialMessage>
+
+        {/* Optional media */}
+        {currentMedia && <TutorialMedia>...</TutorialMedia>}
+
+        <TutorialNav>
+          {currentStep > 0 && <TutorialPrevBtn onClick={prev}>previous</TutorialPrevBtn>}
+          {!isLastStep && (
+            <LockedNextWrapper
+              onMouseEnter={() => { if (!canAdvanceManually) showNextTooltip(); }}
+              onMouseLeave={hideNextTooltip}
+            >
+              <TutorialNextBtn onClick={canAdvanceManually ? next : undefined} disabled={!canAdvanceManually}>
+                next
+              </TutorialNextBtn>
+              <AnimatePresence>
+                {nextTooltipVisible && !canAdvanceManually && (
+                  <NextLockedOverlay>
+                    <NextLockedCard>
+                      Finish the task to continue, or press <strong>Tab</strong> to skip.
+                    </NextLockedCard>
+                  </NextLockedOverlay>
+                )}
+              </AnimatePresence>
+            </LockedNextWrapper>
+          )}
+          {isLastStep && <TutorialNextBtn onClick={next}>done</TutorialNextBtn>}
+        </TutorialNav>
+      </TutorialText>,
+      document.body
+    )}
+  </>
+);
+```
 
 ## Preflight validator spec (recommended)
 
@@ -309,12 +871,12 @@ The validator checks package prerequisites and flags non-Motion+ typewriter impl
 
 ## Implementation sequence
 
-1. Define `TutorialStep` model + machine reducer.
+1. Define `TutorialStep` model + machine reducer (no `ROUTE_CHANGED`).
 2. Migrate current steps to object/class form.
 3. Integrate machine into global tutorial runner.
 4. Add event bus + lifecycle emitters in UI components.
-5. Add interactivity lock and target lifting.
-6. Add anchorReady gating to prevent position flash.
+5. Add interactivity lock and target lifting (`applyLift`).
+6. Add `anchorReady` gating to prevent position flash.
 7. Add highlightOnly support.
 8. Add media slot support.
 9. Add final-step email form + backend persistence.
@@ -329,6 +891,10 @@ The validator checks package prerequisites and flags non-Motion+ typewriter impl
 - Range-change step does not progress on incomplete selection.
 - Enter in email input submits form (does not skip step).
 - Target element remains undimmed while rest is dimmed.
+- Tutorial card is visible above any app modal (z-index is `dimZIndex + 2`).
+- Tab to skip works even when an input has focus.
+- Data mutations during the tutorial immediately reflect in the UI (force-refresh cache).
+- Target elements with `backdrop-filter` either have it removed or use event-only steps.
 - In desktop split-pane layouts, tutorial keeps only intended target(s) undimmed, not an entire sticky pane.
 - Sticky behavior returns to normal when tutorial ends.
 
