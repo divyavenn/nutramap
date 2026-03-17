@@ -193,3 +193,27 @@ export const TutorialNextBtn = styled.button`
     cursor: default;
   }
 `;
+
+export const TutorialSkipBtn = styled.button`
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10001;
+  background: none;
+  border: none;
+  color: rgba(168, 85, 247, 0.9);
+  font-family: 'Ubuntu', sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.2s ease, opacity 0.2s ease;
+
+  &:hover {
+    color: rgba(216, 180, 254, 1);
+  }
+`;

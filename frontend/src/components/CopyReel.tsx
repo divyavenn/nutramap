@@ -40,10 +40,16 @@ const FeatureText = styled.span<{ $colorIndex: number }>`
   line-height: 1.5;
 `;
 
+  const features = [
+    "world's first agent-friendly nutrition tracker",
+    "one-click logging",
+    "powered by AI, double-checked by humans",
+    "2.7 million foods with proven nutrition data from USDA"
+  ]
 
-function CopyReelFeature({features}: {features: string[]}){
+function CopyReelFeature({features, className}: {features: string[], className?: string}){
   return (
-    <NewsReelContainer>
+    <NewsReelContainer className={className}>
       <NewsReelInner
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}

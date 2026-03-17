@@ -4,6 +4,17 @@ import React, { useState } from 'react';
 import {Link, useLocation} from 'react-router-dom';
 import { isLoginExpired } from './utlis';
 import { SvgButton, HeaderLinkButton } from './Sections.styled';
+import { CopyReelFeature } from './CopyReel';
+import styled from 'styled-components';
+
+const HeaderCopyReel = styled(CopyReelFeature)`
+  width: 15%;
+  min-width: 0;
+  margin-bottom: 0;
+  overflow: hidden;
+  mask-image: linear-gradient(to right, transparent 0%, black 18%, black 82%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 18%, black 82%, transparent 100%);
+`;
 
 // 3 rules of JSX
 // (1) return a single root elem (wrap in div or React Fragment <>...</>)
@@ -49,11 +60,19 @@ function Header({linkIcons, children} : {linkIcons? : PageLinkIcon[], children?:
   <header>
     <section className="nutramap-header">
       <Link className="header-logo-container" to="/dashboard">
-      <img src={foodPanelLogo}
-            loading="lazy" alt="foodPanelAI logo" className = 'nutramap-logo'/>
-      <div className="nutra header">nutramap</div>
+        <img src={foodPanelLogo}
+              loading="lazy" alt="foodPanelAI logo" className='nutramap-logo'/>
       </Link>
-      <div style = {{width : '80%'}} ></div>
+      <HeaderCopyReel features={[
+        "world's first agent-friendly nutrition tracker",
+        "one-click logging",
+        "powered by AI, double-checked by humans",
+        "2.7 million foods with proven nutrition data from USDA",
+        "automatically detects and manages your recipes",
+        "add custom foods with pictures of nutrition labels",
+        "easy as texting your mother",
+      ]} />
+      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
       {processedLinkIcons &&
         processedLinkIcons.map((link) => {
           const isActive = location.pathname === link.to;
@@ -72,6 +91,7 @@ function Header({linkIcons, children} : {linkIcons? : PageLinkIcon[], children?:
       <HeaderLinkButton className="tutorial-home-link" to="/try" title="Take a tour">
         <img src={questionMark} alt="Take a tour" width="30" height="30" />
       </HeaderLinkButton>
+      </div>
     </section>
   </header>
   )

@@ -34,13 +34,13 @@ import {
   TutorialEmailFeedback,
   TutorialPrevBtn,
   TutorialNextBtn,
+  TutorialSkipBtn,
   LockedNextWrapper,
   NextLockedOverlay,
   NextLockedCard,
 } from './TutorialStyles';
 
 const steps: TutorialStep[] = [
-  /** 
   new TutorialStep({
     message: 'Nutramap is a one-of-a-kind nutrition tracker designed for ease, accuracy, AND transparency.'
   }),
@@ -113,7 +113,6 @@ const steps: TutorialStep[] = [
     message: 'Now return home.',
     selector: '.tutorial-home-link',
   }),
-  **/
   new TutorialStep({
     message: "Home cooks usually improvise based on what's available...",
   }),
@@ -699,9 +698,15 @@ export default function TryTutorial() {
     ? { ...cardStyle, visibility: 'hidden' }
     : cardStyle;
 
+  const skipTutorial = () => {
+    dispatchMachine({ type: 'STOP' });
+    navigate('/dashboard');
+  };
+
   return (
     <>
       <TutorialGlobalStyles />
+      <TutorialSkipBtn onClick={skipTutorial}>skip tutorial →</TutorialSkipBtn>
       <TutorialDim style={{ zIndex: dimZIndex }} />
 
       {createPortal(
