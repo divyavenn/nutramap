@@ -224,11 +224,9 @@ export const MealToggleBtn = styled.button<{ $expanded?: boolean }>`
   }
 `;
 
-export const MealComponentsWrapper = styled.div<{ $standalone?: boolean; $expanded?: boolean }>`
+export const MealComponentsWrapper = styled.div<{ $standalone?: boolean }>`
   ${p => !p.$standalone && css`
     overflow: hidden;
-    max-height: ${p.$expanded ? '2000px' : '0'};
-    transition: max-height ${p.$expanded ? '0.4s' : '0.3s'} ease;
   `}
 `;
 

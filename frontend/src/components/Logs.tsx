@@ -398,39 +398,73 @@ function LogList (){
                         </LogWrapper>
                       )}
 
-                      {/* Standalone food: always visible. Meal log: collapsible */}
-                      <MealComponentsWrapper
-                        $standalone={isStandaloneFood}
-                        $expanded={isExpanded}
-                        className={(!isStandaloneFood && !log.recipe_id && isExpanded) ? 'tutorial-meal-components' : undefined}
-                      >
-                        {log.components.map((component, idx) => {
-                          const componentId = `${log._id}-${idx}`;
-                          return (
-                            <LogWrapper key={componentId}>
-                              <ComponentLog
-                                component={component}
-                                logId={log._id}
-                                componentIndex={idx}
-                                isStandalone={isStandaloneFood}
-                                hasRecipe={!!log.recipe_id}
-                                logDate={new Date(log.date)}
-                                logServings={log.servings}
-                                onMouseEnter={() => handleLogMouseEnter(componentId, formatLogDescription([component]))}
-                                onMouseLeave={handleLogMouseLeave}
-                              />
-                            </LogWrapper>
-                          );
-                        })}
-                        {/* Add component form for expanded unlinked meals */}
-                        {!isStandaloneFood && !log.recipe_id && isExpanded && (
-                          <LogWrapper>
-                            <MealRowContainer>
-                              <AddComponentForm logId={log._id} onAdd={refreshLogs} />
-                            </MealRowContainer>
-                          </LogWrapper>
-                        )}
-                      </MealComponentsWrapper>
+                      {/* Standalone food: always visible. Meal log: collapsible with spring */}
+                      {isStandaloneFood ? (
+                        <MealComponentsWrapper $standalone={true}>
+                          {log.components.map((component, idx) => {
+                            const componentId = `${log._id}-${idx}`;
+                            return (
+                              <LogWrapper key={componentId}>
+                                <ComponentLog
+                                  component={component}
+                                  logId={log._id}
+                                  componentIndex={idx}
+                                  isStandalone={true}
+                                  hasRecipe={false}
+                                  logDate={new Date(log.date)}
+                                  logServings={log.servings}
+                                  onMouseEnter={() => handleLogMouseEnter(componentId, formatLogDescription([component]))}
+                                  onMouseLeave={handleLogMouseLeave}
+                                />
+                              </LogWrapper>
+                            );
+                          })}
+                        </MealComponentsWrapper>
+                      ) : (
+                        <AnimatePresence initial={false}>
+                          {isExpanded && (
+                            <motion.div
+                              key="components"
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                              style={{ overflow: 'hidden', width: '100%' }}
+                            >
+                              <MealComponentsWrapper
+                                $standalone={false}
+                                className={!log.recipe_id ? 'tutorial-meal-components' : undefined}
+                              >
+                                {log.components.map((component, idx) => {
+                                  const componentId = `${log._id}-${idx}`;
+                                  return (
+                                    <LogWrapper key={componentId}>
+                                      <ComponentLog
+                                        component={component}
+                                        logId={log._id}
+                                        componentIndex={idx}
+                                        isStandalone={false}
+                                        hasRecipe={!!log.recipe_id}
+                                        logDate={new Date(log.date)}
+                                        logServings={log.servings}
+                                        onMouseEnter={() => handleLogMouseEnter(componentId, formatLogDescription([component]))}
+                                        onMouseLeave={handleLogMouseLeave}
+                                      />
+                                    </LogWrapper>
+                                  );
+                                })}
+                                {!log.recipe_id && (
+                                  <LogWrapper>
+                                    <MealRowContainer>
+                                      <AddComponentForm logId={log._id} onAdd={refreshLogs} />
+                                    </MealRowContainer>
+                                  </LogWrapper>
+                                )}
+                              </MealComponentsWrapper>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      )}
                     </DeletingWrapper>
                   </motion.div>
                 );
@@ -441,34 +475,41 @@ function LogList (){
       })}
       </LayoutGroup>
 
-      {selectedRecipe && createPortal(
+      {createPortal(
         <AnimatePresence>
-          <RecipeCard
-            key={selectedRecipe.recipe_id}
-            recipe={selectedRecipe}
-            onClose={() => { setSelectedRecipe(null); setSelectedRecipeLogId(null); }}
-            onDelete={handleDeleteRecipe}
-            onUpdate={handleRecipeUpdate}
-            logId={selectedRecipeLogId ?? undefined}
-            onUnlink={selectedRecipeLogId ? () => handleUnlinkLog(selectedRecipeLogId) : undefined}
-            onSyncLogs={handleSyncLogs}
-          />
+          {selectedRecipe && (
+            <RecipeCard
+              key={selectedRecipe.recipe_id}
+              recipe={selectedRecipe}
+              onClose={() => { setSelectedRecipe(null); setSelectedRecipeLogId(null); }}
+              onDelete={handleDeleteRecipe}
+              onUpdate={handleRecipeUpdate}
+              logId={selectedRecipeLogId ?? undefined}
+              onUnlink={selectedRecipeLogId ? () => handleUnlinkLog(selectedRecipeLogId) : undefined}
+              onSyncLogs={handleSyncLogs}
+            />
+          )}
         </AnimatePresence>,
         document.body
       )}
 
-      {createRecipeLogId && (() => {
-        const log = logs.find(l => l._id === createRecipeLogId);
-        return log ? createPortal(
-          <CreateRecipeModal
-            logId={createRecipeLogId}
-            mealName={log.meal_name}
-            onClose={() => setCreateRecipeLogId(null)}
-            onSuccess={() => setCreateRecipeLogId(null)}
-          />,
-          document.body
-        ) : null;
-      })()}
+      {createPortal(
+        <AnimatePresence>
+          {(() => {
+            const log = createRecipeLogId ? logs.find(l => l._id === createRecipeLogId) : null;
+            return log ? (
+              <CreateRecipeModal
+                key={log._id}
+                logId={log._id}
+                mealName={log.meal_name}
+                onClose={() => setCreateRecipeLogId(null)}
+                onSuccess={() => setCreateRecipeLogId(null)}
+              />
+            ) : null;
+          })()}
+        </AnimatePresence>,
+        document.body
+      )}
     </LogListContainer>
   );
 }

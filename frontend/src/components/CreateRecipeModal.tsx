@@ -3,8 +3,9 @@ import { request } from './endpoints';
 import { useRefreshLogs } from './dashboard_states';
 import { AnimatedText } from './AnimatedText';
 import styled from 'styled-components';
+import { motion } from 'framer-motion';
 
-const Overlay = styled.div`
+const Overlay = styled(motion.div)`
   position: fixed;
   inset: 0;
   background-color: rgba(0, 0, 0, 0.8);
@@ -14,7 +15,7 @@ const Overlay = styled.div`
   z-index: 9000;
 `;
 
-const Modal = styled.div`
+const Modal = styled(motion.div)`
   background: #1c002b;
   border-radius: 16px;
   padding: 40px;
@@ -135,8 +136,20 @@ function CreateRecipeModal({ logId, mealName, onClose, onSuccess }: CreateRecipe
   };
 
   return (
-    <Overlay onClick={onClose}>
-      <Modal onClick={(e) => e.stopPropagation()}>
+    <Overlay
+      onClick={onClose}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.18, ease: 'easeOut' }}
+    >
+      <Modal
+        onClick={(e) => e.stopPropagation()}
+        initial={{ opacity: 0, y: 16, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 12, scale: 0.98 }}
+        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+      >
         <Title>save as recipe</Title>
         <Subtitle>this meal will be linked to a new recipe you can reuse later</Subtitle>
         <form onSubmit={handleSubmit}>

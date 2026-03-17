@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, KeyboardEvent } from 'react'
+import { AnimatePresence, motion } from 'framer-motion';
 import {request} from './endpoints';
 import { tutorialEvent } from './TryTutorial';
 import YesOk from '../assets/images/check_circle.svg?react'
@@ -507,43 +508,63 @@ useEffect(() => {
             </FoodTimeSpace>
           </EditEntryFormBubble>
 
-          {showSuggestions && (
-            <SuggestionsContainer ref={suggestionsRef}>
-              <SuggestionsList
-                onMouseEnter={handleMouseEvent}
-                onMouseLeave={handleMouseEvent}
-                onMouseOver={handleMouseEvent}
-                onMouseMove={handleMouseEvent}
+          <AnimatePresence>
+            {showSuggestions && (
+              <motion.div
+                key="suggestions"
+                initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
               >
-                {suggestions.map((suggestion, index) => (
-                  <SuggestionItem
-                    key={suggestion.food_id}
-                    $selected={index === selectedSuggestionIndex}
-                    onClick={() => handleSuggestionClick(suggestion)}
-                    onMouseEnter={() => setSelectedSuggestionIndex(index)}
+                <SuggestionsContainer ref={suggestionsRef}>
+                  <SuggestionsList
+                    onMouseEnter={handleMouseEvent}
+                    onMouseLeave={handleMouseEvent}
+                    onMouseOver={handleMouseEvent}
+                    onMouseMove={handleMouseEvent}
                   >
-                    {suggestion.food_name}
-                  </SuggestionItem>
-                ))}
-              </SuggestionsList>
-            </SuggestionsContainer>
-          )}
+                    {suggestions.map((suggestion, index) => (
+                      <SuggestionItem
+                        key={suggestion.food_id}
+                        $selected={index === selectedSuggestionIndex}
+                        onClick={() => handleSuggestionClick(suggestion)}
+                        onMouseEnter={() => setSelectedSuggestionIndex(index)}
+                      >
+                        {suggestion.food_name}
+                      </SuggestionItem>
+                    ))}
+                  </SuggestionsList>
+                </SuggestionsContainer>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          {showCalendar && (
-            <CalendarDropdownWrapper
-              onMouseEnter={handleMouseEvent}
-              onMouseLeave={handleMouseEvent}
-              onMouseOver={handleMouseEvent}
-              onMouseMove={handleMouseEvent}
-            >
-              <CalendarDay
-                day={date}
-                handleSelect={handleSelect}
-                isOpen={showCalendar}
-                setIsOpen={setShowCalendar}
-              />
-            </CalendarDropdownWrapper>
-          )}
+          <AnimatePresence>
+            {showCalendar && (
+              <motion.div
+                key="calendar"
+                initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <CalendarDropdownWrapper
+                  onMouseEnter={handleMouseEvent}
+                  onMouseLeave={handleMouseEvent}
+                  onMouseOver={handleMouseEvent}
+                  onMouseMove={handleMouseEvent}
+                >
+                  <CalendarDay
+                    day={date}
+                    handleSelect={handleSelect}
+                    isOpen={showCalendar}
+                    setIsOpen={setShowCalendar}
+                  />
+                </CalendarDropdownWrapper>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </FormDropdownWrapper>
 
         <EditLogSubmitContainer>
