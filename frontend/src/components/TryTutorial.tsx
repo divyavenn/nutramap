@@ -42,7 +42,6 @@ import todayProgressUrl from '../assets/today_progress.png';
 import improveRecipesUrl from '../assets/improve_recipes_1.png'; 
 
 const steps: TutorialStep[] = [
-  /** 
   new TutorialStep({
     message: 'Nutramap is a one-of-a-kind nutrition tracker designed for ease, accuracy, AND transparency.'
   }),
@@ -77,7 +76,6 @@ const steps: TutorialStep[] = [
     selector: '.form-elements-wrapper',
     eventName: 'tutorial:log-created',
   }),
-  **/
   new TutorialStep({
     message: 'Most people have go-to meals they eat over and over, so every recipe is automatically stored here.',
     selector: 'a[href="/myrecipes"]',
