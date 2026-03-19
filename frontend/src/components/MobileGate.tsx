@@ -69,7 +69,7 @@ export default function MobileGate({ children }: { children: React.ReactNode }) 
           nutramap is not mobile-optimized yet — open it on your laptop!
         </Message>
         <DemoLink
-          href="/nutramap_demo.mp4"
+          href="https://1twvpkzw6c4k5zng.public.blob.vercel-storage.com/nutramap_demo.mp4"
           target="_blank"
           rel="noopener noreferrer"
           initial={{ opacity: 0, y: 8 }}
