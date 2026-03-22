@@ -1,13 +1,11 @@
-import { StrictMode } from 'react'
-import {Link} from 'react-router-dom';
-import {Title} from '../components/Title'
-import {Header, MainSection } from '../components/Sections'
-import {LottieAnimation} from '../components/Graphics'
+import { StrictMode, useEffect } from 'react'
+import { Link, useNavigate } from 'react-router-dom';
+import { Title } from '../components/Title'
+import { Header, MainSection } from '../components/Sections'
 import { CopyReelFeature } from '../components/CopyReel';
 import { motion } from 'framer-motion';
 import styled from 'styled-components';
 import foodPanelLogo from '../assets/images/nutramap_logo.png'
-
 
 const IconLogoContainer = styled(motion.div)`
   display: flex;
@@ -15,44 +13,71 @@ const IconLogoContainer = styled(motion.div)`
   margin-bottom: 3rem;
 `;
 
+const WatchLink = styled(motion.a)`
+  display: block;
+  text-align: center;
+  color: var(--dark-blue);
+  font-size: 20px;
+  padding-top: 40px;
+  cursor: pointer;
+  text-decoration: none;
 
-function Home(){
+  &:hover {
+    opacity: 0.75;
+  }
+`;
 
+const isMobile = () => window.innerWidth <= 768;
+
+function Home() {
+  const navigate = useNavigate();
   const features = [
-    "natural language health tracking",
+    "world's first agent-friendly nutrition tracker",
+    "one-click logging",
+    "powered by AI, double-checked by humans",
     "automatically detects and manages your recipes",
     "USDA nutrition data + gram measurements as ground truth",
     "add custom foods effortlessly with pictures of nutrition labels",
     "easy as texting your mother"
   ];
 
+  useEffect(() => {
+    if (!isMobile()) {
+      navigate('/try', { replace: true });
+    }
+  }, [navigate]);
 
-  return(
-  <StrictMode>
-  <Header />
-  <MainSection>
-    <Title/>
-   </MainSection>
-   <MainSection>
-   <IconLogoContainer
+  // Desktop users are redirected via useEffect; this renders only on mobile.
+  return (
+    <StrictMode>
+      <Header />
+      <MainSection>
+        <Title />
+      </MainSection>
+      <MainSection>
+        <IconLogoContainer
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.8, delay: 0.6 }}
-    >
-          <img src={foodPanelLogo}
-         loading="lazy" alt="foodPanelAI logo" className = 'nutramap-logo-large'/>
-     </IconLogoContainer>
-     <CopyReelFeature features={features} />
-  </MainSection>
-<MainSection>
-  <div className="link-text">
-    <Link to="/try">try it</Link>
-  </div>
-  <div className = "link-text">
-    <Link to="/login">or log in</Link>
-  </div>
-  </MainSection>
-  </StrictMode>)
+        >
+          <img src={foodPanelLogo} loading="lazy" alt="nutramap logo" className="nutramap-logo-large" />
+        </IconLogoContainer>
+        <CopyReelFeature features={features} />
+      </MainSection>
+      <MainSection>
+        <WatchLink
+          href="https://1twvpkzw6c4k5zng.public.blob.vercel-storage.com/nutramap_demo.mp4"
+          target="_blank"
+          rel="noopener noreferrer"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.8 }}
+        >
+          watch demo
+        </WatchLink>
+      </MainSection>
+    </StrictMode>
+  );
 }
 
 export default Home

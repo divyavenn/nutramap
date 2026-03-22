@@ -2,7 +2,7 @@
 
 Nutramap is a proof of concept for using LLMs heavily in data pipelines but in a transparent, auditable way. It's also the first ever nutrition tracker with an agentic interface. It can turn any chatbot into the best nutritionist money can buy, guaranteed. The web app is hosted live on nutramap.vercel.app but to test agent capablities you'll have to run it locally. If you'd like to see it in production please add your email to the list.
 
-### Agent Setup
+## Agent Setup
 
 Use this if you want an assistant to chat about meals, ask follow-up questions, and log entries using Nutramap.
 First, clone this repo to your desktop. If you're using Codex or Claude Code, the binary is recommended. If you're using an LLM without
@@ -34,7 +34,8 @@ chmod +x run-mcp.sh
 ./run-mcp.sh
 ```
 
-## 3) LLM Assistant Integration
+
+
 
 ### Claude Code with CLI
 
@@ -44,23 +45,24 @@ Make sure you have the binary installed.
 
 ```bash
 mkdir -p ~/.claude/skills/foodpanel-cli
+```
+
+Now, either copy the skills file over to the claude code's folder...
+
+```bash
 cp /path/to/nutramap/skills/foodpanel-cli/SKILL.md ~/.claude/skills/foodpanel-cli/SKILL.md
 ```
 
-Or symlink so updates to the repo are picked up automatically in every new chat (recommended if you keep the repo at a stable path):
+Or set up symlink so updates to the repo are picked up automatically in every new chat (recommended if you keep the repo at a stable path):
 
 ```bash
-mkdir -p ~/.claude/skills/foodpanel-cli
-ln -sf /path/to/nutramap/skills/foodpanel-cli/SKILL.md ~/.claude/skills/foodpanel-cli/SKILL.md
+ln -sf /Users/divyavenn/Documents/GitHub/nutramap/skills/foodpanel-cli/SKILL.md ~/.claude/skills/foodpanel-cli/SKILL.md
 ```
 
 
-ln -sf /Users/divyavenn/Documents/GitHub/nutramap/skills/foodpanel-cli/SKILL.md ~/.claude/skills/foodpanel-cli/SKILL.md
+2. (Optional but highly recommended) Pre-approve foodpanel commands so Claude Code never prompts for permission:
 
-
-2. (Optional) Pre-approve foodpanel commands so Claude Code never prompts for permission:
-
-Create or edit `.claude/settings.json` in your project root:
+Create or edit `.claude/settings.json`:
 
 ```json
 {
@@ -74,7 +76,7 @@ Create or edit `.claude/settings.json` in your project root:
 ```
 You can also just start claude code and tell claude to do this step.
 
-3. Start Claude Code in your project and invoke the skill:
+3. Restart Claude and invoke the skill:
 
 ```text
 Use $foodpanel-cli for this session. Check what we've eaten today.
@@ -99,16 +101,6 @@ Then start a chat with:
 Use $foodpanel-cli for this session.
 ```
 
-
-## Verify it's running
-In chat, run a simple tool call request like:
-```text
-Use $foodpanel-agent for this session. Call session_info now and show the tool result.
-```
-
-If it returns server info (base_url, has_access_token), MCP is working.
-
-
 ### ChatGPT Desktop
 
 Make sure you have the MCP installed and running. 
@@ -127,24 +119,17 @@ Configure:
 
 Restart ChatGPT Desktop.
 
-Open a dedicated chat for this with the system prompt. 
-
+Open a dedicated chat for this. Put this in the system prompt.
 ```text
-"Use $foodpanel-agent. The user will describe meals they had and ask questions about their nutritional intake. Log their meals, custom foods, and edit the logs, stored recipes, and custom foods according to your conversation. Ask follow up questions if anything is unclear."
+Use $foodpanel-agent for this session.
 ```
 
-Prompt examples:
-
+Check if it works by saying:
 ```text
-I had oatmeal with blueberries and almond butter for breakfast.
-Ask follow-up questions if anything is unclear, then log it.
+Call session_info now and show the tool result.
 ```
 
-```text
-Use $foodpanel-agent. Show my logs and stats for yesterday.
-```
-
-### Claude Code with MCP
+### Claude Code with MCP 
 
 Make sure you have the MCP installed and running. 
 

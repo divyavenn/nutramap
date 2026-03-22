@@ -19,7 +19,7 @@ import {
 } from './Foods.styled';
 import { pendingCustomFoodsAtom, PendingCustomFood } from './account_states';
 import { tutorialEvent } from './TryTutorial';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 
 /**
  * NewFood component for adding custom foods
@@ -296,7 +296,7 @@ function NewFood() {
 
   return (
     <>
-      <FoodFormWrapper ref={formRef} onSubmit={handleProcess}>
+      <FoodFormWrapper ref={formRef} onSubmit={handleProcess} className="form-elements-wrapper">
         <EntryFormBubble>
           <FoodJournalInput
             ref={textareaRef}
@@ -343,6 +343,7 @@ function NewFood() {
 
         {/* Image previews */}
         {imagePreviews.length > 0 && (
+          <LayoutGroup>
           <motion.div layout transition={imageTransition}>
             <ImagesPreviewGrid>
               <AnimatePresence initial={false} mode="popLayout">
@@ -370,6 +371,7 @@ function NewFood() {
               </AnimatePresence>
             </ImagesPreviewGrid>
           </motion.div>
+          </LayoutGroup>
         )}
       </FoodFormWrapper>
     </>

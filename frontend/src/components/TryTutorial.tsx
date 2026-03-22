@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, type CSSProperties } from 're
 import { createPortal } from 'react-dom';
 import { Typewriter } from 'motion-plus/react';
 import { computePosition, flip, offset, shift, type Placement } from '@floating-ui/dom';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useRecoilState, useSetRecoilState } from 'recoil';
 import {
   TutorialStep,
@@ -17,6 +17,7 @@ import { dateRangeAtom, rangeTypeAtom } from './dashboard_states';
 import { getCurrentPeriod, RangeType } from './structures';
 import { request } from './endpoints';
 import nutritionLabelUrl from '../assets/images/nutrition_label.png';
+import { AnimatePresence } from 'framer-motion';
 import {
   TutorialGlobalStyles,
   TutorialDim,
@@ -30,33 +31,46 @@ import {
   TutorialEmailFeedback,
   TutorialPrevBtn,
   TutorialNextBtn,
+  TutorialSkipBtn,
+  LockedNextWrapper,
+  NextLockedOverlay,
+  NextLockedCard,
 } from './TutorialStyles';
-import startClaudeUrl from '../assets/start_claude.png';
-import todayProgressUrl from '../assets/today_progress.png';
-import improveRecipesUrl from '../assets/improve_recipes_1.png';
+
+import startClaudeUrl from '../assets/start_claude.png';                                 
+import todayProgressUrl from '../assets/today_progress.png';                      
+import improveRecipesUrl from '../assets/improve_recipes_1.png'; 
 
 const steps: TutorialStep[] = [
-  
- new TutorialStep({
-    message: 'Nutramap is the first ever nutrition tracker with an agentic interface.',
+  new TutorialStep({
+    message: 'Nutramap is a one-of-a-kind nutrition tracker designed for ease, accuracy, AND transparency.'
   }),
   new TutorialStep({
-    message: 'Use our binary or MCP server + skills file to turn your go-to LLM into an incredible nutritionist.',
-    mediaUrl: startClaudeUrl,
+    message: 'Other nutrition trackers ask you to enter everything manually...',
+    media: { type: 'video', src: '/traditional_trackers.mp4', autoPlay: true, loop: true, muted: true, controls: false },
+  }),
+  new TutorialStep({
+    message: 'Or make a lot of hidden assumptions about how things are made.',
+    media: { type: 'video', src: '/cal_ai.mp4', autoPlay: true, loop: true, muted: true, controls: false },
+  }),
+  new TutorialStep({ message: 'We built a search index over 2.7 million foods whose nutrition info is verified by the USDA...' }),
+  new TutorialStep({
+    message: 'And break your description into recipes with verified ingredients, so we can calculate your intake with unparalleled accuracy.',
+    media: { type: 'video', src: '/nutramap_logging.mp4', autoPlay: true, loop: true, muted: true, controls: false },
+  }),
+  new TutorialStep({
+    message: 'Nutramap is also the first-ever nutrition tracker to have an agentic interface. Use our binary or MCP server + skills file to turn your go-to LLM into an incredible nutritionist.',
+    media: { type: 'image', src: startClaudeUrl },
     link: { label: 'install from our GitHub →', url: 'https://github.com/divyavenn/nutramap' },
   }),
   new TutorialStep({
     message: 'It can log your meals, track your progress, and take the mental load of deciding what to eat off your mind.',
-    mediaUrl: todayProgressUrl,
+    media: { type: 'image', src: todayProgressUrl },
   }),
   new TutorialStep({
     message: "It'll even tell you how to tweak what you already eat to reach your goals better.",
-    mediaUrl: improveRecipesUrl,
+    media: { type: 'image', src: improveRecipesUrl },
   }),
-  new TutorialStep({ message: 'Other nutrition trackers ask you to enter everything manually...'}),
-  new TutorialStep({ message: 'Or make a lot of hidden assumptions about how things are made. Nutramap was built with ease, transparency, and auditability in mind.'}),
-  new TutorialStep({ message: 'We built a search index over 2.7 million foods whose nutrition info is verified by the USDA...'}),
-  new TutorialStep({ message: 'And break your description into recipes with verified ingredients, so we can calculate your intake with unparalleled accuracy.'}),
   new TutorialStep({
     message: "Start by logging a meal. Describe what you ate, like 'matcha latte yesterday' or '500 grams of chocolate and 2 scoops of collagen powder.'",
     selector: '.form-elements-wrapper',
@@ -94,48 +108,31 @@ const steps: TutorialStep[] = [
     message: 'The nutrition label for some cookies is copied to your clipboard. Type in "chocolate chip cookies" + the Paste shortcut.',
     selector: '.form-elements-wrapper',
     eventName: 'tutorial:food-created',
-  }),
-  new TutorialStep({
-    message: 'It will auto-detect nutrition info and use it in recipes and meals!',
-    selector: '.food-tag',
-    eventName: 'tutorial:food-tag-clicked',
-  }),
-  new TutorialStep({
-    message: 'The custom food feature lets you log any vitamins you take, unlike most tracking apps. After all, too much of a nutrient can be as bad as too little.',
-    selector: '.tutorial-food-detail-modal',
-    highlightOnly: true,
+    media: { type: 'image', src: nutritionLabelUrl },
   }),
   new TutorialStep({
     message: 'Now return home.',
     selector: '.tutorial-home-link',
   }),
   new TutorialStep({
-    message: 'Home cooks usually improvise based on what\'s available...',
-    eventName: 'tutorial:recipe-opened',
+    message: "Home cooks usually improvise based on what's available...",
   }),
   new TutorialStep({
     message: 'So you can also change an individual meal without updating the default recipe.',
-    selector: '.tutorial-unlink-btn',
-    highlightOnly: true
-  }),
- new TutorialStep({
-    message: 'click on a meal to edit it.',
-    selector: '.tutorial-meal-with-recipe',
-    eventName: 'tutorial:log-clicked',
   }),
   new TutorialStep({
-    message: 'click the name to see the linked recipe card',
+    message: 'click on a meal name to see the linked recipe',
     selector: '.tutorial-recipe-name-link',
     eventName: 'tutorial:recipe-opened',
   }),
   new TutorialStep({
     message: 'And click unlink.',
-    selector: '.tutorial-recipe-name-link',
-    eventName: 'tutorial:recipe-opened',
+    selector: '.recipe-detail-modal',
+    eventName: 'tutorial:recipe-unlinked',
   }),
   new TutorialStep({
-    message: 'Now you can edit the meal\'s ingredents directly',
-    selector: '.tutorial-meal-without-recipe .tutorial-meal-toggle',
+    message: 'Toggle the meal to view and edit its ingredients directly',
+    selector: '.tutorial-meal-without-recipe',
     eventName: 'tutorial:meal-expanded',
   }),
   new TutorialStep({
@@ -144,39 +141,14 @@ const steps: TutorialStep[] = [
     eventName: 'tutorial:component-added',
   }),
   new TutorialStep({
-    message: 'our nutrition dashboard helps you compares your progress towards your nutrition goals today...',
-    selector: '.today-stats-wrapper .progress-bar-container',
+    message: 'our nutrition dashboard helps you compare your progress towards your nutrition goals today...',
+    selector: '.today-stats-wrapper',
     highlightOnly: true,
   }),
   new TutorialStep({
     message: 'with your monthly average.',
-    selector: '.avg-stats-wrapper .avg-intake',
+    selector: '.avg-intake',
     highlightOnly: true,
-  }),
-  new TutorialStep({
-    message: 'Click on the date divider to see a different day\'s stats...',
-    selector: '.tutorial-day-button',
-    eventName: 'tutorial:day-changed',
-  }),
-  new TutorialStep({
-    message: 'and hover to see the stats for a specific food.',
-    selector: '.log-list',
-    eventName: 'tutorial:log-hovered',
-  }),
-  new TutorialStep({
-    message: 'Click the arrows or the date to see your average intake for a different time period',
-    selector: '.dashboard-menu',
-    eventName: 'tutorial:range-changed',
-  }),
-  new TutorialStep({
-    message: 'Click the edit button on the panel to change the dashboard settings',
-    selector: '.tutorial-nutrient-edit-button',
-    eventName: 'tutorial:editing-panel',
-  }),
-  new TutorialStep({
-    message: 'Try adding a nutrient to track.',
-    selector: '.nutrient-edit-list-wrapper',
-    eventName: 'tutorial:nutrient-added',
   }),
   new TutorialStep({
     message: 'We have 72+ nutrients in our database, everything from protein to PUFAs.',
@@ -184,43 +156,31 @@ const steps: TutorialStep[] = [
     highlightOnly: true,
   }),
   new TutorialStep({
-    message: 'foodPanelAI is currently just a proof of concept. if you\'d like to see it on the App Store, enter your email!',
+    message: 'Click on the edit button to track another nutrient',
+    selector: '.tutorial-nutrient-edit-button',
+    eventName: 'tutorial:editing-panel',
+  }),
+  new TutorialStep({
+    message: 'And add or change a requirement',
+    selector: '.nutrient-edit-list-wrapper',
+    eventName: 'tutorial:nutrient-added',
+  }),
+  new TutorialStep({
+    message: "Nutramap is currently just a proof of concept. if you'd like to see it on the App Store, enter your email!",
   }),
 ];
 
 const TUTORIAL_ACTIVE_ATTR = 'data-tutorial-active';
 const TUTORIAL_APP_EVENT = 'tutorial:app-event';
 
-// Step index of the "try pressing Command+V" step
-const PASTE_STEP = steps.findIndex((s) => s.message.includes('Paste shortcut') || s.message.includes('Command+V'));
-
-type TutorialMediaAssetType =
-  | { type: 'image'; src: string; alt: string }
-  | {
-      type: 'video';
-      src: string;
-      poster?: string;
-      autoPlay?: boolean;
-      loop?: boolean;
-      muted?: boolean;
-      controls?: boolean;
-    };
-
-const tutorialMediaByStep: Record<number, TutorialMediaAssetType> = {};
-if (PASTE_STEP >= 0) {
-  tutorialMediaByStep[PASTE_STEP] = {
-    type: 'image',
-    src: nutritionLabelUrl,
-    alt: 'Sample nutrition label',
-  };
-}
+// Step index of the clipboard-paste step (used to trigger clipboard copy)
+const PASTE_STEP = steps.findIndex((s) => s.message.includes('Paste shortcut'));
 
 /** Load the sample nutrition label image and copy it to the clipboard */
 async function copyNutritionLabelToClipboard() {
   try {
     const response = await fetch(nutritionLabelUrl);
     const blob = await response.blob();
-    // Ensure it's typed as image/png for the Clipboard API
     const pngBlob = new Blob([blob], { type: 'image/png' });
     await navigator.clipboard.write([
       new ClipboardItem({ 'image/png': pngBlob })
@@ -240,6 +200,7 @@ export function tutorialEvent(name: string) {
 
 export default function TryTutorial() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [machineState, setMachineState] = useRecoilState(tutorialMachineAtom);
   const currentStep = Math.max(0, Math.min(machineState.stepIndex, steps.length - 1));
   const isActive = machineState.isActive;
@@ -247,14 +208,15 @@ export default function TryTutorial() {
   const currentSelector = currentCompiledStep.selector;
   const canAdvanceManually = canAdvanceManuallyForStep(currentCompiledStep);
   const interactionLockSelector = lockedInteractionSelector(currentCompiledStep);
-  const currentMedia = currentCompiledStep.mediaUrl
-    ? { type: 'image' as const, src: currentCompiledStep.mediaUrl, alt: '' }
-    : (tutorialMediaByStep[currentStep] ?? null);
-  const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
+  const currentMedia = currentCompiledStep.media;
+  const [dimZIndex, setDimZIndex] = useState<number>(2000);
   const [cardStyle, setCardStyle] = useState<CSSProperties>({});
   const [anchorReady, setAnchorReady] = useState(false);
   const [mailingEmail, setMailingEmail] = useState('');
   const [mailingStatus, setMailingStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [nextTooltipVisible, setNextTooltipVisible] = useState(false);
+  const nextTooltipVisibleRef = useRef(false);
+  const canAdvanceManuallyRef = useRef(canAdvanceManually);
   const machineRef = useRef(machineState);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const setDateRange = useSetRecoilState(dateRangeAtom);
@@ -265,8 +227,9 @@ export default function TryTutorial() {
     setMachineState((prev) => reduceTutorialState(prev, action, steps));
   }, [setMachineState]);
 
-  // Keep ref in sync with state for event handlers with stable subscriptions.
+  // Keep refs in sync with state for event handlers with stable subscriptions.
   useEffect(() => { machineRef.current = machineState; }, [machineState]);
+  useEffect(() => { canAdvanceManuallyRef.current = canAdvanceManually; }, [canAdvanceManually]);
 
   // Reset date range back to current period when the tutorial ends.
   useEffect(() => {
@@ -276,10 +239,6 @@ export default function TryTutorial() {
     }
     wasActiveRef.current = isActive;
   }, [isActive, setDateRange, setRangeType]);
-
-  useEffect(() => {
-    dispatchMachine({ type: 'ROUTE_CHANGED', path: location.pathname });
-  }, [dispatchMachine, location.pathname]);
 
   useEffect(() => {
     if (isActive) {
@@ -292,14 +251,6 @@ export default function TryTutorial() {
       document.body.removeAttribute(TUTORIAL_ACTIVE_ATTR);
     };
   }, [isActive]);
-
-  useEffect(() => {
-    if (!isActive) {
-      setAnchorReady(false);
-      return;
-    }
-    setAnchorReady(!currentSelector);
-  }, [isActive, currentStep, currentSelector]);
 
   const getStepElement = useCallback((selector: string | null) => {
     if (!selector) return null;
@@ -354,19 +305,8 @@ export default function TryTutorial() {
   }, [currentSelector, getStepElement]);
 
   const computeRect = useCallback(() => {
-    if (!currentSelector) {
-      setTargetRect(null);
-      void computeCardPosition();
-      return;
-    }
-    const el = getStepElement(currentSelector);
-    if (el) {
-      setTargetRect(el.getBoundingClientRect());
-    } else {
-      setTargetRect(null);
-    }
     void computeCardPosition();
-  }, [computeCardPosition, currentSelector, getStepElement]);
+  }, [computeCardPosition]);
 
   // Listen for 'start-tutorial' event from anywhere in the app
   useEffect(() => {
@@ -378,6 +318,7 @@ export default function TryTutorial() {
     return () => window.removeEventListener('start-tutorial', handler);
   }, [dispatchMachine]);
 
+
   // Copy a sample nutrition label to clipboard at the paste step
   useEffect(() => {
     if (isActive && currentStep === PASTE_STEP && PASTE_STEP >= 0) {
@@ -385,75 +326,177 @@ export default function TryTutorial() {
     }
   }, [isActive, currentStep]);
 
-  // Recompute tooltip placement after each step render.
+  // Reset anchor state and recompute card position on each step change.
   useEffect(() => {
-    if (!isActive) return;
+    if (!isActive) {
+      setAnchorReady(false);
+      return;
+    }
+    setAnchorReady(!currentSelector); // eagerly show/hide card before positioning completes
     void computeCardPosition();
-  }, [isActive, currentStep, computeCardPosition]);
+  }, [isActive, currentStep, currentSelector, computeCardPosition]);
 
   // Keep the active target above the dim overlay.
   useEffect(() => {
     if (!isActive) return;
     if (!currentSelector) return;
 
-    const lifted: Array<{ node: HTMLElement; position: string; zIndex: string }> = [];
-    const overlayZ = 2000;
+    // Map-based save ensures each node's original styles are captured exactly once.
+    const saved = new Map<HTMLElement, { position: string; zIndex: string; opacity: string; transition: string }>();
+    const dimmed = new Set<HTMLElement>(); // subset of saved that had opacity reduced
+    const hoverListeners: Array<{ el: HTMLElement; enter: () => void; leave: () => void }> = [];
     let retryTimer: number | null = null;
 
-    const resetLift = () => {
-      for (const item of lifted) {
-        item.node.style.position = item.position;
-        item.node.style.zIndex = item.zIndex;
+    const save = (node: HTMLElement) => {
+      if (!saved.has(node)) {
+        saved.set(node, { position: node.style.position, zIndex: node.style.zIndex, opacity: node.style.opacity, transition: node.style.transition });
       }
-      lifted.length = 0;
     };
 
-    const lift = (node: HTMLElement, ensurePosition: boolean) => {
-      lifted.push({ node, position: node.style.position, zIndex: node.style.zIndex });
-      const computed = getComputedStyle(node);
-      if (ensurePosition && computed.position === 'static') {
-        node.style.position = 'relative';
+    const resetLift = () => {
+      for (const [node, s] of saved) {
+        node.style.position = s.position;
+        node.style.zIndex = s.zIndex;
+        node.style.opacity = s.opacity;
+        node.style.transition = s.transition;
       }
-      node.style.zIndex = String(overlayZ + 1);
+      saved.clear();
+      dimmed.clear();
+      for (const { el, enter, leave } of hoverListeners) {
+        el.removeEventListener('mouseenter', enter);
+        el.removeEventListener('mouseleave', leave);
+      }
+      hoverListeners.length = 0;
     };
 
     const createsStackingContext = (node: HTMLElement) => {
-      const style = getComputedStyle(node);
-      if (style.position === 'fixed') return true;
-      if (style.zIndex !== 'auto' && style.position !== 'static') return true;
-      if (style.opacity !== '1') return true;
-      if (style.transform !== 'none') return true;
-      if (style.filter !== 'none') return true;
-      if (style.perspective !== 'none') return true;
-      if (style.isolation === 'isolate') return true;
-      if (style.mixBlendMode !== 'normal') return true;
-      return false;
+      const s = getComputedStyle(node);
+      return (
+        s.position === 'fixed' ||
+        (s.zIndex !== 'auto' && s.position !== 'static') ||
+        s.opacity !== '1' ||
+        s.transform !== 'none' ||
+        s.filter !== 'none' ||
+        s.backdropFilter !== 'none' ||
+        s.perspective !== 'none' ||
+        s.isolation === 'isolate' ||
+        s.mixBlendMode !== 'normal'
+      );
     };
 
-    const applyLift = (attempt = 0) => {
+    let cancelled = false;
+
+    const applyLift = () => {
+      if (cancelled) return;
       resetLift();
-      const el = getStepElement(currentSelector);
-      if (!el) {
-        if (attempt < 12) {
-          retryTimer = window.setTimeout(() => applyLift(attempt + 1), 120);
-        }
+
+      // All visible elements matching the selector (e.g. one .progress-bar-container per row).
+      const targets = Array.from(document.querySelectorAll(currentSelector))
+        .filter((el): el is HTMLElement => el instanceof HTMLElement && el.getClientRects().length > 0);
+
+      if (targets.length === 0) {
+        retryTimer = window.setTimeout(applyLift, 200);
         return;
       }
-      lift(el, true);
-      let parent = el.parentElement;
-      while (parent && parent !== document.body) {
-        if (createsStackingContext(parent)) lift(parent, false);
-        parent = parent.parentElement;
+
+      const primary = targets[0];
+
+      // Compute liftZ from highest ancestor z-index.
+      let maxZ = 0;
+      for (let p: HTMLElement | null = primary.parentElement; p && p !== document.body; p = p.parentElement) {
+        const z = parseInt(getComputedStyle(p).zIndex, 10);
+        if (!isNaN(z)) maxZ = Math.max(maxZ, z);
+      }
+      const liftZ = Math.max(maxZ + 1, 2);
+      setDimZIndex(liftZ - 1);
+
+      // Find the lowest common ancestor of all targets, then find the closest
+      // stacking-context ancestor at or above it — so the container encompasses
+      // every matching element, not just the first one.
+      const getAncestors = (el: HTMLElement): HTMLElement[] => {
+        const chain: HTMLElement[] = [];
+        for (let p: HTMLElement | null = el; p && p !== document.body; p = p.parentElement) chain.push(p);
+        return chain;
+      };
+      let lca: HTMLElement = primary;
+      if (targets.length > 1) {
+        const chain0 = getAncestors(primary);
+        for (const ancestor of chain0) {
+          if (targets.every(t => ancestor.contains(t))) { lca = ancestor; break; }
+        }
+      }
+      let container: HTMLElement | null = null;
+      for (let p: HTMLElement | null = lca; p && p !== document.body; p = p.parentElement) {
+        if (createsStackingContext(p)) { container = p; break; }
+      }
+
+      if (container) {
+        // Lift container and all stacking-context ancestors above it to liftZ.
+        for (let p: HTMLElement | null = container; p && p !== document.body; p = p.parentElement) {
+          if (p === container || createsStackingContext(p)) {
+            save(p);
+            if (getComputedStyle(p).position === 'static') p.style.position = 'relative';
+            p.style.zIndex = String(liftZ);
+          }
+        }
+
+        // Build the set of nodes that should stay fully visible:
+        // each target plus all of its ancestors up to (not including) the container.
+        const targetSet = new Set(targets);
+        const pathSet = new Set<HTMLElement>();
+        for (const t of targets) {
+          for (let n: HTMLElement | null = t; n && n !== container; n = n.parentElement) {
+            pathSet.add(n);
+          }
+        }
+
+        // Walk the container's subtree. Dim everything not in the path.
+        // Stop recursing into targets (their children are always visible).
+        const dimNonPath = (parent: HTMLElement) => {
+          for (const child of parent.children) {
+            if (!(child instanceof HTMLElement)) continue;
+            if (pathSet.has(child)) {
+              if (!targetSet.has(child)) dimNonPath(child);
+            } else {
+              save(child);
+              child.style.transition = 'opacity 0.15s ease';
+              child.style.opacity = '0.07';
+              dimmed.add(child);
+            }
+          }
+        };
+        dimNonPath(container);
+
+        // For each target, hovering it reveals its dimmed siblings (value labels, etc.)
+        for (const t of targets) {
+          const siblings = Array.from(t.parentElement?.children ?? [])
+            .filter((c): c is HTMLElement => c instanceof HTMLElement && c !== t && dimmed.has(c));
+          if (siblings.length === 0) continue;
+          const enter = () => siblings.forEach(s => { s.style.opacity = '1'; });
+          const leave = () => siblings.forEach(s => { s.style.opacity = '0.07'; });
+          t.addEventListener('mouseenter', enter);
+          t.addEventListener('mouseleave', leave);
+          hoverListeners.push({ el: t, enter, leave });
+        }
+
+      } else {
+        // No stacking context — lift all targets directly.
+        for (const t of targets) {
+          save(t);
+          if (getComputedStyle(t).position === 'static') t.style.position = 'relative';
+          t.style.zIndex = String(liftZ);
+        }
       }
     };
 
     applyLift();
 
     return () => {
+      cancelled = true;
       if (retryTimer !== null) window.clearTimeout(retryTimer);
       resetLift();
     };
-  }, [currentSelector, getStepElement, isActive, location.pathname, targetRect]);
+  }, [currentSelector, isActive, location.pathname]);
 
   // Advance on click when step has a selector but no event.
   useEffect(() => {
@@ -523,9 +566,13 @@ export default function TryTutorial() {
       if (cancelled) return;
       const el = getStepElement(currentSelector);
       if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        setTimeout(computeRect, 400);
-      } else if (attempts < 10) {
+        const rect = el.getBoundingClientRect();
+        const inView = rect.top >= 0 && rect.bottom <= window.innerHeight;
+        if (!inView) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        setTimeout(computeRect, inView ? 0 : 400);
+      } else {
         attempts++;
         setTimeout(tryFind, 200);
       }
@@ -534,31 +581,53 @@ export default function TryTutorial() {
     return () => { cancelled = true; };
   }, [computeRect, currentSelector, getStepElement, isActive, location.pathname]);
 
-  // Recalculate on resize/scroll
+// Recalculate on resize/scroll, throttled to one call per animation frame
   useEffect(() => {
     if (!isActive) return;
-    window.addEventListener('resize', computeRect);
-    window.addEventListener('scroll', computeRect, true);
+    let rafId: number | null = null;
+    const throttled = () => {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => { rafId = null; computeRect(); });
+    };
+    window.addEventListener('resize', throttled);
+    window.addEventListener('scroll', throttled, true);
     return () => {
-      window.removeEventListener('resize', computeRect);
-      window.removeEventListener('scroll', computeRect, true);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', throttled);
+      window.removeEventListener('scroll', throttled, true);
     };
   }, [isActive, computeRect]);
 
-  // Pressing Enter attempts manual progression for narrative steps.
+  // Pressing Enter advances narrative steps; Tab while locked-next tooltip is open skips tutorial.
   useEffect(() => {
     if (!isActive) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as Element | null;
+      // Tab while the locked-next tooltip is visible always skips the tutorial,
+      // even if focus is inside an input — check this before any early returns.
+      if (e.key === 'Tab' && nextTooltipVisibleRef.current) {
+        e.preventDefault();
+        dispatchMachine({ type: 'STOP' });
+        navigate('/dashboard');
+        return;
+      }
       if (target && target.closest('.tutorial-email-form')) return;
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
       if (e.key === 'Enter') {
-        dispatchMachine({ type: 'NEXT_MANUAL' });
+        if (canAdvanceManuallyRef.current) {
+          setNextTooltipVisible(false);
+          nextTooltipVisibleRef.current = false;
+          dispatchMachine({ type: 'NEXT_MANUAL' });
+        } else {
+          const next = !nextTooltipVisibleRef.current;
+          setNextTooltipVisible(next);
+          nextTooltipVisibleRef.current = next;
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [dispatchMachine, isActive]);
+  }, [dispatchMachine, isActive, navigate]);
 
   const prev = () => {
     dispatchMachine({ type: 'PREV' });
@@ -611,14 +680,22 @@ export default function TryTutorial() {
   const tutorialMessage = isFinalEmailSubmitted
     ? 'thank you, stay tuned'
     : (hideUntilAnchored ? '' : currentCompiledStep.message);
+  // Card must always sit above the dim (dimZIndex) and the lifted target (dimZIndex+1).
+  const cardZIndex = dimZIndex + 2;
   const tutorialCardStyle: CSSProperties = hideUntilAnchored
-    ? { ...cardStyle, visibility: 'hidden' }
-    : cardStyle;
+    ? { ...cardStyle, visibility: 'hidden', zIndex: cardZIndex }
+    : { ...cardStyle, zIndex: cardZIndex };
+
+  const skipTutorial = () => {
+    dispatchMachine({ type: 'STOP' });
+    navigate('/dashboard');
+  };
 
   return (
     <>
       <TutorialGlobalStyles />
-      <TutorialDim />
+      <TutorialSkipBtn onClick={skipTutorial}>skip tutorial →</TutorialSkipBtn>
+      <TutorialDim style={{ zIndex: dimZIndex }} />
 
       {createPortal(
         <TutorialText
@@ -718,10 +795,40 @@ export default function TryTutorial() {
                 previous
               </TutorialPrevBtn>
             )}
-            {canAdvanceManually && (
-              <TutorialNextBtn onClick={next}>
-                {isLastStep ? 'done' : 'next'}
-              </TutorialNextBtn>
+            {!isLastStep && (
+              <LockedNextWrapper
+                onMouseEnter={() => { if (!canAdvanceManually) { setNextTooltipVisible(true); nextTooltipVisibleRef.current = true; } }}
+                onMouseLeave={() => { setNextTooltipVisible(false); nextTooltipVisibleRef.current = false; }}
+              >
+                <TutorialNextBtn
+                  onClick={canAdvanceManually ? next : undefined}
+                  disabled={!canAdvanceManually}
+                >
+                  next
+                </TutorialNextBtn>
+                <AnimatePresence>
+                  {nextTooltipVisible && !canAdvanceManually && (
+                    <NextLockedOverlay
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <NextLockedCard
+                        initial={{ opacity: 0, scale: 0.96, y: 10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.96, y: 10 }}
+                        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                      >
+                        Finish the task to continue, or press <strong>Tab</strong> to skip the tutorial and explore on your own.
+                      </NextLockedCard>
+                    </NextLockedOverlay>
+                  )}
+                </AnimatePresence>
+              </LockedNextWrapper>
+            )}
+            {isLastStep && canAdvanceManually && (
+              <TutorialNextBtn onClick={next}>done</TutorialNextBtn>
             )}
           </TutorialNav>
         </TutorialText>,

@@ -22,8 +22,6 @@ export const ConfirmModal = styled.div`
   );
   color: oklch(0.924 0.063 295 / 92%);
   font-family: 'Inconsolata', monospace;
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
   box-shadow:
     inset 0 1px 0 oklch(0.924 0.063 295 / 9%),
     0 40px 96px oklch(0 0 0 / 70%),
@@ -69,10 +67,11 @@ export const OptionButton = styled.button<OptionButtonProps>`
   border-bottom-left-radius: ${({ $side }) => $side === 'left' ? '20px' : '0'};
   border-bottom-right-radius: ${({ $side }) => $side === 'right' ? '20px' : '0'};
 
-  &:hover {
+  &:hover, &:focus, &:active {
     transform: translateY(-1px);
     color: oklch(0.637 0.185 295);
-    background-color: oklch(0.924 0.063 295 / 4%);
+    background-color: transparent;
+    outline: none;
   }
 `;
 

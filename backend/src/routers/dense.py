@@ -11,6 +11,12 @@ import faiss
 import math
 import pickle
 
+# Module-level index cache — populated at startup and on first use.
+# Keyed by index_attr / list_attr so it works for both food and nutrient indexes.
+# This is the primary cache when request=None (e.g. background tasks).
+_index_cache: dict = {}
+_id_list_cache: dict = {}
+
 # GPU support for FAISS
 _gpu_resources = None
 _use_gpu = False
@@ -446,10 +452,10 @@ async def find_and_print_matches(text: str, db, user):
     
 def _load_faiss_index(request: Request, index_attr: str, bin_env_var: str, bin_default: str, entity_type: str):
     """
-    Helper function to load FAISS index from app state or bin file.
+    Helper function to load FAISS index from module cache, app state, or bin file.
 
     Args:
-        request: FastAPI request object
+        request: FastAPI request object (may be None for background tasks)
         index_attr: Attribute name in app.state (e.g., 'faiss_index', 'nutrient_faiss_index')
         bin_env_var: Environment variable name for bin path
         bin_default: Default bin file path
@@ -458,20 +464,24 @@ def _load_faiss_index(request: Request, index_attr: str, bin_env_var: str, bin_d
     Returns:
         Loaded FAISS index or None
     """
-    # Check if index is in app state
+    # Module-level cache — avoids disk I/O when request is None (background tasks)
+    if index_attr in _index_cache:
+        return _index_cache[index_attr]
+
+    # App state cache (request-based)
     if request is not None and hasattr(request.app.state, index_attr) and getattr(request.app.state, index_attr) is not None:
         index = getattr(request.app.state, index_attr)
-        print(f"✓ Using {entity_type} FAISS index from app.state ({index.ntotal} vectors)")
+        _index_cache[index_attr] = index  # promote to module cache
         return index
 
-    # Try to load from bin file
+    # Last resort: load from bin file (blocks event loop — only happens once)
     bin_path = os.getenv(bin_env_var, bin_default)
     if os.path.exists(bin_path) and os.path.getsize(bin_path) > 0:
         index = faiss.read_index(bin_path)
         print(f"⚠ Loaded {entity_type} FAISS index from bin file ({index.ntotal} vectors)")
-        # Store in app state for future requests
         if request is not None:
             setattr(request.app.state, index_attr, index)
+        _index_cache[index_attr] = index  # populate module cache
         return index
 
     print(f"⚠ No {entity_type} FAISS index found")
@@ -480,10 +490,10 @@ def _load_faiss_index(request: Request, index_attr: str, bin_env_var: str, bin_d
 
 def _load_id_list(request: Request, list_attr: str, cache_env_var: str, cache_default: str, entity_type: str):
     """
-    Helper function to load ID list from app state or pickle cache.
+    Helper function to load ID list from module cache, app state, or pickle cache.
 
     Args:
-        request: FastAPI request object
+        request: FastAPI request object (may be None for background tasks)
         list_attr: Attribute name in app.state (e.g., 'id_list', 'nutrient_id_list')
         cache_env_var: Environment variable name for cache path
         cache_default: Default cache file path
@@ -492,19 +502,24 @@ def _load_id_list(request: Request, list_attr: str, cache_env_var: str, cache_de
     Returns:
         List of IDs or None
     """
-    # Check if id_list is in app state
+    # Module-level cache — avoids disk I/O when request is None (background tasks)
+    if list_attr in _id_list_cache:
+        return _id_list_cache[list_attr]
+
+    # App state cache (request-based)
     if request is not None and hasattr(request.app.state, list_attr) and getattr(request.app.state, list_attr) is not None:
         id_list = getattr(request.app.state, list_attr)
-        print(f"✓ Using {entity_type}_id_list from app.state ({len(id_list)} entries)")
+        _id_list_cache[list_attr] = id_list  # promote to module cache
         return id_list
 
-    # Load from pickle cache
+    # Last resort: load from pickle cache (blocks event loop — only happens once)
     cache_path = os.getenv(cache_env_var, cache_default)
     if os.path.exists(cache_path):
         with open(cache_path, "rb") as f:
             id_name_map = pickle.load(f)
             id_list = list(id_name_map.keys())
         print(f"⚠ Loaded {entity_type}_id_list from pickle cache ({len(id_list)} entries)")
+        _id_list_cache[list_attr] = id_list  # populate module cache
         return id_list
 
     print(f"⚠ No {entity_type} ID cache found")
@@ -659,11 +674,6 @@ async def find_dense_matches(text: str, db, user, request: Request = None, thres
 
     # Perform search
     return await _search_faiss_index(text, faiss_index, id_list, threshold, limit)
-
-# For standalone execution
-faiss_index = None
-id_list_global = []
-index_generation_in_progress = False
 
 if __name__ == "__main__":
   

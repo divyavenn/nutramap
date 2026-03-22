@@ -1,11 +1,15 @@
 import { atom } from 'recoil';
 
+export type StepMedia =
+  | { type: 'image'; src: string; alt?: string }
+  | { type: 'video'; src: string; poster?: string; autoPlay?: boolean; loop?: boolean; muted?: boolean; controls?: boolean };
+
 type TutorialStepParams = {
   message: string;
   selector?: string | null;
   eventName?: string | null;
   highlightOnly?: boolean;
-  mediaUrl?: string | null;
+  media?: StepMedia | null;
   link?: { label: string; url: string } | null;
 };
 
@@ -14,15 +18,15 @@ export class TutorialStep {
   selector: string | null;
   eventName: string | null;
   highlightOnly: boolean;
-  mediaUrl: string | null;
+  media: StepMedia | null;
   link: { label: string; url: string } | null;
 
-  constructor({ message, selector = null, eventName = null, highlightOnly = false, mediaUrl = null, link = null }: TutorialStepParams) {
+  constructor({ message, selector = null, eventName = null, highlightOnly = false, media = null, link = null }: TutorialStepParams) {
     this.message = message;
     this.selector = selector;
     this.eventName = eventName;
     this.highlightOnly = highlightOnly;
-    this.mediaUrl = mediaUrl;
+    this.media = media;
     this.link = link;
   }
 }
@@ -40,7 +44,7 @@ export interface CompiledTutorialStep {
   selector: string | null;
   eventName: string | null;
   highlightOnly: boolean;
-  mediaUrl: string | null;
+  media: StepMedia | null;
   link: { label: string; url: string } | null;
   kind: TutorialStepKind;
 }
@@ -48,7 +52,6 @@ export interface CompiledTutorialStep {
 export interface TutorialMachineState {
   isActive: boolean;
   stepIndex: number;
-  routePath: string;
   runId: number;
 }
 
@@ -58,13 +61,11 @@ export type TutorialMachineAction =
   | { type: 'PREV' }
   | { type: 'NEXT_MANUAL' }
   | { type: 'TARGET_CLICK'; matchesCurrentTarget: boolean }
-  | { type: 'APP_EVENT'; name: string }
-  | { type: 'ROUTE_CHANGED'; path: string };
+  | { type: 'APP_EVENT'; name: string };
 
 const INITIAL_STATE: TutorialMachineState = {
   isActive: false,
   stepIndex: 0,
-  routePath: '',
   runId: 0,
 };
 
@@ -85,9 +86,9 @@ export function compileTutorialStep(step: TutorialStep): CompiledTutorialStep {
     kind = 'event_only';
   }
 
-  const mediaUrl = step.mediaUrl;
+  const media = step.media ?? null;
   const link = step.link ?? null;
-  return { message, selector, eventName, highlightOnly, mediaUrl, link, kind };
+  return { message, selector, eventName, highlightOnly, media, link, kind };
 }
 
 export function getCompiledStep(steps: TutorialStep[], stepIndex: number): CompiledTutorialStep {
@@ -128,10 +129,6 @@ export function reduceTutorialState(
   action: TutorialMachineAction,
   steps: TutorialStep[]
 ): TutorialMachineState {
-  if (action.type === 'ROUTE_CHANGED') {
-    return { ...state, routePath: action.path };
-  }
-
   if (action.type === 'START') {
     return {
       ...state,

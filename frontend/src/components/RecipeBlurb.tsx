@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import {
   RecipeCardEl,
   RecipeCardHeader,
@@ -30,11 +31,27 @@ interface Recipe {
 interface RecipeBlurbProps {
   recipe: Recipe;
   onClick: () => void;
+  index?: number;
 }
 
-function RecipeBlurb({ recipe, onClick }: RecipeBlurbProps) {
+const MotionRecipeCardEl = motion(RecipeCardEl);
+
+function RecipeBlurb({ recipe, onClick, index = 0 }: RecipeBlurbProps) {
   return (
-    <RecipeCardEl className="recipe-card" onClick={onClick}>
+    <MotionRecipeCardEl
+      className="recipe-card"
+      layout
+      initial={{ opacity: 0, y: 10, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{
+        layout: { type: 'spring', stiffness: 360, damping: 32, mass: 0.7 },
+        opacity: { duration: 0.2 },
+        y: { duration: 0.2 },
+        delay: index * 0.04,
+      }}
+      onClick={onClick}
+    >
       <RecipeCardHeader>
         <RecipeTitleEl>{recipe.description}</RecipeTitleEl>
         <RecipeUsageCount>
@@ -53,7 +70,7 @@ function RecipeBlurb({ recipe, onClick }: RecipeBlurbProps) {
           </MoreIngredients>
         )}
       </RecipeIngredientsPreview>
-    </RecipeCardEl>
+    </MotionRecipeCardEl>
   );
 }
 

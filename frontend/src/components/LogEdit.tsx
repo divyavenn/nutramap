@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, KeyboardEvent } from 'react'
+import { AnimatePresence, motion } from 'framer-motion';
 import {request} from './endpoints';
+import { tutorialEvent } from './TryTutorial';
 import YesOk from '../assets/images/check_circle.svg?react'
 import IsOk from '../assets/images/checkmark.svg?react'
 import Trashcan from '../assets/images/trashcan.svg?react'
@@ -46,6 +48,8 @@ function EditLogForm({food_name, date, amount, weight_in_grams, _id, componentIn
   const [isDeleting, setIsDeleting] = useState(false); // Track deletion animation state
 
   const refreshLogs = useRefreshLogs();
+  // Ref always holds the latest formData so submit handler never reads stale state
+  const formDataRef = useRef(formData);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null); // Timer for debouncing autocomplete
 
@@ -278,10 +282,11 @@ useEffect(() => {
   const handleTyping = async (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
 
-    setFormData(prevData => ({
-      ...prevData,
-      [name]: value,
-    }));
+    setFormData(prevData => {
+      const next = { ...prevData, [name]: value };
+      formDataRef.current = next;
+      return next;
+    });
 
     if (name === 'food_name') {
       // Clear any existing debounce timer
@@ -317,14 +322,13 @@ useEffect(() => {
   };
 
   const handleSuggestionClick = (suggestion: {food_id: string, food_name: string}) => {
-    markValidInput(true)
-    // Update the formData with the selected suggestion, including the food_id
-    setFormData({
-      ...formData,
-      food_name: suggestion.food_name,
-      food_id: suggestion.food_id, // Store the food_id from autocomplete
-    });
-    setShowSuggestions(false); // Hide suggestions after selection
+    markValidInput(true);
+    // Cancel any pending debounce so stale results don't re-show the dropdown
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    const updated = { ...formDataRef.current, food_name: suggestion.food_name, food_id: suggestion.food_id };
+    formDataRef.current = updated;
+    setFormData(updated);
+    setShowSuggestions(false);
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -341,14 +345,15 @@ useEffect(() => {
 
     // Add a delay to show the animation before submitting
     setTimeout(async () => {
+      const current = formDataRef.current;
       const formDataObj = new FormData();
       formDataObj.append('log_id', _id);
-      formDataObj.append('food_name', formData.food_name);
-      formDataObj.append('amount', formData.amount);
+      formDataObj.append('food_name', current.food_name);
+      formDataObj.append('amount', current.amount);
 
       // If we have a food_id from autocomplete, pass it to the backend
-      if (formData.food_id) {
-        formDataObj.append('food_id', formData.food_id);
+      if (current.food_id) {
+        formDataObj.append('food_id', current.food_id);
       }
 
       let response;
@@ -358,6 +363,7 @@ useEffect(() => {
         // Editing a component within a log
         formDataObj.append('component_index', String(componentIndex));
         response = await request('/logs/edit-component', 'POST', formDataObj);
+        tutorialEvent('tutorial:component-added');
       } else {
         // Updating the entire log portion (legacy behavior)
         response = await request('/logs/update-portion', 'POST', formDataObj);
@@ -502,43 +508,63 @@ useEffect(() => {
             </FoodTimeSpace>
           </EditEntryFormBubble>
 
-          {showSuggestions && (
-            <SuggestionsContainer ref={suggestionsRef}>
-              <SuggestionsList
-                onMouseEnter={handleMouseEvent}
-                onMouseLeave={handleMouseEvent}
-                onMouseOver={handleMouseEvent}
-                onMouseMove={handleMouseEvent}
+          <AnimatePresence>
+            {showSuggestions && (
+              <motion.div
+                key="suggestions"
+                initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
               >
-                {suggestions.map((suggestion, index) => (
-                  <SuggestionItem
-                    key={suggestion.food_id}
-                    $selected={index === selectedSuggestionIndex}
-                    onClick={() => handleSuggestionClick(suggestion)}
-                    onMouseEnter={() => setSelectedSuggestionIndex(index)}
+                <SuggestionsContainer ref={suggestionsRef}>
+                  <SuggestionsList
+                    onMouseEnter={handleMouseEvent}
+                    onMouseLeave={handleMouseEvent}
+                    onMouseOver={handleMouseEvent}
+                    onMouseMove={handleMouseEvent}
                   >
-                    {suggestion.food_name}
-                  </SuggestionItem>
-                ))}
-              </SuggestionsList>
-            </SuggestionsContainer>
-          )}
+                    {suggestions.map((suggestion, index) => (
+                      <SuggestionItem
+                        key={suggestion.food_id}
+                        $selected={index === selectedSuggestionIndex}
+                        onClick={() => handleSuggestionClick(suggestion)}
+                        onMouseEnter={() => setSelectedSuggestionIndex(index)}
+                      >
+                        {suggestion.food_name}
+                      </SuggestionItem>
+                    ))}
+                  </SuggestionsList>
+                </SuggestionsContainer>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          {showCalendar && (
-            <CalendarDropdownWrapper
-              onMouseEnter={handleMouseEvent}
-              onMouseLeave={handleMouseEvent}
-              onMouseOver={handleMouseEvent}
-              onMouseMove={handleMouseEvent}
-            >
-              <CalendarDay
-                day={date}
-                handleSelect={handleSelect}
-                isOpen={showCalendar}
-                setIsOpen={setShowCalendar}
-              />
-            </CalendarDropdownWrapper>
-          )}
+          <AnimatePresence>
+            {showCalendar && (
+              <motion.div
+                key="calendar"
+                initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <CalendarDropdownWrapper
+                  onMouseEnter={handleMouseEvent}
+                  onMouseLeave={handleMouseEvent}
+                  onMouseOver={handleMouseEvent}
+                  onMouseMove={handleMouseEvent}
+                >
+                  <CalendarDay
+                    day={date}
+                    handleSelect={handleSelect}
+                    isOpen={showCalendar}
+                    setIsOpen={setShowCalendar}
+                  />
+                </CalendarDropdownWrapper>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </FormDropdownWrapper>
 
         <EditLogSubmitContainer>

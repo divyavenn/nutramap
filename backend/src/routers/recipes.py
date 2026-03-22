@@ -22,6 +22,38 @@ from src.routers.foods import get_food_name, get_user_custom_foods
 
 __package__ = "nutramap.routers"
 
+# ── Embedding model singleton ──────────────────────────────────────────────────
+# Loaded once per process (either at startup via load_embedding_model() or
+# lazily on first use).  Never re-downloaded after the first run because
+# sentence-transformers caches to HF_HOME (~/.cache/huggingface/hub).
+_embedding_model = None
+
+def load_embedding_model():
+    """Load (or no-op if already loaded) the SentenceTransformer model.
+    Call this from the FastAPI lifespan so it warms up before any request arrives.
+    Safe to call from a thread — sentence-transformers is not async-native.
+    """
+    global _embedding_model
+    if _embedding_model is not None:
+        return
+    use_gpu = os.getenv("USE_GPU_EMBEDDINGS", "true").lower() == "true"
+    if not use_gpu:
+        return
+    try:
+        from sentence_transformers import SentenceTransformer
+        import torch
+        print("Loading SentenceTransformer model (BAAI/bge-large-en-v1.5)...")
+        model = SentenceTransformer("BAAI/bge-large-en-v1.5")
+        if torch.cuda.is_available():
+            model = model.to("cuda")
+            print(f"✓ Embedding model on GPU: {torch.cuda.get_device_name(0)}")
+        else:
+            print("✓ Embedding model loaded on CPU")
+        _embedding_model = model
+    except Exception as e:
+        print(f"⚠ Could not pre-load embedding model: {e}")
+
+
 router = APIRouter(
     prefix='/recipes',
     tags=['recipes']
@@ -137,25 +169,15 @@ async def generate_recipe_embedding(description: str) -> List[float]:
 
     try:
         if use_gpu:
-            # Use GPU-accelerated local embedding model
-            from sentence_transformers import SentenceTransformer
-            import torch
-
-            # Load model (cached after first load)
-            model = SentenceTransformer("BAAI/bge-large-en-v1.5")
-
-            # Move to GPU if available
-            if torch.cuda.is_available():
-                model = model.to('cuda')
-
-            # Generate embedding
-            embedding = model.encode(
-                description.lower().strip(),
-                convert_to_numpy=True,
-                normalize_embeddings=True
-            )
-
-            return embedding.tolist()
+            # Use the module-level singleton; load lazily if startup didn't run.
+            load_embedding_model()
+            if _embedding_model is not None:
+                embedding = _embedding_model.encode(
+                    description.lower().strip(),
+                    convert_to_numpy=True,
+                    normalize_embeddings=True,
+                )
+                return embedding.tolist()
         else:
             # Fall back to OpenAI API
             client = _get_client()

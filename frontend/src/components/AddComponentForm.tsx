@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, KeyboardEvent } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import styled from 'styled-components';
 import { request } from './endpoints';
 import { useRefreshLogs } from './dashboard_states';
@@ -128,7 +129,7 @@ function AddComponentForm({ logId, onAdd }: AddComponentFormProps) {
       if (foodId) fd.append('food_id', foodId);
       await request('/logs/add-component', 'POST', fd);
       tutorialEvent('tutorial:component-added');
-      refreshLogs();
+      refreshLogs({ force: true });
       onAdd();
       setFoodName('');
       setFoodId(null);
@@ -208,23 +209,33 @@ function AddComponentForm({ logId, onAdd }: AddComponentFormProps) {
         </FoodPortionSpace>
       </AddFormBubble>
 
-      {showSuggestions && (
-        <SuggestionsContainer ref={suggestionsRef}>
-          <SuggestionsList>
-            {suggestions.map((s, idx) => (
-              <SuggestionItem
-                key={s.food_id}
-                $selected={idx === selectedSuggestionIndex}
-                className="suggestion-item"
-                onClick={() => handleSuggestionClick(s)}
-                onMouseEnter={() => setSelectedSuggestionIndex(idx)}
-              >
-                {s.food_name}
-              </SuggestionItem>
-            ))}
-          </SuggestionsList>
-        </SuggestionsContainer>
-      )}
+      <AnimatePresence>
+        {showSuggestions && (
+          <motion.div
+            key="suggestions"
+            initial={{ opacity: 0, y: -4, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.98 }}
+            transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <SuggestionsContainer ref={suggestionsRef}>
+              <SuggestionsList>
+                {suggestions.map((s, idx) => (
+                  <SuggestionItem
+                    key={s.food_id}
+                    $selected={idx === selectedSuggestionIndex}
+                    className="suggestion-item"
+                    onClick={() => handleSuggestionClick(s)}
+                    onMouseEnter={() => setSelectedSuggestionIndex(idx)}
+                  >
+                    {s.food_name}
+                  </SuggestionItem>
+                ))}
+              </SuggestionsList>
+            </SuggestionsContainer>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </AddFormDropdown>
   );
 }

@@ -84,7 +84,12 @@ function Foods() {
   // Fetch user's custom foods — always force-refresh so navigating back shows latest data
   useEffect(() => {
     if (isLoginExpired()) {
-      navigate('/login');
+      if (sessionStorage.getItem('isTrial') === 'true') {
+        localStorage.removeItem('access_token');
+        navigate('/try', { replace: true });
+      } else {
+        navigate('/login');
+      }
       return;
     }
     refreshAccountInfo();
@@ -276,6 +281,7 @@ function Foods() {
             {foods.map(food => (
               <FoodTag
                 key={food._id}
+                className="food-tag"
                 $selected={selectedFood === food._id}
                 onClick={() => handleFoodClick(food._id)}
               >

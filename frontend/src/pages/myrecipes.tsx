@@ -12,7 +12,7 @@ import { RecipeBlurb } from '../components/RecipeBlurb';
 import { RecipeCard } from '../components/RecipeCard';
 import type { Recipe } from '../components/RecipeBlurb';
 import { tutorialEvent } from '../components/TryTutorial';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
   MyRecipesPage,
@@ -83,7 +83,12 @@ function MyRecipes() {
         }
       } else if (response.status === 401) {
         clearRecipeCaches();
-        navigate('/login', { replace: true, state: { loginError: 'Please log in to view recipes.' } });
+        if (sessionStorage.getItem('isTrial') === 'true') {
+          localStorage.removeItem('access_token');
+          navigate('/try', { replace: true });
+        } else {
+          navigate('/login', { replace: true, state: { loginError: 'Please log in to view recipes.' } });
+        }
       } else if (!usedCachedRecipes) {
         setRecipes([]);
         console.warn('Unexpected /recipes/list response', response.status, response.body);
@@ -171,53 +176,71 @@ function MyRecipes() {
       <Header linkIcons={[{to: "/dashboard", img: <DashboardIcon/>}, {to: '/account', img: <AccountIcon/>}, {to: '/myfoods', img: <FoodBowl/>}, {to: '/myrecipes', img: <RecipesIcon/>}]}/>
       <Heading words={name ? `${name}'s Recipes` : 'Your Recipes'} />
 
-      { loading ?
-      (<LoadingMessage>Loading recipes...</LoadingMessage>)
-      :
-      ( <MyRecipesContainer>
-          <MyRecipesHeader>
-            <CreateRecipeButton
-              onClick={handleCreateRecipe}
-              disabled={creating}
-            >
-              {creating ? 'Creating...' : '+ New Recipe'}
-            </CreateRecipeButton>
-          </MyRecipesHeader>
+      <AnimatePresence mode="wait">
+        {loading ? (
+          <motion.div
+            key="loading"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <LoadingMessage>Loading recipes...</LoadingMessage>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="content"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2 }}
+          >
+            <MyRecipesContainer>
+              <MyRecipesHeader>
+                <CreateRecipeButton
+                  onClick={handleCreateRecipe}
+                  disabled={creating}
+                >
+                  {creating ? 'Creating...' : '+ New Recipe'}
+                </CreateRecipeButton>
+              </MyRecipesHeader>
 
-          {recipes.length === 0 ? (
-            <NoRecipesMessage>
-              <p>You haven't created any recipes yet.</p>
-              <p>Start by logging a meal or creating a new recipe manually!</p>
-            </NoRecipesMessage>
-          ) : (
-            <RecipesGrid>
-              {recipes.map(recipe => (
-                <RecipeBlurb
-                  key={recipe.recipe_id}
-                  recipe={recipe}
-                  onClick={() => handleRecipeClick(recipe)}
-                />
-              ))}
-            </RecipesGrid>
-          )}
+              {recipes.length === 0 ? (
+                <NoRecipesMessage>
+                  <p>You haven't created any recipes yet.</p>
+                  <p>Start by logging a meal or creating a new recipe manually!</p>
+                </NoRecipesMessage>
+              ) : (
+                <LayoutGroup id="recipes-grid">
+                  <RecipesGrid>
+                    {recipes.map((recipe, index) => (
+                      <RecipeBlurb
+                        key={recipe.recipe_id}
+                        recipe={recipe}
+                        index={index}
+                        onClick={() => handleRecipeClick(recipe)}
+                      />
+                    ))}
+                  </RecipesGrid>
+                </LayoutGroup>
+              )}
 
-          <AnimatePresence>
-            {selectedRecipe && (
-              <RecipeCard
-                recipe={selectedRecipe}
-                onClose={handleCloseModal}
-                onDelete={handleDeleteRecipe}
-                onUpdate={() => {
-                  // Invalidate cache and force refresh after recipe updates
-                  clearRecipeCaches();
-                  fetchRecipes(true);
-                }}
-              />
-            )}
-          </AnimatePresence>
-
-        </MyRecipesContainer> )
-    }
+              <AnimatePresence>
+                {selectedRecipe && (
+                  <RecipeCard
+                    recipe={selectedRecipe}
+                    onClose={handleCloseModal}
+                    onDelete={handleDeleteRecipe}
+                    onUpdate={() => {
+                      clearRecipeCaches();
+                      fetchRecipes(true);
+                    }}
+                  />
+                )}
+              </AnimatePresence>
+            </MyRecipesContainer>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </MyRecipesPage>
   );
 }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, KeyboardEvent } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { request } from './endpoints';
 import { useRefreshLogs } from './dashboard_states';
 import { AnimatedText } from './AnimatedText';
@@ -12,6 +13,7 @@ import {
   SuggestionsContainer, SuggestionsList, SuggestionItem, FormDropdownWrapper,
 } from './EditLogStyles';
 import type { LogComponent } from './structures';
+import { tutorialEvent } from './TryTutorial';
 
 interface ComponentLogProps {
   component: LogComponent;
@@ -137,7 +139,7 @@ function ComponentLog({
       fd.append('servings', String(logServings));
       fd.append('date', dateInput.toISOString());
       await request('/logs/edit-recipe-log', 'POST', fd);
-      refreshLogs();
+      refreshLogs({ force: true });
     } catch (error) {
       console.error('Error saving date:', error);
       if (logDate) setDateInput(new Date(logDate));
@@ -192,7 +194,8 @@ function ComponentLog({
       if (response.status === 200 && response.body) {
         setGramsDisplay(response.body.weight_in_grams);
       }
-      refreshLogs();
+      tutorialEvent('tutorial:component-added');
+      refreshLogs({ force: true });
       setIsEditable(false);
     } catch (error) {
       console.error('Error saving component:', error);
@@ -329,23 +332,33 @@ function ComponentLog({
             </FoodPortionSpace>
           </EditEntryFormBubble>
 
-          {showSuggestions && (
-            <SuggestionsContainer ref={suggestionsRef}>
-              <SuggestionsList>
-                {suggestions.map((s, idx) => (
-                  <SuggestionItem
-                    key={s.food_id}
-                    $selected={idx === selectedSuggestionIndex}
-                    className="suggestion-item"
-                    onClick={() => handleSuggestionClick(s)}
-                    onMouseEnter={() => setSelectedSuggestionIndex(idx)}
-                  >
-                    {s.food_name}
-                  </SuggestionItem>
-                ))}
-              </SuggestionsList>
-            </SuggestionsContainer>
-          )}
+          <AnimatePresence>
+            {showSuggestions && (
+              <motion.div
+                key="suggestions"
+                initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <SuggestionsContainer ref={suggestionsRef}>
+                  <SuggestionsList>
+                    {suggestions.map((s, idx) => (
+                      <SuggestionItem
+                        key={s.food_id}
+                        $selected={idx === selectedSuggestionIndex}
+                        className="suggestion-item"
+                        onClick={() => handleSuggestionClick(s)}
+                        onMouseEnter={() => setSelectedSuggestionIndex(idx)}
+                      >
+                        {s.food_name}
+                      </SuggestionItem>
+                    ))}
+                  </SuggestionsList>
+                </SuggestionsContainer>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </FormDropdownWrapper>
       ) : (
         <LogBubble
