@@ -441,26 +441,28 @@ useEffect(() => {
               />
             </S.FoodPortionSpace>
 
-            <S.FoodWeightSpace>
-                {isSavingWeight ? (
-                  <S.AnimatedWeightText>
-                    <AnimatedText text={`${formData.weight_in_grams} g`} />
-                  </S.AnimatedWeightText>
-                ) : (
-                  <>
-                    <S.GramsDisplay
-                      name='weight_in_grams'
-                      type='text'
-                      placeholder='0'
-                      value={formData.weight_in_grams}
-                      onChange={handleTyping}
-                      onBlur={handleWeightBlur}
-                      onKeyDown={handleWeightKeyDown}
-                      required/>
-                    <S.AlignedText> g </S.AlignedText>
-                  </>
-                )}
-            </S.FoodWeightSpace>
+            {componentIndex !== undefined && (
+              <S.FoodWeightSpace>
+                  {isSavingWeight ? (
+                    <S.AnimatedWeightText>
+                      <AnimatedText text={`${formData.weight_in_grams} g`} />
+                    </S.AnimatedWeightText>
+                  ) : (
+                    <>
+                      <S.GramsDisplay
+                        name='weight_in_grams'
+                        type='text'
+                        placeholder='0'
+                        value={formData.weight_in_grams}
+                        onChange={handleTyping}
+                        onBlur={handleWeightBlur}
+                        onKeyDown={handleWeightKeyDown}
+                        required/>
+                      <S.AlignedText> g </S.AlignedText>
+                    </>
+                  )}
+              </S.FoodWeightSpace>
+            )}
 
           </S.IngredientBubble>
 
@@ -488,15 +490,17 @@ useEffect(() => {
         </S.FormDropdownWrapper>
 
 
-        <S.DeleteButtonContainer $hide={isSubmitting}>
-          <S.DeleteButton
-            type="button"
-            onClick={handleDelete}
-            aria-label="Delete ingredient"
-          >
-            ×
-          </S.DeleteButton>
-        </S.DeleteButtonContainer>
+        {componentIndex !== undefined && (
+          <S.DeleteButtonContainer $hide={isSubmitting}>
+            <S.DeleteButton
+              type="button"
+              onClick={handleDelete}
+              aria-label="Delete ingredient"
+            >
+              ×
+            </S.DeleteButton>
+          </S.DeleteButtonContainer>
+        )}
         
       </S.FormContainer>
     ) :
