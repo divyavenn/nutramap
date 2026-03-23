@@ -23,8 +23,8 @@ function EditIngredientForm({food_name, amount, weight_in_grams, food_id, compon
   const [deleted, setDeleted] = useState(false)
   const [formData, setFormData] = useState({
     food_name : food_name,
-    amount: amount || '' || `${weight_in_grams}g`,
-    weight_in_grams : String(weight_in_grams) || '',
+    amount: amount || (weight_in_grams ? `${weight_in_grams}g` : ''),
+    weight_in_grams : weight_in_grams ? String(weight_in_grams) : '',
     food_id: food_id ? String(food_id) : undefined, // Track the food_id
   })
   const [isSubmitting, setIsSubmitting] = useState(false); // Track submission animation state
@@ -46,8 +46,8 @@ function EditIngredientForm({food_name, amount, weight_in_grams, food_id, compon
   useEffect(() => {
     setFormData({
       food_name: food_name,
-      amount: amount || '' || `${weight_in_grams}g`,
-      weight_in_grams: String(weight_in_grams) || '',
+      amount: amount || (weight_in_grams ? `${weight_in_grams}g` : ''),
+      weight_in_grams: weight_in_grams ? String(weight_in_grams) : '',
       food_id: food_id ? String(food_id) : undefined,
     });
   }, [food_name, amount, weight_in_grams, food_id]);
@@ -429,40 +429,58 @@ useEffect(() => {
               )}
             </S.FoodNameSpace>
 
-            <S.FoodPortionSpace>
-              <S.PortionInput
-                name='amount'
-                type='text'
-                placeholder='1 cup'
-                value={formData.amount}
-                onChange={handleTyping}
-                onKeyDown={handleInputKeyDown}
-                required
-              />
-            </S.FoodPortionSpace>
+            <S.FieldsRow>
+              <S.FoodPortionSpace>
+                <S.PortionInput
+                  name='amount'
+                  type='text'
+                  placeholder='1 cup'
+                  value={formData.amount}
+                  onChange={handleTyping}
+                  onKeyDown={handleInputKeyDown}
+                  required
+                />
+              </S.FoodPortionSpace>
 
-            {componentIndex !== undefined && (
-              <S.FoodWeightSpace>
-                  {isSavingWeight ? (
-                    <S.AnimatedWeightText>
-                      <AnimatedText text={`${formData.weight_in_grams} g`} />
-                    </S.AnimatedWeightText>
-                  ) : (
-                    <>
-                      <S.GramsDisplay
-                        name='weight_in_grams'
-                        type='text'
-                        placeholder='0'
-                        value={formData.weight_in_grams}
-                        onChange={handleTyping}
-                        onBlur={handleWeightBlur}
-                        onKeyDown={handleWeightKeyDown}
-                        required/>
-                      <S.AlignedText> g </S.AlignedText>
-                    </>
-                  )}
-              </S.FoodWeightSpace>
-            )}
+              {componentIndex !== undefined ? (
+                <S.FoodWeightSpace>
+                    {isSavingWeight ? (
+                      <S.AnimatedWeightText>
+                        <AnimatedText text={`${formData.weight_in_grams} g`} />
+                      </S.AnimatedWeightText>
+                    ) : (
+                      <>
+                        <S.GramsDisplay
+                          name='weight_in_grams'
+                          type='text'
+                          placeholder='0'
+                          value={formData.weight_in_grams}
+                          onChange={handleTyping}
+                          onBlur={handleWeightBlur}
+                          onKeyDown={handleWeightKeyDown}
+                          required/>
+                        <S.AlignedText> g </S.AlignedText>
+                      </>
+                    )}
+                </S.FoodWeightSpace>
+              ) : (
+                <S.WeightFieldSpacer />
+              )}
+
+              {componentIndex !== undefined ? (
+                <S.DeleteButtonContainer $hide={isSubmitting}>
+                  <S.DeleteButton
+                    type="button"
+                    onClick={handleDelete}
+                    aria-label="Delete ingredient"
+                  >
+                    ×
+                  </S.DeleteButton>
+                </S.DeleteButtonContainer>
+              ) : (
+                <S.DeleteButtonSpacer />
+              )}
+            </S.FieldsRow>
 
           </S.IngredientBubble>
 
@@ -488,19 +506,6 @@ useEffect(() => {
             </S.SuggestionsContainer>
           )}
         </S.FormDropdownWrapper>
-
-
-        {componentIndex !== undefined && (
-          <S.DeleteButtonContainer $hide={isSubmitting}>
-            <S.DeleteButton
-              type="button"
-              onClick={handleDelete}
-              aria-label="Delete ingredient"
-            >
-              ×
-            </S.DeleteButton>
-          </S.DeleteButtonContainer>
-        )}
         
       </S.FormContainer>
     ) :

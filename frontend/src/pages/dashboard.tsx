@@ -211,6 +211,12 @@ function Dashboard() {
         navigate('/dashboard', { replace: true, state: null })
       }
       await refreshAccountInfo()
+      // Prefetch recipes in background so the recipes page loads instantly
+      request('/recipes/list', 'GET').then((res) => {
+        if (res.status === 200 && res.body?.recipes && Array.isArray(res.body.recipes)) {
+          try { localStorage.setItem('recipes_cache', JSON.stringify(res.body.recipes)) } catch {}
+        }
+      })
     }
     void init()
   }, [isLoggedIn, loginBootstrap, navigate, refreshAccountInfo])
