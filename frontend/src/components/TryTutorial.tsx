@@ -77,7 +77,7 @@ const steps: TutorialStep[] = [
     eventName: 'tutorial:log-created',
   }),
   new TutorialStep({
-    message: 'Most people have go-to meals they eat over and over, so every recipe is automatically stored here.',
+    message: 'Click this icon to go to the recipes page. Most people have go-to meals they eat over and over, so every meal is automatically stored as a recipe here.',
     selector: 'a[href="/myrecipes"]',
   }),
   new TutorialStep({
@@ -86,7 +86,7 @@ const steps: TutorialStep[] = [
     eventName: 'tutorial:recipe-opened',
   }),
   new TutorialStep({
-    message: "You can edit or add any ingredient and its amount (in natural language). We'll convert measurements like 1 tsp or 1 pinch to grams, but if you want you can whip out a kitchen scale and edit the exact gram amount as well.",
+    message: "Add an ingredient and its amount (in natural language).",
     selector: '.recipe-detail-modal .ingredients-section',
     eventName: 'tutorial:ingredient-edited',
   }),

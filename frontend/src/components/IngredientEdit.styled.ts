@@ -112,9 +112,9 @@ export const IngredientBubble = styled.div<IngredientBubbleProps>`
   display: flex;
   border-radius: 14px;
   width: 600px;
-  height: auto:
+  height: auto;
   flex-direction: row;
-  align-items: center;
+  align-items: flex-start;
   background-color: transparent;
   color: var(--white);
   justify-content: space-evenly;
@@ -148,6 +148,7 @@ export const FoodNameInput = styled.textarea`
   overflow: hidden;
   min-height: var(--ingredient-input-height);
   line-height: 1.5;
+  padding: 0;
 
   &::placeholder {
     color: rgba(190, 140, 255, 0.5);
@@ -258,10 +259,30 @@ interface SuggestionItemProps {
   $selected?: boolean;
 }
 
+export const FieldsRow = styled.div`
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  min-height: var(--ingredient-input-height);
+`;
+
 export const AlignedText = styled.div`
   font-family: 'Inconsolata', monospace;
   font-size: var(--recipe-card-font-size);
   color: var(--white);
+`;
+
+export const WeightFieldSpacer = styled.div`
+  flex-grow: 0;
+  flex-shrink: 0;
+  width: 90px;
+  margin-left: 10px;
+  padding-right: 20px;
+`;
+
+export const DeleteButtonSpacer = styled.div`
+  width: 40px;
+  margin-left: 40px;
 `;
 
 
