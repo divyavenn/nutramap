@@ -184,7 +184,6 @@ function NewNutrientForm({ original }: { original?: Nutrient }): React.ReactNode
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    console.log("submitting")
     e.preventDefault() // prevent automatic submission
     await submitForm();
   }

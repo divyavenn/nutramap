@@ -63,7 +63,6 @@ const getFoodID = (food_name : string, foodList : Record<string, number | string
     return foodList[food_name]
   }
   catch {
-    console.log("No such food on list")
     throw Error("No such food on list")
   }
 }

@@ -39,7 +39,6 @@ function UpdateInfo({infoType} : {infoType : 'name' | 'email' | 'password'}){
 
   const handleClickOutside = (event: MouseEvent) => {
     if (dialogRef.current && !dialogRef.current.contains(event.target as Node)) {
-      console.log("Refreshing Account Info")
       refreshAccountInfo()
     }
   }
@@ -65,16 +64,12 @@ function UpdateInfo({infoType} : {infoType : 'name' | 'email' | 'password'}){
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    console.log(infoType)
-    console.log(accountInfo)
     let response = await request(`/user/update-${infoType}?new_${infoType}=${accountInfo[infoType]}`, 'POST');
     if (response.status == 401) {
-      console.log("Logged out")
       navigate("/login")
     }
     if (response.status !== 304){
       localStorage.setItem('access_token', await response.body);
-      console.log("token refreshed")
       refreshAccountInfo()
     }
     if (infoType=='password'){
@@ -119,9 +114,7 @@ function CheckPassword({mustAuthenticate, protectedComponent} : {mustAuthenticat
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const response = await request(`/user/check-password?password=${password}`, 'POST')
-    console.log(response.status)
     if (response.status == 200){
-      console.log("arstarst")
       setAuthenticated(true)
     }
     else {

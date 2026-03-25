@@ -7,8 +7,8 @@ import RecipesIcon from '../assets/images/recipes.svg?react'
 import { request } from '../components/endpoints';
 import { useNavigate } from 'react-router-dom';
 import { isLoginExpired } from '../components/utlis';
-import { firstNameAtom, useRefreshAccountInfo, nutrientDetailsByIDAtom, pendingCustomFoodsAtom } from '../components/account_states';
-import { useRecoilValue, useRecoilValueLoadable } from 'recoil';
+import { firstNameAtom, useRefreshAccountInfo, nutrientDetailsByIDAtom, pendingCustomFoodsAtom, foodsAtom } from '../components/account_states';
+import { useRecoilValue, useRecoilValueLoadable, useSetRecoilState } from 'recoil';
 import NewFood from '../components/NewFood';
 import FoodBowl from '../assets/images/food_bowl.svg?react'
 import { NutrientPanel } from '../components/NutrientPanel';
@@ -76,6 +76,7 @@ function Foods() {
   const refreshAccountInfo = useRefreshAccountInfo();
   const navigate = useNavigate();
   const name = useRecoilValue(firstNameAtom);
+  const setFoodsAtom = useSetRecoilState(foodsAtom);
   const nutrientDetailsByIdLoadable = useRecoilValueLoadable(nutrientDetailsByIDAtom);
   const nutrientDetailsById = nutrientDetailsByIdLoadable.state === 'hasValue'
     ? nutrientDetailsByIdLoadable.contents
@@ -202,9 +203,33 @@ function Foods() {
       };
 
       // Update foods list using functional update to ensure we have latest state
+      const previousName = foods.find(f => f._id === selectedFood)?.name;
       setFoods(prevFoods => prevFoods.map(f =>
         f._id === selectedFood ? normalizedFood : f
       ));
+
+      // Update foodsAtom (autocomplete) if name changed
+      if (previousName && previousName !== normalizedFood.name) {
+        setFoodsAtom(prev => {
+          const next = { ...prev };
+          delete next[previousName];
+          next[normalizedFood.name] = normalizedFood._id;
+          return next;
+        });
+      }
+
+      // Incrementally update localStorage cache
+      try {
+        const cached = localStorage.getItem('custom_foods_cache');
+        if (cached) {
+          const arr = JSON.parse(cached);
+          if (Array.isArray(arr)) {
+            localStorage.setItem('custom_foods_cache', JSON.stringify(
+              arr.map((f: any) => f._id === selectedFood ? normalizedFood : f)
+            ));
+          }
+        }
+      } catch (e) {}
 
       // Update nutrient details using cached data
       const details: NutrientInfo[] = Object.keys(normalizedFood.nutrients)
@@ -248,13 +273,46 @@ function Foods() {
         if (!confirmed) return;
       }
 
-      await request(`/food/custom_foods/${foodId}`, 'DELETE');
+      // Optimistic update — snapshot previous state for rollback
+      const previousFoods = foods;
+      const deletedFood = foods.find(f => f._id === foodId);
 
-      try { localStorage.removeItem('custom_foods_cache'); } catch (e) {}
-      setFoods(foods.filter(food => food._id !== foodId));
+      setFoods(prev => prev.filter(food => food._id !== foodId));
       if (selectedFood === foodId) {
         setSelectedFood(null);
         setNutrientsDetails([]);
+      }
+
+      // Update foodsAtom (autocomplete cache) — remove by food name
+      if (deletedFood) {
+        setFoodsAtom(prev => {
+          const next = { ...prev };
+          delete next[deletedFood.name];
+          return next;
+        });
+      }
+
+      // Incrementally update localStorage cache
+      try {
+        const cached = localStorage.getItem('custom_foods_cache');
+        if (cached) {
+          const arr = JSON.parse(cached);
+          if (Array.isArray(arr)) {
+            localStorage.setItem('custom_foods_cache', JSON.stringify(arr.filter((f: any) => f._id !== foodId)));
+          }
+        }
+      } catch (e) {}
+
+      try {
+        await request(`/food/custom_foods/${foodId}`, 'DELETE');
+      } catch (error) {
+        // Revert optimistic update on failure
+        console.error('Error deleting food:', error);
+        setFoods(previousFoods);
+        if (deletedFood) {
+          setFoodsAtom(prev => ({ ...prev, [deletedFood.name]: deletedFood._id }));
+        }
+        try { localStorage.removeItem('custom_foods_cache'); } catch (e) {}
       }
     } catch (error) {
       console.error('Error deleting food:', error);

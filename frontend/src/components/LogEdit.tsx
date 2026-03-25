@@ -219,8 +219,7 @@ useEffect(() => {
       const [hours, minutes] = newTime.split(':').map(Number);
     
       if (isNaN(hours) || isNaN(minutes) || hours > 12 || minutes > 59) {
-        console.log("Invalid Time");
-        return; // Exit the function if the date is invalid
+        return;
       }
 
       // Update the date directly using a copy of formData.date
@@ -255,8 +254,7 @@ useEffect(() => {
       const [year, month, day] = newDate.split('-').map(Number);
 
       if (day < 1 || day > 31 || month < 1 || month > 12) {
-        console.log("Invalid Date");
-        return; // Exit the function if the date is invalid
+        return;
       }
     
       // Update the date directly using a copy of formData.date
@@ -411,7 +409,6 @@ useEffect(() => {
     // Add a delay to show the animation before actually deleting
     setTimeout(async () => {
       await request(`/logs/delete?log_id=${_id}`, 'DELETE')
-      console.log("Log deleted successfully");
       setDeleted(true)
       refreshLogs()
       setFormData({ ...formData, food_name: '', weight_in_grams : ''})

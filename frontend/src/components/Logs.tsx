@@ -51,7 +51,6 @@ function LogList (){
   const logs = useRecoilValue(logsAtom)
   const logsLoading = useRecoilValue(logsLoadingAtom)
   const pendingFoods = useRecoilValue(pendingFoodsAtom)
-  console.log('LogList: pendingFoods =', pendingFoods);
   // Track which log is being hovered
   const [hoveredLog, setHoveredLog] = useRecoilState(hoveredLogAtom);
   // Track if an animation is currently playing
@@ -259,7 +258,6 @@ function LogList (){
   pendingFoods.forEach(food => {
     const dayStart = getDayStart(food.timestamp);
     if (!Number.isFinite(dayStart)) return;
-    console.log('Adding pending food to date group:', new Date(dayStart).toDateString(), food);
     if (!groupedByDay.has(dayStart)) {
       groupedByDay.set(dayStart, {logs: [], pending: []});
     }

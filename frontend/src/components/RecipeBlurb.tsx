@@ -34,7 +34,7 @@ interface RecipeBlurbProps {
   index?: number;
 }
 
-const MotionRecipeCardEl = motion(RecipeCardEl);
+const MotionRecipeCardEl = motion.create(RecipeCardEl);
 
 function RecipeBlurb({ recipe, onClick, index = 0 }: RecipeBlurbProps) {
   return (

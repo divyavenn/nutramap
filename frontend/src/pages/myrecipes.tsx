@@ -133,18 +133,12 @@ function MyRecipes() {
   };
 
   const handleDeleteRecipe = async (recipeId: string) => {
-    console.log('handleDeleteRecipe called with recipeId:', recipeId);
-
     if (!confirm('Are you sure you want to delete this recipe?')) {
-      console.log('Delete cancelled by user');
       return;
     }
 
-    console.log('User confirmed delete, sending request...');
-
     try {
       const response = await request(`/recipes/delete?recipe_id=${recipeId}`, 'DELETE');
-      console.log('Delete response:', response);
 
       // Invalidate cache regardless of result to sync with backend
       clearRecipeCaches();
@@ -156,8 +150,6 @@ function MyRecipes() {
         await fetchRecipes(true);
         return;
       }
-
-      console.log('Delete successful, updating state');
 
       // Remove from local state
       setRecipes(recipes.filter(r => r.recipe_id !== recipeId));

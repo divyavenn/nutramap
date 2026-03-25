@@ -17,7 +17,7 @@ import {
   ImagePreviewEl,
   RemoveImageButton,
 } from './Foods.styled';
-import { pendingCustomFoodsAtom, PendingCustomFood } from './account_states';
+import { pendingCustomFoodsAtom, PendingCustomFood, foodsAtom } from './account_states';
 import { tutorialEvent } from './TryTutorial';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 
@@ -43,6 +43,7 @@ function NewFood() {
 
   const pendingCustomFoods = useRecoilValue(pendingCustomFoodsAtom);
   const setPendingCustomFoods = useSetRecoilState(pendingCustomFoodsAtom);
+  const setFoodsAtom = useSetRecoilState(foodsAtom);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollCountRef = useRef(0);
@@ -96,7 +97,18 @@ function NewFood() {
           } else if (currentCount > knownFoodsCountRef.current) {
             const added = currentCount - knownFoodsCountRef.current;
             knownFoodsCountRef.current = currentCount;
-            try { localStorage.removeItem('custom_foods_cache'); } catch (e) {}
+
+            // Incrementally update caches with the full response
+            try {
+              localStorage.setItem('custom_foods_cache', JSON.stringify(response.body));
+            } catch (e) {}
+            // Update foodsAtom with all custom foods from response
+            const customFoodsMap: Record<string, string> = {};
+            for (const food of response.body) {
+              const name = food?.name ?? food?.food_name ?? '';
+              if (name && food._id) customFoodsMap[name] = food._id;
+            }
+            setFoodsAtom(prev => ({ ...prev, ...customFoodsMap }));
             // Fallback for image-only submissions where pending name is generic.
             // Remove up to `added` oldest generic pending entries.
             setPendingCustomFoods(prev => {
@@ -237,7 +249,6 @@ function NewFood() {
       fileInputRef.current.value = '';
     }
 
-    console.log('Cleared all images'); // Debug log
   };
 
   const handleProcess = async (e: React.FormEvent<HTMLFormElement>) => {

@@ -372,11 +372,9 @@ useEffect(() => {
       if (recipeId) {
         // Deleting a recipe ingredient
         await request(`/recipes/delete-ingredient?recipe_id=${recipeId}&component_index=${componentIndex}`, 'DELETE');
-        console.log("Recipe ingredient deleted successfully");
       } else {
         // Deleting a log
         await request(`/logs/delete?log_id=`, 'DELETE');
-        console.log("Log deleted successfully");
       }
       setDeleted(true)
       refreshLogs()

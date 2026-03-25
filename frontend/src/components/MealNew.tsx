@@ -110,12 +110,7 @@ function NewSmartLog() {
       name: mealDescription,
       timestamp: new Date().toISOString()
     };
-    console.log('Adding pending meal:', pendingMeal);
-    setPendingFoods(prev => {
-      const updated = [...prev, pendingMeal];
-      console.log('Updated pending foods:', updated);
-      return updated;
-    });
+    setPendingFoods(prev => [...prev, pendingMeal]);
 
     // Use the new recipe parsing endpoint
     try {

@@ -87,7 +87,7 @@ function NutrientDashboard(){
   //   40px  = per row (≈30px content + 10px margin-bottom)
   //   48px  = edit button (6px margin-top + 6+30+6px button)
   //   12px  = bottom padding buffer
-  const PANEL_BASE_H = 248; // 100 + 38 + 50 + 48 + 2
+  const PANEL_BASE_H = 268; // 100 + 38 + 50 + 48 + 20 + 12
   const ROW_H = 40;
   const panelHeight = requirements.length > 0
     ? PANEL_BASE_H + requirements.length * ROW_H

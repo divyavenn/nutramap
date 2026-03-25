@@ -50,14 +50,6 @@ async function loadContent(url : string) {
   }
 }
 
-function printDictionary(dictionary: Record<string, any>): void {
-  for (const key in dictionary) {
-    if (dictionary.hasOwnProperty(key)) {
-      console.log(`${key} : ${dictionary[key]}`);
-    }
-  }
-}
-
 function getHeader(authorized : boolean = true, hasData : boolean = false, data_type : 'JSON' | 'URLencode' = 'URLencode'){
   let header : {[key: string]: any} = {}
   if (authorized) {
@@ -86,11 +78,6 @@ function proxy(endpoint : string ) {
 
   if (rawApiUrl && apiUrl !== rawApiUrl) {
     console.warn('Normalized VITE_API_URL due to non-ASCII dash characters.');
-  }
-
-  if (import.meta.env.DEV) {
-    console.log('Environment API URL:', apiUrl);
-    console.log('Full URL:', (apiUrl || '') + endpoint);
   }
 
   if (!apiUrl || apiUrl === 'undefined') {
