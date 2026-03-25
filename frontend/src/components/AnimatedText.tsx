@@ -25,7 +25,7 @@ export function AnimatedText({ text, className = '', speed = 80 }: AnimatedTextP
         timeoutRef.current = setTimeout(() => {
           currentRef.current = 0;
           scheduleNext();
-        }, speed * 14);
+        }, speed * 4);
       } else {
         // Natural jitter: 60–140% of base speed
         let delay = speed * (0.6 + Math.random() * 0.8);

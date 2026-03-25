@@ -211,6 +211,8 @@ function Dashboard() {
         navigate('/dashboard', { replace: true, state: null })
       }
       await refreshAccountInfo()
+      refreshLogs()
+      refreshRequirements()
       // Prefetch recipes in background so the recipes page loads instantly
       request('/recipes/list', 'GET').then((res) => {
         if (res.status === 200 && res.body?.recipes && Array.isArray(res.body.recipes)) {
@@ -219,7 +221,7 @@ function Dashboard() {
       })
     }
     void init()
-  }, [isLoggedIn, loginBootstrap, navigate, refreshAccountInfo])
+  }, [isLoggedIn, loginBootstrap, navigate, refreshAccountInfo, refreshLogs, refreshRequirements])
 
   useEffect(() => {
     if (!loginBootstrap || isLoggedIn) return

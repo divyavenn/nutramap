@@ -21,7 +21,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 function AnimatedRoutes() {
   const location = useLocation();
   return (
-    <AnimatePresence mode="wait" initial={false}>
+    <AnimatePresence mode="sync" initial={false}>
       <motion.div
         key={location.pathname}
         initial={{ opacity: 0, y: 6 }}

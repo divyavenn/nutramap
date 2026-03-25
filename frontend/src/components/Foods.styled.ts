@@ -197,8 +197,6 @@ export const FoodTag = styled.div<FoodTagProps>`
 
   ${({ $pending }) => $pending && css`
     background-color: oklch(0.214 0.038 295 / 60%);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
     cursor: default;
   `}
 
