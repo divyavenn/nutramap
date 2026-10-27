@@ -10,6 +10,7 @@ import {request} from '../components/endpoints'
 import '../assets/css/variables.css'
 import { accountInfoAtom, firstNameAtom} from '../components/account_states';
 import { useNavigate } from 'react-router-dom';
+import { clearUserCaches } from '../components/utlis';
 import { toast } from 'react-toastify';
 import {
   AccountInfoList,
@@ -63,24 +64,46 @@ function AddInfo({infoType} : {infoType : 'name' | 'email' | 'password'}){
 
 function CreateAccountButton(){
   const navigate = useNavigate();
-  const [accountInfo] = useRecoilState(accountInfoAtom)
+  const [accountInfo, setAccountInfo] = useRecoilState(accountInfoAtom)
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    let response = await request('/user/new', 'POST', accountInfo, 'JSON', false);
+    const { name, email, password } = accountInfo;
+    let response = await request('/user/new', 'POST', { name, email, password }, 'JSON', false);
     if (response.status == 400) {
       toast.error("User already exists", {
         position: "top-right",
         className: "custom-toast"
       });
       navigate("/login")
+      return
     }
-    else {
-      const token = response.body.access_token;
-      localStorage.setItem('access_token', token);
-      sessionStorage.removeItem('isTrial');
-      navigate("/dashboard")
+    if (response.status !== 200) {
+      toast.error("Could not create account. Check your details and try again.", {
+        position: "top-right",
+        className: "custom-toast"
+      });
+      return
     }
+    // /user/new returns the created user, not a token — log in to get one.
+    const loginResponse = await request(
+      '/auth/submit_login',
+      'POST',
+      { username: email, password },
+      'URLencode',
+      false
+    );
+    const token = loginResponse.body?.access_token;
+    if (loginResponse.status !== 200 || !token) {
+      navigate("/login")
+      return
+    }
+    // Drop cached recipes/custom foods from any previous (e.g. trial) session.
+    clearUserCaches();
+    localStorage.setItem('access_token', token);
+    sessionStorage.removeItem('isTrial');
+    setAccountInfo({ ...accountInfo, password: '' });
+    navigate("/dashboard")
   }
 
   return (

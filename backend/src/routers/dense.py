@@ -10,6 +10,32 @@ import numpy as np
 import faiss
 import math
 import pickle
+import hashlib
+from bson import ObjectId
+
+_FAISS_ID_MASK = 0x7FFFFFFFFFFFFFFF
+
+
+def faiss_id_for(food_id) -> int:
+    """
+    Deterministic FAISS int64 ID for a food.
+    USDA foods use their integer ID; custom foods (ObjectId / hex string) use a
+    stable sha256-derived ID. Python's built-in hash() is randomized per process
+    (PYTHONHASHSEED), so IDs persisted in the .bin file would not match after a restart.
+    """
+    if isinstance(food_id, (ObjectId, str)):
+        s = str(food_id).strip()
+        if s.isdigit():
+            return int(s)
+        return int.from_bytes(hashlib.sha256(s.encode()).digest()[:8], "big") & _FAISS_ID_MASK
+    return int(food_id)
+
+
+def _legacy_faiss_id_for(food_id):
+    """Process-local hash() ID still used by incremental adds in foods.py."""
+    if isinstance(food_id, (ObjectId, str)) and not str(food_id).strip().isdigit():
+        return hash(str(food_id)) & _FAISS_ID_MASK
+    return None
 
 # Module-level index cache — populated at startup and on first use.
 # Keyed by index_attr / list_attr so it works for both food and nutrient indexes.
@@ -47,6 +73,7 @@ try:
     from ..routers.foods import food_embedding_map, get_foods_list, food_name_map
     from ..routers.auth import get_current_user
     from ..routers.parallel import parallel_process
+    from ..routers.sparse import filter_foods_for_user
 
 # When running this file directly, use absolute imports
 except ImportError:
@@ -57,6 +84,7 @@ except ImportError:
     from src.routers.foods import food_embedding_map, get_foods_list, food_name_map
     from src.routers.auth import get_current_user
     from src.routers.parallel import parallel_process
+    from src.routers.sparse import filter_foods_for_user
 
 
 db = Annotated[Database, Depends(get_data)]
@@ -113,22 +141,12 @@ def remove_from_faiss_index(food_id, request: Request = None):
         faiss_bin_path = os.getenv("FAISS_BIN", "./faiss_index.bin")
         food_id_cache_path = os.getenv("FOOD_ID_CACHE", "./food_ids.pkl")
 
-        # Load the current FAISS index
-        if request and hasattr(request.app.state, 'faiss_index'):
-            index = request.app.state.faiss_index
-            id_list = request.app.state.id_list
-        else:
-            # Load from disk
-            if not os.path.exists(faiss_bin_path):
-                print(f"⚠ FAISS index file not found: {faiss_bin_path}")
-                return False
-
-            index = faiss.read_index(faiss_bin_path)
-
-            # Load id_list from pickle
-            with open(food_id_cache_path, "rb") as f:
-                id_name_map = pickle.load(f)
-            id_list = list(id_name_map.keys())
+        # Load the current FAISS index (same in-memory object used by searches)
+        index = _load_faiss_index(request, 'faiss_index', 'FAISS_BIN', faiss_bin_path, 'food')
+        id_list = _load_id_list(request, 'id_list', 'FOOD_ID_CACHE', food_id_cache_path, 'food') or []
+        if index is None:
+            print(f"⚠ FAISS index not found: {faiss_bin_path}")
+            return False
 
         # Check if index supports removal (IndexIDMap)
         if not isinstance(index, faiss.IndexIDMap):
@@ -136,37 +154,35 @@ def remove_from_faiss_index(food_id, request: Request = None):
             print("  You'll need to rebuild the index instead")
             return False
 
-        # Convert food_id to the ID used in FAISS
-        from bson import ObjectId
-        if isinstance(food_id, ObjectId):
-            # Custom food - use hash of ObjectId string representation
-            faiss_id = hash(str(food_id)) & 0x7FFFFFFFFFFFFFFF
-        elif isinstance(food_id, str):
-            # String representation of ObjectId
-            faiss_id = hash(food_id) & 0x7FFFFFFFFFFFFFFF
-        else:
-            # USDA food - use the integer ID directly
-            faiss_id = int(food_id)
+        # Convert food_id to the ID(s) used in FAISS (deterministic + legacy hash())
+        faiss_ids = [faiss_id_for(food_id)]
+        legacy_id = _legacy_faiss_id_for(food_id)
+        if legacy_id is not None:
+            faiss_ids.append(legacy_id)
 
         # Remove from FAISS index
-        ids_to_remove = np.array([faiss_id], dtype=np.int64)
+        ids_to_remove = np.array(faiss_ids, dtype=np.int64)
         removed_count = index.remove_ids(ids_to_remove)
 
         if removed_count > 0:
             print(f"✓ Removed food_id {food_id} from FAISS index")
 
-            # Update id_list
-            if food_id in id_list:
-                id_list.remove(food_id)
-                if request:
-                    request.app.state.id_list = id_list
+            # id_list / pickle may hold the ID as int, str or ObjectId
+            key_variants = {food_id, str(food_id)}
+            if isinstance(food_id, str) and ObjectId.is_valid(food_id):
+                key_variants.add(ObjectId(food_id))
+
+            # Update id_list (in place, shared with module cache / app state)
+            for key in key_variants:
+                while key in id_list:
+                    id_list.remove(key)
 
             # Update pickle cache
-            if food_id_cache_path:
+            if food_id_cache_path and os.path.exists(food_id_cache_path):
                 with open(food_id_cache_path, "rb") as f:
                     id_name_map = pickle.load(f)
-                if food_id in id_name_map:
-                    del id_name_map[food_id]
+                for key in key_variants:
+                    id_name_map.pop(key, None)
                 with open(food_id_cache_path, "wb") as f:
                     pickle.dump(id_name_map, f)
                 print(f"✓ Updated food ID cache")
@@ -208,7 +224,18 @@ async def update_faiss_index(db=None, user=None, request: Request = None):
         print("Building FAISS index for foods...")
         print("="*50)
 
-        embedding_id_map = await food_embedding_map(db, user)
+        # Index every food that has an embedding (USDA + all users' custom foods).
+        # Per-user scoping is applied at search time, so a rebuild triggered by one
+        # user (or by the system) must not drop other users' custom foods. Foods
+        # without an embedding are skipped instead of raising KeyError.
+        embedding_id_map = {
+            food["_id"]: food["embedding"]
+            for food in db.foods.find(
+                {"embedding": {"$exists": True, "$ne": None}},
+                {"_id": 1, "embedding": 1}
+            ).sort("_id", 1)
+            if food.get("embedding")
+        }
 
         if not embedding_id_map:
             print("No food embeddings found in database")
@@ -295,18 +322,7 @@ async def update_faiss_index(db=None, user=None, request: Request = None):
         # Add vectors to the index with IDs
         # Convert food_ids to numpy array of int64
         # For custom foods (ObjectId), use hash as ID
-        from bson import ObjectId
-        ids = []
-        for food_id in food_ids:
-            if isinstance(food_id, ObjectId):
-                # Custom food - use hash of ObjectId string representation
-                ids.append(hash(str(food_id)) & 0x7FFFFFFFFFFFFFFF)  # Ensure positive int64
-            elif isinstance(food_id, str):
-                # Already a string (shouldn't happen, but handle it)
-                ids.append(hash(food_id) & 0x7FFFFFFFFFFFFFFF)
-            else:
-                # USDA food - use the integer ID directly
-                ids.append(int(food_id))
+        ids = [faiss_id_for(food_id) for food_id in food_ids]
 
         ids_array = np.array(ids, dtype=np.int64)
         index.add_with_ids(embedding_matrix, ids_array)
@@ -321,6 +337,9 @@ async def update_faiss_index(db=None, user=None, request: Request = None):
         if request is not None:
             request.app.state.faiss_index = index
             print(f"✓ Stored foods FAISS index in app.state ({index.ntotal} vectors)")
+        # Keep module cache in sync so background searches (request=None) see the rebuild
+        _index_cache['faiss_index'] = index
+        _id_list_cache['id_list'] = food_ids
 
         print(f"✓ Finished building FAISS index for foods ({index.ntotal} vectors)")
 
@@ -391,6 +410,8 @@ async def update_faiss_index(db=None, user=None, request: Request = None):
                 request.app.state.nutrient_faiss_index = nutrient_index
                 request.app.state.nutrient_id_list = nutrient_id_list
                 print(f"✓ Stored nutrient FAISS index in app.state ({nutrient_index.ntotal} vectors)")
+            _index_cache['nutrient_faiss_index'] = nutrient_index
+            _id_list_cache['nutrient_id_list'] = nutrient_id_list
 
             print(f"✓ Finished building FAISS index for nutrients ({nutrient_index.ntotal} vectors)")
 
@@ -439,7 +460,7 @@ async def find_and_print_matches(text: str, db, user):
     try:
         top_matches = await find_dense_matches(text, db, user, None, 40, 20)
         
-        food_names = await food_name_map(db, user)
+        food_names = await food_name_map(None, db, user)
         print("Top matches:")
         for food_id, similarity_score in top_matches.items():
             food_name = food_names.get(food_id, "Unknown Food")
@@ -464,15 +485,15 @@ def _load_faiss_index(request: Request, index_attr: str, bin_env_var: str, bin_d
     Returns:
         Loaded FAISS index or None
     """
+    # App state is authoritative when available (incremental adds/rebuilds update it)
+    if request is not None and getattr(request.app.state, index_attr, None) is not None:
+        index = getattr(request.app.state, index_attr)
+        _index_cache[index_attr] = index  # keep module cache in sync
+        return index
+
     # Module-level cache — avoids disk I/O when request is None (background tasks)
     if index_attr in _index_cache:
         return _index_cache[index_attr]
-
-    # App state cache (request-based)
-    if request is not None and hasattr(request.app.state, index_attr) and getattr(request.app.state, index_attr) is not None:
-        index = getattr(request.app.state, index_attr)
-        _index_cache[index_attr] = index  # promote to module cache
-        return index
 
     # Last resort: load from bin file (blocks event loop — only happens once)
     bin_path = os.getenv(bin_env_var, bin_default)
@@ -502,15 +523,15 @@ def _load_id_list(request: Request, list_attr: str, cache_env_var: str, cache_de
     Returns:
         List of IDs or None
     """
+    # App state is authoritative when available (incremental adds/rebuilds update it)
+    if request is not None and getattr(request.app.state, list_attr, None) is not None:
+        id_list = getattr(request.app.state, list_attr)
+        _id_list_cache[list_attr] = id_list  # keep module cache in sync
+        return id_list
+
     # Module-level cache — avoids disk I/O when request is None (background tasks)
     if list_attr in _id_list_cache:
         return _id_list_cache[list_attr]
-
-    # App state cache (request-based)
-    if request is not None and hasattr(request.app.state, list_attr) and getattr(request.app.state, list_attr) is not None:
-        id_list = getattr(request.app.state, list_attr)
-        _id_list_cache[list_attr] = id_list  # promote to module cache
-        return id_list
 
     # Last resort: load from pickle cache (blocks event loop — only happens once)
     cache_path = os.getenv(cache_env_var, cache_default)
@@ -560,13 +581,15 @@ async def _search_faiss_index(query_text: str, faiss_index, id_list, threshold: 
     faiss_id_to_food_id = {}
     if is_id_map:
         for food_id in id_list:
-            if isinstance(food_id, str):
-                # Custom food - map hash to food_id
-                faiss_id = hash(food_id) & 0x7FFFFFFFFFFFFFFF
-                faiss_id_to_food_id[faiss_id] = food_id
-            elif isinstance(food_id, int):
+            if isinstance(food_id, (str, ObjectId)) and not str(food_id).strip().isdigit():
+                # Custom food - always return the string form so it merges with
+                # sparse (Typesense) results, which use string IDs for custom foods
+                result_food_id = str(food_id)
+                faiss_id_to_food_id[faiss_id_for(food_id)] = result_food_id
+                faiss_id_to_food_id[_legacy_faiss_id_for(food_id)] = result_food_id
+            else:
                 # USDA food - direct mapping
-                faiss_id_to_food_id[food_id] = food_id
+                faiss_id_to_food_id[int(food_id)] = int(food_id)
 
     # Process search results in parallel
     async def process_result(idx):
@@ -672,8 +695,9 @@ async def find_dense_matches(text: str, db, user, request: Request = None, thres
     if id_list is None:
         return {}
 
-    # Perform search
-    return await _search_faiss_index(text, faiss_index, id_list, threshold, limit)
+    # Perform search, then drop other users' custom foods (the index is shared)
+    results = await _search_faiss_index(text, faiss_index, id_list, threshold, limit)
+    return filter_foods_for_user(results, db, user)
 
 if __name__ == "__main__":
   

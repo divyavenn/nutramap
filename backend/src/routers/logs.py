@@ -48,14 +48,13 @@ def get_logs_for_day(user, date: datetime, user_db):
         # Set the start of the day (00:00:00) for the given date
     start_of_day = datetime(date.year, date.month, date.day)
 
-    # Set the end of the day (23:59:59) for the given date
-    end_of_day = start_of_day + timedelta(days=1) - timedelta(seconds=1)
-    # print("start: " + str(start_of_day) + "end: " + str(end_of_day))
-    
+    # Use a half-open interval [start, next day) so logs in the final second aren't dropped
+    next_day = start_of_day + timedelta(days=1)
+
     query = {"user_id": user["_id"],
              "date": {
                  "$gte": start_of_day,
-                 "$lte": end_of_day
+                 "$lt": next_day
              }}
     logs = user_db.logs.find(query)
     return logs
@@ -296,6 +295,15 @@ def make_log_readable(logs, db, request: Request = None, user_id=None):
         log.pop("user_id", None)
     return logs
               
+def _sum_component_weights(components: List[Dict[str, Any]]) -> float:
+    total = 0.0
+    for component in components or []:
+        try:
+            total += float(component.get("weight_in_grams") or 0)
+        except (TypeError, ValueError):
+            continue
+    return total
+
 def count_unique_days(logs: List[Log]) -> int:
     unique_days = set()
     for log in logs:
@@ -340,18 +348,31 @@ async def new_log(
     recipe_id: str = Form(None),
     recipe_servings: str = Form(None)
 ):
+    if not can_create_log(db, user):
+        raise HTTPException(status_code=403, detail="Trial users are limited to 10 logs.")
     try:
+        normalized_food_id = _normalize_food_lookup_id(food_id)
+        grams = float(weight_in_grams)
+        servings = float(recipe_servings) if recipe_servings else 1.0
+        # Store in the component-based format: the dashboard and the nutrient
+        # aggregation only read logs that have a `components` array.
         log_data = {
-            "food_id": _normalize_food_lookup_id(food_id),
-            "amount": amount,
-            "weight_in_grams": float(weight_in_grams),
-            "date": datetime.fromisoformat(date),
+            "user_id": user["_id"],
+            "_id": ObjectId(),
+            "meal_name": str(get_food_name(normalized_food_id, db, None)).strip("(')',"),
             "recipe_id": recipe_id if recipe_id else None,
-            "recipe_servings": float(recipe_servings) if recipe_servings else None,
+            "servings": servings,
+            "date": datetime.fromisoformat(date),
+            "components": [{
+                "food_id": normalized_food_id,
+                "amount": amount,
+                "weight_in_grams": grams,
+            }],
+            "logged_weight_grams": grams,
         }
-        return await add_log(user=user, log=log_data, db=db)
     except ValueError:
         raise HTTPException(status_code=400)
+    return await add_log(user=user, log=log_data, db=db)
 
 async def add_log(user: user, log, db: db):
     # Check if log is a dictionary or a Log object
@@ -385,11 +406,13 @@ async def add_log(user: user, log, db: db):
         }
 
         valid_components: List[Dict[str, Any]] = []
+        dropped_weight = 0.0
         for component in components_with_normalized_ids:
             component_food_id = component.get("_normalized_food_id")
             canonical_name = existing_foods.get(component_food_id)
             if not canonical_name:
                 print(f"Warning: skipping component with missing food ID {component_food_id}")
+                dropped_weight += float(component.get("weight_in_grams") or 0)
                 continue
             component["food_id"] = component_food_id
             if not component.get("food_name"):
@@ -400,6 +423,9 @@ async def add_log(user: user, log, db: db):
         log_dict["components"] = valid_components
         if not valid_components:
             raise HTTPException(status_code=404, detail="No valid food components found for this log")
+        # Keep the total consumed weight consistent with the components actually stored
+        if dropped_weight > 0 and log_dict.get("logged_weight_grams"):
+            log_dict["logged_weight_grams"] = _sum_component_weights(valid_components)
     # Old format validation (for backward compatibility with /logs/new endpoint)
     elif "food_id" in log_dict:
         food_id = log_dict.get("food_id")
@@ -415,6 +441,10 @@ async def add_log(user: user, log, db: db):
         # set log ID to current logged in user
         log_dict["user_id"] = user["_id"]
         log_dict["_id"] = ObjectId()  # Ensure it is unique
+    elif not log_dict.get("user_id"):
+        # Dict callers must still be owned by a user, otherwise the log is
+        # invisible to every user-scoped query.
+        log_dict["user_id"] = user["_id"]
 
     db.logs.insert_one(log_dict)
     
@@ -452,7 +482,7 @@ def edit_log(user: user, db: db, update_info: LogEdit):
 
     # Update the fields in the log
     update_data = {
-        "food_id": update_info.food_id,
+        "food_id": _normalize_food_lookup_id(update_info.food_id),
         "amount": update_info.amount,
         "weight_in_grams": update_info.weight_in_grams,
         "date": update_info.date
@@ -491,10 +521,23 @@ async def update_portion(
     weight_in_grams = await estimate_grams(food_name, amount)
 
     # Update both amount and weight_in_grams
-    update_data = {
-        "amount": amount,
-        "weight_in_grams": weight_in_grams
-    }
+    components = target_log.get("components")
+    if isinstance(components, list) and len(components) == 1:
+        # Component-format standalone log: the portion lives on the single component.
+        updated_component = dict(components[0])
+        updated_component["amount"] = amount
+        updated_component["weight_in_grams"] = weight_in_grams
+        update_data = {
+            "components": [updated_component],
+            "logged_weight_grams": weight_in_grams,
+        }
+    elif isinstance(components, list) and components:
+        raise HTTPException(status_code=400, detail="Use /logs/edit-component for multi-component logs.")
+    else:
+        update_data = {
+            "amount": amount,
+            "weight_in_grams": weight_in_grams
+        }
 
     # Perform the update operation
     result = db.logs.update_one({"_id": target_log["_id"]}, {"$set": update_data})
@@ -514,8 +557,9 @@ def day_intake(date: datetime, user: user, db : db):
     
     start_of_day = datetime(date.year, date.month, date.day)
 
-    # Set the end of the day (23:59:59) for the given date
-    end_of_day = start_of_day + timedelta(days=1) - timedelta(seconds=1)
+    # End of day inclusive down to Mongo's millisecond precision (23:59:59.999),
+    # so logs in the final second of the day are still counted.
+    end_of_day = start_of_day + timedelta(days=1) - timedelta(milliseconds=1)
     
     requirements = db.requirements.find({"user_id" : user["_id"]})
     nutrient_ids = [r["nutrient_id"] for r in requirements]
@@ -601,8 +645,16 @@ def edit_recipe_log(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format")
 
-    # Calculate the ratio of new servings to old servings
-    old_servings = target_log.get("servings", 1.0)
+    if not (servings > 0):
+        raise HTTPException(status_code=400, detail="Servings must be greater than 0.")
+
+    # Calculate the ratio of new servings to old servings.
+    # Legacy logs may have servings missing/None (treat as 1); a stored 0 can't be
+    # scaled from, so leave components untouched in that case.
+    try:
+        old_servings = float(target_log.get("servings") if target_log.get("servings") is not None else 1.0)
+    except (TypeError, ValueError):
+        old_servings = 1.0
     servings_ratio = servings / old_servings if old_servings > 0 else 1.0
 
     # Update component weights and amounts proportionally
@@ -610,14 +662,22 @@ def edit_recipe_log(
     if "components" in target_log:
         for component in target_log["components"]:
             updated_component = component.copy()
-            updated_component["weight_in_grams"] = component["weight_in_grams"] * servings_ratio
+            updated_component["weight_in_grams"] = float(component.get("weight_in_grams") or 0) * servings_ratio
             if component.get("amount"):
                 from src.routers.parse import scale_portion_text
                 updated_component["amount"] = scale_portion_text(component["amount"], servings_ratio)
             updated_components.append(updated_component)
 
-    # Update the log
-    total_weight_grams = sum(float(c.get("weight_in_grams", 0) or 0) for c in updated_components)
+    # Update the log: scale the stored total consumed weight by the same ratio
+    # (it may legitimately differ from the component sum); fall back to the sum.
+    try:
+        old_logged_weight = float(target_log.get("logged_weight_grams") or 0)
+    except (TypeError, ValueError):
+        old_logged_weight = 0.0
+    if old_logged_weight > 0:
+        total_weight_grams = old_logged_weight * servings_ratio
+    else:
+        total_weight_grams = _sum_component_weights(updated_components)
 
     update_data = {
         "servings": servings,
@@ -690,9 +750,19 @@ async def add_component(
         "weight_in_grams": weight_in_grams
     }
 
+    updated_components = list(target_log.get("components", [])) + [new_component]
+    update_data = {
+        "components": updated_components,
+        "logged_weight_grams": _sum_component_weights(updated_components),
+    }
+    # Customizing the meal means it no longer matches the recipe; unlink so
+    # recipe sync doesn't silently overwrite the added ingredient.
+    if target_log.get("recipe_id"):
+        update_data["recipe_id"] = None
+
     result = db.logs.update_one(
         {"_id": target_log["_id"]},
-        {"$push": {"components": new_component}}
+        {"$set": update_data}
     )
 
     if result.matched_count == 0:
@@ -731,9 +801,16 @@ def delete_component(
         return {"status": "deleted_log"}
 
     components.pop(component_index)
+    update_data = {
+        "components": components,
+        "logged_weight_grams": _sum_component_weights(components),
+    }
+    # Removing an ingredient customizes the meal; unlink so recipe sync doesn't restore it.
+    if target_log.get("recipe_id"):
+        update_data["recipe_id"] = None
     db.logs.update_one(
         {"_id": target_log["_id"]},
-        {"$set": {"components": components}}
+        {"$set": update_data}
     )
 
     return {"status": "success", "remaining_components": len(components)}
@@ -761,7 +838,7 @@ async def edit_component(
         raise HTTPException(status_code=404, detail="Log not found.")
 
     # Verify the component index exists
-    if "components" not in target_log or component_index >= len(target_log["components"]):
+    if "components" not in target_log or component_index < 0 or component_index >= len(target_log["components"]):
         raise HTTPException(status_code=400, detail="Invalid component index.")
 
     # Get the original component
@@ -825,8 +902,11 @@ async def edit_component(
         "weight_in_grams": weight_in_grams
     }
 
-    # Prepare the update data
-    update_data = {"components": updated_components}
+    # Prepare the update data (keep the stored total weight consistent with components)
+    update_data = {
+        "components": updated_components,
+        "logged_weight_grams": _sum_component_weights(updated_components),
+    }
 
     # If this log has a recipe_id, unlink it from the recipe
     # When a user edits a component, they're customizing the meal, so it should no longer be linked to the recipe

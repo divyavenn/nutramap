@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, startTransition} from 'react';
-import { calculateColor, formatDayForFrontend} from './utlis';
+import { calculateColor, formatDayForFrontend, formatQuantity} from './utlis';
 import addIcon from '../assets/images/add.svg'
 import { NewNutrientForm } from './NutrientEdit';
 import {useRecoilValue, useRecoilValueLoadable} from 'recoil'
@@ -291,12 +291,22 @@ function NutrientStatRow({ name, target, dayIntake = 0, avgIntake = 0, shouldExc
   const [hoveredName, setHoveredName] = useState(false);
   const hoveredLog = useRecoilValue(hoveredLogAtom);
 
-  // Calculate the progress percentage
-  const progressPercentage = Math.min((dayIntake / target) * 100, 100);
+  // Calculate the progress percentage (guard target <= 0, which would give NaN/Infinity)
+  const safeDay = Number.isFinite(Number(dayIntake)) ? Number(dayIntake) : 0;
+  const safeAvg = Number.isFinite(Number(avgIntake)) ? Number(avgIntake) : 0;
+  const pct = (value: number) => (target > 0 ? (value / target) * 100 : (value > 0 ? 100 : 0));
+  const progressPercentage = Math.min(pct(safeDay), 100);
   const progressColor = calculateColor(progressPercentage, shouldExceed);
 
   // Determine the average intake color based on the same rules as above
-  const avgColor = calculateColor((avgIntake / target) * 100, shouldExceed);
+  const avgColor = calculateColor(pct(safeAvg), shouldExceed);
+
+  // toFixed(0) showed e.g. 0.4 mg of a vitamin as "0 mg"; keep precision for small amounts
+  const formatAmount = (value: number) => {
+    const abs = Math.abs(value);
+    const decimals = abs === 0 || abs >= 10 ? 0 : abs >= 1 ? 1 : 2;
+    return formatQuantity(value, decimals);
+  };
 
   const goalMessage = (target : number, intake : number, units : string, shouldExceed : boolean) => {
     const difference = Math.abs(target - dayIntake);
@@ -311,7 +321,7 @@ function NutrientStatRow({ name, target, dayIntake = 0, avgIntake = 0, shouldExc
   }
 
   const targetDisplay =  (target: number, units: string) =>{
-    return target.toFixed(0) + ' ' + units
+    return formatAmount(target) + ' ' + units
   }
 
   return (
@@ -330,7 +340,7 @@ function NutrientStatRow({ name, target, dayIntake = 0, avgIntake = 0, shouldExc
         onMouseLeave={() => setHovered(false)}>
         <HoverTransitionContainer>
           <GoalMessage $visible={!!(hoveredLog || hovered)}>
-            {targetDisplay(dayIntake, units)}
+            {targetDisplay(safeDay, units)}
           </GoalMessage>
           <DailyIntake $visible={!(hoveredLog || hovered)}>
             <ProgressBarContainer className="progress-bar-container">
@@ -355,7 +365,7 @@ function NutrientStatRow({ name, target, dayIntake = 0, avgIntake = 0, shouldExc
             '--avg-color': avgColor
           } as React.CSSProperties}
         >
-          {avgIntake.toFixed(0)} {units.toLowerCase()}
+          {formatAmount(safeAvg)} {units.toLowerCase()}
         </AvgIntake>
       </AvgStatsWrapper>
     </DashboardRow>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatTime } from './utlis';
+import { formatTime, formatQuantity } from './utlis';
 import {
   RecipeBubble, MealToggleBtn,
   FoodNameSpace, FoodPortionSpace, FoodWeightSpace, FoodDateSpace, FoodTimeSpace,
@@ -22,9 +22,9 @@ interface DisplayMealProps {
 
 function MealDisplay ({ meal_name, date, servings, recipe_id, serving_size_label, expanded, onToggle, onNameClick, onEditClick, onMouseEnter, onMouseLeave } : DisplayMealProps) {
   const canOpenRecipe = Boolean(recipe_id);
-  const count = Number.isInteger(servings) ? servings : servings.toFixed(1);
+  const count = formatQuantity(Number(servings), 2);
   const portionText = serving_size_label
-    ? `${count} ${serving_size_label.replace(/^\d+\.?\d*\s+/, '')}`
+    ? `${count} ${serving_size_label.replace(/^\d+(?:\.\d+)?(?:\s*\/\s*\d+)?\s+/, '')}`
     : '';
 
   return (

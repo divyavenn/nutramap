@@ -6,6 +6,7 @@ import typesense
 from dotenv import load_dotenv
 import os
 import asyncio
+from bson import ObjectId
 
 # When running as a module within the application, use relative imports
 try:
@@ -51,17 +52,47 @@ def _get_client():
     return _client
 
 
+def filter_foods_for_user(results: Dict, db, user) -> Dict:
+    """
+    The sparse and dense indexes are shared across all users, so drop custom foods
+    (non-integer IDs) that don't belong to `user`. USDA foods (int IDs) are kept.
+    """
+    custom_ids = [food_id for food_id in results if not isinstance(food_id, int)]
+    if not custom_ids:
+        return results
+
+    allowed = set()
+    user_id = user.get("_id") if isinstance(user, dict) else None
+    if db is not None and user_id is not None:
+        object_ids = [ObjectId(str(food_id)) for food_id in custom_ids if ObjectId.is_valid(str(food_id))]
+        if object_ids:
+            allowed = {
+                str(doc["_id"])
+                for doc in db.foods.find({"_id": {"$in": object_ids}, "source": user_id}, {"_id": 1})
+            }
+
+    return {
+        food_id: score for food_id, score in results.items()
+        if isinstance(food_id, int) or str(food_id) in allowed
+    }
+
+
 async def update_sparse_index(db = None, user = None):
     client = _get_client()
     if client is None:
         return {"status": "Typesense not configured"}
 
     if db is None:
-        db = Annotated[Database, Depends(get_data)]
-    if user is None:
-        user = Annotated[dict, Depends(get_current_user)]
+        db = get_data()
 
-    foods = await get_foods_list(db, user)
+    # Index all foods (USDA + every user's custom foods). Search results are scoped
+    # per user at query time, so a rebuild triggered by one user must not drop
+    # other users' custom foods from the shared collection.
+    foods = {
+        food["_id"]: {"name": food["food_name"]}
+        for food in db.foods.find({}, {"_id": 1, "food_name": 1}).sort("_id", 1)
+        if food.get("food_name")
+    }
     schema = {
         'name': 'foods',
         'fields': [
@@ -326,8 +357,9 @@ async def get_sparse_index(
     
     # Filter results by threshold
     filtered_matches = {food_id: score for food_id, score in search_results.items() if score >= threshold}
-    
-    return filtered_matches
+
+    # Drop other users' custom foods (the Typesense collection is shared)
+    return filter_foods_for_user(filtered_matches, db, user)
 
 def pretty_print_matches(matches):
     for food_id, score in matches.items():

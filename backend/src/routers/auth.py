@@ -74,7 +74,7 @@ def authenticate_user(email: str, password: str, user_db : Database) :
     raise HTTPException(status_code=404, detail="User not found")
   password_hash = hash_password(password)
   # check if hashed password input equals stored hash
-  if user["password_hash"] == password_hash:
+  if user.get("password_hash") == password_hash:
     return user
   else:
     raise HTTPException(status_code=403, detail="Incorrect password")
@@ -83,7 +83,7 @@ def authenticate_user(email: str, password: str, user_db : Database) :
 def create_access_token(email : str, user_id: any, role: str, name: str, expires : timedelta):
   encode = {'email': email, '_id': str(user_id), 'role' : role, 'name' : name}
   expires = datetime.now(timezone.utc) + expires
-  # encode.update({'exp': expires})
+  encode.update({'exp': expires})
   SECRET_KEY, ALGORITHM = _get_jwt_config()
   return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -106,6 +106,10 @@ def get_current_user(token:Annotated[str, Depends(oauth2_bearer)]):
       raise HTTPException(status_code = 401, detail = "Unauthorized; could not validate credentials.")
 
 #--------------------------------------end points------------------------------------------------------# 
+
+# Strong references to fire-and-forget tasks; asyncio only keeps weak refs,
+# so an unreferenced task can be garbage-collected before it finishes.
+_background_tasks = set()
 
 @router.post("/submit_login")
 async def handle_login(request: Request, username: str = Form(...), password: str = Form(...)):
@@ -142,8 +146,12 @@ async def handle_login(request: Request, username: str = Form(...), password: st
             faiss_path = os.getenv("FAISS_BIN")
             if not (faiss_path and os.path.exists(faiss_path) and os.path.getsize(faiss_path) > 0):
                 tasks.append(update_faiss_index(db=db, user=user, request=request))
-            else:
+            elif getattr(request.app.state, "faiss_index", None) is None:
+                # Only load from disk if nothing is in memory: replacing the live index
+                # would discard incremental adds and desync dense.py's module cache.
+                from src.routers import dense as dense_module
                 request.app.state.faiss_index = faiss.read_index(faiss_path)
+                dense_module._index_cache['faiss_index'] = request.app.state.faiss_index
 
             id_list_path = os.getenv("FOOD_ID_CACHE")
             if not (id_list_path and os.path.exists(id_list_path) and os.path.getsize(id_list_path) > 0):
@@ -151,14 +159,23 @@ async def handle_login(request: Request, username: str = Form(...), password: st
             else:
                 with open(id_list_path, "rb") as f:
                     request.app.state.id_name_map = pickle.load(f)
+                if getattr(request.app.state, "id_list", None) is None:
+                    from src.routers import dense as dense_module
+                    request.app.state.id_list = list(request.app.state.id_name_map.keys())
+                    dense_module._id_list_cache['id_list'] = request.app.state.id_list
 
             if tasks:
-                await asyncio.gather(*tasks, return_exceptions=True)
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                for result in results:
+                    if isinstance(result, Exception):
+                        print(f"Error in background index initialization task: {result!r}")
         except Exception as e:
             print(f"Error in background index initialization: {e}")
 
     try:
-        asyncio.create_task(init_indexes())
+        task = asyncio.create_task(init_indexes())
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
     except Exception as e:
         print(f"Failed to schedule background index initialization: {e}")
 

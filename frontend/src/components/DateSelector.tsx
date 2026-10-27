@@ -49,6 +49,17 @@ function formatDateRange(startDate: Date, endDate: Date) {
 
 
 
+// Number of calendar days covered by a range (inclusive), DST-safe.
+function rangeLengthInDays(range: TimePeriod) {
+  const startDay = new Date(range.start.getFullYear(), range.start.getMonth(), range.start.getDate());
+  const endDay = new Date(range.end.getFullYear(), range.end.getMonth(), range.end.getDate());
+  return Math.round((endDay.getTime() - startDay.getTime()) / 86400000) + 1;
+}
+
+function shiftDays(date: Date, days: number) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+}
+
 interface CalendarProps {
   day: Date;
   handleSelect: (day: any) => void;
@@ -78,7 +89,7 @@ const Calendar = forwardRef<HTMLDivElement, CalendarProps>(({ day, handleSelect,
 
   const handleSelectRanges = (ranges: any) => {
     // Always set endDate equal to startDate to prevent range selection
-    const { day } = ranges.selection;
+    const day = ranges.selection.startDate;
     setSelection([{
       ...selection[0],
       startDate : day,
@@ -131,7 +142,7 @@ const CalendarDay = forwardRef<HTMLDivElement, CalendarProps>(({ day, handleSele
 
   const handleDateChange = (day : any) => {
       setDay(day);
-      handleSelect(datePicked); // Call parent function with selected date
+      handleSelect(day); // Pass the newly picked date (datePicked is still the previous value here)
   };
 
   return (
@@ -289,12 +300,12 @@ function DateSelector() {
       tutorialEvent('tutorial:range-changed');
     }
     else if (rangeType === RangeType.custom) {
-      // Calculate the difference between the start and end dates in milliseconds
-      const rangeDuration = dateRange.end.getTime() - dateRange.start.getTime();
-      // Move both start and end forward by the duration of the range
+      // Shift by the whole number of days in the range (end is 23:59:59.999, so the raw
+      // ms difference is one day short and made consecutive ranges overlap by a day).
+      const days = rangeLengthInDays(dateRange);
       setDateRange(new TimePeriod(
-        new Date(dateRange.start.getTime() + rangeDuration),
-        new Date(dateRange.end.getTime() + rangeDuration)
+        shiftDays(dateRange.start, days),
+        shiftDays(dateRange.end, days)
       ));
       tutorialEvent('tutorial:range-changed');
     }
@@ -307,18 +318,18 @@ function DateSelector() {
     }
     if (rangeType === RangeType.default) {
       // Move to the previous entire month
-      setDateRange({
-        start: new Date(dateRange.start.getFullYear(), dateRange.start.getMonth() - 1, 1),
-        end: new Date(dateRange.start.getFullYear(), dateRange.start.getMonth(), 0)
-      });
+      // Use TimePeriod so end is set to 23:59:59.999 (a bare object left end at 00:00,
+      // excluding the last day of the month).
+      setDateRange(new TimePeriod(
+        new Date(dateRange.start.getFullYear(), dateRange.start.getMonth() - 1, 1),
+        new Date(dateRange.start.getFullYear(), dateRange.start.getMonth(), 0)
+      ));
       tutorialEvent('tutorial:range-changed');
     } else if (rangeType === RangeType.custom) {
-      // Calculate the difference between the start and end dates in milliseconds
-      const rangeDuration = dateRange.end.getTime() - dateRange.start.getTime();
-      // Move both start and end backward by the duration of the range
+      const days = rangeLengthInDays(dateRange);
       setDateRange(new TimePeriod(
-        new Date(dateRange.start.getTime() - rangeDuration),
-        new Date(dateRange.end.getTime() - rangeDuration)));
+        shiftDays(dateRange.start, -days),
+        shiftDays(dateRange.end, -days)));
       tutorialEvent('tutorial:range-changed');
     }
   };

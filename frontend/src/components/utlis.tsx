@@ -134,7 +134,35 @@ function tolocalDateString (date : Date) {
   String(date.getDate()).padStart(2, '0') + 'T' +
   String(date.getHours()).padStart(2, '0') + ':' +
   String(date.getMinutes()).padStart(2, '0') + ':' +
-  String(date.getSeconds()).padStart(2, '0');
+  String(date.getSeconds()).padStart(2, '0') + '.' +
+  // Keep milliseconds: range ends are 23:59:59.999 and the backend filters with $lte,
+  // so truncating to :59 would drop logs in the final second of the range.
+  String(date.getMilliseconds()).padStart(3, '0');
+}
+
+// Parse a user-entered quantity, supporting decimals ("1.5"), fractions ("1/2")
+// and mixed numbers ("1 1/2"). parseFloat("1/2") would return 1.
+function parseQuantity(value: string): number {
+  const text = String(value ?? '').trim();
+  const mixed = text.match(/^(\d+(?:\.\d+)?)\s+(\d+)\s*\/\s*(\d+)$/);
+  if (mixed) {
+    const den = Number(mixed[3]);
+    return den > 0 ? Number(mixed[1]) + Number(mixed[2]) / den : NaN;
+  }
+  const frac = text.match(/^(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/);
+  if (frac) {
+    const den = Number(frac[2]);
+    return den > 0 ? Number(frac[1]) / den : NaN;
+  }
+  return /^\d*\.?\d+$|^\d+\.$/.test(text) ? Number(text) : NaN;
+}
+
+// Format a number with up to `decimals` decimal places, trimming trailing zeros
+// only after the decimal point (so 10 stays "10", not "1").
+function formatQuantity(value: number, decimals = 2): string {
+  if (!Number.isFinite(value)) return '';
+  const fixed = value.toFixed(decimals);
+  return fixed.includes('.') ? fixed.replace(/\.?0+$/, '') : fixed;
 }
 
 const getCurrentPeriod = () => {
@@ -190,4 +218,5 @@ const clearUserCaches = () => {
 };
 
 export {calculateColor, getFoodID, formatTime, getCurrentPeriod, formatDayForFrontend,
-  Typewriter, tolocalDateString, getNutrientInfo, isLoginExpired, cleanLocalStorage, clearUserCaches}
+  Typewriter, tolocalDateString, getNutrientInfo, isLoginExpired, cleanLocalStorage, clearUserCaches,
+  parseQuantity, formatQuantity}

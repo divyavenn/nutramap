@@ -98,9 +98,18 @@ async def parse_new_food(food_description: str, image_path: Optional[str] = None
             # Convert to the format needed by add_food
             formatted_nutrients = []
             for nutrient in nutrients_list:
+                if not isinstance(nutrient, dict) or not nutrient.get("nutrient_name"):
+                    continue
+                # One null/non-numeric amount must not discard every other nutrient.
+                try:
+                    amount = float(nutrient.get("amount") or 0)
+                except (TypeError, ValueError):
+                    amount = 0.0
                 formatted_nutrients.append({
                     "nutrient_name": nutrient.get("nutrient_name"),
-                    "amount": float(nutrient.get("amount", 0))
+                    "amount": amount,
+                    # Keep the unit so callers can convert to the nutrient's canonical unit.
+                    "unit": nutrient.get("unit"),
                 })
             
             return food_name, formatted_nutrients

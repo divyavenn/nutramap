@@ -44,6 +44,10 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink, onSy
   const [showSyncConfirm, setShowSyncConfirm] = useState(false);
   // When opened from a meal log, start in read-only mode
   const [isEditMode, setIsEditMode] = useState(!logId);
+  // Bumped whenever the ingredient list is re-fetched so per-row forms remount.
+  // Rows are keyed by index; without this, a deleted row's internal `deleted`
+  // state would be inherited by the ingredient that shifts into its index.
+  const [ingredientsVersion, setIngredientsVersion] = useState(0);
 
   // Unified title state
   const [recipeName, setRecipeName] = useState(recipe.description);
@@ -57,6 +61,19 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink, onSy
   useEffect(() => {
     tutorialEvent('tutorial:recipe-opened');
   }, []);
+
+  // Keep local state in sync when the parent passes a refreshed recipe object
+  // (e.g. after a rename / serving-size save triggers a refetch).
+  useEffect(() => {
+    setEditedIngredients(recipe.ingredients);
+    setIngredientsVersion(v => v + 1);
+    if (!isEditingTitle) {
+      setRecipeName(recipe.description);
+      setServingLabel(recipe.serving_size_label ?? '');
+      setServingGrams(recipe.serving_size_grams?.toString() ?? '');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recipe]);
 
   const titleDisplayText = () => {
     const base = recipeName || recipe.description;
@@ -112,7 +129,11 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink, onSy
     }
 
     try {
-      await Promise.all(saves);
+      const responses = await Promise.all(saves);
+      const failed = responses.find((r: any) => !r || r.status !== 200);
+      if (failed) {
+        throw new Error(`Save failed with status ${failed?.status}: ${JSON.stringify(failed?.body)}`);
+      }
       onUpdate();
     } catch (error) {
       console.error('Error saving title:', error);
@@ -150,6 +171,7 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink, onSy
         const updatedRecipe = response.body.recipes.find((r: Recipe) => r.recipe_id === recipe.recipe_id);
         if (updatedRecipe) {
           setEditedIngredients(updatedRecipe.ingredients);
+          setIngredientsVersion(v => v + 1);
         }
       }
     } catch (error) {
@@ -310,7 +332,7 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink, onSy
                 {editedIngredients.map((ingredient, index) => (
                   isEditMode ? (
                     <EditIngredientForm
-                      key={index}
+                      key={`${ingredientsVersion}-${index}`}
                       food_name={ingredient.food_name || ''}
                       amount={ingredient.amount}
                       weight_in_grams={ingredient.weight_in_grams}

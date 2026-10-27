@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { request } from './endpoints';
 import Arrow from '../assets/images/arrow.svg?react';
-import { useRefreshLogs, pendingFoodsAtom, PendingFood } from './dashboard_states';
+import { useRefreshLogs, pendingFoodsAtom, PendingFood, logsAtom } from './dashboard_states';
 import IsOk from '../assets/images/checkmark.svg?react'
 import { useSetRecoilState, useRecoilValue } from 'recoil';
 import { tutorialEvent } from './TryTutorial';
@@ -23,6 +23,7 @@ function NewSmartLog() {
   // Use the global state for pending foods
   const setPendingFoods = useSetRecoilState(pendingFoodsAtom);
   const pendingFoods = useRecoilValue(pendingFoodsAtom);
+  const logs = useRecoilValue(logsAtom);
   const refreshLogs = useRefreshLogs();
   const formRef = useRef<HTMLFormElement>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -43,7 +44,9 @@ function NewSmartLog() {
     if (pollIntervalRef.current !== null) return;
 
     pollCountRef.current = 0;
-    knownLogCountRef.current = null;
+    // Baseline = logs shown before the submission. Taking it from the first poll instead
+    // would miss logs the background task already created, leaving the placeholder stuck.
+    knownLogCountRef.current = logs.length;
 
     pollIntervalRef.current = setInterval(async () => {
       pollCountRef.current++;
@@ -62,7 +65,7 @@ function NewSmartLog() {
           tutorialEvent('tutorial:log-ready');
         }
       });
-      if (pollCountRef.current >= 8) {
+      if (pollCountRef.current >= 20) {
         clearInterval(pollIntervalRef.current!);
         pollIntervalRef.current = null;
         if (pollTimeoutRef.current) { clearTimeout(pollTimeoutRef.current); pollTimeoutRef.current = null; }
@@ -74,7 +77,7 @@ function NewSmartLog() {
       if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null; }
       setPendingFoods([]);
       pollTimeoutRef.current = null;
-    }, 15000);
+    }, 31000);
 
     return () => {
       if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null; }
@@ -129,6 +132,9 @@ function NewSmartLog() {
         data,
         'URLencode'
       );
+      if (response.status !== 200) {
+        throw new Error(`parse-meal failed (${response.status})`);
+      }
 
       setMealDescription('');
       setIsJiggling(false);

@@ -110,6 +110,7 @@ function EditNutrientForm({ original, itemId, itemType, onUpdate }: EditNutrient
 
   const submitForm = async () => {
     if (isSaving) return;
+    if (!(formData.nutrient_name in nutrientList)) return;
     setIsSaving(true);
 
     try {
@@ -119,6 +120,12 @@ function EditNutrientForm({ original, itemId, itemType, onUpdate }: EditNutrient
 
     // Get current item data
     const response = await request(endpoint, 'GET');
+    // Abort on failure: otherwise we'd PUT a list containing only this nutrient,
+    // wiping every other nutrient on the item.
+    if (response.status !== 200 || !response.body) {
+      console.error('Failed to load item before updating nutrients:', response.status);
+      return;
+    }
     const currentItem = response.body;
 
     const nutrientId = Number(getNutrientInfo(formData.nutrient_name, false, nutrientList));
@@ -127,8 +134,11 @@ function EditNutrientForm({ original, itemId, itemType, onUpdate }: EditNutrient
       return;
     }
 
-    // Build updated nutrients array
-    const updatedNutrients = normalizeEditableNutrients(currentItem.nutrients);
+    // Build updated nutrients array. If an existing row was renamed to a different
+    // nutrient, drop the original nutrient instead of leaving it behind.
+    const updatedNutrients = normalizeEditableNutrients(currentItem.nutrients).filter(
+      (n) => !original || original.nutrient_id === nutrientId || n.nutrient_id !== Number(original.nutrient_id)
+    );
 
     // Check if this nutrient already exists
     const existingIndex = updatedNutrients.findIndex((n) => n.nutrient_id === nutrientId);
@@ -149,9 +159,13 @@ function EditNutrientForm({ original, itemId, itemType, onUpdate }: EditNutrient
       ? `/food/update-nutrients/${itemId}`
       : `/recipe/update-nutrients/${itemId}`;
 
-    await request(updateEndpoint, 'PUT', {
+    const updateResponse = await request(updateEndpoint, 'PUT', {
       nutrients: JSON.stringify(updatedNutrients)
     }, 'URLencode');
+    if (updateResponse.status !== 200) {
+      console.error('Failed to update nutrients:', updateResponse.status);
+      return;
+    }
 
     onUpdate();
     } finally {
@@ -203,9 +217,16 @@ function EditNutrientForm({ original, itemId, itemType, onUpdate }: EditNutrient
       : `/recipe/${itemId}`;
 
     const response = await request(endpoint, 'GET');
+    if (response.status !== 200 || !response.body) {
+      console.error('Failed to load item before deleting nutrient:', response.status);
+      return;
+    }
     const currentItem = response.body;
 
-    const nutrientId = Number(getNutrientInfo(formData.nutrient_name, false, nutrientList));
+    // Delete the row's original nutrient, not whatever name is currently typed in the field
+    const nutrientId = original
+      ? Number(original.nutrient_id)
+      : Number(getNutrientInfo(formData.nutrient_name, false, nutrientList));
     if (!Number.isFinite(nutrientId)) {
       return;
     }
@@ -220,9 +241,13 @@ function EditNutrientForm({ original, itemId, itemType, onUpdate }: EditNutrient
       ? `/food/update-nutrients/${itemId}`
       : `/recipe/update-nutrients/${itemId}`;
 
-    await request(updateEndpoint, 'PUT', {
+    const updateResponse = await request(updateEndpoint, 'PUT', {
       nutrients: JSON.stringify(updatedNutrients)
     }, 'URLencode');
+    if (updateResponse.status !== 200) {
+      console.error('Failed to delete nutrient:', updateResponse.status);
+      return;
+    }
 
     setIsDeleted(true);
     onUpdate();

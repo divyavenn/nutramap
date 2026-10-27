@@ -104,8 +104,11 @@ def check_password(user : user_dependency, password: str):
 
 
 @router.get("/all", response_model=List[User])
-def get_user(user_db : user_db_dependency):
-    
+def get_user(user: user_dependency, user_db : user_db_dependency):
+    # Returns every account (including password hashes) — admin only.
+    if user is None or user.get("role") != "admin":
+        raise HTTPException(status_code=401, detail="Invalid credentials; must be administrator")
+
     users = list(user_db.users.find({}))
     return [User(**user) for user in users]
     
@@ -155,6 +158,8 @@ def delete(user: user_dependency, user_db : user_db_dependency):
     user_db.users.delete_one(query)
     user_db.logs.delete_many(itemQuery)
     user_db.requirements.delete_many(itemQuery)
+    # Custom foods live in the shared foods collection, owned via `source`
+    user_db.foods.delete_many({"source": {"$in": [user["_id"], str(user["_id"])]}})
     
 
 @router.post("/update-email")
@@ -171,7 +176,10 @@ def update_email(new_email: str, user: user_dependency, user_db : user_db_depend
         raise HTTPException(status_code = 304, detail = "No change")
     
     update = {"$set": {"email": new_email}}
-    user_db.users.update_one(query_id, update)
+    try:
+        user_db.users.update_one(query_id, update)
+    except DuplicateKeyError:
+        raise HTTPException(status_code=400, detail="Email already registered")
     
     return create_access_token(new_email, user["_id"], user["role"], user["name"], timedelta(minutes=60))
 
@@ -199,7 +207,7 @@ def remove_admin(email: str, user : user_dependency, user_db : user_db_dependenc
     if user is None or user['role'] != 'admin':
         raise HTTPException(status_code = 401, detail = "Invalid credentials; must be administrator")
     query = {"email": email}
-    user_to_update = user_db.users.find(query)
+    user_to_update = user_db.users.find_one(query)
     if user_to_update is None:
         raise HTTPException(status_code = 401, detail = "No user with this email exists.")
     

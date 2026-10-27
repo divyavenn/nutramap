@@ -14,6 +14,7 @@ import {
 } from './EditLogStyles';
 import type { LogComponent } from './structures';
 import { tutorialEvent } from './TryTutorial';
+import { tolocalDateString } from './utlis';
 
 interface ComponentLogProps {
   component: LogComponent;
@@ -88,9 +89,27 @@ function ComponentLog({
   }, [selectedSuggestionIndex]);
 
   // Sync dateInput when logDate prop changes
+  const logDateMs = logDate ? logDate.getTime() : null;
   useEffect(() => {
-    if (!isEditable && logDate) setDateInput(new Date(logDate));
-  }, [logDate, isEditable]);
+    if (!isEditable && logDateMs != null) setDateInput(new Date(logDateMs));
+  }, [logDateMs, isEditable]);
+
+  // Sync editable fields from props when not editing. Rows are keyed by index, so after a
+  // servings change (components rescaled) or a sibling delete (indices shift) this instance
+  // receives a different component; without this, edit mode would show (and re-save) stale values.
+  useEffect(() => {
+    if (isEditable) return;
+    setFoodName(component.food_name);
+    setFoodId(null);
+    setAmountInput(component.amount || `${Math.round(component.weight_in_grams)}g`);
+    setGramsDisplay(component.weight_in_grams);
+  }, [component.food_name, component.amount, component.weight_in_grams, isEditable]);
+
+  // Clear the optimistic "deleting" flag once the component in this slot changes
+  // (the row at this index now represents the next component).
+  useEffect(() => {
+    setIsDeleting(false);
+  }, [component]);
 
   // Click-outside to exit edit mode
   useEffect(() => {
@@ -121,11 +140,10 @@ function ComponentLog({
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
       const [year, month, day] = e.target.value.split('-').map(Number);
-      if (day < 1 || day > 31 || month < 1 || month > 12) return;
+      if (!year || !month || !day || day < 1 || day > 31 || month < 1 || month > 12) return;
       const updated = new Date(dateInput);
-      updated.setFullYear(year);
-      updated.setMonth(month - 1);
-      updated.setDate(day);
+      // Set all parts at once; sequential setMonth/setDate overflows (e.g. Jan 31 -> Feb -> Mar 3)
+      updated.setFullYear(year, month - 1, day);
       setDateInput(updated);
     } catch {}
   };
@@ -137,8 +155,10 @@ function ComponentLog({
       const fd = new FormData();
       fd.append('log_id', logId);
       fd.append('servings', String(logServings));
-      fd.append('date', dateInput.toISOString());
-      await request('/logs/edit-recipe-log', 'POST', fd);
+      // Log dates are stored as naive local time; toISOString() would shift by the UTC offset
+      fd.append('date', tolocalDateString(dateInput));
+      const response = await request('/logs/edit-recipe-log', 'POST', fd);
+      if (response.status !== 200) throw new Error(`edit-recipe-log failed (${response.status})`);
       refreshLogs({ force: true });
     } catch (error) {
       console.error('Error saving date:', error);
@@ -151,7 +171,7 @@ function ComponentLog({
   const fetchSuggestions = async (value: string) => {
     if (!value.trim()) { setSuggestions([]); setShowSuggestions(false); return; }
     try {
-      const response = await request('/match/autocomplete?prompt=' + value, 'POST', {}, 'JSON');
+      const response = await request('/match/autocomplete?prompt=' + encodeURIComponent(value), 'POST', {}, 'JSON');
       if (response.body) {
         setSuggestions(response.body);
         setShowSuggestions(value.length > 0 && response.body.length > 0);
@@ -172,6 +192,8 @@ function ComponentLog({
   };
 
   const handleSuggestionClick = (s: { food_id: string; food_name: string }) => {
+    // Cancel any pending lookup so stale results don't re-open the dropdown
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     setFoodName(s.food_name);
     setFoodId(s.food_id);
     setShowSuggestions(false);
@@ -191,7 +213,8 @@ function ComponentLog({
       fd.append('amount', amountInput);
       if (foodId) fd.append('food_id', foodId);
       const response = await request('/logs/edit-component', 'POST', fd);
-      if (response.status === 200 && response.body) {
+      if (response.status !== 200) throw new Error(`edit-component failed (${response.status})`);
+      if (response.body) {
         setGramsDisplay(response.body.weight_in_grams);
       }
       tutorialEvent('tutorial:component-added');
@@ -252,14 +275,13 @@ function ComponentLog({
     e.stopPropagation();
     setIsDeleting(true);
     try {
-      if (isStandalone) {
-        await request(`/logs/delete?log_id=${logId}`, 'DELETE');
-      } else {
-        await request(
-          `/logs/delete-component?log_id=${logId}&component_index=${componentIndex}`,
-          'DELETE'
-        );
-      }
+      const response = isStandalone
+        ? await request(`/logs/delete?log_id=${logId}`, 'DELETE')
+        : await request(
+            `/logs/delete-component?log_id=${logId}&component_index=${componentIndex}`,
+            'DELETE'
+          );
+      if (response.status !== 200) throw new Error(`delete failed (${response.status})`);
       refreshLogs({ force: true });
       onDelete?.();
     } catch (error) {

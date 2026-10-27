@@ -74,8 +74,14 @@ function MyRecipes() {
 
       const response = await request('/recipes/list', 'GET');
       if (response.status === 200 && response.body && Array.isArray(response.body.recipes)) {
-        const apiRecipes = response.body.recipes;
+        const apiRecipes: Recipe[] = response.body.recipes;
         setRecipes(apiRecipes);
+        // Keep the open recipe modal in sync with the freshly fetched data
+        // (otherwise it keeps comparing against / reverting to stale values).
+        setSelectedRecipe(prev => {
+          if (!prev) return prev;
+          return apiRecipes.find(r => r.recipe_id === prev.recipe_id) ?? prev;
+        });
         try {
           localStorage.setItem('recipes_cache', JSON.stringify(apiRecipes));
         } catch (storageError) {
@@ -122,8 +128,8 @@ function MyRecipes() {
 
       if (response.status === 200 && response.body?.recipe) {
         clearRecipeCaches();
-        await fetchRecipes(true);
         setSelectedRecipe(response.body.recipe);
+        await fetchRecipes(true);
       }
     } catch (error) {
       console.error('Error creating recipe:', error);
@@ -138,7 +144,7 @@ function MyRecipes() {
     }
 
     try {
-      const response = await request(`/recipes/delete?recipe_id=${recipeId}`, 'DELETE');
+      const response = await request(`/recipes/delete?recipe_id=${encodeURIComponent(recipeId)}`, 'DELETE');
 
       // Invalidate cache regardless of result to sync with backend
       clearRecipeCaches();
@@ -152,7 +158,7 @@ function MyRecipes() {
       }
 
       // Remove from local state
-      setRecipes(recipes.filter(r => r.recipe_id !== recipeId));
+      setRecipes(prev => prev.filter(r => r.recipe_id !== recipeId));
       setSelectedRecipe(null);
     } catch (error) {
       console.error('Error deleting recipe:', error);

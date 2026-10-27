@@ -124,9 +124,14 @@ function CreateRecipeModal({ logId, mealName, onClose, onSuccess }: CreateRecipe
       const fd = new FormData();
       fd.append('log_id', logId);
       fd.append('recipe_name', recipeName.trim());
-      await request('/recipes/create-from-meal', 'POST', fd);
+      const response = await request('/recipes/create-from-meal', 'POST', fd);
+      if (response.status !== 200) {
+        console.error('Error creating recipe:', response.status, response.body);
+        alert(`Failed to create recipe: ${response.body?.detail || 'Unknown error'}`);
+        return;
+      }
       try { localStorage.removeItem('recipes_cache'); } catch {}
-      refreshLogs();
+      refreshLogs({ force: true });
       onSuccess();
     } catch (error) {
       console.error('Error creating recipe:', error);

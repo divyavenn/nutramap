@@ -127,7 +127,7 @@ useEffect(() => {
     }
     
     try {
-      const response = await request('/match/autocomplete' + '?prompt=' + value, 'POST', {}, 'JSON');
+      const response = await request('/match/autocomplete' + '?prompt=' + encodeURIComponent(value), 'POST', {}, 'JSON');
       if (response.body) {
         setSuggestions(response.body);
         setShowSuggestions(value.length > 0 && response.body.length > 0);
@@ -218,7 +218,8 @@ useEffect(() => {
       // Split the new time into hours and minutes
       const [hours, minutes] = newTime.split(':').map(Number);
     
-      if (isNaN(hours) || isNaN(minutes) || hours > 12 || minutes > 59) {
+      // <input type="time"> yields 24-hour values; rejecting hours > 12 blocked all PM times
+      if (isNaN(hours) || isNaN(minutes) || hours > 23 || minutes > 59) {
         return;
       }
 
@@ -253,17 +254,16 @@ useEffect(() => {
       // Split the new date into year, month, and day
       const [year, month, day] = newDate.split('-').map(Number);
 
-      if (day < 1 || day > 31 || month < 1 || month > 12) {
+      if (!year || !month || !day || day < 1 || day > 31 || month < 1 || month > 12) {
         return;
       }
     
       // Update the date directly using a copy of formData.date
       const updatedDate = new Date(formData.date);
     
-      // Set the year, month (note: month is 0-indexed in JavaScript), and day
-      updatedDate.setFullYear(year);
-      updatedDate.setMonth(month - 1); // Subtract 1 because months are 0-indexed
-      updatedDate.setDate(day);
+      // Set year, month (0-indexed) and day together; sequential setters overflow
+      // (e.g. Jan 31 -> setMonth(1) -> Mar 3)
+      updatedDate.setFullYear(year, month - 1, day);
     
       // Update the formData state
       setFormData({
@@ -303,7 +303,7 @@ useEffect(() => {
       // Set a new debounce timer (300ms delay)
       debounceTimerRef.current = setTimeout(async () => {
         try {
-          const response = await request('/match/autocomplete' + '?prompt=' + value, 'POST', {}, 'JSON');
+          const response = await request('/match/autocomplete' + '?prompt=' + encodeURIComponent(value), 'POST', {}, 'JSON');
           if (response.body) {
             setSuggestions(response.body);
             setShowSuggestions(value.length > 0 && response.body.length > 0);
@@ -375,7 +375,7 @@ useEffect(() => {
         }));
       }
 
-      refreshLogs();
+      refreshLogs({ force: true });
 
       // Reset the submission state after a short delay to show the animation
       setTimeout(() => {
@@ -408,9 +408,14 @@ useEffect(() => {
     
     // Add a delay to show the animation before actually deleting
     setTimeout(async () => {
-      await request(`/logs/delete?log_id=${_id}`, 'DELETE')
+      if (componentIndex !== undefined) {
+        // Editing a single component: delete only that component, not the whole log
+        await request(`/logs/delete-component?log_id=${_id}&component_index=${componentIndex}`, 'DELETE')
+      } else {
+        await request(`/logs/delete?log_id=${_id}`, 'DELETE')
+      }
       setDeleted(true)
-      refreshLogs()
+      refreshLogs({ force: true })
       setFormData({ ...formData, food_name: '', weight_in_grams : ''})
       
       // Reset the deletion state (though it won't be visible anymore)

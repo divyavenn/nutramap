@@ -73,6 +73,9 @@ function areLogsEqual(leftLogs: LogProps[], rightLogs: LogProps[]): boolean {
     if (String(left?.recipe_id ?? '') !== String(right?.recipe_id ?? '')) return false;
     if (toNum(left?.servings) !== toNum(right?.servings)) return false;
     if (toNum(left?.logged_weight_grams) !== toNum(right?.logged_weight_grams)) return false;
+    if (Boolean(left?.recipe_exists) !== Boolean(right?.recipe_exists)) return false;
+    if (String(left?.serving_size_label ?? '') !== String(right?.serving_size_label ?? '')) return false;
+    if (String(left?.serving_unit ?? '') !== String(right?.serving_unit ?? '')) return false;
     if (!areComponentsEqual(left?.components ?? [], right?.components ?? [])) return false;
   }
   return true;
@@ -175,6 +178,19 @@ function useRefreshData(){
           typeof requirementsData.body === 'object' &&
           !Array.isArray(requirementsData.body)
         ) ? requirementsData.body : {};
+
+        // Keep the per-range logs cache in sync so a later (non-forced)
+        // refreshLogs() doesn't resurrect pre-refresh data.
+        if (logData.status === 200 && Array.isArray(logData.body)) {
+          const authKey = getLogsCacheAuthKey();
+          if (logsCacheAuthKey !== authKey) {
+            logsRangeCache.clear();
+            refreshLogsInFlightByRange.clear();
+            logsCacheAuthKey = authKey;
+          }
+          const rangeKey = `${authKey}|${tolocalDateString(dateRange.start)}|${tolocalDateString(dateRange.end)}|${LOGS_PAGE_LIMIT}|0`;
+          logsRangeCache.set(rangeKey, { data: nextLogs, cachedAt: Date.now() });
+        }
 
         // Only update if data has actually changed
         if (!areLogsEqual(currentLogs, nextLogs)) {
@@ -334,8 +350,19 @@ const requirementsAtom = atom<{[key: string]: any}>({
   default: {}
 })
 
-// Cached panel data to prevent duplicate API calls
+// Cached panel data to prevent duplicate API calls.
+// Keyed by hovered id + a signature of the log's contents so edits invalidate it.
 let panelCache: { logId: string | null; data: {[key: string]: number} | null } = { logId: null, data: null };
+
+function panelCacheKey(hoveredId: string, logs: LogProps[]): string {
+  const baseId = hoveredId.replace(/-\d+$/, '');
+  const log = logs.find(l => String(l?._id) === baseId);
+  if (!log) return hoveredId;
+  const components = (log.components ?? [])
+    .map(c => `${c?.food_id}:${toNum(c?.weight_in_grams)}`)
+    .join(',');
+  return `${hoveredId}|${toNum(log.servings)}|${components}`;
+}
 
 const dayIntake = selector<{[key: string]: number}>({
   key: 'dayIntake',
@@ -363,6 +390,8 @@ const hoveredLogPanelData = selector<{[key: string]: number} | null>({
   key: 'hoveredLogPanelData',
   get: async ({get}) => {
     const log = get(hoveredLogAtom)
+    // Re-evaluate when logs change so edited logs don't show stale nutrients
+    const logs = get(logsAtom)
 
     if (!log) {
       panelCache = { logId: null, data: null };
@@ -370,9 +399,10 @@ const hoveredLogPanelData = selector<{[key: string]: number} | null>({
     }
 
     const logId = log[0];
+    const cacheKey = panelCacheKey(logId, logs);
 
-    // Return cached data if same log
-    if (panelCache.logId === logId && panelCache.data !== null) {
+    // Return cached data if same log with unchanged contents
+    if (panelCache.logId === cacheKey && panelCache.data !== null) {
       return panelCache.data;
     }
 
@@ -383,7 +413,7 @@ const hoveredLogPanelData = selector<{[key: string]: number} | null>({
         panelCache = { logId: null, data: null };
         return null;
       }
-      panelCache = { logId, data: response.body };
+      panelCache = { logId: cacheKey, data: response.body };
       return response.body;
     } catch (error) {
       console.error('Failed to fetch hovered panel data:', error);

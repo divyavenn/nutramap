@@ -1,4 +1,5 @@
 import asyncio
+import re
 import io
 import sys
 from pathlib import Path
@@ -30,7 +31,7 @@ class _FakeNutrientsCollection:
         nutrient_query = query.get("nutrient_name", {})
         regex = nutrient_query.get("$regex", "")
         self.name_queries.append(regex)
-        expected_name = regex.strip("^$").lower()
+        expected_name = re.sub(r"\\(.)", r"\1", regex.strip("^$")).lower()
         for doc in self.docs:
             if doc["nutrient_name"].lower() == expected_name:
                 return doc
@@ -47,7 +48,7 @@ class _FakeChatCompletions:
         self.responses = list(responses)
         self.calls = []
 
-    def create(self, **kwargs):
+    async def create(self, **kwargs):
         self.calls.append(kwargs)
         if not self.responses:
             raise AssertionError("Unexpected extra OpenAI call in test")
@@ -66,7 +67,7 @@ class _FakeOpenAIModule:
     def __init__(self, responses):
         self.client = _FakeOpenAIClient(responses)
 
-    def OpenAI(self, api_key=None):
+    def AsyncOpenAI(self, api_key=None):
         return self.client
 
 

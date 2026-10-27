@@ -120,19 +120,22 @@ async def reset_trial_data(user_db: db):
         # Delete all logs for trial user
         deleted_logs = user_db.logs.delete_many({"user_id": user_id})
 
-        # Delete all custom foods for trial user
-        deleted_foods = user_db.custom_foods.delete_many({"user_id": user_id})
+        # Delete all custom foods for trial user (stored in `foods` with source=user_id)
+        deleted_foods = user_db.foods.delete_many({"source": user_id})
 
-        # Delete all custom recipes for trial user
-        deleted_recipes = user_db.recipes.delete_many({"user_id": user_id})
+        # Recipes are embedded in the user document; also clear legacy collection
+        recipe_count = len(trial_user.get("recipes") or [])
+        legacy_recipes = user_db.recipes.delete_many({"user_id": user_id})
+        user_db.users.update_one({"_id": user_id}, {"$set": {"recipes": [], "custom_foods": []}})
 
-        print(f"Reset trial user data: {deleted_logs.deleted_count} logs, {deleted_foods.deleted_count} custom foods, {deleted_recipes.deleted_count} recipes")
+        deleted_recipe_count = recipe_count + legacy_recipes.deleted_count
+        print(f"Reset trial user data: {deleted_logs.deleted_count} logs, {deleted_foods.deleted_count} custom foods, {deleted_recipe_count} recipes")
 
         return {
             "status": "success",
             "deleted_logs": deleted_logs.deleted_count,
             "deleted_custom_foods": deleted_foods.deleted_count,
-            "deleted_recipes": deleted_recipes.deleted_count,
+            "deleted_recipes": deleted_recipe_count,
             "message": "Trial user data reset successfully"
         }
 
@@ -430,10 +433,11 @@ async def cleanup_old_trial_users(user_db: db):
         cutoff_time = datetime.now(timezone.utc) - timedelta(hours=24)
 
         # Find all old trial users
-        old_trial_users = user_db.users.find({
+        old_trial_users = list(user_db.users.find({
             "is_trial": True,
+            "is_permanent_trial": {"$ne": True},  # Never delete the shared permanent trial user
             "created_at": {"$lt": cutoff_time}
-        })
+        }))
 
         cleanup_count = 0
         for trial_user in old_trial_users:

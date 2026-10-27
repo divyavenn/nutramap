@@ -17,6 +17,7 @@ import { request } from './endpoints';
 import type { Recipe } from './RecipeBlurb';
 import { tutorialEvent } from './TryTutorial';
 import { GlobalEditStyles } from './EditLogStyles';
+import { formatQuantity } from './utlis';
 import {
   LogListContainer, LogsWrapper, LogWrapper,
   NoLogsMessage, DateDividerEl, DayButton,
@@ -161,7 +162,7 @@ function LogList (){
 
   const handleRecipeUpdate = async () => {
     try { localStorage.removeItem('recipes_cache'); } catch (e) {}
-    refreshLogs();
+    refreshLogs({ force: true });
     try {
       const response = await request('/recipes/list', 'GET');
       if (response.body?.recipes) {
@@ -337,11 +338,16 @@ function LogList (){
 
                 // Standalone food log: no recipe_id and single component
                 const isStandaloneFood = !log.recipe_id && log.components.length === 1;
-                const totalWeight = (
-                  Number.isFinite(Number(log.logged_weight_grams)) && Number(log.logged_weight_grams) > 0
-                    ? Number(log.logged_weight_grams)
-                    : log.components.reduce((sum, c) => sum + c.weight_in_grams, 0)
+                // Components hold the absolute grams eaten (and are what nutrients are
+                // computed from). logged_weight_grams is not updated by component
+                // add/edit/delete, so prefer the live component sum.
+                const componentsWeight = log.components.reduce(
+                  (sum, c) => sum + (Number.isFinite(Number(c.weight_in_grams)) ? Number(c.weight_in_grams) : 0),
+                  0
                 );
+                const totalWeight = componentsWeight > 0
+                  ? componentsWeight
+                  : (Number.isFinite(Number(log.logged_weight_grams)) ? Number(log.logged_weight_grams) : 0);
                 const isExpanded = expandedLogId === log._id;
                 const isSyncing = syncingRecipeIds.has(log.recipe_id ?? '') || unlinkingLogIds.has(log._id);
 
@@ -355,9 +361,7 @@ function LogList (){
 
                 const servingsValue = Number(log.servings);
                 const safeServings = Number.isFinite(servingsValue) && servingsValue > 0 ? servingsValue : 1;
-                const servingsText = Number.isInteger(safeServings)
-                  ? String(safeServings)
-                  : safeServings.toFixed(1).replace(/\.0$/, "");
+                const servingsText = formatQuantity(safeServings, 2);
 
                 return (
                   <motion.div

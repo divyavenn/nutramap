@@ -26,7 +26,12 @@ function DeleteAccount() {
   }, [])
 
   const handleYes = async () =>{
-    await request('user/delete', 'POST')
+    const response = await request('/user/delete', 'POST')
+    if (response.status !== 200) {
+      console.error('Failed to delete account:', response)
+      alert('Failed to delete account. Please try again.')
+      return
+    }
     cleanLocalStorage()
     resetAccountAtoms()
     setDeleted(true)

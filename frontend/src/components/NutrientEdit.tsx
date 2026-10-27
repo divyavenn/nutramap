@@ -131,13 +131,42 @@ function NewNutrientForm({ original }: { original?: Nutrient }): React.ReactNode
 
   // Extract the submission logic to a separate function
   const submitForm = async () => {
+    // getNutrientInfo throws for names not in the list, and NaN amounts
+    // serialize to null (422) — validate before sending.
+    if (!(formData.nutrient_name in nutrientList)) {
+      markValidInput(false)
+      return
+    }
+    const amt = parseFloat(formData.requirement)
+    if (!Number.isFinite(amt) || amt < 0) return
+
+    const nutrientId = getNutrientInfo(formData.nutrient_name, false, nutrientList)
     let requestData = {
-      nutrient_id: getNutrientInfo(formData.nutrient_name, false, nutrientList),
-      amt: parseFloat(formData.requirement),
+      nutrient_id: nutrientId,
+      amt: amt,
       should_exceed: Boolean(formData.should_exceed)
     }
+
+    // Editing an existing requirement to a different nutrient: the backend
+    // upserts by nutrient_id, so the old requirement must be removed explicitly
+    // or it lingers alongside the new one.
+    if (original && original.name !== formData.nutrient_name && original.name in nutrientList) {
+      const originalId = getNutrientInfo(original.name, false, nutrientList)
+      if (originalId !== nutrientId) {
+        await request(`/requirements/delete?requirement_id=${originalId}`, 'DELETE')
+      }
+    }
+
     let response = await request('/requirements/new','POST', requestData, 'JSON')
-    refreshRequirements();
+    if (response.status !== 200) {
+      console.error("Failed to save requirement:", response);
+    } else if (!original) {
+      // Clear the "add new" row so it doesn't keep showing the just-added values
+      setFormData({ nutrient_name: '', requirement: '', should_exceed: true })
+      setSuggestions([])
+      setShowSuggestions(false)
+    }
+    await refreshRequirements();
     tutorialEvent('tutorial:nutrient-added');
   }
 

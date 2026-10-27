@@ -6,7 +6,7 @@ import IsOk from '../assets/images/checkmark.svg?react'
 import Trashcan from '../assets/images/trashcan.svg?react'
 import { CalendarDay} from './DateSelector';
 import { getFoodID } from './utlis';
-import { tolocalDateString } from './utlis'
+import { tolocalDateString, parseQuantity, formatQuantity } from './utlis'
 import { useRecoilValue } from 'recoil';
 import { useRefreshLogs } from './dashboard_states';
 import { foodsAtom } from './account_states';
@@ -208,7 +208,8 @@ useEffect(() => {
       // Split the new time into hours and minutes
       const [hours, minutes] = newTime.split(':').map(Number);
     
-      if (isNaN(hours) || isNaN(minutes) || hours > 12 || minutes > 59) {
+      // <input type="time"> yields 24-hour values; rejecting hours > 12 blocked all PM times
+      if (isNaN(hours) || isNaN(minutes) || hours > 23 || minutes > 59) {
         return;
       }
 
@@ -243,17 +244,16 @@ useEffect(() => {
       // Split the new date into year, month, and day
       const [year, month, day] = newDate.split('-').map(Number);
 
-      if (day < 1 || day > 31 || month < 1 || month > 12) {
+      if (!year || !month || !day || day < 1 || day > 31 || month < 1 || month > 12) {
         return;
       }
     
       // Update the date directly using a copy of formData.date
       const updatedDate = new Date(formData.date);
     
-      // Set the year, month (note: month is 0-indexed in JavaScript), and day
-      updatedDate.setFullYear(year);
-      updatedDate.setMonth(month - 1); // Subtract 1 because months are 0-indexed
-      updatedDate.setDate(day);
+      // Set year, month (0-indexed) and day together; sequential setters overflow
+      // (e.g. Jan 31 -> setMonth(1) -> Mar 3)
+      updatedDate.setFullYear(year, month - 1, day);
     
       // Update the formData state
       setFormData({
@@ -276,7 +276,7 @@ useEffect(() => {
     }));
 
     if (name === 'servings' && weightPerServing != null) {
-      const parsed = parseFloat(value);
+      const parsed = parseQuantity(value);
       if (!isNaN(parsed) && parsed > 0) {
         setWeightInput(String(Math.round(parsed * weightPerServing)));
       }
@@ -302,7 +302,7 @@ useEffect(() => {
       const parsed = parseFloat(value);
       if (!isNaN(parsed) && parsed > 0) {
         const newServings = parsed / weightPerServing;
-        setFormData(prev => ({ ...prev, servings: newServings.toFixed(2).replace(/\.?0+$/, '') }));
+        setFormData(prev => ({ ...prev, servings: formatQuantity(newServings, 2) }));
       }
     }
   };
@@ -334,13 +334,15 @@ useEffect(() => {
       // Create form data for recipe log update
       const formDataObj = new FormData();
       formDataObj.append('log_id', _id);
-      formDataObj.append('servings', formData.servings);
-      formDataObj.append('date', formData.date.toISOString());
+      const parsedServings = parseQuantity(formData.servings);
+      formDataObj.append('servings', String(Number.isFinite(parsedServings) && parsedServings > 0 ? parsedServings : servings));
+      // Log dates are stored as naive local time; toISOString() would shift by the UTC offset
+      formDataObj.append('date', tolocalDateString(formData.date));
 
       // Call edit-recipe-log endpoint
       await request('/logs/edit-recipe-log', 'POST', formDataObj);
 
-      refreshLogs();
+      refreshLogs({ force: true });
 
       // Reset the submission state after a short delay to show the animation
       setTimeout(() => {
@@ -374,7 +376,7 @@ useEffect(() => {
     setTimeout(async () => {
       await request(`/logs/delete?log_id=${_id}`, 'DELETE')
       setDeleted(true)
-      refreshLogs()
+      refreshLogs({ force: true })
       setFormData({ ...formData, meal_name: ''})
       
       // Reset the deletion state (though it won't be visible anymore)

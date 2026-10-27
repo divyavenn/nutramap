@@ -64,14 +64,19 @@ function UpdateInfo({infoType} : {infoType : 'name' | 'email' | 'password'}){
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    let response = await request(`/user/update-${infoType}?new_${infoType}=${accountInfo[infoType]}`, 'POST');
+    let response = await request(`/user/update-${infoType}?new_${infoType}=${encodeURIComponent(accountInfo[infoType] ?? '')}`, 'POST');
     if (response.status == 401) {
       navigate("/login")
+      return
     }
-    if (response.status !== 304){
-      localStorage.setItem('access_token', await response.body);
-      refreshAccountInfo()
+    // Only replace the token on success; error bodies (422/500) are objects,
+    // and storing them would corrupt the session.
+    if (response.status === 200 && typeof response.body === 'string' && response.body) {
+      localStorage.setItem('access_token', response.body);
+    } else if (response.status !== 304) {
+      console.error(`Failed to update ${infoType}:`, response);
     }
+    refreshAccountInfo()
     if (infoType=='password'){
       setEditingPassword(false)
     }
@@ -113,7 +118,7 @@ function CheckPassword({mustAuthenticate, protectedComponent} : {mustAuthenticat
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    const response = await request(`/user/check-password?password=${password}`, 'POST')
+    const response = await request(`/user/check-password?password=${encodeURIComponent(password)}`, 'POST')
     if (response.status == 200){
       setAuthenticated(true)
     }

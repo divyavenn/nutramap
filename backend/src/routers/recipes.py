@@ -7,15 +7,16 @@ from datetime import datetime
 import uuid
 import numpy as np
 import os
-from openai import OpenAI
+from openai import AsyncOpenAI
 from dotenv import load_dotenv
 import json
 import re
+import asyncio
 
 from src.databases.mongo import get_data
 from src.databases.mongo_models import UserRecipe, RecipeIngredient
 from src.routers.auth import get_current_user
-from src.routers.parse import estimate_grams
+from src.routers.parse import estimate_grams, FAST_LLM_MODEL
 from src.routers.logs import add_log
 from src.routers.match import rrf_fusion
 from src.routers.foods import get_food_name, get_user_custom_foods
@@ -65,6 +66,10 @@ db = Annotated[Database, Depends(get_data)]
 # Load environment variables
 load_dotenv()
 
+# Meal parsing and dish decomposition need good quantity estimates; keep them on a
+# stronger model than the fast one used for narrow picks.
+MEAL_PARSE_MODEL = os.getenv("MEAL_PARSE_MODEL", "gpt-4o-mini")
+
 # Lazy OpenAI client initialization
 _client = None
 
@@ -75,7 +80,8 @@ def _get_client():
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise ValueError("OPENAI_API_KEY environment variable is not set")
-        _client = OpenAI(api_key=api_key)
+        # Async client: the sync one blocks the event loop (and every other request) per call
+        _client = AsyncOpenAI(api_key=api_key)
     return _client
 
 response_format = {"type": "json_object"}
@@ -100,14 +106,61 @@ def _normalize_serving_unit(label: Optional[str]) -> Optional[str]:
     return cleaned or None
 
 
+def _weight_of(ingredient: dict) -> float:
+    try:
+        return float(ingredient.get("weight_in_grams", 0) or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def _sum_ingredient_weight(ingredients: List[dict]) -> float:
-    total = 0.0
+    return sum(_weight_of(ing) for ing in ingredients)
+
+
+def _recipe_scale_ratio(ingredients: List[dict], servings: float, serving_size_grams=None) -> float:
+    """
+    Multiplier to apply to a recipe's ingredient list to get `servings` servings.
+
+    serving_size_grams is the weight of ONE serving. When it's unset, the ingredient
+    list itself is one serving.
+    """
+    per_serving_grams = _to_float_or_none(serving_size_grams)
+    base_total_weight = _sum_ingredient_weight(ingredients)
+    if per_serving_grams and base_total_weight > 0:
+        return servings * per_serving_grams / base_total_weight
+    return servings
+
+
+def _scale_ingredients(ingredients: List[dict], ratio: float) -> List[dict]:
+    """Return copies of ingredients with amount text and grams multiplied by ratio."""
+    from src.routers.parse import scale_portion_text
+
+    scaled = []
     for ing in ingredients:
-        try:
-            total += float(ing.get("weight_in_grams", 0) or 0)
-        except (TypeError, ValueError):
-            continue
-    return total
+        base_amount = ing.get("amount", "") or ""
+        scaled.append({
+            **ing,
+            "amount": scale_portion_text(base_amount, ratio) if base_amount else "",
+            "weight_in_grams": _weight_of(ing) * ratio,
+        })
+    return scaled
+
+
+def _ingredients_scale_for_servings(ingredients: List[dict], servings: float, logged_weight_grams) -> float:
+    """
+    The parser is asked for ingredients describing ONE serving, but sometimes returns
+    ingredients for the whole amount eaten instead. Use its total-weight estimate to tell
+    which it did. Returns the multiplier from the given ingredients to the amount eaten.
+    """
+    base_total_weight = _sum_ingredient_weight(ingredients)
+    logged = _to_float_or_none(logged_weight_grams)
+    if servings == 1.0 or not logged or base_total_weight <= 0:
+        return servings
+    ratio = logged / base_total_weight
+    # Closer to 1x than to servings x → ingredients already cover everything eaten
+    if abs(ratio - 1.0) < abs(ratio - servings):
+        return 1.0
+    return servings
 
 
 def _normalize_food_id(food_id):
@@ -143,22 +196,18 @@ def _infer_recipe_servings_from_text(
     unit = (serving_unit or "").strip().lower()
     servings = parsed_servings if parsed_servings > 0 else 1.0
 
-    if not item:
+    if not item or unit not in {"slice", "slices", "piece", "pieces"}:
         return servings
 
-    if item in text and "whole" in text:
-        if unit in {"slice", "slices"}:
-            # Midpoint of common 8-12 slice range.
-            return max(servings, 10.0)
-        if unit in {"piece", "pieces"}:
-            return max(servings, 8.0)
-        return max(servings, 2.0)
-
-    if item in text and ("half" in text or "1/2" in text):
-        return max(servings, 0.5)
-
-    if item in text and ("quarter" in text or "1/4" in text):
-        return max(servings, 0.25)
+    # "whole" must modify this item ("a whole pizza", "whole veggie pizza"), not some
+    # other word in the meal ("whole wheat toast", "whole milk").
+    whole_item = re.search(
+        r"\bwhole\s+(?!(?:wheat|grain|milk|foods?)\b)(?:\w+\s+){0,2}" + re.escape(item),
+        text,
+    )
+    if whole_item:
+        # Midpoint of common 8-12 slice range.
+        return max(servings, 10.0 if unit.startswith("slice") else 8.0)
 
     return servings
 
@@ -181,7 +230,7 @@ async def generate_recipe_embedding(description: str) -> List[float]:
         else:
             # Fall back to OpenAI API
             client = _get_client()
-            response = client.embeddings.create(
+            response = await client.embeddings.create(
                 model="text-embedding-3-small",
                 input=description.lower().strip()
             )
@@ -194,7 +243,7 @@ async def generate_recipe_embedding(description: str) -> List[float]:
             print("GPU embedding failed, falling back to OpenAI API...")
             try:
                 client = _get_client()
-                response = client.embeddings.create(
+                response = await client.embeddings.create(
                     model="text-embedding-3-small",
                     input=description.lower().strip()
                 )
@@ -210,7 +259,13 @@ def cosine_similarity(embedding1: List[float], embedding2: List[float]) -> float
     """Calculate cosine similarity between two embeddings"""
     vec1 = np.array(embedding1)
     vec2 = np.array(embedding2)
-    return float(np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2)))
+    # Embeddings from different models (local vs OpenAI fallback) aren't comparable
+    if vec1.shape != vec2.shape:
+        return 0.0
+    norm = np.linalg.norm(vec1) * np.linalg.norm(vec2)
+    if norm == 0:
+        return 0.0
+    return float(np.dot(vec1, vec2) / norm)
 
 
 async def find_similar_recipes(
@@ -336,6 +391,28 @@ def calculate_name_similarity(name1: str, name2: str) -> float:
     return max(coverage * 0.6, jaccard)
 
 
+# Processing that changes what a food is; only pick a candidate with one of these if the
+# user actually said it.
+_PROCESSING_WORDS = (
+    "juice", "puree", "pureed", "babyfood", "baby food", "canned", "drained", "dehydrated",
+    "dried", "powder", "frozen", "concentrate", "fried", "breaded", "sweetened", "candied",
+)
+
+
+def _prefilter_tied_candidates(ingredient_name: str, candidates: List[dict], original_query: Optional[str]) -> List[dict]:
+    """
+    Cheap first pass before asking an LLM to break a tie: drop candidates processed in
+    ways the user didn't mention (e.g. "orange" shouldn't become "Orange juice").
+    Returns the survivors, or the original list if the filter would remove everything.
+    """
+    said = f"{ingredient_name} {original_query or ''}".lower()
+    survivors = [
+        c for c in candidates
+        if not any(word in c["food_name"].lower() and word not in said for word in _PROCESSING_WORDS)
+    ]
+    return survivors or candidates
+
+
 async def llm_disambiguate_food(
     ingredient_name: str,
     candidates: List[dict],  # [{"food_id": ..., "food_name": ...}, ...]
@@ -360,8 +437,8 @@ async def llm_disambiguate_food(
         if original_query:
             context_line = f"User description of meal: \"{original_query}\"\n"
 
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
+        response = await client.chat.completions.create(
+            model=FAST_LLM_MODEL,
             messages=[
                 {
                     "role": "system",
@@ -487,6 +564,9 @@ async def find_high_confidence_match(ingredient_name: str, db: Database, user: d
 
     # Find all candidates that share the best score
     top_candidates = [c for c in scored if c["similarity"] == best_similarity]
+
+    if len(top_candidates) > 1:
+        top_candidates = _prefilter_tied_candidates(ingredient_name, top_candidates, original_query)
 
     if len(top_candidates) > 1:
         # No clear winner from name similarity — ask the LLM to break the tie
@@ -633,8 +713,8 @@ Example - "sambar" (1 cup, 200g):
 }}
 """
 
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
+        response = await client.chat.completions.create(
+            model=MEAL_PARSE_MODEL,
             messages=[
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": f"Decompose: {ingredient_name} ({amount}, {weight}g)"}
@@ -728,7 +808,7 @@ async def classify_ingredient(
                     "food_id": match["id"],
                     "food_name": match["name"],
                     "amount": amount,
-                    "weight_in_grams": weight
+                    "weight_in_grams": _to_float_or_none(weight) or 0.0
                 }
             }
 
@@ -740,10 +820,23 @@ async def classify_ingredient(
         print(f"  ⚠ Could not decompose '{ingredient_name}'")
         return {"type": "none", "name": ingredient_name, "data": None}
 
+    # The decomposition's weights should add up to the dish's weight; the LLM's often don't
+    decomposed_total = _sum_ingredient_weight(base_ingredients)
+    target_weight = _to_float_or_none(weight)
+    if target_weight and decomposed_total > 0 and abs(decomposed_total - target_weight) > 0.01 * target_weight:
+        base_ingredients = _scale_ingredients(base_ingredients, target_weight / decomposed_total)
+
     # Recursively match each base ingredient (these should all become foods)
     matched_ingredients = []
-    for base_ing in base_ingredients:
-        base_match = await find_high_confidence_match(base_ing["food_name"], db, user, original_query=original_query)
+    base_ingredients = [b for b in base_ingredients if b.get("food_name")]
+    base_matches = await asyncio.gather(*[
+        find_high_confidence_match(b["food_name"], db, user, original_query=original_query)
+        for b in base_ingredients
+    ], return_exceptions=True)
+    for base_ing, base_match in zip(base_ingredients, base_matches):
+        if isinstance(base_match, Exception):
+            print(f"    ⚠ Matching failed for base ingredient '{base_ing['food_name']}': {base_match}")
+            continue
         if base_match:
             # Skip composite dish matches with low confidence (same guard as in classify_ingredient).
             # Prevents e.g. "pizza crust" from matching "Pizza, pepperoni topping".
@@ -753,8 +846,8 @@ async def classify_ingredient(
             matched_ingredients.append({
                 "food_id": base_match["id"],
                 "food_name": base_match["name"],
-                "amount": base_ing["amount"],
-                "weight_in_grams": base_ing["weight_in_grams"]
+                "amount": base_ing.get("amount", ""),
+                "weight_in_grams": _weight_of(base_ing)
             })
         else:
             print(f"    ⚠ Could not match base ingredient: '{base_ing['food_name']}'")
@@ -874,8 +967,8 @@ Thank you!
  
 """
 
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
+        response = await client.chat.completions.create(
+            model=MEAL_PARSE_MODEL,
             messages=[
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": recipe_description}
@@ -903,7 +996,9 @@ async def identify_recipes_from_meal(meal_description: str, user_recipes: List[d
             recipes_context = "User's existing recipes:\n"
             for idx, recipe in enumerate(user_recipes[:30], 1):
                 serving_label = recipe.get("serving_size_label")
-                serving_grams = recipe.get("serving_size_grams")
+                serving_grams = recipe.get("serving_size_grams") or round(
+                    _sum_ingredient_weight(recipe.get("ingredients", []))
+                ) or None
                 serving_bits = []
                 if serving_label:
                     serving_bits.append(f"label={serving_label}")
@@ -956,6 +1051,11 @@ IMPORTANT RULES:
   "2 slices cheese pizza" = ONE entry for "cheese pizza" with recipe_servings=2
   "3 cups oatmeal" = ONE entry for "oatmeal" with recipe_servings=3
   "half a bowl of rice" = ONE entry for "rice" with recipe_servings=0.5
+- INGREDIENTS DESCRIBE EXACTLY ONE SERVING (one serving_size_label unit), NOT the total eaten.
+  The total eaten is ingredients x recipe_servings.
+  "2 slices cheese pizza" → recipe_servings=2, ingredients for ONE slice
+- If the user gives a weight for an existing recipe ("200g of daal"), set
+  recipe_servings = that weight / the recipe's serving grams.
 - For EXISTING recipe matches, use that recipe's serving_info to infer realistic servings and grams:
   if serving unit is "slice" and user says "whole pizza", infer ~8-12 slices (use best estimate).
 
@@ -969,7 +1069,7 @@ For EVERY parsed item, return serving semantics:
 - "serving_unit": unit from user text (e.g. "slice", "bowl", "cup", "mug", "plate")
 - "serving_size_label": normalized one-unit label (e.g. "1 slice", "1 bowl")
 - "serving_size_grams": grams for ONE serving unit
-- "logged_weight_grams": total grams consumed for this logged item
+- "logged_weight_grams": total grams consumed for this logged item (= serving_size_grams x recipe_servings)
 If uncertain, estimate using typical values and ingredient context.
 
 Respond with ONLY a JSON object:
@@ -1047,6 +1147,29 @@ Output:
   ]
 }}
 
+Input: "2 slices of cheese pizza" (user has NO matching recipe)
+Output:
+{{
+  "recipes": [
+    {{
+      "recipe_id": null,
+      "timestamp": "2024-06-15T12:00:00",
+      "description": "Cheese pizza",
+      "recipe_servings": 2,
+      "serving_unit": "slice",
+      "serving_size_label": "1 slice",
+      "serving_size_grams": 107,
+      "logged_weight_grams": 214,
+      "ingredients": [
+        {{"food_name": "Wheat flour, white, all-purpose", "amount": "1/3 cup", "weight_in_grams": 45}},
+        {{"food_name": "Cheese, mozzarella, whole milk", "amount": "1 oz", "weight_in_grams": 28}},
+        {{"food_name": "Sauce, pasta, marinara", "amount": "2 tbsp", "weight_in_grams": 30}},
+        {{"food_name": "Oil, olive", "amount": "1 tsp", "weight_in_grams": 4}}
+      ]
+    }}
+  ]
+}}
+
 Input: "half a pot of homemade daal" (user has existing recipe "homemade daal" with ID "abc-123")
 Output:
 {{
@@ -1083,8 +1206,8 @@ Output:
 }}
 """
 
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
+        response = await client.chat.completions.create(
+            model=MEAL_PARSE_MODEL,
             messages=[
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": meal_description}
@@ -1120,188 +1243,211 @@ async def process_recipes_in_background(
         print(f"=== Background processing started for {len(identified_recipes)} items ===")
 
         for item in identified_recipes:
-            recipe_id = item.get("recipe_id")
-            description = item["description"]
-            servings = _to_float_or_none(item.get("recipe_servings")) or 1.0
-            ingredients = item.get("ingredients", [])
-            serving_unit = _normalize_serving_unit(item.get("serving_unit") or item.get("serving_size_label"))
-            item_serving_size_label = item.get("serving_size_label")
-            parsed_serving_size_grams = _to_float_or_none(item.get("serving_size_grams"))
-            parsed_logged_weight_grams = _to_float_or_none(item.get("logged_weight_grams"))
-            timestamp_str = item.get("timestamp")
-            if timestamp_str:
-                try:
-                    timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-                except (ValueError, AttributeError):
+            try:
+                recipe_id = item.get("recipe_id")
+                description = item["description"]
+                servings = _to_float_or_none(item.get("recipe_servings")) or 1.0
+                ingredients = item.get("ingredients", [])
+                serving_unit = _normalize_serving_unit(item.get("serving_unit") or item.get("serving_size_label"))
+                item_serving_size_label = item.get("serving_size_label")
+                parsed_serving_size_grams = _to_float_or_none(item.get("serving_size_grams"))
+                parsed_logged_weight_grams = _to_float_or_none(item.get("logged_weight_grams"))
+                timestamp_str = item.get("timestamp")
+                if timestamp_str:
+                    try:
+                        timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                    except (ValueError, AttributeError):
+                        timestamp = meal_date
+                else:
                     timestamp = meal_date
-            else:
-                timestamp = meal_date
 
-            print(f"\nProcessing '{description}': {len(ingredients)} ingredients, servings={servings}")
+                print(f"\nProcessing '{description}': {len(ingredients)} ingredients, servings={servings}")
 
-            # CASE 1: Existing recipe match
-            if recipe_id:
-                existing_recipe = next(
-                    (r for r in user_recipes if r["recipe_id"] == recipe_id),
-                    None
-                )
-                if existing_recipe:
-                    print(f"  → Existing recipe match")
-                    recipe_serving_size_grams = _to_float_or_none(existing_recipe.get("serving_size_grams"))
-                    if not item_serving_size_label:
-                        item_serving_size_label = existing_recipe.get("serving_size_label")
-                    inferred_unit = _normalize_serving_unit(item_serving_size_label)
-                    servings = _infer_recipe_servings_from_text(
-                        meal_description=meal_description or description,
-                        item_description=description,
-                        parsed_servings=servings,
-                        serving_unit=inferred_unit,
+                # CASE 1: Existing recipe match
+                if recipe_id:
+                    existing_recipe = next(
+                        (r for r in user_recipes if r["recipe_id"] == recipe_id),
+                        None
                     )
-                    resolved_logged_weight_grams = (
-                        parsed_logged_weight_grams
-                        or (servings * parsed_serving_size_grams if parsed_serving_size_grams else None)
-                        or (servings * recipe_serving_size_grams if recipe_serving_size_grams else None)
-                    )
-                    await _create_log_for_recipe(
-                        recipe_id=recipe_id,
-                        meal_name=description,
-                        servings=servings,
-                        timestamp=timestamp,
-                        ingredients=existing_recipe["ingredients"],
-                        user_id=user_id,
-                        db=db,
-                        serving_unit=serving_unit,
-                        serving_size_label=item_serving_size_label,
-                        logged_weight_grams=resolved_logged_weight_grams,
-                    )
-                    continue
+                    if existing_recipe:
+                        print(f"  → Existing recipe match")
+                        recipe_serving_size_grams = _to_float_or_none(existing_recipe.get("serving_size_grams"))
+                        # Servings are counted in the recipe's own unit, so label the log with it
+                        item_serving_size_label = existing_recipe.get("serving_size_label") or item_serving_size_label
+                        inferred_unit = _normalize_serving_unit(item_serving_size_label)
+                        servings = _infer_recipe_servings_from_text(
+                            meal_description=meal_description or description,
+                            item_description=description,
+                            parsed_servings=servings,
+                            serving_unit=inferred_unit,
+                        )
+                        await _create_log_for_recipe(
+                            recipe_id=recipe_id,
+                            meal_name=description,
+                            servings=servings,
+                            timestamp=timestamp,
+                            ingredients=existing_recipe["ingredients"],
+                            user_id=user_id,
+                            db=db,
+                            serving_unit=serving_unit,
+                            serving_size_label=item_serving_size_label,
+                            serving_size_grams=recipe_serving_size_grams,
+                        )
+                        continue
 
-            # CASE 2: Single ingredient → try to log as standalone food
-            # Covers both custom foods ("idli") and simple USDA foods ("2 apples").
-            if len(ingredients) == 1:
-                ing = ingredients[0]
-                ing_name = ing.get("food_name", "")
-                if ing_name:
+                # CASE 2: Single ingredient → try to log as standalone food
+                # Covers both custom foods ("idli") and simple USDA foods ("2 apples").
+                if len(ingredients) == 1:
+                    ing = ingredients[0]
+                    ing_name = ing.get("food_name", "")
+                    if ing_name:
+                        classification = await classify_ingredient(
+                            ing_name,
+                            ing.get("amount", ""),
+                            ing.get("weight_in_grams", 0),
+                            db,
+                            {"_id": user_id},
+                            user_recipes=[],
+                            original_query=meal_description or description,
+                        )
+                        if classification["type"] == "food":
+                            food_data = classification["data"]
+                            print(f"  → Standalone food: '{food_data['food_name']}'")
+                            await _create_log_for_food(
+                                food_data["food_name"],
+                                servings,
+                                timestamp,
+                                food_data,
+                                user_id,
+                                db,
+                                serving_unit=serving_unit,
+                                serving_size_label=item_serving_size_label,
+                                logged_weight_grams=parsed_logged_weight_grams,
+                                serving_size_grams=parsed_serving_size_grams,
+                            )
+                            continue
+                        elif classification["type"] == "decompose":
+                            # Single ingredient that itself decomposes → treat as a recipe
+                            print(f"  → '{ing_name}' decomposes, promoting to CASE 3")
+                            ingredients = classification["data"]
+                        else:
+                            # Re-classifying the same ingredient in CASE 3 would fail the same way
+                            print(f"  ⚠ Could not classify '{ing_name}', skipping")
+                            continue
+
+                # CASE 3: Multiple ingredients → create new recipe + log
+                print(f"  → Creating new recipe with {len(ingredients)} ingredients")
+
+                # Classify each ingredient via classify_ingredient (same path as the test).
+                # Defensive fallback: GPT sometimes returns ingredients: [] for composite dishes
+                # (should never happen per prompt rules, but handle it gracefully).
+                matched_ingredients = []
+                if not ingredients:
+                    print(f"  ⚠ GPT returned no ingredients for '{description}', classifying description directly")
                     classification = await classify_ingredient(
-                        ing_name,
-                        ing.get("amount", ""),
-                        ing.get("weight_in_grams", 0),
+                        description,
+                        item_serving_size_label or "1 serving",
+                        parsed_serving_size_grams or 0,
                         db,
                         {"_id": user_id},
                         user_recipes=[],
                         original_query=meal_description or description,
                     )
                     if classification["type"] == "food":
-                        food_data = classification["data"]
-                        print(f"  → Standalone food: '{food_data['food_name']}'")
-                        await _create_log_for_food(
-                            food_data["food_name"],
-                            servings,
-                            timestamp,
-                            food_data,
-                            user_id,
-                            db,
-                            serving_unit=serving_unit,
-                            serving_size_label=item_serving_size_label,
-                            logged_weight_grams=parsed_logged_weight_grams,
-                            serving_size_grams=parsed_serving_size_grams,
-                        )
-                        continue
+                        matched_ingredients = [classification["data"]]
                     elif classification["type"] == "decompose":
-                        # Single ingredient that itself decomposes → treat as a recipe
-                        print(f"  → '{ing_name}' decomposes, promoting to CASE 3")
-                        ingredients = classification["data"]
-                    # "none" → fall through to CASE 3 with the original single ingredient
-
-            # CASE 3: Multiple ingredients → create new recipe + log
-            print(f"  → Creating new recipe with {len(ingredients)} ingredients")
-
-            # Classify each ingredient via classify_ingredient (same path as the test).
-            # Defensive fallback: GPT sometimes returns ingredients: [] for composite dishes
-            # (should never happen per prompt rules, but handle it gracefully).
-            matched_ingredients = []
-            if not ingredients:
-                print(f"  ⚠ GPT returned no ingredients for '{description}', classifying description directly")
-                classification = await classify_ingredient(
-                    description, "", 0, db, {"_id": user_id}, user_recipes=[], original_query=meal_description or description
-                )
-                if classification["type"] == "food":
-                    matched_ingredients = [classification["data"]]
-                elif classification["type"] == "decompose":
-                    matched_ingredients = list(classification["data"])
-                else:
-                    print(f"  ⚠ Could not classify '{description}', skipping")
-                    continue
-            else:
-                for ing in ingredients:
-                    ing_name = ing.get("food_name", "")
-                    if not ing_name:
-                        continue
-
-                    classification = await classify_ingredient(
-                        ing_name,
-                        ing.get("amount", ""),
-                        ing.get("weight_in_grams", 0),
-                        db,
-                        {"_id": user_id},
-                        user_recipes=[],  # sub-ingredients are never themselves recipes
-                        original_query=meal_description or description,
-                    )
-
-                    if classification["type"] == "food":
-                        matched_ingredients.append(classification["data"])
-                        print(f"    ✓ '{ing_name}' → '{classification['data']['food_name']}'")
-                    elif classification["type"] == "decompose":
-                        # e.g. "pizza crust" further decomposes into flour, water, yeast
-                        for sub in classification["data"]:
-                            matched_ingredients.append(sub)
-                        print(f"    ✓ '{ing_name}' → decomposed into {len(classification['data'])} sub-ingredient(s)")
+                        matched_ingredients = list(classification["data"])
                     else:
-                        print(f"    ✗ '{ing_name}' — no match found")
+                        print(f"  ⚠ Could not classify '{description}', skipping")
+                        continue
+                else:
+                    # Ingredients are independent, so match them concurrently
+                    named_ingredients = [ing for ing in ingredients if ing.get("food_name")]
+                    classifications = await asyncio.gather(*[
+                        classify_ingredient(
+                            ing["food_name"],
+                            ing.get("amount", ""),
+                            ing.get("weight_in_grams", 0),
+                            db,
+                            {"_id": user_id},
+                            user_recipes=[],  # sub-ingredients are never themselves recipes
+                            original_query=meal_description or description,
+                        )
+                        for ing in named_ingredients
+                    ], return_exceptions=True)
 
-            if not matched_ingredients:
-                print(f"  ⚠ No valid ingredients for '{description}', skipping")
-                continue
+                    for ing, classification in zip(named_ingredients, classifications):
+                        ing_name = ing["food_name"]
+                        if isinstance(classification, Exception):
+                            print(f"    ✗ '{ing_name}' — matching failed: {classification}")
+                            continue
 
-            # Create the new recipe
-            new_recipe_id = str(uuid.uuid4())
-            embedding = await generate_recipe_embedding(description)
+                        if classification["type"] == "food":
+                            matched_ingredients.append(classification["data"])
+                            print(f"    ✓ '{ing_name}' → '{classification['data']['food_name']}'")
+                        elif classification["type"] == "decompose":
+                            # e.g. "pizza crust" further decomposes into flour, water, yeast
+                            for sub in classification["data"]:
+                                matched_ingredients.append(sub)
+                            print(f"    ✓ '{ing_name}' → decomposed into {len(classification['data'])} sub-ingredient(s)")
+                        else:
+                            print(f"    ✗ '{ing_name}' — no match found")
 
-            serving_size_label = item.get("serving_size_label") or None
-            serving_size_grams = item.get("serving_size_grams") or None
+                if not matched_ingredients:
+                    print(f"  ⚠ No valid ingredients for '{description}', skipping")
+                    continue
 
-            new_recipe = {
-                "recipe_id": new_recipe_id,
-                "description": description,
-                "embedding": embedding,
-                "ingredients": matched_ingredients,
-                "serving_size_label": serving_size_label,
-                "serving_size_grams": serving_size_grams,
-                "created_at": timestamp,
-                "updated_at": datetime.now()
-            }
+                # Store the recipe as ONE serving so later logs can scale it by servings.
+                # The parser sometimes gives ingredients for everything eaten instead.
+                if servings != 1.0 and _ingredients_scale_for_servings(
+                    matched_ingredients, servings, parsed_logged_weight_grams
+                ) == 1.0:
+                    matched_ingredients = _scale_ingredients(matched_ingredients, 1.0 / servings)
 
-            db.users.update_one(
-                {"_id": user_id},
-                {"$push": {"recipes": new_recipe}}
-            )
-            user_recipes.append(new_recipe)
+                # Create the new recipe
+                new_recipe_id = str(uuid.uuid4())
+                embedding = await generate_recipe_embedding(description)
 
-            print(f"  ✓ Created recipe '{description}' with {len(matched_ingredients)} ingredients")
+                serving_size_label = item_serving_size_label or None
+                # The ingredient list is exactly one serving; leaving this unset keeps it
+                # in sync with the ingredients when they're edited later.
+                serving_size_grams = None
 
-            # Create log for this new recipe
-            await _create_log_for_recipe(
-                recipe_id=new_recipe_id,
-                meal_name=description,
-                servings=servings,
-                timestamp=timestamp,
-                ingredients=matched_ingredients,
-                user_id=user_id,
-                db=db,
-                serving_unit=serving_unit,
-                serving_size_label=serving_size_label,
-                logged_weight_grams=parsed_logged_weight_grams,
-            )
+                new_recipe = {
+                    "recipe_id": new_recipe_id,
+                    "description": description,
+                    "embedding": embedding,
+                    "ingredients": matched_ingredients,
+                    "serving_size_label": serving_size_label,
+                    "serving_size_grams": serving_size_grams,
+                    "created_at": timestamp,
+                    "updated_at": datetime.now()
+                }
+
+                db.users.update_one(
+                    {"_id": user_id},
+                    {"$push": {"recipes": new_recipe}}
+                )
+                user_recipes.append(new_recipe)
+
+                print(f"  ✓ Created recipe '{description}' with {len(matched_ingredients)} ingredients")
+
+                # Create log for this new recipe
+                await _create_log_for_recipe(
+                    recipe_id=new_recipe_id,
+                    meal_name=description,
+                    servings=servings,
+                    timestamp=timestamp,
+                    ingredients=matched_ingredients,
+                    user_id=user_id,
+                    db=db,
+                    serving_unit=serving_unit,
+                    serving_size_label=serving_size_label,
+                )
+            except Exception as e:
+                import traceback
+                print(f"Error processing '{item.get('description')}': {e}")
+                print(f"Traceback: {traceback.format_exc()}")
 
         print(f"\n=== Background processing completed ===")
 
@@ -1309,30 +1455,6 @@ async def process_recipes_in_background(
         import traceback
         print(f"Error in background recipe processing: {e}")
         print(f"Traceback: {traceback.format_exc()}")
-
-
-def _estimate_servings_from_weight(weight: float, recipe: dict) -> float:
-    """Estimate servings based on consumed weight vs recipe total weight."""
-    if not recipe or "ingredients" not in recipe:
-        return 1.0
-
-    # Calculate total recipe weight
-    total_recipe_weight = sum(
-        ing.get("weight_in_grams", 0) for ing in recipe.get("ingredients", [])
-    )
-
-    if total_recipe_weight <= 0:
-        return 1.0
-
-    return weight / total_recipe_weight
-
-
-def _estimate_servings_from_weight_simple(weight: float) -> float:
-    """Estimate servings based on typical serving sizes."""
-    # Typical serving is around 150-200g
-    if weight <= 0:
-        return 1.0
-    return max(0.25, weight / 175.0)  # Minimum 0.25 servings
 
 
 async def _create_log_for_food(
@@ -1348,8 +1470,6 @@ async def _create_log_for_food(
     serving_size_grams: Optional[float] = None,
 ):
     """Create a standalone log entry for a single food (no recipe)."""
-    from src.routers.parse import scale_portion_text
-
     food_id = food_data.get("food_id")
     if not food_id:
         food_id = await match_ingredient_to_food_id(food_name, db, {"_id": user_id})
@@ -1358,15 +1478,21 @@ async def _create_log_for_food(
         print(f"⚠ Could not find food_id for '{food_name}', skipping")
         return
 
-    base_weight = food_data.get("weight_in_grams", 0)
-    resolved_logged_weight_grams = (
-        _to_float_or_none(logged_weight_grams)
-        or ((_to_float_or_none(serving_size_grams) or base_weight) * servings)
-    )
-    actual_weight = resolved_logged_weight_grams
-    base_amount = food_data.get("amount", "")
-    scale_ratio = (actual_weight / base_weight) if base_weight > 0 else servings
-    scaled_amount = scale_portion_text(base_amount, scale_ratio) if base_amount else ""
+    if _weight_of(food_data) > 0:
+        # food_data's amount/weight describe one serving (or, if the parser ignored
+        # that, everything eaten) — scale it to what was eaten.
+        ratio = _ingredients_scale_for_servings([food_data], servings, logged_weight_grams)
+        component = _scale_ingredients([food_data], ratio)[0]
+    else:
+        per_serving_grams = _to_float_or_none(serving_size_grams)
+        component = {
+            "amount": food_data.get("amount", "") or "",
+            "weight_in_grams": (
+                _to_float_or_none(logged_weight_grams)
+                or (per_serving_grams * servings if per_serving_grams else 0.0)
+            ),
+        }
+    actual_weight = component["weight_in_grams"]
 
     log_dict = {
         "recipe_id": None,  # No recipe - standalone food log
@@ -1375,7 +1501,7 @@ async def _create_log_for_food(
         "date": timestamp,
         "components": [{
             "food_id": food_id,
-            "amount": scaled_amount,
+            "amount": component["amount"],
             "weight_in_grams": actual_weight
         }],
         "serving_unit": serving_unit,
@@ -1399,38 +1525,22 @@ async def _create_log_for_recipe(
     db: Database,
     serving_unit: Optional[str] = None,
     serving_size_label: Optional[str] = None,
-    logged_weight_grams: Optional[float] = None,
+    serving_size_grams: Optional[float] = None,
 ):
-    """Create a log entry for a recipe with its ingredients as components."""
-    from src.routers.parse import scale_portion_text
-
-    base_total_weight = _sum_ingredient_weight(ingredients)
-    resolved_logged_weight_grams = _to_float_or_none(logged_weight_grams)
-    if resolved_logged_weight_grams is None and base_total_weight > 0:
-        resolved_logged_weight_grams = base_total_weight * servings
-
-    scale_ratio = (
-        (resolved_logged_weight_grams / base_total_weight)
-        if (resolved_logged_weight_grams and base_total_weight > 0)
-        else servings
-    )
+    """Create a log entry for `servings` servings of a recipe, with its ingredients as components."""
+    scale_ratio = _recipe_scale_ratio(ingredients, servings, serving_size_grams)
 
     components = []
-    for ingredient in ingredients:
+    for ingredient in _scale_ingredients(ingredients, scale_ratio):
         food_id = ingredient.get("food_id")
-        if not food_id and "food_name" in ingredient:
+        if not food_id and ingredient.get("food_name"):
             food_id = await match_ingredient_to_food_id(ingredient["food_name"], db, {"_id": user_id})
 
         if food_id:
-            base_weight = ingredient.get("weight_in_grams", 0)
-            actual_weight = base_weight * scale_ratio
-            base_amount = ingredient.get("amount", "")
-            scaled_amount = scale_portion_text(base_amount, scale_ratio) if base_amount else ""
-
             components.append({
                 "food_id": food_id,
-                "amount": scaled_amount,
-                "weight_in_grams": actual_weight
+                "amount": ingredient["amount"],
+                "weight_in_grams": ingredient["weight_in_grams"]
             })
 
     if not components:
@@ -1445,7 +1555,7 @@ async def _create_log_for_recipe(
         "components": components,
         "serving_unit": serving_unit,
         "serving_size_label": serving_size_label,
-        "logged_weight_grams": resolved_logged_weight_grams,
+        "logged_weight_grams": sum(c["weight_in_grams"] for c in components),
         "user_id": user_id,
         "_id": ObjectId()
     }
@@ -1719,6 +1829,9 @@ async def update_recipe_ingredients(
                     else:
                         print(f"✗ Could not match '{ingredient['food_name']}'")
 
+            if ingredient.get("food_id"):
+                ingredient["food_id"] = _normalize_food_id(ingredient["food_id"])
+            ingredient["weight_in_grams"] = _weight_of(ingredient)
             processed_ingredients.append(ingredient)
 
         # Update the recipe
@@ -1739,6 +1852,8 @@ async def update_recipe_ingredients(
 
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid ingredients JSON")
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error updating recipe: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -1750,9 +1865,10 @@ async def update_serving_size(
     db: db,
     recipe_id: str = Form(...),
     serving_size_label: str = Form(...),
-    serving_size_grams: float = Form(...)
+    serving_size_grams: Optional[float] = Form(None)
 ):
     """Update the serving size label and weight for a recipe"""
+    serving_size_grams = _to_float_or_none(serving_size_grams)
     result = db.users.update_one(
         {"_id": user["_id"], "recipes.recipe_id": recipe_id},
         {
@@ -1836,7 +1952,7 @@ async def edit_recipe_ingredient(
             raise HTTPException(status_code=400, detail="Invalid ingredient index")
 
         # Use provided food_id if available, otherwise match the food_name
-        if food_id is None:
+        if not food_id:
             print(f"No food_id provided, matching '{food_name}' using RRF...")
             food_id = await match_ingredient_to_food_id(food_name, db, user)
             if not food_id:
@@ -1852,8 +1968,7 @@ async def edit_recipe_ingredient(
         food_id = _normalize_food_id(food_id)
 
         # Use provided weight_in_grams if given, otherwise estimate from amount
-        if weight_in_grams is None:
-            from src.routers.parse import estimate_grams
+        if not weight_in_grams or weight_in_grams <= 0:
             weight_in_grams = await estimate_grams(food_name, amount)
 
         # Update the ingredient at the specified index
@@ -1916,7 +2031,7 @@ async def add_recipe_ingredient(
         ingredients = recipe.get("ingredients", [])
 
         # Use provided food_id if available, otherwise match the food_name
-        if food_id is None:
+        if not food_id:
             print(f"No food_id provided, matching '{food_name}' using RRF...")
             food_id = await match_ingredient_to_food_id(food_name, db, user)
             if not food_id:
@@ -1932,8 +2047,7 @@ async def add_recipe_ingredient(
         food_id = _normalize_food_id(food_id)
 
         # Use provided weight_in_grams if given, otherwise estimate from amount
-        if weight_in_grams is None:
-            from src.routers.parse import estimate_grams
+        if not weight_in_grams or weight_in_grams <= 0:
             weight_in_grams = await estimate_grams(food_name, amount)
 
         # Append the new ingredient to the list
@@ -2093,17 +2207,17 @@ async def create_recipe(
 
             food_id = _normalize_food_id(food_id)
 
+            food_name = ing.get("food_name") or get_food_name(food_id, db, None) or ""
+
             # If weight not provided, estimate from amount
-            if not weight_in_grams and amount:
-                food = db.foods.find_one({"_id": food_id})
-                food_name = food["name"] if food else "unknown"
-                weight_in_grams = await estimate_grams(food_name, amount)
+            if not _to_float_or_none(weight_in_grams) and amount:
+                weight_in_grams = await estimate_grams(food_name or "unknown", amount)
 
             processed_ingredients.append({
                 "food_id": food_id,
-                "food_name": ing.get("food_name", ""),
-                "amount": amount,
-                "weight_in_grams": float(weight_in_grams)
+                "food_name": food_name,
+                "amount": amount or "",
+                "weight_in_grams": _to_float_or_none(weight_in_grams) or 0.0
             })
 
         # Generate recipe ID and embedding
@@ -2142,6 +2256,8 @@ async def create_recipe(
 
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid ingredients JSON")
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error creating recipe: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -2176,9 +2292,11 @@ async def create_recipe_from_meal(
     if not components:
         raise HTTPException(status_code=400, detail="Log has no components.")
 
-    # Build ingredients from components
+    # Build ingredients from components. The log covers `servings` servings and recipes
+    # store one serving, so divide back down.
+    log_servings = _to_float_or_none(target_log.get("servings")) or 1.0
     ingredients = []
-    for comp in components:
+    for comp in _scale_ingredients(components, 1.0 / log_servings):
         food_id = comp.get("food_id")
         if food_id is not None:
             food_id = _normalize_food_id(food_id)
@@ -2193,6 +2311,10 @@ async def create_recipe_from_meal(
     if not ingredients:
         raise HTTPException(status_code=400, detail="No valid ingredients found in log.")
 
+    serving_size_label = target_log.get("serving_size_label")
+    if not serving_size_label and target_log.get("serving_unit"):
+        serving_size_label = f"1 {target_log['serving_unit']}"
+
     recipe_id = str(uuid.uuid4())
     embedding = await generate_recipe_embedding(recipe_name)
 
@@ -2201,7 +2323,7 @@ async def create_recipe_from_meal(
         "description": recipe_name,
         "embedding": embedding,
         "ingredients": ingredients,
-        "serving_size_label": None,
+        "serving_size_label": serving_size_label,
         "serving_size_grams": None,
         "created_at": datetime.now(),
         "updated_at": datetime.now()
@@ -2242,7 +2364,6 @@ def unlink_log_from_recipe(user: user, db: db, log_id: str = Form(...)):
 @router.post("/sync-logs")
 def sync_logs_to_recipe(user: user, db: db, recipe_id: str = Form(...)):
     """Update all linked logs to match the current recipe ingredients"""
-    from src.routers.parse import scale_portion_text
     # Fetch recipe from user's recipes
     user_data = db.users.find_one(
         {"_id": user["_id"], "recipes.recipe_id": recipe_id},
@@ -2263,23 +2384,15 @@ def sync_logs_to_recipe(user: user, db: db, recipe_id: str = Form(...)):
     if not linked_logs:
         return {"status": "success", "updated_count": 0}
 
-    base_total_weight = _sum_ingredient_weight(ingredients)
     updated_count = 0
     for log in linked_logs:
-        servings = log.get("servings", 1.0)
-        logged_weight_grams = _to_float_or_none(log.get("logged_weight_grams"))
-        if logged_weight_grams is None and base_total_weight > 0:
-            logged_weight_grams = base_total_weight * servings
-        scale_ratio = (
-            (logged_weight_grams / base_total_weight)
-            if (logged_weight_grams and base_total_weight > 0)
-            else servings
-        )
+        servings = _to_float_or_none(log.get("servings")) or 1.0
+        # Recompute from servings: the old gram total reflects the old ingredient list,
+        # so scaling to it would shrink/grow every ingredient when one is added/removed.
+        scale_ratio = _recipe_scale_ratio(ingredients, servings, recipe.get("serving_size_grams"))
 
-        # Rebuild components from recipe ingredients scaled by logged grams ratio
         new_components = []
-        for ing in ingredients:
-            base_amount = ing.get("amount", "")
+        for ing in _scale_ingredients(ingredients, scale_ratio):
             normalized_food_id = _normalize_food_id(ing.get("food_id"))
             resolved_food_name = ing.get("food_name")
             if not resolved_food_name:
@@ -2287,9 +2400,10 @@ def sync_logs_to_recipe(user: user, db: db, recipe_id: str = Form(...)):
             new_components.append({
                 "food_id": normalized_food_id,
                 "food_name": resolved_food_name,
-                "amount": scale_portion_text(base_amount, scale_ratio) if base_amount else "",
-                "weight_in_grams": ing["weight_in_grams"] * scale_ratio
+                "amount": ing["amount"],
+                "weight_in_grams": ing["weight_in_grams"]
             })
+        logged_weight_grams = sum(c["weight_in_grams"] for c in new_components)
 
         result = db.logs.update_one(
             {"_id": log["_id"]},

@@ -211,7 +211,8 @@ function Dashboard() {
         navigate('/dashboard', { replace: true, state: null })
       }
       await refreshAccountInfo()
-      refreshLogs()
+      // Force: logs may have changed on other pages (recipe sync/delete) within the cache TTL
+      refreshLogs({ force: true })
       refreshRequirements()
       // Prefetch recipes in background so the recipes page loads instantly
       request('/recipes/list', 'GET').then((res) => {

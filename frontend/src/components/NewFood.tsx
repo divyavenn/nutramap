@@ -287,11 +287,14 @@ function NewFood() {
         throw new Error('VITE_API_URL is not defined');
       }
 
-      await fetch(`${apiBase}/food/process_and_add`, {
+      const response = await fetch(`${apiBase}/food/process_and_add`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` },
         body: formData,
       });
+      if (!response.ok) {
+        throw new Error(`process_and_add failed with status ${response.status}`);
+      }
 
       tutorialEvent('tutorial:food-created');
       // Polling (useEffect above) will detect the new food and clear the pending entry.

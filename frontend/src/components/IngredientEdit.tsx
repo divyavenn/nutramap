@@ -117,7 +117,7 @@ useEffect(() => {
     }
     
     try {
-      const response = await request('/match/autocomplete' + '?prompt=' + value, 'POST', {}, 'JSON');
+      const response = await request('/match/autocomplete' + '?prompt=' + encodeURIComponent(value), 'POST', {}, 'JSON');
       if (response.body) {
         setSuggestions(response.body);
         setShowSuggestions(value.length > 0 && response.body.length > 0);
@@ -223,6 +223,9 @@ useEffect(() => {
     setFormData(prevData => ({
       ...prevData,
       [name]: value,
+      // Typing a new food name invalidates the previously matched food_id; otherwise the
+      // backend would keep the old food (and its nutrients) under the new name.
+      ...(name === 'food_name' ? { food_id: undefined } : {}),
     }));
 
     if (name === 'food_name') {
@@ -238,14 +241,22 @@ useEffect(() => {
         return;
       }
 
-      // Fetch immediately on every keystroke
-      handleAdvancedSearch(value);
+      // Debounce so out-of-order responses for earlier keystrokes can't overwrite later ones
+      debounceTimerRef.current = setTimeout(() => handleAdvancedSearch(value), 300);
     }
   };
 
   // Handle blur event on weight input to trigger update
   const handleWeightBlur = async () => {
-    // Only submit if we have a valid recipe context
+    // Only submit if we have a valid recipe context and the weight was actually changed.
+    // Saving on every blur would pin the old grams to a freshly edited amount.
+    const parsedWeight = parseFloat(formData.weight_in_grams);
+    const originalWeight = weight_in_grams ? String(weight_in_grams) : '';
+    if (formData.weight_in_grams === originalWeight) return;
+    if (!Number.isFinite(parsedWeight) || parsedWeight < 0) {
+      setFormData(prev => ({ ...prev, weight_in_grams: originalWeight }));
+      return;
+    }
     if (recipeId && componentIndex !== undefined) {
       setIsSavingWeight(true);
       const formDataObj = new FormData();
@@ -253,7 +264,7 @@ useEffect(() => {
       formDataObj.append('component_index', String(componentIndex));
       formDataObj.append('food_name', formData.food_name || '');
       formDataObj.append('amount', formData.amount);
-      formDataObj.append('weight_in_grams', formData.weight_in_grams);
+      formDataObj.append('weight_in_grams', String(parsedWeight));
       if (formData.food_id) {
         formDataObj.append('food_id', formData.food_id); // Send food_id to skip RRF matching
       }
@@ -273,7 +284,7 @@ useEffect(() => {
             await onSave();
           }
 
-          refreshLogs();
+          refreshLogs({ force: true });
         }
       } catch (error) {
         console.error('Error updating weight:', error);
@@ -284,12 +295,13 @@ useEffect(() => {
   };
 
   const handleSuggestionClick = (suggestion: {food_id: string, food_name: string}) => {
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     // Update the formData with the selected suggestion, including the food_id
-    setFormData({
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       food_name: suggestion.food_name,
       food_id: suggestion.food_id, // Store the food_id to avoid re-matching
-    });
+    }));
     setShowSuggestions(false); // Hide suggestions after selection
   };
 
@@ -347,7 +359,7 @@ useEffect(() => {
         }
       }
 
-      refreshLogs();
+      refreshLogs({ force: true });
 
       // Reset the submission state after a short delay to show the animation
       setTimeout(() => {
@@ -369,22 +381,26 @@ useEffect(() => {
     // Add a delay to show the animation before actually deleting
     setTimeout(async () => {
       // Check if we're deleting a recipe ingredient or a log
-      if (recipeId) {
-        // Deleting a recipe ingredient
-        await request(`/recipes/delete-ingredient?recipe_id=${recipeId}&component_index=${componentIndex}`, 'DELETE');
-      } else {
-        // Deleting a log
-        await request(`/logs/delete?log_id=`, 'DELETE');
+      if (!recipeId || componentIndex === undefined) {
+        setIsDeleting(false);
+        return;
+      }
+      // Deleting a recipe ingredient
+      const response = await request(`/recipes/delete-ingredient?recipe_id=${encodeURIComponent(recipeId)}&component_index=${componentIndex}`, 'DELETE');
+      if (response.status !== 200) {
+        console.error('Failed to delete ingredient:', response.status);
+        setIsDeleting(false);
+        return;
       }
       setDeleted(true)
-      refreshLogs()
+      refreshLogs({ force: true })
 
       // Call optional onDelete callback if provided
       if (onDelete) {
         onDelete();
       }
 
-      setFormData({ ...formData, food_name: '', weight_in_grams : ''})
+      setFormData(prev => ({ ...prev, food_name: '', weight_in_grams : ''}))
 
       // Reset the deletion state (though it won't be visible anymore)
       setIsDeleting(false);

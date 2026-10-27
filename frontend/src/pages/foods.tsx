@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Header } from '../components/Sections';
 import { Heading } from '../components/Title';
 import AccountIcon from '../assets/images/account.svg?react';
@@ -71,7 +71,6 @@ function normalizeFoodNutrients(rawNutrients: unknown): Record<string, number> {
 function Foods() {
   const [foods, setFoods] = useState<Food[]>([]);
   const [selectedFood, setSelectedFood] = useState<string | null>(null);
-  const [nutrientsDetails, setNutrientsDetails] = useState<NutrientInfo[]>([]);
   const pendingCustomFoods = useRecoilValue(pendingCustomFoodsAtom);
   const refreshAccountInfo = useRefreshAccountInfo();
   const navigate = useNavigate();
@@ -81,6 +80,27 @@ function Foods() {
   const nutrientDetailsById = nutrientDetailsByIdLoadable.state === 'hasValue'
     ? nutrientDetailsByIdLoadable.contents
     : {} 
+
+  // Derive the panel's nutrient rows from current state so they stay correct
+  // when nutrient metadata finishes loading after a food was selected, or when
+  // the food list is refreshed.
+  const nutrientsDetails: NutrientInfo[] = useMemo(() => {
+    const food = foods.find(f => f._id === selectedFood);
+    if (!food) return [];
+    return Object.keys(food.nutrients)
+      .map(nutrientId => {
+        const nutrientIdNum = parseInt(nutrientId);
+        const nutrientInfo = (nutrientDetailsById as Record<number, { name: string, unit: string }>)[nutrientIdNum];
+        if (!nutrientInfo) return null;
+        return {
+          nutrient_id: nutrientIdNum,
+          name: nutrientInfo.name,
+          amount: food.nutrients[nutrientId],
+          unit: nutrientInfo.unit
+        };
+      })
+      .filter((n): n is NutrientInfo => n !== null);
+  }, [foods, selectedFood, nutrientDetailsById]);
 
   // Fetch user's custom foods — always force-refresh so navigating back shows latest data
   useEffect(() => {
@@ -153,38 +173,11 @@ function Foods() {
   const handleFoodClick = (foodId: string) => {
     if (selectedFood === foodId) {
       setSelectedFood(null);
-      setNutrientsDetails([]);
       return;
     }
 
     setSelectedFood(foodId);
     tutorialEvent('tutorial:food-tag-clicked');
-
-    // Get nutrient details for this food from cache
-    const food = foods.find(f => f._id === foodId);
-    if (!food) return;
-
-    // Map nutrient IDs to their details using the cached data
-    const details: NutrientInfo[] = Object.keys(food.nutrients)
-      .map(nutrientId => {
-        const nutrientIdNum = parseInt(nutrientId);
-        const nutrientInfo = nutrientDetailsById[nutrientIdNum];
-
-        if (!nutrientInfo) {
-          console.warn(`Nutrient ${nutrientId} not found in cache`);
-          return null;
-        }
-
-        return {
-          nutrient_id: nutrientIdNum,
-          name: nutrientInfo.name,
-          amount: food.nutrients[nutrientId],
-          unit: nutrientInfo.unit
-        };
-      })
-      .filter((n): n is NutrientInfo => n !== null);
-
-    setNutrientsDetails(details);
   };
 
   const refreshNutrients = async () => {
@@ -195,6 +188,9 @@ function Foods() {
       try { localStorage.removeItem('custom_foods_cache'); } catch (e) {}
 
       const response = await request(`/food/custom_foods/${selectedFood}`, 'GET');
+      if (response.status !== 200 || !response.body) {
+        throw new Error(`Failed to fetch food ${selectedFood}: ${response.status}`);
+      }
       const updatedFood = response.body;
       const normalizedFood = {
         ...updatedFood,
@@ -231,27 +227,6 @@ function Foods() {
         }
       } catch (e) {}
 
-      // Update nutrient details using cached data
-      const details: NutrientInfo[] = Object.keys(normalizedFood.nutrients)
-        .map(nutrientId => {
-          const nutrientIdNum = parseInt(nutrientId);
-          const nutrientInfo = nutrientDetailsById[nutrientIdNum];
-
-          if (!nutrientInfo) {
-            console.warn(`Nutrient ${nutrientId} not found in cache`);
-            return null;
-          }
-
-          return {
-            nutrient_id: nutrientIdNum,
-            name: nutrientInfo.name,
-            amount: normalizedFood.nutrients[nutrientId],
-            unit: nutrientInfo.unit
-          };
-        })
-        .filter((n): n is NutrientInfo => n !== null);
-
-      setNutrientsDetails(details);
     } catch (error) {
       console.error('Error refreshing nutrients:', error);
     }
@@ -280,7 +255,6 @@ function Foods() {
       setFoods(prev => prev.filter(food => food._id !== foodId));
       if (selectedFood === foodId) {
         setSelectedFood(null);
-        setNutrientsDetails([]);
       }
 
       // Update foodsAtom (autocomplete cache) — remove by food name
@@ -304,7 +278,10 @@ function Foods() {
       } catch (e) {}
 
       try {
-        await request(`/food/custom_foods/${foodId}`, 'DELETE');
+        const deleteResponse = await request(`/food/custom_foods/${foodId}`, 'DELETE');
+        if (deleteResponse.status !== 200) {
+          throw new Error(`Delete failed with status ${deleteResponse.status}: ${JSON.stringify(deleteResponse.body)}`);
+        }
       } catch (error) {
         // Revert optimistic update on failure
         console.error('Error deleting food:', error);
@@ -362,7 +339,7 @@ function Foods() {
       </FoodsContainer>
 
       {selectedFood && (
-        <FoodModalOverlay onClick={() => { setSelectedFood(null); setNutrientsDetails([]); }}>
+        <FoodModalOverlay onClick={() => setSelectedFood(null)}>
           <TutorialFoodDetailModal
             className="tutorial-food-detail-modal"
             onClick={(e) => e.stopPropagation()}

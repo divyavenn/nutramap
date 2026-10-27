@@ -39,10 +39,14 @@ async def sparse_search_nutrients(nutrient_name: str, threshold: float = 0.1, li
         )
 
         # Process results
+        # Normalize Typesense's raw text_match (a huge integer) to 0-100, matching
+        # the food sparse search; raw values would swamp the dense side in rrf_fusion.
+        hits = search_results.get('hits', [])
+        max_score = max((hit.get('text_match', 0) for hit in hits), default=0)
         matches = {}
-        for hit in search_results['hits']:
+        for hit in hits:
             nutrient_id = hit['document']['id']
-            score = hit['text_match']
+            score = round((hit.get('text_match', 0) / max_score) * 100) if max_score > 0 else 0
             # Exclude kJ Energy (ID: 1062) - we only want kcal Energy (ID: 1008)
             if nutrient_id != '1062':
                 matches[nutrient_id] = score

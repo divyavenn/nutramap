@@ -90,7 +90,7 @@ function AddComponentForm({ logId, onAdd }: AddComponentFormProps) {
   const fetchSuggestions = async (value: string) => {
     if (!value.trim()) { setSuggestions([]); setShowSuggestions(false); return; }
     try {
-      const response = await request('/match/autocomplete?prompt=' + value, 'POST', {}, 'JSON');
+      const response = await request('/match/autocomplete?prompt=' + encodeURIComponent(value), 'POST', {}, 'JSON');
       if (response.body) {
         setSuggestions(response.body);
         setShowSuggestions(value.length > 0 && response.body.length > 0);
@@ -107,10 +107,12 @@ function AddComponentForm({ logId, onAdd }: AddComponentFormProps) {
     setFoodId(null);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!val.trim()) { setSuggestions([]); setShowSuggestions(false); return; }
-    fetchSuggestions(val);
+    // Debounce so out-of-order responses for earlier keystrokes can't overwrite later ones
+    debounceRef.current = setTimeout(() => fetchSuggestions(val), 300);
   };
 
   const handleSuggestionClick = (s: { food_id: string; food_name: string }) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     setFoodName(s.food_name);
     setFoodId(s.food_id);
     setShowSuggestions(false);
@@ -127,7 +129,8 @@ function AddComponentForm({ logId, onAdd }: AddComponentFormProps) {
       fd.append('food_name', foodName);
       fd.append('amount', amount);
       if (foodId) fd.append('food_id', foodId);
-      await request('/logs/add-component', 'POST', fd);
+      const response = await request('/logs/add-component', 'POST', fd);
+      if (response.status !== 200) throw new Error(`add-component failed (${response.status})`);
       tutorialEvent('tutorial:component-added');
       refreshLogs({ force: true });
       onAdd();

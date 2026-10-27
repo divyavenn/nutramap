@@ -13,6 +13,7 @@ import uuid
 import pickle
 import asyncio
 import json
+import re
 import smtplib
 from datetime import datetime, timedelta
 from email.message import EmailMessage
@@ -193,12 +194,11 @@ def _sync_food_id_name_cache(app, food_id, food_name: str) -> None:
 
 
 def _add_embedding_to_faiss(app, food_id, food_name: str, embedding: list) -> bool:
-    if app is None or not hasattr(app, "state") or app.state.faiss_index is None:
+    if app is None or not hasattr(app, "state") or getattr(app.state, "faiss_index", None) is None:
         print("⚠ Warning: FAISS index not available in app state (will be included in next rebuild)")
         return False
 
     cache_food_id = _cache_food_key(food_id)
-    cache_food_id_str = str(cache_food_id)
     faiss_index = app.state.faiss_index
     id_list = app.state.id_list if hasattr(app.state, "id_list") and app.state.id_list else []
 
@@ -216,10 +216,22 @@ def _add_embedding_to_faiss(app, food_id, food_name: str, embedding: list) -> bo
         print("⚠ Warning: FAISS index not trained, skipping add")
         return False
 
-    if isinstance(cache_food_id, int):
-        faiss_id = int(cache_food_id)
-    else:
-        faiss_id = hash(cache_food_id_str) & 0x7FFFFFFFFFFFFFFF
+    # Must be deterministic across processes (Python's hash() is salted per process),
+    # and must match the IDs dense.py uses for rebuild/search/removal.
+    from .dense import faiss_id_for, _legacy_faiss_id_for
+    faiss_id = faiss_id_for(cache_food_id)
+
+    # Replace rather than append: re-adding a food (embedding repair, rename) would
+    # otherwise leave its old vector in the index alongside the new one.
+    stale_ids = [faiss_id]
+    legacy_id = _legacy_faiss_id_for(cache_food_id)
+    if legacy_id is not None:
+        stale_ids.append(legacy_id)
+    if isinstance(faiss_index, faiss.IndexIDMap):
+        removed = faiss_index.remove_ids(np.array(stale_ids, dtype=np.int64))
+        if removed:
+            print(f"  Replaced {removed} existing vector(s) for {food_name}")
+
     id_array = np.array([faiss_id], dtype=np.int64)
     faiss_index.add_with_ids(embedding_array, id_array)
 
@@ -337,7 +349,7 @@ async def process_pending_embedding_retries(app, db: Database, max_jobs: int = 1
 
         actual_name = food_doc.get("food_name") or food_name
         try:
-            embedding = _generate_food_embedding(actual_name)
+            embedding = await asyncio.to_thread(_generate_food_embedding, actual_name)
             db.foods.update_one(
                 {"_id": food_doc["_id"]},
                 {
@@ -593,7 +605,7 @@ async def repair_custom_food_embeddings(
             continue
 
         try:
-            embedding = _generate_food_embedding(food_name)
+            embedding = await asyncio.to_thread(_generate_food_embedding, food_name)
             repaired_at = datetime.utcnow()
             db.foods.update_one(
                 {"_id": doc["_id"]},
@@ -777,6 +789,127 @@ def normalize_nutrients_to_dict(nutrients):
         normalized[str(nutrient_id)] = nutrient.get("amt", 0)
     return normalized
 
+
+def dedupe_nutrients_list(nutrients_list):
+    """Keep only the first entry per nutrient_id so amounts are never double counted."""
+    seen = set()
+    deduped = []
+    for nutrient in nutrients_list:
+        key = str(nutrient.get("nutrient_id"))
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(nutrient)
+    return deduped
+
+
+_MASS_UNIT_TO_GRAMS = {
+    "kg": 1000.0,
+    "g": 1.0,
+    "mg": 1e-3,
+    "ug": 1e-6,
+    "µg": 1e-6,
+    "μg": 1e-6,
+    "mcg": 1e-6,
+}
+_ENERGY_UNIT_TO_KCAL = {
+    "kcal": 1.0,
+    "kj": 1.0 / 4.184,
+}
+
+
+def convert_nutrient_amount(amount, from_unit, to_unit):
+    """
+    Convert an amount between compatible units (mass: g/mg/µg, energy: kcal/kJ).
+    Returns the amount unchanged if units are missing, equal, or incompatible (e.g. IU).
+    """
+    amount = normalize_nutrient_amount(amount)
+    if not from_unit or not to_unit:
+        return amount
+    src = str(from_unit).strip().lower()
+    dst = str(to_unit).strip().lower()
+    if src == dst:
+        return amount
+    for table in (_MASS_UNIT_TO_GRAMS, _ENERGY_UNIT_TO_KCAL):
+        if src in table and dst in table:
+            return amount * table[src] / table[dst]
+    return amount
+
+
+def _parse_serving_size_grams(value):
+    """Parse a serving size in grams from a number or strings like '33g' / '33 g'."""
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return float(value) if value > 0 else None
+    if isinstance(value, str):
+        match = re.match(r"^\s*([0-9]*\.?[0-9]+)\s*(g|grams?)?\s*$", value, re.IGNORECASE)
+        if match:
+            grams = float(match.group(1))
+            return grams if grams > 0 else None
+    return None
+
+
+def label_nutrient_amount_per_100g(nutrient: dict, serving_size_g) -> float:
+    """
+    Per-100g amount for a nutrient extracted from a label.
+    Prefer computing it ourselves from the raw per-serving value
+    (amount_per_serving * 100 / serving_size_g) instead of trusting LLM arithmetic.
+    """
+    per_serving = nutrient.get("amount_per_serving")
+    if serving_size_g and per_serving is not None:
+        try:
+            return float(per_serving) * 100.0 / float(serving_size_g)
+        except (TypeError, ValueError):
+            pass
+    return normalize_nutrient_amount(nutrient.get("amount", 0))
+
+
+NUTRIENT_NAME_MAPPINGS = {
+    "total fat": "Total lipid (fat)",
+    "total lipid (fat)": "Total lipid (fat)",
+    "fat": "Total lipid (fat)",
+    "carbohydrates": "Carbohydrate, by difference",
+    "carbohydrate, by difference": "Carbohydrate, by difference",
+    "carbs": "Carbohydrate, by difference",
+    "fiber": "Fiber, total dietary",
+    "dietary fiber": "Fiber, total dietary",
+    "sugars": "Sugars, total including NLEA",
+    "protein": "Protein",
+    "sodium": "Sodium, Na",
+    "potassium": "Potassium, K",
+    "iron": "Iron, Fe",
+    "energy": "Calories",
+    "calories": "Calories",
+    "calorie": "Calories",
+}
+
+
+def _find_nutrient_by_exact_name(db, name: str):
+    """Case-insensitive exact name match. Names like 'Total lipid (fat)' contain regex metacharacters."""
+    escaped = re.sub(r"([\\.^$*+?{}\[\]|()])", r"\\\1", name)
+    return db.nutrients.find_one({"nutrient_name": {"$regex": f"^{escaped}$", "$options": "i"}})
+
+
+async def _resolve_extracted_nutrient(db, name: str):
+    """Map an LLM-extracted nutrient name to a nutrient doc: exact name, common alias, then hybrid search."""
+    name = str(name).strip()
+    nutrient_doc = _find_nutrient_by_exact_name(db, name)
+    if not nutrient_doc:
+        mapped_name = NUTRIENT_NAME_MAPPINGS.get(name.lower())
+        if mapped_name:
+            nutrient_doc = _find_nutrient_by_exact_name(db, mapped_name)
+    if not nutrient_doc:
+        try:
+            from ..routers import sparse_search_nutrients
+            search_results = await sparse_search_nutrients.search_nutrients_by_name(name, db=db, threshold=0.5, limit=1)
+            if search_results:
+                best_nutrient_id = max(search_results, key=search_results.get)
+                nutrient_doc = db.nutrients.find_one({"_id": int(best_nutrient_id)})
+                if nutrient_doc:
+                    print(f"Matched '{name}' to '{nutrient_doc['nutrient_name']}' via hybrid search (score: {search_results[best_nutrient_id]:.2f})")
+        except Exception as e:
+            print(f"Error during hybrid search for '{name}': {e}")
+    return nutrient_doc
+
 async def process_nutrient_conversion(target_id_pair, convert_map, expanded_nutrient_ids, conversion_sources):
     """Process a single nutrient ID for conversion mapping"""
     target_id = target_id_pair
@@ -820,8 +953,20 @@ async def consolidate_amounts_async(db, user_id, start_date: datetime, end_date:
         [convert_map, expanded_nutrient_ids, conversion_sources]
     )
     
-    # Step 2: Get the total nutrients for the expanded list
-    tally = get_total_nutrients(db, user_id, start_date, end_date, expanded_nutrient_ids)
+    # Step 2: Get the total nutrients for the expanded list.
+    # A food that already reports the target nutrient (e.g. Vitamin D in µg) usually also
+    # reports the source (Vitamin D in IU) for the same quantity; only convert the source
+    # for foods lacking the target, otherwise the nutrient is double counted.
+    # (Skip this when the user also tracks the source nutrient directly.)
+    suppress_sources = {
+        target_id: [source_id for source_id, _ in sources if source_id not in nutrient_ids]
+        for target_id, sources in conversion_sources.items()
+    }
+    suppress_sources = {t: srcs for t, srcs in suppress_sources.items() if srcs}
+    tally = get_total_nutrients(
+        db, user_id, start_date, end_date, expanded_nutrient_ids,
+        suppress_sources_when_target_present=suppress_sources,
+    )
     
     # Step 3: Apply conversions and consolidate amounts in parallel
     if conversion_sources:
@@ -843,7 +988,23 @@ async def consolidate_amounts_async(db, user_id, start_date: datetime, end_date:
             
     return final_tally
 
-def get_total_nutrients(db, user_id: str, start_date: datetime, end_date: datetime, nutrient_ids: list):
+def _nutrient_id_as_int_expr(var: str):
+    return {"$convert": {"input": f"{var}.nutrient_id", "to": "int", "onError": -1, "onNull": -1}}
+
+
+def _nutrient_amt_as_double_expr(var: str):
+    return {
+        "$convert": {
+            "input": {"$ifNull": [f"{var}.amt", f"{var}.amount"]},
+            "to": "double",
+            "onError": 0,
+            "onNull": 0,
+        }
+    }
+
+
+def get_total_nutrients(db, user_id: str, start_date: datetime, end_date: datetime, nutrient_ids: list,
+                        suppress_sources_when_target_present: Optional[dict] = None):
     # Updated pipeline to handle new log structure with components array
     pipeline = [
         {
@@ -852,6 +1013,18 @@ def get_total_nutrients(db, user_id: str, start_date: datetime, end_date: dateti
                 "date": {
                     "$gte": start_date,
                     "$lte": end_date
+                }
+            }
+        },
+        # Legacy logs store a single food at the top level instead of a components array;
+        # treat them as a one-component log so they still count toward totals.
+        {
+            "$addFields": {
+                "components": {
+                    "$ifNull": [
+                        "$components",
+                        [{"food_id": "$food_id", "weight_in_grams": "$weight_in_grams"}],
+                    ]
                 }
             }
         },
@@ -901,6 +1074,51 @@ def get_total_nutrients(db, user_id: str, start_date: datetime, end_date: dateti
             }
         },
         { "$unwind": "$food" },
+    ]
+
+    if suppress_sources_when_target_present:
+        # Drop convertible source nutrients from foods that already report the target nutrient.
+        drop_conditions = [
+            {
+                "$and": [
+                    {"$in": [_nutrient_id_as_int_expr("$$n"), list(source_ids)]},
+                    {"$in": [target_id, "$$present_ids"]},
+                ]
+            }
+            for target_id, source_ids in suppress_sources_when_target_present.items()
+        ]
+        pipeline.append({
+            "$addFields": {
+                "food.nutrients": {
+                    "$let": {
+                        "vars": {
+                            "present_ids": {
+                                "$map": {
+                                    "input": {
+                                        "$filter": {
+                                            "input": {"$ifNull": ["$food.nutrients", []]},
+                                            "as": "p",
+                                            "cond": {"$gt": [_nutrient_amt_as_double_expr("$$p"), 0]},
+                                        }
+                                    },
+                                    "as": "p",
+                                    "in": _nutrient_id_as_int_expr("$$p"),
+                                }
+                            }
+                        },
+                        "in": {
+                            "$filter": {
+                                "input": {"$ifNull": ["$food.nutrients", []]},
+                                "as": "n",
+                                "cond": {"$not": [{"$or": drop_conditions}]},
+                            }
+                        },
+                    }
+                }
+            }
+        })
+
+    pipeline += [
         { "$unwind": "$food.nutrients" },
         {
             "$addFields": {
@@ -981,16 +1199,10 @@ async def get_food_nutrients(
     """
     try:
         # Convert string ObjectIds to ObjectId for custom foods, keep integers for USDA foods
-        if isinstance(food_id, str) and len(food_id) == 24:
-            # Custom food with ObjectId
-            search_id = ObjectId(food_id)
-        else:
-            # USDA food with integer ID
-            try:
-                search_id = int(food_id)
-            except ValueError:
-                # If it's not a valid int or ObjectId, return empty
-                return {}
+        search_id = _normalize_food_id(food_id)
+        if not isinstance(search_id, (int, ObjectId)):
+            # If it's not a valid int or ObjectId, return empty
+            return {}
 
         # Query the food
         food = db.foods.find_one({"_id": search_id}, {"nutrients": 1, "_id": 0})
@@ -1003,10 +1215,10 @@ async def get_food_nutrients(
         result = {}
 
         for nutrient in food["nutrients"]:
-            nutrient_amt = nutrient.get("amt", nutrient.get("amount", 0))
+            nutrient_amt = normalize_nutrient_amount(nutrient.get("amt", nutrient.get("amount", 0)))
             prorated_amount = nutrient_amt * proration_factor
             if prorated_amount > 0:
-                result[nutrient["nutrient_id"]] = prorated_amount
+                result[normalize_nutrient_id(nutrient.get("nutrient_id"))] = prorated_amount
 
         return result
 
@@ -1017,7 +1229,11 @@ async def get_food_nutrients(
         return {}
 
 @router.get("/panel", response_model=None)
-async def get_nutrient_panel(log_id: str, db: Annotated[Database, Depends(get_data)] = None):
+async def get_nutrient_panel(
+    log_id: str,
+    db: Annotated[Database, Depends(get_data)] = None,
+    user: Annotated[dict, Depends(get_current_user)] = None,
+):
     # Check if log_id is actually a component ID (format: "log_id-component_index")
     component_index = None
     actual_log_id = log_id
@@ -1030,7 +1246,13 @@ async def get_nutrient_panel(log_id: str, db: Annotated[Database, Depends(get_da
             # Reconstruct the log_id without the component index
             actual_log_id = "-".join(parts[:-1])
 
-    log = db.logs.find_one({"_id": ObjectId(actual_log_id)})
+    if not ObjectId.is_valid(actual_log_id):
+        return {}
+    log_query = {"_id": ObjectId(actual_log_id)}
+    if user is not None:
+        # Only expose the caller's own logs.
+        log_query["user_id"] = user["_id"]
+    log = db.logs.find_one(log_query)
     if not log:
         return {}
 
@@ -1055,10 +1277,10 @@ async def get_nutrient_panel(log_id: str, db: Annotated[Database, Depends(get_da
                             proration_factor = 0
 
                         for nutrient in food["nutrients"]:
-                            nutrient_amt = nutrient.get("amt", nutrient.get("amount", 0))
+                            nutrient_amt = normalize_nutrient_amount(nutrient.get("amt", nutrient.get("amount", 0)))
                             prorated_amount = nutrient_amt * proration_factor
                             if prorated_amount > 0:
-                                result[nutrient["nutrient_id"]] = prorated_amount
+                                result[normalize_nutrient_id(nutrient.get("nutrient_id"))] = prorated_amount
 
             return result
 
@@ -1081,10 +1303,10 @@ async def get_nutrient_panel(log_id: str, db: Annotated[Database, Depends(get_da
                 proration_factor = 0
 
             for nutrient in food["nutrients"]:
-                nutrient_amt = nutrient.get("amt", nutrient.get("amount", 0))
+                nutrient_amt = normalize_nutrient_amount(nutrient.get("amt", nutrient.get("amount", 0)))
                 prorated_amount = nutrient_amt * proration_factor
                 if prorated_amount > 0:
-                    nutrient_id = nutrient["nutrient_id"]
+                    nutrient_id = normalize_nutrient_id(nutrient.get("nutrient_id"))
                     result[nutrient_id] = result.get(nutrient_id, 0) + prorated_amount
 
         return result
@@ -1103,10 +1325,10 @@ async def get_nutrient_panel(log_id: str, db: Annotated[Database, Depends(get_da
         result = {}
 
         for nutrient in food["nutrients"]:
-            nutrient_amt = nutrient.get("amt", nutrient.get("amount", 0))
+            nutrient_amt = normalize_nutrient_amount(nutrient.get("amt", nutrient.get("amount", 0)))
             prorated_amount = nutrient_amt * proration_factor
             if prorated_amount > 0:
-                result[nutrient["nutrient_id"]] = prorated_amount
+                result[normalize_nutrient_id(nutrient.get("nutrient_id"))] = prorated_amount
 
         return result
 
@@ -1128,17 +1350,32 @@ def get_nutrient_details(db, nutrient_id: int):
     }
 
 def get_food_name(food_id: int, db: Annotated[Database, Depends(get_data)] = None, request: Request = None):
-    # Check app state first
-    lookup_id = food_id
-    if isinstance(food_id, str):
-        stripped = food_id.strip()
-        if stripped.isdigit():
-            lookup_id = int(stripped)
+    # Normalize ids: digit strings -> int (USDA), 24-char hex strings -> ObjectId (custom).
+    lookup_id = _normalize_food_id(food_id)
+    # Caches key custom foods inconsistently (str from incremental adds, ObjectId from rebuilds),
+    # so try both forms.
+    cache_keys = [lookup_id]
+    if isinstance(lookup_id, ObjectId):
+        cache_keys.append(str(lookup_id))
 
-    if request is not None and hasattr(request.app.state, 'id_name_map') and lookup_id in request.app.state.id_name_map:
-        food_data = request.app.state.id_name_map[lookup_id]
-        # Handle both dict format {"name": "..."} and string format
-        return food_data["name"] if isinstance(food_data, dict) else food_data
+    def _lookup_cached_name(name_map):
+        if not name_map:
+            return None
+        for key in cache_keys:
+            try:
+                if key in name_map:
+                    food_data = name_map[key]
+                    # Handle both dict format {"name": "..."} and string format
+                    return food_data["name"] if isinstance(food_data, dict) else food_data
+            except TypeError:
+                continue
+        return None
+
+    # Check app state first
+    if request is not None and hasattr(request.app.state, 'id_name_map'):
+        cached_name = _lookup_cached_name(request.app.state.id_name_map)
+        if cached_name is not None:
+            return cached_name
 
     # Then check pickle
     try:
@@ -1148,10 +1385,9 @@ def get_food_name(food_id: int, db: Annotated[Database, Depends(get_data)] = Non
 
         with open(cache_path, 'rb') as f:
             foods = pickle.load(f)
-            if lookup_id in foods:
-                food_data = foods[lookup_id]
-                # Handle both dict format {"name": "..."} and string format
-                return food_data["name"] if isinstance(food_data, dict) else food_data
+            cached_name = _lookup_cached_name(foods)
+            if cached_name is not None:
+                return cached_name
     except (FileNotFoundError, pickle.UnpicklingError, TypeError, OSError) as e:
         print(f"Warning: Failed to load pickle cache: {e}")
 
@@ -1215,7 +1451,8 @@ async def get_foods_list(db: Annotated[Database, Depends(get_data)] = None, user
         {"_id": 1, "food_name": 1, "source": 1}  # Retrieve only `_id` and `food_name`
     ).sort("_id", 1))
   if not foods:
-      return JSONResponse(content={"message": "No data found."}, status_code=404)
+      # Callers pickle/iterate this result, so return an empty map rather than a response object.
+      return {}
 
   # Format the result as a dictionary
   return {food["_id"]: {"name": food["food_name"]} for food in foods}
@@ -1228,16 +1465,22 @@ async def food_embedding_map(db: Annotated[Database, Depends(get_data)] = None, 
     ).sort("_id", 1))
 
   if not foods:
-      return JSONResponse(content={"message": "No data found."}, status_code=404)
+      return {}
 
   # Format the result as a dictionary
-  return {food["_id"]: food["embedding"] for food in foods}
+  # Foods whose embedding failed/pending have no (or an empty) embedding; skip them
+  # instead of raising KeyError and aborting the whole index build.
+  return {
+      food["_id"]: food["embedding"]
+      for food in foods
+      if isinstance(food.get("embedding"), list) and len(food["embedding"]) > 0
+  }
 
 async def food_name_map(request: Request, db: Annotated[Database, Depends(get_data)] = None, user: Annotated[dict, Depends(get_current_user)] = None):
     id_name_map = await retrieve_food_list(request, db, user)
     
     # Swap keys and values: from {id: {name, source}} to {name: {id, source}}
-    result = {{food_info['name']: food_id} for food_id, food_info in id_name_map.items()}
+    result = {food_info['name']: food_id for food_id, food_info in id_name_map.items()}
 
     return result
 
@@ -1317,12 +1560,18 @@ def get_food_usage(
     if not food:
         raise HTTPException(status_code=404, detail="Food not found")
 
-    candidate_component_ids = [food_id, custom_food_id]
-    recipes = list(db.recipes.find(
-        {"user_id": user["_id"], "components.food_id": {"$in": candidate_component_ids}},
-        {"description": 1, "_id": 0}
-    ))
-    recipe_names = [r.get("description", "Unknown recipe") for r in recipes]
+    # Recipes are embedded in the user doc: users.recipes[].ingredients[].food_id (str or ObjectId).
+    candidate_component_ids = {food_id, str(custom_food_id)}
+    user_doc = db.users.find_one({"_id": user["_id"]}, {"recipes": 1}) or {}
+    recipe_names = [
+        recipe.get("description", "Unknown recipe")
+        for recipe in user_doc.get("recipes", []) or []
+        if any(
+            str(ingredient.get("food_id")) in candidate_component_ids
+            for ingredient in recipe.get("ingredients", []) or []
+            if isinstance(ingredient, dict)
+        )
+    ]
     return {"recipe_names": recipe_names}
 
 
@@ -1362,14 +1611,15 @@ def delete_custom_food(
         if result.deleted_count == 0:
             raise HTTPException(status_code=404, detail="Food not found")
 
-        # Remove food from any recipe components that reference it
+        # Remove food from any recipe ingredients that reference it
+        # (recipes are embedded in the user doc: users.recipes[].ingredients[]).
         candidate_component_ids = [food_id, custom_food_id]
-        result_recipes = db.recipes.update_many(
-            {"user_id": user["_id"], "components.food_id": {"$in": candidate_component_ids}},
-            {"$pull": {"components": {"food_id": {"$in": candidate_component_ids}}}}
+        result_recipes = db.users.update_one(
+            {"_id": user["_id"], "recipes.ingredients.food_id": {"$in": candidate_component_ids}},
+            {"$pull": {"recipes.$[].ingredients": {"food_id": {"$in": candidate_component_ids}}}}
         )
         if result_recipes.modified_count:
-            print(f"✓ Removed food {food_id} from {result_recipes.modified_count} recipe(s)")
+            print(f"✓ Removed food {food_id} from user's recipes")
 
         # Remove food_id from user's custom_foods array
         db.users.update_one(
@@ -1447,6 +1697,9 @@ async def update_custom_food(
         Updated food document
     """
     try:
+        if not ObjectId.is_valid(food_id):
+            raise HTTPException(status_code=400, detail="Invalid food ID")
+
         # Find the food to update (custom foods are scoped by `source`)
         food = db.foods.find_one({"_id": ObjectId(food_id), "source": user["_id"]})
         if not food:
@@ -1475,12 +1728,49 @@ async def update_custom_food(
                 with open(food_id_cache_path, "rb") as f:
                     id_name_map = pickle.load(f)
                 id_name_map[food_id] = {"name": name}
+                # Rebuilt caches key custom foods by ObjectId; don't leave a stale name there.
+                if ObjectId(food_id) in id_name_map:
+                    id_name_map[ObjectId(food_id)] = {"name": name}
                 with open(food_id_cache_path, "wb") as f:
                     pickle.dump(id_name_map, f)
-            if request is not None and hasattr(request.app.state, "id_name_map"):
+            if request is not None and getattr(request.app.state, "id_name_map", None) is not None:
                 request.app.state.id_name_map[food_id] = {"name": name}
+                if ObjectId(food_id) in request.app.state.id_name_map:
+                    request.app.state.id_name_map[ObjectId(food_id)] = {"name": name}
         except Exception as cache_error:
             print(f"⚠ Warning: Could not update FOOD_ID_CACHE for custom food {food_id}: {cache_error}")
+
+        # The embedding was generated from the old name; regenerate so dense search matches the new name.
+        try:
+            new_embedding = await asyncio.to_thread(_generate_food_embedding, name)
+            embedded_at = datetime.utcnow()
+            db.foods.update_one(
+                {"_id": ObjectId(food_id), "source": user["_id"]},
+                {
+                    "$set": {
+                        "embedding": new_embedding,
+                        "embedding_status": "ready",
+                        "embedding_last_attempt_at": embedded_at,
+                        "embedding_updated_at": embedded_at,
+                    },
+                    "$unset": {
+                        "embedding_error": "",
+                        "embedding_last_error_at": "",
+                        "embedding_next_retry_at": "",
+                    },
+                },
+            )
+            app = request.app if request is not None else None
+            try:
+                from ..routers.dense import remove_from_faiss_index
+                remove_from_faiss_index(food_id, request)
+            except Exception as faiss_remove_error:
+                print(f"⚠ Warning: Could not remove old FAISS vector for {food_id}: {faiss_remove_error}")
+            _add_embedding_to_faiss(app, food_id, name, new_embedding)
+            # remove_from_faiss_index also drops the id->name cache entry; restore it.
+            _sync_food_id_name_cache(app, food_id, name)
+        except Exception as embed_error:
+            print(f"⚠ Warning: Could not refresh embedding for renamed custom food {food_id}: {embed_error}")
 
         # Patch autocomplete cache so renamed food appears immediately.
         try:
@@ -1529,12 +1819,15 @@ def update_food_nutrients(
 
         # Keep nutrient storage consistent with foods collection:
         # [{nutrient_id, amt}, ...]
-        nutrients_list = normalize_nutrients_to_list(nutrients_data)
+        nutrients_list = dedupe_nutrients_list(normalize_nutrients_to_list(nutrients_data))
+
+        if not ObjectId.is_valid(food_id):
+            raise HTTPException(status_code=400, detail="Invalid food ID")
 
         # Update the food
         result = db.foods.update_one(
             {"_id": ObjectId(food_id), "source": user["_id"]},
-            {"$set": {"nutrients": nutrients_list}}
+            {"$set": {"nutrients": nutrients_list, "updated_at": datetime.utcnow()}}
         )
 
         if result.matched_count == 0:
@@ -1542,6 +1835,8 @@ def update_food_nutrients(
 
         return {"message": "Nutrients updated successfully"}
 
+    except HTTPException:
+        raise
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON format for nutrients")
     except Exception as e:
@@ -1562,7 +1857,7 @@ async def get_top_foods(
     - nutrient_id + per_nutrient_id: rank by nutrient_id / per_nutrient_id ratio
       (e.g. protein per calorie: nutrient_id=1003, per_nutrient_id=1008).
 
-    Includes both USDA and user custom foods. All values are per 100g of food.
+    Includes USDA foods only (custom foods are private to their owner). All values are per 100g of food.
     """
     try:
         # Look up nutrient metadata for the response labels.
@@ -1574,9 +1869,14 @@ async def get_top_foods(
 
         nutrient_name, unit = _get_nutrient_meta(nutrient_id)
 
-        # Include all foods: USDA (no source field or source=="USDA") and custom foods.
+        # Include USDA foods (no source field or source=="USDA").
         # Exclude embedding_retry and other non-food documents by requiring food_name exists.
-        usda_filter = {"food_name": {"$exists": True}}
+        # Custom foods are scoped to their owner (`source` = user id); this endpoint is
+        # unauthenticated, so only rank USDA foods rather than leaking every user's foods.
+        usda_filter = {
+            "food_name": {"$exists": True},
+            "$or": [{"source": {"$exists": False}}, {"source": "USDA"}],
+        }
 
         if per_nutrient_id is None:
             # --- absolute content ---
@@ -1697,7 +1997,10 @@ async def get_all_foods(db: Annotated[Database, Depends(get_data)] = None):
     """
     try:
         foods = {}
-        cursor = db.foods.find({"source": {"$exists": False}}, {"_id": 1, "food_name": 1, "name": 1})
+        cursor = db.foods.find(
+            {"$or": [{"source": {"$exists": False}}, {"source": "USDA"}]},
+            {"_id": 1, "food_name": 1, "name": 1},
+        )
         for food in cursor:
             food_name = str(food.get("food_name") or food.get("name") or "").strip()
             if food_name:
@@ -1765,7 +2068,7 @@ async def _process_and_add_food_bg(
             print("Background food processing error: OPENAI_API_KEY not set")
             return
 
-        client = _openai.OpenAI(api_key=api_key)
+        client = _openai.AsyncOpenAI(api_key=api_key)
 
         def _clean_json(text: str) -> str:
             text = text.strip()
@@ -1787,7 +2090,7 @@ async def _process_and_add_food_bg(
 
             for contents in image_bytes_list:
                 b64 = base64.b64encode(contents).decode("utf-8")
-                resp = client.chat.completions.create(
+                resp = await client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[{"role": "user", "content": [
                         {"type": "text", "text": "Is this image a nutrition facts label? Answer with only 'yes' or 'no'."},
@@ -1803,7 +2106,7 @@ async def _process_and_add_food_bg(
             if not result_description:
                 src = food_b64s if food_b64s else label_b64s
                 if src:
-                    resp = client.chat.completions.create(
+                    resp = await client.chat.completions.create(
                         model="gpt-4o-mini",
                         messages=[{"role": "user", "content": [
                             {"type": "text", "text": "Describe this food item in a concise phrase (e.g. 'Grilled chicken breast'). Return only the food name."},
@@ -1816,7 +2119,7 @@ async def _process_and_add_food_bg(
             # Nutrition from labels
             if label_b64s:
                 for b64 in label_b64s:
-                    resp = client.chat.completions.create(
+                    resp = await client.chat.completions.create(
                         model="gpt-4o-mini",
                         messages=[{"role": "user", "content": [
                             {"type": "text", "text": (
@@ -1826,6 +2129,8 @@ async def _process_and_add_food_bg(
                                 - If label says "Calories" or "Energy", output it as {"name":"Calories","unit":"KCAL"}.
                                 - Never output nutrient name "Energy".
                                 - Convert every nutrient to per 100g using: (label_amount / serving_size_grams) * 100.
+                                - Also include "serving_size_g" (serving size in grams, as a number) and, for every nutrient,
+                                  "amount_per_serving" (the raw amount printed on the label, in the same unit).
                                 - Return ONLY valid JSON.
 
                                 Example:
@@ -1838,7 +2143,7 @@ async def _process_and_add_food_bg(
                                 Total Sugars 6g
 
                                 Return:
-                                {"serving_size":"33g","nutrients":[{"name":"Calories","amount":333.3,"unit":"KCAL"},{"name":"Protein","amount":27.3,"unit":"G"},{"name":"Total lipid (fat)","amount":4.5,"unit":"G"},{"name":"Sodium, Na","amount":545.5,"unit":"MG"},{"name":"Carbohydrate, by difference","amount":42.4,"unit":"G"},{"name":"Sugars, total including NLEA","amount":18.2,"unit":"G"}]}"""
+                                {"serving_size":"33g","serving_size_g":33,"nutrients":[{"name":"Calories","amount":333.3,"amount_per_serving":110,"unit":"KCAL"},{"name":"Protein","amount":27.3,"amount_per_serving":9,"unit":"G"},{"name":"Total lipid (fat)","amount":4.5,"amount_per_serving":1.5,"unit":"G"},{"name":"Sodium, Na","amount":545.5,"amount_per_serving":180,"unit":"MG"},{"name":"Carbohydrate, by difference","amount":42.4,"amount_per_serving":14,"unit":"G"},{"name":"Sugars, total including NLEA","amount":18.2,"amount_per_serving":6,"unit":"G"}]}"""
                             )},
                             {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}},
                         ]}],
@@ -1847,7 +2152,14 @@ async def _process_and_add_food_bg(
                     )
                     try:
                         data = json.loads(_clean_json(resp.choices[0].message.content))
+                        serving_size_g = (
+                            _parse_serving_size_grams(data.get("serving_size_g"))
+                            or _parse_serving_size_grams(data.get("serving_size"))
+                        )
                         for n in data.get("nutrients", []):
+                            if not isinstance(n, dict) or not n.get("name"):
+                                continue
+                            n["amount"] = label_nutrient_amount_per_100g(n, serving_size_g)
                             existing = next((x for x in result_nutrients if x["name"] == n["name"]), None)
                             if existing:
                                 existing["amount"] = (existing["amount"] + n["amount"]) / 2
@@ -1857,7 +2169,7 @@ async def _process_and_add_food_bg(
                         print(f"Background food: failed to parse label JSON: {e}")
 
             elif food_b64s:
-                resp = client.chat.completions.create(
+                resp = await client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[{"role": "user", "content": [
                         {"type": "text", "text": (
@@ -1877,43 +2189,22 @@ async def _process_and_add_food_bg(
                     print(f"Background food: failed to parse food-image JSON: {e}")
 
         # ── Step 2: map nutrient names → IDs ─────────────────────────────────
-        name_mappings = {
-            "total fat": "Total lipid (fat)", "fat": "Total lipid (fat)",
-            "total lipid (fat)": "Total lipid (fat)",
-            "carbohydrates": "Carbohydrate, by difference",
-            "carbohydrate, by difference": "Carbohydrate, by difference",
-            "carbs": "Carbohydrate, by difference",
-            "fiber": "Fiber, total dietary", "dietary fiber": "Fiber, total dietary",
-            "sugars": "Sugars, total including NLEA",
-            "protein": "Protein", "sodium": "Sodium, Na",
-            "potassium": "Potassium, K", "iron": "Iron, Fe", "energy": "Calories",
-            "calories": "Calories", "calorie": "Calories",
-        }
         nutrients_to_save: list = []
         for nutrient in result_nutrients:
-            nutrient_name = nutrient["name"].lower().strip()
-            doc = db.nutrients.find_one({"nutrient_name": {"$regex": f"^{nutrient['name']}$", "$options": "i"}})
-            if not doc:
-                mapped = name_mappings.get(nutrient_name)
-                if mapped:
-                    doc = db.nutrients.find_one({"nutrient_name": {"$regex": f"^{mapped}$", "$options": "i"}})
-            if not doc:
-                try:
-                    results = await search_nutrients_by_name(nutrient["name"], db=db, threshold=0.5, limit=1)
-                    if results:
-                        best_id = max(results, key=results.get)
-                        doc = db.nutrients.find_one({"_id": int(best_id)})
-                except Exception as e:
-                    print(f"Background food: hybrid search failed for '{nutrient['name']}': {e}")
+            if not isinstance(nutrient, dict) or not nutrient.get("name"):
+                continue
+            doc = await _resolve_extracted_nutrient(db, nutrient["name"])
             if doc:
-                nutrients_to_save.append({"nutrient_id": doc["_id"], "amt": nutrient["amount"]})
+                amount = convert_nutrient_amount(nutrient.get("amount", 0), nutrient.get("unit"), doc.get("unit"))
+                nutrients_to_save.append({"nutrient_id": doc["_id"], "amt": amount})
+        nutrients_to_save = dedupe_nutrients_list(nutrients_to_save)
 
         # ── Step 3: save food ─────────────────────────────────────────────────
         food_name = result_description or "Unknown food"
         embedding = None
         embedding_error_message = None
         try:
-            embedding = _generate_food_embedding(food_name)
+            embedding = await asyncio.to_thread(_generate_food_embedding, food_name)
             print(f"✓ Generated embedding for '{food_name}' ({len(embedding)} dims)")
         except Exception as e:
             embedding_error_message = str(e)
@@ -2047,7 +2338,7 @@ async def process_food_images(
         if not api_key:
             raise HTTPException(status_code=500, detail="OpenAI API key not configured")
 
-        client = openai.OpenAI(api_key=api_key)
+        client = openai.AsyncOpenAI(api_key=api_key)
 
         result_description = description
         result_nutrients = []
@@ -2087,7 +2378,7 @@ async def process_food_images(
             await img.seek(0)  # Reset file pointer
 
             # Ask GPT to classify the image
-            classify_response = client.chat.completions.create(
+            classify_response = await client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
                     {
@@ -2125,7 +2416,7 @@ async def process_food_images(
             if images_for_description:
                 _, base64_image = images_for_description[0]
 
-                response = client.chat.completions.create(
+                response = await client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[
                         {
@@ -2151,7 +2442,7 @@ async def process_food_images(
         # Step 2: Extract nutrition from labels
         if label_images:
             for img, base64_label in label_images:
-                response = client.chat.completions.create(
+                response = await client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[
                         {
@@ -2167,15 +2458,18 @@ async def process_food_images(
                                     3. If serving size is in volume (cups, ml), estimate the weight (e.g., 1 cup = ~240g for liquids)
                                     4. If label says "Calories" or "Energy", return it as {"name":"Calories","unit":"KCAL"}
                                     5. Never output nutrient name "Energy"
+                                    6. Also report "serving_size_g" (serving size in grams, as a number) and, for each nutrient,
+                                       "amount_per_serving" (the raw amount printed on the label, in the same unit)
 
                                     Return ONLY a JSON object with this exact format:
                                     {
                                       "serving_size": "33g",
+                                      "serving_size_g": 33,
                                       "nutrients": [
-                                        {"name": "Calories", "amount": 250, "unit": "KCAL"},
-                                        {"name": "Protein", "amount": 5.2, "unit": "G"},
-                                        {"name": "Total lipid (fat)", "amount": 12.0, "unit": "G"},
-                                        {"name": "Carbohydrate, by difference", "amount": 30.5, "unit": "G"}
+                                        {"name": "Calories", "amount": 250, "amount_per_serving": 82.5, "unit": "KCAL"},
+                                        {"name": "Protein", "amount": 5.2, "amount_per_serving": 1.7, "unit": "G"},
+                                        {"name": "Total lipid (fat)", "amount": 12.0, "amount_per_serving": 4.0, "unit": "G"},
+                                        {"name": "Carbohydrate, by difference", "amount": 30.5, "amount_per_serving": 10.1, "unit": "G"}
                                       ]
                                     }
 
@@ -2208,9 +2502,16 @@ async def process_food_images(
                     cleaned_response = clean_json_response(response.choices[0].message.content)
                     nutrition_json = json.loads(cleaned_response)
                     extracted_nutrients = nutrition_json.get("nutrients", [])
+                    serving_size_g = (
+                        _parse_serving_size_grams(nutrition_json.get("serving_size_g"))
+                        or _parse_serving_size_grams(nutrition_json.get("serving_size"))
+                    )
 
                     # Merge nutrients (if multiple labels, combine them)
                     for nutrient in extracted_nutrients:
+                        if not isinstance(nutrient, dict) or not nutrient.get("name"):
+                            continue
+                        nutrient["amount"] = label_nutrient_amount_per_100g(nutrient, serving_size_g)
                         existing = next((n for n in result_nutrients if n["name"] == nutrient["name"]), None)
                         if existing:
                             # Average the amounts if duplicate
@@ -2227,7 +2528,7 @@ async def process_food_images(
             # Use the first food image for estimation
             _, base64_food = food_images[0]
 
-            response = client.chat.completions.create(
+            response = await client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
                     {
@@ -2273,59 +2574,25 @@ async def process_food_images(
                 print(f"Error: {e}")
 
         # Map nutrient names to IDs with hybrid search
-        from ..routers.sparse_search_nutrients import search_nutrients_by_name
-
         nutrients_with_ids = []
+        seen_nutrient_ids = set()
         for nutrient in result_nutrients:
-            nutrient_name = nutrient["name"].lower().strip()
+            if not isinstance(nutrient, dict) or not nutrient.get("name"):
+                continue
 
-            # Step 1: Try exact match first
-            nutrient_doc = db.nutrients.find_one({"nutrient_name": {"$regex": f"^{nutrient['name']}$", "$options": "i"}})
-
-            # Step 2: If not found, try common name mappings
-            if not nutrient_doc:
-                name_mappings = {
-                    "total fat": "Total lipid (fat)",
-                    "total lipid (fat)": "Total lipid (fat)",
-                    "fat": "Total lipid (fat)",
-                    "carbohydrates": "Carbohydrate, by difference",
-                    "carbohydrate, by difference": "Carbohydrate, by difference",
-                    "carbs": "Carbohydrate, by difference",
-                    "fiber": "Fiber, total dietary",
-                    "dietary fiber": "Fiber, total dietary",
-                    "sugars": "Sugars, total including NLEA",
-                    "protein": "Protein",
-                    "sodium": "Sodium, Na",
-                    "potassium": "Potassium, K",
-                    "iron": "Iron, Fe",
-                    "energy": "Calories",
-                    "calories": "Calories",
-                    "calorie": "Calories",
-                }
-
-                mapped_name = name_mappings.get(nutrient_name)
-                if mapped_name:
-                    nutrient_doc = db.nutrients.find_one({"nutrient_name": {"$regex": f"^{mapped_name}$", "$options": "i"}})
-
-            # Step 3: If still not found, use hybrid vector search
-            if not nutrient_doc:
-                try:
-                    search_results = await search_nutrients_by_name(nutrient["name"], db=db, threshold=0.5, limit=1)
-                    if search_results:
-                        # Get the top match
-                        best_nutrient_id = max(search_results, key=search_results.get)
-                        nutrient_doc = db.nutrients.find_one({"_id": int(best_nutrient_id)})
-                        if nutrient_doc:
-                            print(f"Matched '{nutrient['name']}' to '{nutrient_doc['nutrient_name']}' via hybrid search (score: {search_results[best_nutrient_id]:.2f})")
-                except Exception as e:
-                    print(f"Error during hybrid search for '{nutrient['name']}': {e}")
+            nutrient_doc = await _resolve_extracted_nutrient(db, nutrient["name"])
 
             if nutrient_doc:
+                if nutrient_doc["_id"] in seen_nutrient_ids:
+                    # Same nutrient reported under two names (e.g. "Calories" and "Energy"): keep the first
+                    continue
+                seen_nutrient_ids.add(nutrient_doc["_id"])
+                db_unit = nutrient_doc.get("unit")
                 nutrients_with_ids.append({
                     "nutrient_id": nutrient_doc["_id"],
                     "name": nutrient_doc["nutrient_name"],  # Use database name
-                    "amount": nutrient["amount"],
-                    "unit": nutrient["unit"]
+                    "amount": convert_nutrient_amount(nutrient.get("amount", 0), nutrient.get("unit"), db_unit),
+                    "unit": db_unit or nutrient.get("unit")
                 })
             else:
                 # If not found after all attempts, still include it
@@ -2333,8 +2600,8 @@ async def process_food_images(
                 nutrients_with_ids.append({
                     "nutrient_id": -1,  # Unknown
                     "name": nutrient["name"],
-                    "amount": nutrient["amount"],
-                    "unit": nutrient["unit"]
+                    "amount": normalize_nutrient_amount(nutrient.get("amount", 0)),
+                    "unit": nutrient.get("unit")
                 })
 
         return {
@@ -2375,7 +2642,7 @@ async def add_custom_food(
         embedding = None
         embedding_error_message = None
         try:
-            embedding = _generate_food_embedding(name)
+            embedding = await asyncio.to_thread(_generate_food_embedding, name)
             print(f"✓ Generated OpenAI embedding for custom food: {name} ({len(embedding)} dims)")
         except Exception as embed_error:
             embedding_error_message = str(embed_error)
@@ -2386,14 +2653,13 @@ async def add_custom_food(
         food_doc = {
             "_id": ObjectId(),
             "food_name": name,
-            "nutrients": [
-                {
-                    "nutrient_id": n.get("nutrient_id", -1),
-                    "amt": n.get("amount", 0)
-                }
-                for n in nutrients_list
-                if n.get("nutrient_id", -1) != -1  # Only include mapped nutrients
-            ],
+            # Accept either "amt" or "amount", coerce ids/amounts to numbers,
+            # drop unmapped (-1) nutrients and duplicate nutrient ids.
+            "nutrients": dedupe_nutrients_list([
+                n
+                for n in normalize_nutrients_to_list(nutrients_list)
+                if n.get("nutrient_id") not in (-1, None, "")  # Only include mapped nutrients
+            ]),
             "is_custom": True,
             "source": user["_id"],
             "created_at": now,

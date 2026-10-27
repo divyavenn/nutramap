@@ -166,7 +166,7 @@ async def test_hybrid_nutrient_search(
     try:
         # Time the search
         start_time = time.perf_counter()
-        results = await search_nutrients_by_name(nutrient_name, db, threshold, limit)
+        results = await search_nutrients_by_name(nutrient_name, db=db, threshold=threshold, limit=limit)
         end_time = time.perf_counter()
         elapsed_ms = round((end_time - start_time) * 1000, 2)
 

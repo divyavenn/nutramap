@@ -72,12 +72,14 @@ function NewLogForm(){
       '/logs/new',
       'POST',
       {
+        // Backend /logs/new expects amount + weight_in_grams (no amount_in_grams field)
         food_id: (getFoodID(formData.food_name, foodList)),
-        amount_in_grams: (formData.amount_in_grams),
+        amount: `${formData.amount_in_grams}g`,
+        weight_in_grams: (formData.amount_in_grams),
         date: tolocalDateString(new Date())
       })
     setFormData({ food_name: '', amount_in_grams: '', date : new Date()})
-    refreshLogs()
+    refreshLogs({ force: true })
     setIsJiggling(false)
   }
 

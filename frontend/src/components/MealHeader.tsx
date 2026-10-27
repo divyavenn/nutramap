@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, KeyboardEvent } from 'react';
-import { formatTime } from './utlis'; // eslint-disable-line @typescript-eslint/no-unused-vars
+import { formatTime, tolocalDateString, parseQuantity, formatQuantity } from './utlis'; // eslint-disable-line @typescript-eslint/no-unused-vars
 import { request } from './endpoints';
 import { useRefreshLogs } from './dashboard_states';
 import { tutorialEvent } from './TryTutorial';
@@ -77,7 +77,7 @@ function MealHeader({
   const saveToServer = async (field: 'servings' | 'grams' | 'date', currentDate: Date) => {
     setSavingField(field);
     try {
-      let newServings = parseFloat(servingsInput);
+      let newServings = parseQuantity(servingsInput);
       if (field === 'grams' && weightPerServing && weightPerServing > 0) {
         const g = parseFloat(gramsInput);
         if (!isNaN(g) && g > 0) newServings = g / weightPerServing;
@@ -87,9 +87,11 @@ function MealHeader({
       const fd = new FormData();
       fd.append('log_id', log_id);
       fd.append('servings', String(newServings));
-      fd.append('date', currentDate.toISOString());
-      await request('/logs/edit-recipe-log', 'POST', fd);
-      refreshLogs();
+      // Log dates are stored as naive local time; toISOString() would shift by the UTC offset
+      fd.append('date', tolocalDateString(currentDate));
+      const response = await request('/logs/edit-recipe-log', 'POST', fd);
+      if (response.status !== 200) throw new Error(`edit-recipe-log failed (${response.status})`);
+      refreshLogs({ force: true });
     } catch (error) {
       console.error('Error saving field:', error);
       setServingsInput(String(servings));
@@ -104,7 +106,7 @@ function MealHeader({
     const val = e.target.value;
     setServingsInput(val);
     if (weightPerServing != null) {
-      const parsed = parseFloat(val);
+      const parsed = parseQuantity(val);
       if (!isNaN(parsed) && parsed > 0)
         setGramsInput(String(Math.round(parsed * weightPerServing)));
     }
@@ -117,7 +119,7 @@ function MealHeader({
       const parsed = parseFloat(val);
       if (!isNaN(parsed) && parsed > 0) {
         const ns = parsed / weightPerServing;
-        setServingsInput(ns.toFixed(2).replace(/\.?0+$/, ''));
+        setServingsInput(formatQuantity(ns, 2));
       }
     }
   };
@@ -125,11 +127,10 @@ function MealHeader({
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
       const [year, month, day] = e.target.value.split('-').map(Number);
-      if (day < 1 || day > 31 || month < 1 || month > 12) return;
+      if (!year || !month || !day || day < 1 || day > 31 || month < 1 || month > 12) return;
       const updated = new Date(dateInput);
-      updated.setFullYear(year);
-      updated.setMonth(month - 1);
-      updated.setDate(day);
+      // Set all parts at once; sequential setMonth/setDate overflows (e.g. Jan 31 -> Feb -> Mar 3)
+      updated.setFullYear(year, month - 1, day);
       setDateInput(updated);
     } catch {}
   };
@@ -151,7 +152,8 @@ function MealHeader({
     setIsDeleting(true);
     onDeleteStart();
     try {
-      await request(`/logs/delete?log_id=${log_id}`, 'DELETE');
+      const response = await request(`/logs/delete?log_id=${log_id}`, 'DELETE');
+      if (response.status !== 200) throw new Error(`delete failed (${response.status})`);
       refreshLogs({ force: true });
     } catch (error) {
       console.error('Error deleting log:', error);
@@ -167,10 +169,8 @@ function MealHeader({
   // Display-mode portion text (always show servings, even without serving_size_label)
   const servingsValue = Number(servings);
   const safeServings = Number.isFinite(servingsValue) && servingsValue > 0 ? servingsValue : 1;
-  const count = Number.isInteger(safeServings)
-    ? String(safeServings)
-    : safeServings.toFixed(1).replace(/\.0$/, "");
-  const cleanedServingLabel = serving_size_label?.replace(/^\d+\.?\d*\s+/, "").trim();
+  const count = formatQuantity(safeServings, 2);
+  const cleanedServingLabel = serving_size_label?.replace(/^\d+(?:\.\d+)?(?:\s*\/\s*\d+)?\s+/, "").trim();
   let unitText = cleanedServingLabel || "serving";
   if (safeServings !== 1 && unitText === "serving") {
     unitText = "servings";
