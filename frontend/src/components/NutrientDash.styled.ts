@@ -1,30 +1,23 @@
-import styled, { keyframes } from 'styled-components';
+import styled from 'styled-components';
+import { motion } from 'framer-motion';
 import { SvgButton } from './Sections.styled';
-
-const nutrientEditIdle = keyframes`
-  0%, 100% { transform: rotate(0deg); }
-  50% { transform: rotate(-3deg); }
-`;
-
-const nutrientEditHover = keyframes`
-  0% { transform: rotate(-4deg) scale(1); }
-  60% { transform: rotate(7deg) scale(1.08); }
-  100% { transform: rotate(0deg) scale(1.03); }
-`;
 
 interface NutrientDashboardContainerProps {
   $foodHovered?: boolean;
 }
 
-export const NutrientDashboardContainer = styled.div<NutrientDashboardContainerProps>`
+// motion.div so the panel itself is the layout element: framer corrects border-radius
+// during layout animations instead of stretching a wrapper's corners and shadow.
+export const NutrientDashboardContainer = styled(motion.div)<NutrientDashboardContainerProps>`
   display: flex;
-  width: var(--dashboard-width);
+  /* Shrink with its column instead of overflowing it (clipped at ~1300–1440px wide) */
+  width: 100%;
+  max-width: var(--dashboard-width);
   margin-top: 30px;
   margin-bottom: 20px;
   padding-top: 40px;
   padding-bottom: 50px;
-  padding-right: 40px;
-  padding-left: 40px;
+  padding-inline: 40px;
   flex-direction: column;
   justify-content: flex-start;
   flex-wrap: nowrap;
@@ -42,35 +35,43 @@ export const NutrientDashboardContainer = styled.div<NutrientDashboardContainerP
   box-shadow:
     0 8px 32px oklch(0 0 0 / 45%),
     inset 0 1px 0 oklch(0.924 0.063 295 / 4%);
-  transition: background-color 0.3s ease, transform 0.3s ease;
+  transition: background-color 150ms ease-out;
 `;
 
 export const NutrientEditButton = styled(SvgButton)`
   border-radius: 10px;
   padding: 6px;
   cursor: pointer;
-  transition: transform 0.18s ease, background-color 0.18s ease;
+  transition: transform 0.18s ease, background-color 0.18s ease, scale 150ms ease-out;
 
-  & img {
+  & svg {
     width: 34px;
     height: 34px;
     display: block;
+    fill: var(--hover-white);
     opacity: 0.9;
-    animation: ${nutrientEditIdle} 2.6s ease-in-out infinite;
+    transition: rotate 150ms ease-out, opacity 150ms ease-out, fill 150ms ease-out;
   }
 
-  &:hover {
-    background-color: oklch(0.924 0.063 295 / 8%);
-    transform: translateY(-1px);
+  /* add.svg ships with hardcoded path fills; let the CSS fill win */
+  & svg path {
+    fill: inherit;
+    fill-opacity: inherit;
   }
 
-  &:hover img {
-    opacity: 1;
-    animation: ${nutrientEditHover} 0.22s ease-out forwards;
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background-color: oklch(0.924 0.063 295 / 8%);
+      transform: translateY(-1px);
+    }
   }
 
-  &:active {
-    transform: translateY(0) scale(0.96);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover svg {
+      rotate: 7deg;
+      opacity: 1;
+      fill: var(--accent-purple);
+    }
   }
 `;
 
@@ -87,33 +88,33 @@ export const NutrientEditListWrapper = styled.div`
   width: 100%;
   flex-direction: column;
   justify-content: center;
-  padding-left: 0;
+  padding-inline-start: 0;
 `;
 
 export const NutrientEditPanelTitle = styled.div`
-  font-family: 'Funnel Sans', sans-serif;
-  font-size: 28px;
+  font-family: var(--font-ui);
+  font-size: var(--text-title);
   font-weight: 400;
   color: oklch(0.924 0.063 295 / 92%);
-  text-align: left;
+  text-align: start;
   margin-bottom: 4px;
   margin-top: 8px;
-  padding-left: 14px;
+  padding-inline-start: 14px;
 `;
 
 export const NutrientEditSubtitle = styled.div`
-  font-family: 'Funnel Sans', sans-serif;
-  font-size: 14px;
+  font-family: var(--font-ui);
+  font-size: var(--text-small);
   font-weight: 400;
-  color: oklch(0.924 0.063 295 / 38%);
-  text-align: left;
+  color: var(--color-text-secondary);
+  text-align: start;
   margin-bottom: 14px;
-  padding-left: 14px;
+  padding-inline-start: 14px;
 `;
 
 export const NutrientPanelTitle = styled.div`
-  font-family: 'Poppins', sans-serif;
-  font-size: 20px;
+  font-family: Poppins, sans-serif;
+  font-size: var(--text-large);
   font-weight: 400;
   color: var(--white);
   margin: 0;
@@ -135,12 +136,11 @@ export const NutrientListWrapper = styled.div`
 export const NoReqMessage = styled.div`
   position: relative;
   width: 100%;
-  font-family: Inconsolata;
-  font-style: italic;
-  color: var(--transparent-white);
+  font-family: var(--font-mono);
+  color: var(--color-text-secondary);
   font-size: var(--inconsolata-font-size);
   text-align: center;
-  font-weight: 300;
+  font-weight: 400;
   text-transform: none;
   margin-top: 40px;
   margin-bottom: 40px;
@@ -156,17 +156,17 @@ export const NutrientDashTitle = styled.div<NutrientDashTitleProps>`
   font-family: ${({ $foodMode }) =>
     $foodMode
       ? "'Abyssinica SIL', Georgia, 'Times New Roman', serif"
-      : "'Funnel Sans'"};
+      : 'var(--font-ui)'};
   color: ${({ $foodMode }) =>
-    $foodMode ? 'oklch(0.924 0.063 295 / 92%)' : 'oklch(0.924 0.063 295 / 32%)'};
-  font-size: ${({ $foodMode }) => ($foodMode ? 'var(--inconsolata-font-size)' : '11px')};
+    $foodMode ? 'oklch(0.924 0.063 295 / 92%)' : 'var(--color-text-secondary)'};
+  font-size: ${({ $foodMode }) => ($foodMode ? 'var(--inconsolata-font-size)' : 'var(--text-label)')};
   font-weight: ${({ $foodMode }) => ($foodMode ? '400' : '500')};
   letter-spacing: ${({ $foodMode }) => ($foodMode ? 'normal' : '0.08em')};
   text-transform: ${({ $foodMode }) => ($foodMode ? 'none' : 'uppercase')};
   overflow: hidden;
   white-space: nowrap;
   text-align: center;
-  transition: font-family 0.2s ease, color 0.2s ease;
+  transition: color 0.2s ease;
 `;
 
 export const DashboardRow = styled.div`
@@ -193,47 +193,61 @@ export const NutrientNameWrapper = styled.div<NutrientNameWrapperProps>`
   display: block;
   width: 20%;
   height: auto;
-  text-align: left;
+  text-align: start;
   align-self: center;
   flex-grow: 0;
   flex-shrink: 0;
   flex-basis: auto;
   opacity: ${({ $hidden }) => ($hidden ? '0' : '1')};
   pointer-events: ${({ $hidden }) => ($hidden ? 'none' : 'auto')};
-  transition: opacity 0.3s ease;
+  transition: opacity 150ms ease;
 `;
 
-export const NutrientName = styled.div`
+export const NutrientName = styled.button`
+  display: block;
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
   cursor: pointer;
-  font-family: 'Funnel Sans';
-  font-size: 20px;
+  font-family: var(--font-ui);
+  font-size: var(--text-large);
   font-variant-numeric: tabular-nums;
-  transition: all 0.3s ease;
+  transition: color 150ms ease, scale 150ms ease-out;
+`;
+
+export const StatusCue = styled.span`
+  margin-inline-start: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
 `;
 
 export const TodayStatsWrapper = styled.div`
   position: relative;
   width: 60%;
-  padding-left: 16px;
-  padding-right: 16px;
+  padding-inline: 16px;
   box-sizing: border-box;
-  font-family: Poppins;
-  font-size: 18px;
+  font-family: Poppins, sans-serif;
+  font-size: var(--text-medium);
   align-self: center;
-  font-weight: 300;
+  font-weight: 400;
   text-align: center;
   text-transform: none;
 `;
 
 export const AvgIntake = styled.div`
-  font-family: 'Funnel Sans';
-  font-size: 15px;
-  font-weight: 300;
+  font-family: var(--font-ui);
+  font-size: var(--text-caption);
+  font-weight: 400;
   cursor: default;
   text-align: right;
-  color: oklch(0.924 0.063 295 / 55%);
+  color: var(--color-text-secondary);
   font-variant-numeric: tabular-nums;
-  transition: color 0.3s ease;
+  transition: color 150ms ease;
 `;
 
 interface AvgStatsWrapperProps {
@@ -247,7 +261,7 @@ export const AvgStatsWrapper = styled.div<AvgStatsWrapperProps>`
   text-align: right;
   opacity: ${({ $hidden }) => ($hidden ? '0' : '1')};
   pointer-events: ${({ $hidden }) => ($hidden ? 'none' : 'auto')};
-  transition: opacity 0.3s ease;
+  transition: opacity 150ms ease;
 
   &:hover ${AvgIntake} {
     color: var(--avg-color);
@@ -267,16 +281,21 @@ interface VisibilityProps {
   $visible?: boolean;
 }
 
-export const GoalMessage = styled.div<VisibilityProps>`
+export const GoalMessage = styled.button<VisibilityProps>`
   position: absolute;
-  font-family: 'Funnel Sans';
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: inherit;
+  font-family: var(--font-ui);
   font-size: var(--inconsolata-font-size);
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  transition: opacity 150ms ease-out, scale 150ms ease-out;
   width: 100%;
   text-align: center;
   font-variant-numeric: tabular-nums;
   opacity: ${({ $visible }) => ($visible ? '1' : '0')};
-  transform: ${({ $visible }) => ($visible ? 'translateY(0)' : 'translateY(5px)')};
   pointer-events: ${({ $visible }) => ($visible ? 'auto' : 'none')};
 `;
 
@@ -293,9 +312,8 @@ export const DailyIntake = styled.div<VisibilityProps>`
   align-items: center;
   justify-content: start;
   justify-self: center;
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  transition: opacity 150ms ease-out;
   opacity: ${({ $visible }) => ($visible ? '1' : '0')};
-  transform: ${({ $visible }) => ($visible ? 'translateY(0)' : 'translateY(5px)')};
   pointer-events: ${({ $visible }) => ($visible ? 'auto' : 'none')};
 `;
 
@@ -307,10 +325,13 @@ export const ProgressBarContainer = styled.div`
   position: relative;
 `;
 
+// Fill amount is set as an inline scaleX (0..1) so it animates on the compositor
+// instead of re-laying out `width`; the container's overflow: hidden clips the ends.
 export const ProgressBar = styled.div`
   height: 100%;
   width: 100%;
-  transition: width 0.3s ease, background-color 0.3s ease;
+  transform-origin: left;
+  transition: transform 300ms ease-out, background-color 0.3s ease;
   border-radius: 100px;
   position: absolute;
   left: 0;

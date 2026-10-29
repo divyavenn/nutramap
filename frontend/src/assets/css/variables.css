@@ -27,13 +27,38 @@
   --transparent-bright:   oklch(0.183 0.027 295 / 60%);
   --transparent-bg:       oklch(0.183 0.027 295 / 48%);
 
+  /* Solid text roles. Muted text built from alpha failed contrast over the page
+     gradient (portion text measured 3.40:1); these pass 4.5:1 on page and panels. */
+  --color-text-secondary: oklch(0.70 0.063 295);   /* 7.28:1 on page */
+  --color-text-placeholder: oklch(0.62 0.063 295); /* 4.72:1 on the input bubble */
+  --color-accent-text:    var(--color-10);         /* 6.71:1 on page */
+  --color-text-inverse:   var(--color-1);          /* text on light hover fills */
+
   --red:                  oklch(0.25 0.08 20 / 50%);
 
   /* surface / accent */
   --purple:               oklch(0.214 0.038 295 / 82%);
   --accent-purple:        var(--color-9);
+
+  /* Role-named surface aliases. --bright is misnamed (it's the darkest palette step,
+     used as the page background); new code should use these instead. */
+  --color-bg-page:        var(--bright);
+  --color-bg-surface:     var(--purple);
   --surface-border:       oklch(0.637 0.185 295 / 10%);
   --log-bubble-color:     oklch(0 0 0 / 34%);
+
+  /* ── Type ─────────────────────────────────────────────────────────────── */
+  /* rem so text follows the reader's browser font-size setting (16px = 1rem) */
+  --font-ui:     'Funnel Sans', system-ui, sans-serif;
+  --font-mono:   Inconsolata, ui-monospace, monospace;
+  --text-label:   0.6875rem;  /* 11px uppercase labels */
+  --text-small:   0.875rem;   /* 14px */
+  --text-caption: 0.9375rem;  /* 15px */
+  --text-body:    1rem;       /* 16px */
+  --text-medium:  1.125rem;   /* 18px */
+  --text-row:     1.1875rem;  /* 19px log rows */
+  --text-large:   1.25rem;    /* 20px */
+  --text-title:   1.75rem;    /* 28px */
 
   /* ── Layout / size tokens ─────────────────────────────────────────────── */
   --modal-width:             900px;

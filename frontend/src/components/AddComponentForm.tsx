@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, KeyboardEvent } from 'react';
+import React, { useState, useEffect, useRef, useId, KeyboardEvent } from 'react';
+import { useNotify } from './StatusMessage';
 import { AnimatePresence, motion } from 'framer-motion';
 import styled from 'styled-components';
 import { request } from './endpoints';
@@ -14,18 +15,20 @@ import {
 
 const AddFormBubble = styled(EditEntryFormBubble)`
   background-color: transparent;
-  &:hover {
-    background-color: transparent;
-    color: var(--white);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background-color: transparent;
+      color: var(--white);
+    }
   }
 `;
 
 const AddFormInputName = styled(EditInputFoodName)`
-  &::placeholder { color: rgba(190, 140, 255, 0.5); }
+  &::placeholder { color: var(--color-text-placeholder); }
 `;
 
 const AddFormInputPortion = styled(EditInputPortion)`
-  &::placeholder { color: rgba(190, 140, 255, 0.5); }
+  &::placeholder { color: var(--color-text-placeholder); }
 `;
 
 const AddFormDropdown = styled(FormDropdownWrapper)`
@@ -51,6 +54,9 @@ function AddComponentForm({ logId, onAdd }: AddComponentFormProps) {
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const refreshLogs = useRefreshLogs();
+  const notify = useNotify();
+  const listId = useId();
+  const optionId = (idx: number) => `${listId}-option-${idx}`;
 
   // Auto-adjust textarea height
   useEffect(() => {
@@ -139,6 +145,7 @@ function AddComponentForm({ logId, onAdd }: AddComponentFormProps) {
       setAmount('');
     } catch (error) {
       console.error('Error adding component:', error);
+      notify('ingredient not added. check your connection and try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -156,9 +163,9 @@ function AddComponentForm({ logId, onAdd }: AddComponentFormProps) {
           setSelectedSuggestionIndex(prev => prev > 0 ? prev - 1 : prev);
           return;
         case 'Tab':
-          e.preventDefault();
-          if (selectedSuggestionIndex >= 0) handleSuggestionClick(suggestions[selectedSuggestionIndex]);
-          return;
+          // Tab moves focus as usual; Enter accepts a suggestion
+          setShowSuggestions(false);
+          break;
         case 'Enter':
           if (selectedSuggestionIndex >= 0) {
             e.preventDefault();
@@ -190,24 +197,33 @@ function AddComponentForm({ logId, onAdd }: AddComponentFormProps) {
         <FoodNameSpace>
           <AddFormInputName
             ref={textareaRef}
+            aria-label="ingredient to add"
             name="food_name"
-            placeholder="add ingredient..."
+            placeholder="add ingredient…"
             value={foodName}
             onChange={handleFoodNameChange}
             onKeyDown={handleFoodNameKeyDown}
-            disabled={isSubmitting}
+            role="combobox"
+            aria-expanded={showSuggestions}
+            aria-controls={listId}
+            aria-autocomplete="list"
+            aria-activedescendant={showSuggestions && selectedSuggestionIndex >= 0 ? optionId(selectedSuggestionIndex) : undefined}
+            readOnly={isSubmitting}
+            aria-disabled={isSubmitting}
           />
         </FoodNameSpace>
         <FoodDateSpace />
         <FoodPortionSpace>
           <AddFormInputPortion
+            aria-label="ingredient amount"
             name="amount"
             type="text"
-            placeholder="amount"
+            placeholder="1 cup"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             onKeyDown={handleAmountKeyDown}
-            disabled={isSubmitting}
+            readOnly={isSubmitting}
+            aria-disabled={isSubmitting}
           />
         </FoodPortionSpace>
       </AddFormBubble>
@@ -222,11 +238,14 @@ function AddComponentForm({ logId, onAdd }: AddComponentFormProps) {
             transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
           >
             <SuggestionsContainer ref={suggestionsRef}>
-              <SuggestionsList>
+              <SuggestionsList role="listbox" id={listId}>
                 {suggestions.map((s, idx) => (
                   <SuggestionItem
                     key={s.food_id}
                     $selected={idx === selectedSuggestionIndex}
+                    id={optionId(idx)}
+                    role="option"
+                    aria-selected={idx === selectedSuggestionIndex}
                     className="suggestion-item"
                     onClick={() => handleSuggestionClick(s)}
                     onMouseEnter={() => setSelectedSuggestionIndex(idx)}

@@ -2,36 +2,8 @@ import styled, { keyframes, css } from 'styled-components';
 
 // Animations
 const pixelateOut = keyframes`
-  0% {
-    opacity: 1;
-    filter: none;
-    transform: scale(1) translateY(0);
-  }
-  20% {
-    opacity: 0.9;
-    filter: blur(1px);
-    transform: scale(1) translateY(0);
-  }
-  40% {
-    opacity: 0.8;
-    filter: blur(2px) contrast(1.2);
-    transform: scale(0.98) translateY(0);
-  }
-  60% {
-    opacity: 0.6;
-    filter: blur(3px) contrast(1.4);
-    transform: scale(0.95) translateY(2px);
-  }
-  80% {
-    opacity: 0.4;
-    filter: blur(4px) contrast(1.6);
-    transform: scale(0.9) translateY(4px);
-  }
-  100% {
-    opacity: 0;
-    filter: blur(6px) contrast(2);
-    transform: scale(0.8) translateY(8px);
-  }
+  from { opacity: 1; filter: blur(0);   transform: scale(1); }
+  to   { opacity: 0; filter: blur(2px); transform: scale(0.97); }
 `;
 
 interface FormContainerProps {
@@ -50,7 +22,7 @@ export const FormContainer = styled.form<FormContainerProps>`
   `}
 
   ${props => props.$deleting && css`
-    animation: ${pixelateOut} 0.4s ease-in forwards;
+    animation: ${pixelateOut} 180ms cubic-bezier(0.23, 1, 0.32, 1) forwards;
     pointer-events: none;
   `}
 `;
@@ -67,8 +39,8 @@ export const DeleteButtonContainer = styled.div<DeleteButtonContainerProps>`
 
   ${props => props.$hide && css`
     opacity: 0;
-    transform: scale(0);
-    transition: opacity 0.3s ease, transform 0.3s ease;
+    transform: scale(0.9);
+    transition: opacity 150ms ease-out, transform 150ms cubic-bezier(0.23, 1, 0.32, 1);
   `}
 `;
 
@@ -88,9 +60,11 @@ export const DeleteButton = styled.button`
   font-family: Arial, sans-serif;
   font-weight: 300;
 
-  &:hover {
-    color: rgba(255, 255, 255, 0.8);
-    transform: rotate(90deg);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      color: rgba(255, 255, 255, 0.8);
+      transform: rotate(90deg);
+    }
   }
 `;
 
@@ -101,7 +75,7 @@ export const FormDropdownWrapper = styled.div`
   border-radius: 14px;
   width: 600px;
   background-color: transparent;
-  transition: all 0.1s ease;
+  transition: background-color 100ms ease, color 100ms ease;
 `;
 
 interface IngredientBubbleProps {
@@ -118,7 +92,7 @@ export const IngredientBubble = styled.div<IngredientBubbleProps>`
   background-color: transparent;
   color: var(--white);
   justify-content: space-evenly;
-  transition: all 0.1s ease;
+  transition: background-color 100ms ease, color 100ms ease;
 
   ${props => props.$active && css`
     border-bottom-left-radius: 0px;
@@ -299,8 +273,10 @@ export const SuggestionItem = styled.li<SuggestionItemProps>`
     color: oklch(0.924 0.063 295 / 95%);
   `}
 
-  &:hover {
-    background-color: oklch(0.924 0.063 295 / 8%);
-    color: oklch(0.924 0.063 295 / 95%);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background-color: oklch(0.924 0.063 295 / 8%);
+      color: oklch(0.924 0.063 295 / 95%);
+    }
   }
 `;

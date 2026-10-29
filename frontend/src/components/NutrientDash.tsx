@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, startTransition} from 'react';
 import { calculateColor, formatDayForFrontend, formatQuantity} from './utlis';
-import addIcon from '../assets/images/add.svg'
+import AddIcon from '../assets/images/add.svg?react'
 import { NewNutrientForm } from './NutrientEdit';
 import {useRecoilValue, useRecoilValueLoadable} from 'recoil'
 import { currentDayAtom, hoveredLogAtom, hoveredLogPanelData } from './dashboard_states';
@@ -27,6 +27,7 @@ import {
   DailyIntake,
   ProgressBarContainer,
   ProgressBar,
+  StatusCue,
 } from './NutrientDash.styled';
 
 
@@ -95,11 +96,13 @@ function NutrientDashboard(){
 
   return (
     <LayoutGroup>
-    <motion.div layout transition={dashboardLayoutTransition}>
       <NutrientDashboardContainer
+        layout
+        transition={dashboardLayoutTransition}
         className="nutrient-dashboard"
         $foodHovered={!!hoveredLog}
-        style={!editing ? { height: panelHeight } : undefined}
+        // borderRadius in style lets framer correct the corners during the layout spring
+        style={!editing ? { height: panelHeight, borderRadius: 14 } : { borderRadius: 14 }}
       >
         <AnimatePresence initial={false} mode="wait">
           {!editing && (
@@ -130,7 +133,11 @@ function NutrientDashboard(){
                   transition={{ duration: 0.2, ease: 'easeOut' }}
                 >
                   {requirements.length === 0 ? (
-                    <NoReqMessage>no requirements</NoReqMessage>
+                    <NoReqMessage>
+                      no targets yet
+                      <br />
+                      set daily targets to track your nutrients.
+                    </NoReqMessage>
                   ) : (
                     <NutrientListWrapper>
                       <NutrientStats requirements={requirements}/>
@@ -147,7 +154,7 @@ function NutrientDashboard(){
                   transition={{ duration: 0.2, ease: 'easeOut' }}
                 >
                   <NutrientEditListWrapper className="nutrient-edit-list-wrapper">
-                    <NutrientEditPanelTitle>nutritional targets</NutrientEditPanelTitle>
+                    <NutrientEditPanelTitle>targets</NutrientEditPanelTitle>
                     {requirements.length > 0 &&
                       requirements.map((n, index) =>
                         {return(
@@ -175,16 +182,16 @@ function NutrientDashboard(){
             >
               <NutrientEditButton
                 className="tutorial-nutrient-edit-button"
+                aria-label="edit targets"
                 onClick={hoveredLog ? undefined : toggleEditing}
                 style={{ visibility: hoveredLog ? 'hidden' : 'visible' }}
               >
-                <img src={addIcon} alt="Edit nutrients" width="30" height="30" />
+                <AddIcon />
               </NutrientEditButton>
             </motion.div>
           )}
         </AnimatePresence>
       </NutrientDashboardContainer>
-    </motion.div>
     </LayoutGroup>
   )
 }
@@ -196,7 +203,7 @@ function NutrientDashboardTitle(){
   return (
     <DashboardRow>
       <NutrientNameWrapper $hidden={!!hoveredLog}>
-        <NutrientDashTitle>target</NutrientDashTitle>
+        <NutrientDashTitle>targets</NutrientDashTitle>
       </NutrientNameWrapper>
       <TodayStatsWrapper className="today-stats-wrapper">
         <NutrientDashTitle $foodMode={!!hoveredLog}>
@@ -309,19 +316,24 @@ function NutrientStatRow({ name, target, dayIntake = 0, avgIntake = 0, shouldExc
   };
 
   const goalMessage = (target : number, intake : number, units : string, shouldExceed : boolean) => {
-    const difference = Math.abs(target - dayIntake);
+    const difference = formatAmount(Math.abs(target - intake));
     if (shouldExceed) {
-      if (intake < target) return difference.toFixed(0) + " " + units + " until target";
-      else return "target met : " + intake.toFixed(0) + " " + units;
+      if (intake < target) return `${difference}\u00A0${units} to go`;
+      else return `target met: ${formatAmount(intake)}\u00A0${units}`;
     }
     else {
-      if (intake < target) return difference.toFixed(0) + " within target";
-      else return "exceeded target by " + difference.toFixed(0) + " " + units
+      if (intake <= target) return `${difference}\u00A0${units} under limit`;
+      else return `${difference}\u00A0${units} over limit`;
     }
   }
 
+  // Non-color cue for goal state, so it doesn't rely on the bar color alone
+  const targetMet = shouldExceed && safeDay >= target;
+  const overLimit = !shouldExceed && safeDay > target;
+  const statusText = goalMessage(target, safeDay, units, shouldExceed);
+
   const targetDisplay =  (target: number, units: string) =>{
-    return formatAmount(target) + ' ' + units
+    return formatAmount(target) + '\u00A0' + units
   }
 
   return (
@@ -329,8 +341,14 @@ function NutrientStatRow({ name, target, dayIntake = 0, avgIntake = 0, shouldExc
       <NutrientNameWrapper
         onMouseEnter={() => setHoveredName(true)}
         onMouseLeave={() => setHoveredName(false)}>
-        <NutrientName>
-          {hoveredName ? `${target} ${units}` : name}
+        <NutrientName
+          type="button"
+          aria-label={`${name}, target ${target}\u00A0${units}`}
+          onFocus={() => setHoveredName(true)}
+          onBlur={() => setHoveredName(false)}>
+          {hoveredName ? `${target}\u00A0${units}` : name}
+          {targetMet && <StatusCue aria-hidden="true">✓</StatusCue>}
+          {overLimit && <StatusCue aria-hidden="true">over</StatusCue>}
         </NutrientName>
       </NutrientNameWrapper>
 
@@ -339,14 +357,26 @@ function NutrientStatRow({ name, target, dayIntake = 0, avgIntake = 0, shouldExc
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}>
         <HoverTransitionContainer>
-          <GoalMessage $visible={!!(hoveredLog || hovered)}>
+          <GoalMessage
+            type="button"
+            aria-label={`${name} today: ${targetDisplay(safeDay, units)}`}
+            onFocus={() => setHovered(true)}
+            onBlur={() => setHovered(false)}
+            $visible={!!(hoveredLog || hovered)}>
             {targetDisplay(safeDay, units)}
           </GoalMessage>
           <DailyIntake $visible={!(hoveredLog || hovered)}>
-            <ProgressBarContainer className="progress-bar-container">
+            <ProgressBarContainer
+              className="progress-bar-container"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={target}
+              aria-valuenow={Math.min(safeDay, target)}
+              aria-valuetext={targetDisplay(safeDay, units)}
+              aria-label={`${name}: ${statusText}`}>
               <ProgressBar
                 style={{
-                  width: `${shouldExceed ? progressPercentage : progressPercentage * 0.75}%`,
+                  transform: `scaleX(${(shouldExceed ? progressPercentage : progressPercentage * 0.75) / 100})`,
                   backgroundColor: progressColor,
                 }}
               />
@@ -365,7 +395,7 @@ function NutrientStatRow({ name, target, dayIntake = 0, avgIntake = 0, shouldExc
             '--avg-color': avgColor
           } as React.CSSProperties}
         >
-          {formatAmount(safeAvg)} {units.toLowerCase()}
+          {formatAmount(safeAvg)}{'\u00A0'}{units.toLowerCase()}
         </AvgIntake>
       </AvgStatsWrapper>
     </DashboardRow>

@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef, KeyboardEvent } from 'react';
+import React, { useState, useEffect, useRef, useId, KeyboardEvent } from 'react';
+import { useNotify } from './StatusMessage';
 import { AnimatePresence, motion } from 'framer-motion';
 import { request } from './endpoints';
 import { useRefreshLogs } from './dashboard_states';
-import { AnimatedText } from './AnimatedText';
+import { SavingText } from './SavingText';
 import {
   LogBubble, FoodNameSpace, FoodPortionSpace, FoodDateSpace,
   MealRowContainer, HoverDeleteBtn,
@@ -56,6 +57,9 @@ function ComponentLog({
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const refreshLogs = useRefreshLogs();
+  const notify = useNotify();
+  const listId = useId();
+  const optionId = (idx: number) => `${listId}-option-${idx}`;
 
   // Auto-adjust textarea height
   useEffect(() => {
@@ -162,6 +166,7 @@ function ComponentLog({
       refreshLogs({ force: true });
     } catch (error) {
       console.error('Error saving date:', error);
+      notify('date not saved. try again.');
       if (logDate) setDateInput(new Date(logDate));
     } finally {
       setIsSavingDate(false);
@@ -222,6 +227,7 @@ function ComponentLog({
       setIsEditable(false);
     } catch (error) {
       console.error('Error saving component:', error);
+      notify('ingredient not saved. check your connection and try again.');
       setFoodName(component.food_name);
       setFoodId(null);
       setAmountInput(component.amount || `${Math.round(component.weight_in_grams)}g`);
@@ -242,9 +248,9 @@ function ComponentLog({
           setSelectedSuggestionIndex(prev => prev > 0 ? prev - 1 : prev);
           return;
         case 'Tab':
-          e.preventDefault();
-          if (selectedSuggestionIndex >= 0) handleSuggestionClick(suggestions[selectedSuggestionIndex]);
-          return;
+          // Tab moves focus as usual; Enter accepts a suggestion
+          setShowSuggestions(false);
+          break;
         case 'Enter':
           if (selectedSuggestionIndex >= 0) {
             e.preventDefault();
@@ -286,11 +292,26 @@ function ComponentLog({
       onDelete?.();
     } catch (error) {
       console.error('Error deleting component:', error);
+      notify(`couldn't delete ${component.food_name}. try again.`);
       setIsDeleting(false);
     }
   };
 
+  // Keyboard way out of edit mode (pointer users click outside)
+  const cancelEdit = () => {
+    setFoodName(component.food_name);
+    setFoodId(null);
+    setAmountInput(component.amount || `${Math.round(component.weight_in_grams)}g`);
+    if (logDate) setDateInput(new Date(logDate));
+    setShowSuggestions(false);
+    setIsEditable(false);
+  };
+
   if (isDeleting) return null;
+
+  const portionText = component.amount
+    ? `${component.amount} (${Math.round(component.weight_in_grams)}g)`
+    : `${Math.round(component.weight_in_grams)}g`;
 
   return (
     <MealRowContainer
@@ -298,34 +319,45 @@ function ComponentLog({
       $active={isEditable}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
+      onFocus={onMouseEnter}
+      onBlur={onMouseLeave}
     >
       {isEditable ? (
         <FormDropdownWrapper>
           <EditEntryFormBubble
             $active={showSuggestions}
             onClick={(e: React.MouseEvent) => e.stopPropagation()}
+            onKeyDown={(e: React.KeyboardEvent) => { if (e.key === 'Escape' && !showSuggestions) cancelEdit(); }}
             style={{ marginBottom: 0 }}
           >
             <FoodNameSpace>
               {isSaving ? (
-                <AnimatedText text={foodName} />
+                <SavingText>{foodName}</SavingText>
               ) : (
                 <EditInputFoodName
                   ref={textareaRef}
+                  aria-label="food"
+                  autoFocus
                   name="food_name"
-                  placeholder="food"
+                  placeholder="banana"
                   value={foodName}
                   onChange={handleFoodNameChange}
-                  onKeyDown={handleFoodNameKeyDown}
+                        onKeyDown={handleFoodNameKeyDown}
+                  role="combobox"
+                  aria-expanded={showSuggestions}
+                  aria-controls={listId}
+                  aria-autocomplete="list"
+                  aria-activedescendant={showSuggestions && selectedSuggestionIndex >= 0 ? optionId(selectedSuggestionIndex) : undefined}
                 />
               )}
             </FoodNameSpace>
             <FoodDateSpace>
               {isStandalone && (
                 isSavingDate ? (
-                  <AnimatedText text={formatDateStr(dateInput)} />
+                  <SavingText>{formatDateStr(dateInput)}</SavingText>
                 ) : (
                   <EditInputDate
+                    aria-label="log date"
                     type="date"
                     value={formatDateStr(dateInput)}
                     onChange={handleDateChange}
@@ -334,12 +366,13 @@ function ComponentLog({
                 )
               )}
             </FoodDateSpace>
-            <FoodPortionSpace style={{ gap: '4px', alignItems: 'baseline', flexWrap: 'nowrap' }}>
+            <FoodPortionSpace style={{ gap: '4px', alignItems: 'baseline' }}>
               {isSaving ? (
-                <AnimatedText text={`${amountInput} (${Math.round(gramsDisplay)}g)`} />
+                <SavingText>{`${amountInput} (${Math.round(gramsDisplay)}g)`}</SavingText>
               ) : (
                 <>
                   <EditInputPortion
+                    aria-label="amount"
                     name="amount"
                     type="text"
                     placeholder="1 cup"
@@ -364,11 +397,14 @@ function ComponentLog({
                 transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
               >
                 <SuggestionsContainer ref={suggestionsRef}>
-                  <SuggestionsList>
+                  <SuggestionsList role="listbox" id={listId}>
                     {suggestions.map((s, idx) => (
                       <SuggestionItem
                         key={s.food_id}
                         $selected={idx === selectedSuggestionIndex}
+                        id={optionId(idx)}
+                        role="option"
+                        aria-selected={idx === selectedSuggestionIndex}
                         className="suggestion-item"
                         onClick={() => handleSuggestionClick(s)}
                         onMouseEnter={() => setSelectedSuggestionIndex(idx)}
@@ -387,17 +423,21 @@ function ComponentLog({
           onClick={hasRecipe ? undefined : () => setIsEditable(true)}
           style={{ cursor: hasRecipe ? 'default' : 'pointer' }}
         >
-          <FoodNameSpace style={hasRecipe ? { color: 'oklch(0.637 0.185 295 / 70%)' } : undefined}>{component.food_name}</FoodNameSpace>
+          {/* Recipe-owned rows aren't editable here; muted text, not the accent that means "clickable" */}
+          <FoodNameSpace style={hasRecipe ? { color: 'var(--color-text-secondary)' } : undefined}>{component.food_name}</FoodNameSpace>
           <FoodDateSpace />
-          <FoodPortionSpace style={hasRecipe ? { color: 'oklch(0.637 0.185 295 / 42%)' } : undefined}>
-            {component.amount
-              ? `${component.amount} (${Math.round(component.weight_in_grams)}g)`
-              : `${Math.round(component.weight_in_grams)}g`}
-          </FoodPortionSpace>
+          {hasRecipe ? (
+            <FoodPortionSpace>{portionText}</FoodPortionSpace>
+          ) : (
+            // The keyboard path into edit mode; its click bubbles to the bubble's handler
+            <FoodPortionSpace as="button" type="button" aria-label={`edit ${component.food_name}: ${portionText}`}>
+              {portionText}
+            </FoodPortionSpace>
+          )}
         </LogBubble>
       )}
 
-      {!hasRecipe && <HoverDeleteBtn onClick={handleDelete} aria-label="Delete">×</HoverDeleteBtn>}
+      {!hasRecipe && <HoverDeleteBtn onClick={handleDelete} aria-label={`delete ${component.food_name}`}>×</HoverDeleteBtn>}
     </MealRowContainer>
   );
 }

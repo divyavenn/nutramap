@@ -379,19 +379,19 @@ function DateSelector() {
       <RangeSelector>
         {!isOpen && (
           <DateSelectorEl>
-            <MonthArrow $left onClick={handlePreviousMonth}>
-              <LeftArrow/>
+            <MonthArrow $left onClick={handlePreviousMonth} aria-label="previous period">
+              <LeftArrow aria-hidden/>
             </MonthArrow>
-            <RangeText onClick={toggleCalendar}>
+            <RangeText type="button" onClick={toggleCalendar} aria-expanded={isOpen} aria-label={`choose dates, showing ${formatDateRange(dateRange.start, dateRange.end)}`}>
               {formatDateRange(dateRange.start, dateRange.end)}
             </RangeText>
-            <MonthArrow onClick={handleNextMonth}>
-              <RightArrow/>
+            <MonthArrow onClick={handleNextMonth} aria-label="next period">
+              <RightArrow aria-hidden/>
             </MonthArrow>
           </DateSelectorEl>
         )}
         {!isOpen && rangeType === RangeType.custom && (
-          <TodayButton onClick={handleTodayClick}>today</TodayButton>
+          <TodayButton type="button" onClick={handleTodayClick}>today</TodayButton>
         )}
       </RangeSelector>
       <CalendarRange

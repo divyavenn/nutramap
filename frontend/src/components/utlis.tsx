@@ -10,7 +10,7 @@ const calculateColor = (percentage: number, shouldExceed: boolean) => {
   // If shouldExceed is false: green (low) → yellow (medium) → red (exceeded)
 
   // Define vibrant RGB values
-  const red = [220, 38, 38];     // Bright red
+  const red = [239, 102, 97];    // oklch(0.68 0.17 25): lighter red that keeps 3:1 against the track
   const yellow = [234, 179, 8];  // Vibrant yellow
   const green = [34, 197, 94];   // Bright green
 
@@ -54,7 +54,8 @@ const calculateColor = (percentage: number, shouldExceed: boolean) => {
   }
 
   // Return the color as a CSS-compatible string
-  return `rgba(${r}, ${g}, ${b}, 0.85)`;
+  // Opaque so the bar and avg text keep their contrast over the panel
+  return `rgb(${r}, ${g}, ${b})`;
 };
 
 const getFoodID = (food_name : string, foodList : Record<string, number | string>) => {

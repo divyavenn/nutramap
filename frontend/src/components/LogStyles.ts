@@ -1,42 +1,40 @@
-import styled, { css, keyframes } from 'styled-components';
-
-const logGroupExit = keyframes`
-  0%   { opacity: 1; transform: scale(1)    translateY(0); }
-  40%  { opacity: 0.6; transform: scale(0.99) translateY(0); }
-  100% { opacity: 0; transform: scale(0.97) translateY(-4px); }
-`;
+import styled, { css } from 'styled-components';
 
 // ── Column spaces (shared with edit forms) ────────────────────────────
 
 export const FoodNameSpace = styled.div`
   padding-top: 12px;
   padding-bottom: 12px;
-  padding-left: 27px;
-  padding-right: 10px;
+  padding-inline-start: 27px;
+  padding-inline-end: 10px;
   width: var(--log-name-width);
   min-width: 0;
-  font-family: Funnel Sans;
-  font-size: 19px;
+  font-family: var(--font-ui);
+  font-size: var(--text-row);
   color: oklch(0.924 0.063 295 / 92%);
   display: flex;
   align-items: center;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  /* Wrap long names rather than clipping them: there's no other way to read them */
+  overflow-wrap: anywhere;
 `;
 
 export const FoodPortionSpace = styled.div`
+  /* Also rendered as the row's edit <button>, so reset button chrome */
+  background: none;
+  border: 0;
+  font: inherit;
+  text-align: start;
+  cursor: inherit;
   padding-top: 12px;
   padding-bottom: 12px;
-  padding-left: 12px;
+  padding-inline-start: 12px;
   width: var(--log-portion-width);
   min-width: 0;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  white-space: nowrap;
-  overflow: hidden;
-  font-size: 19px;
-  color: oklch(0.924 0.063 295 / 42%);
+  font-size: var(--text-row);
+  color: var(--color-text-secondary);
   font-variant-numeric: tabular-nums;
 `;
 
@@ -63,11 +61,11 @@ export const FoodTimeSpace = styled.div`
   padding-bottom: 10px;
   justify-content: flex-end;
   align-items: center;
-  padding-right: 20px;
+  padding-inline-end: 20px;
   background: none;
   border: none;
-  font-family: Inconsolata;
-  text-align: right;
+  font-family: var(--font-mono);
+  text-align: end;
   flex-shrink: 0;
 `;
 
@@ -85,9 +83,9 @@ export const DateDividerEl = styled.div`
 
 export const DayButton = styled.button`
   margin-bottom: 4px;
-  font-family: 'Funnel Sans', sans-serif;
-  color: oklch(0.637 0.185 295 / 65%);
-  font-size: 11px;
+  font-family: var(--font-ui);
+  color: var(--color-accent-text);
+  font-size: var(--text-label);
   font-weight: 500;
   letter-spacing: 0.10em;
   text-transform: uppercase;
@@ -95,10 +93,12 @@ export const DayButton = styled.button`
   border: none;
   cursor: pointer;
   padding: 0;
-  transition: color 0.15s ease;
+  transition: color 0.15s ease, scale 150ms ease-out;
 
-  &:hover {
-    color: oklch(0.637 0.185 295 / 90%);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      color: var(--color-11);
+    }
   }
 `;
 
@@ -108,8 +108,10 @@ export const DeletingWrapper = styled.div<{ $isDeleting?: boolean }>`
   width: 100%;
   max-width: calc(var(--modal-width) + 150px);
   margin: 0 auto;
+  transition: opacity 150ms ease;
+  /* Dim while the delete request is in flight; the row's exit animation runs once it's gone */
   ${p => p.$isDeleting && css`
-    animation: ${logGroupExit} 0.45s ease-in forwards;
+    opacity: 0.4;
     pointer-events: none;
   `}
 `;
@@ -121,7 +123,6 @@ export const LogWrapper = styled.div`
   justify-content: center;
   align-items: center;
   position: relative;
-  transition: all 0.1s ease;
 `;
 
 export const LogsWrapper = styled.div`
@@ -146,13 +147,18 @@ export const LogListContainer = styled.div`
 `;
 
 export const NoLogsMessage = styled.div`
-  font-family: 'Inconsolata', monospace;
-  color: #f5e6c8;
-  font-size: 18px;
-  font-style: italic;
+  font-family: var(--font-mono);
+  color: var(--white);
+  font-size: var(--text-medium);
   margin-top: 30%;
   align-self: center;
   text-align: center;
+`;
+
+export const NoLogsHint = styled.p`
+  margin: 8px 0 0;
+  font-size: var(--text-body);
+  color: var(--color-text-secondary);
 `;
 
 // ── Log bubbles ───────────────────────────────────────────────────────
@@ -165,13 +171,13 @@ export const LogBubble = styled.div`
   flex-direction: row;
   align-self: center;
   align-items: center;
-  font-family: Inconsolata;
-  font-size: 19px;
+  font-family: var(--font-mono);
+  font-size: var(--text-row);
   border-radius: 14px;
   background-color: transparent;
   color: var(--white);
   justify-content: flex-start;
-  transition: all 0.1s ease;
+  transition: background-color 100ms ease, color 100ms ease;
   box-sizing: border-box;
 `;
 
@@ -183,8 +189,8 @@ export const RecipeBubble = styled.div<{ $expanded?: boolean }>`
   flex-direction: row;
   align-self: center;
   align-items: center;
-  font-family: Inconsolata;
-  font-size: 19px;
+  font-family: var(--font-mono);
+  font-size: var(--text-row);
   border-radius: 14px;
   background-color: transparent;
   color: var(--white);
@@ -202,25 +208,33 @@ export const MealToggleBtn = styled.button<{ $expanded?: boolean }>`
   background: none;
   border: none;
   cursor: pointer;
-  color: oklch(0.924 0.063 295 / 25%);
-  font-size: 20px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-large);
   line-height: 1;
   padding: 0;
   width: 32px;
   flex-shrink: 0;
-  margin-left: -32px;
+  margin-inline-start: -32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.15s ease, transform 0.2s ease;
+  transition: color 0.15s ease, transform 0.2s ease, scale 150ms ease-out;
+
+  svg {
+    width: 1em;
+    height: 1em;
+    fill: currentColor;
+  }
 
   ${p => p.$expanded && css`
     transform: rotate(90deg);
     color: oklch(0.924 0.063 295 / 90%);
   `}
 
-  &:hover {
-    color: oklch(0.924 0.063 295 / 90%);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      color: oklch(0.924 0.063 295 / 90%);
+    }
   }
 `;
 
@@ -239,13 +253,14 @@ export const HoverDeleteBtn = styled.button`
   padding: 4px 5px;
   flex-shrink: 0;
   color: oklch(0.924 0.063 295 / 40%);
-  font-size: 16px;
+  font-size: var(--text-body);
   line-height: 1;
-  transition: color 0.15s ease, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: opacity 150ms ease-out, color 150ms ease-out, scale 150ms ease-out;
 
-  &:hover {
-    color: oklch(0.924 0.063 295 / 90%);
-    transform: scale(1.3) rotate(90deg);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      color: oklch(0.924 0.063 295 / 90%);
+    }
   }
 `;
 
@@ -254,22 +269,30 @@ export const MealRowContainer = styled.div<{ $active?: boolean }>`
   display: flex;
   align-items: center;
   width: 100%;
-  padding-left: 32px;
-  padding-right: 28px;
+  padding-inline-start: 32px;
+  padding-inline-end: 28px;
 
   ${HoverDeleteBtn} {
     position: absolute;
-    right: 4px;
+    inset-inline-end: 4px;
     top: 0;
     bottom: 0;
     margin: auto;
     height: fit-content;
     opacity: 0;
-    transition: opacity 0.15s ease, color 0.15s ease, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: opacity 150ms ease-out, color 150ms ease-out, scale 150ms ease-out;
   }
 
-  &:hover ${HoverDeleteBtn} {
+  /* Revealed on hover, on keyboard focus, and always on touch screens (no hover there) */
+  &:hover ${HoverDeleteBtn},
+  &:focus-within ${HoverDeleteBtn} {
     opacity: 1;
+  }
+
+  @media (hover: none) {
+    ${HoverDeleteBtn} {
+      opacity: 1;
+    }
   }
 
   ${p => p.$active && css`
@@ -279,14 +302,22 @@ export const MealRowContainer = styled.div<{ $active?: boolean }>`
   `}
 `;
 
-export const ClickableMealName = styled.span`
+export const ClickableMealName = styled.button`
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: start;
   cursor: pointer;
-  transition: opacity 0.15s ease;
+  transition: opacity 0.15s ease, scale 150ms ease-out;
 
-  &:hover {
-    opacity: 0.7;
-    text-decoration: underline;
-    text-underline-offset: 3px;
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      opacity: 0.7;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
   }
 `;
 
@@ -300,13 +331,13 @@ export const LoadingRecipeBubble = styled.div`
   flex-direction: row;
   align-self: center;
   align-items: start;
-  font-family: Inconsolata;
+  font-family: var(--font-mono);
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   border-radius: 14px;
   background-color: oklch(0.279 0.075 295 / 75%);
   color: var(--white);
   justify-content: flex-start;
-  transition: all 0.1s ease;
+  transition: background-color 100ms ease, color 100ms ease;
   box-sizing: border-box;
 `;

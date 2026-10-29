@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNotify } from './StatusMessage';
 import { request } from './endpoints';
 import Arrow from '../assets/images/arrow.svg?react';
 import { useRefreshLogs, pendingFoodsAtom, PendingFood, logsAtom } from './dashboard_states';
-import IsOk from '../assets/images/checkmark.svg?react'
 import { useSetRecoilState, useRecoilValue } from 'recoil';
 import { tutorialEvent } from './TryTutorial';
 import { FormElementsWrapper, EntryFormBubble, NewLogInputJournal, NewLogButton } from './LogNew.styled';
@@ -15,28 +15,46 @@ import { FormElementsWrapper, EntryFormBubble, NewLogInputJournal, NewLogButton 
  * - Reciprocal Rank Fusion to combine results
  */
 
+const normalizeName = (name: string) => name.trim().toLowerCase();
+
+/** Drop the placeholder for each newly arrived log: same name first, else the oldest. */
+function resolvePending(pending: PendingFood[], arrivedNames: string[]): PendingFood[] {
+  const remaining = [...pending];
+  for (const name of arrivedNames) {
+    const sameName = remaining.findIndex(p => normalizeName(p.name) === normalizeName(name || ''));
+    remaining.splice(sameName >= 0 ? sameName : 0, remaining.length > 0 ? 1 : 0);
+  }
+  return remaining;
+}
+
 function NewSmartLog() {
   const [mealDescription, setMealDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isJiggling, setIsJiggling] = useState(false);
-  const [isSubmitHovered, setIsSubmitHovered] = useState(false);
   // Use the global state for pending foods
   const setPendingFoods = useSetRecoilState(pendingFoodsAtom);
   const pendingFoods = useRecoilValue(pendingFoodsAtom);
   const logs = useRecoilValue(logsAtom);
   const refreshLogs = useRefreshLogs();
+  const notify = useNotify();
   const formRef = useRef<HTMLFormElement>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollCountRef = useRef(0);
-  const knownLogCountRef = useRef<number | null>(null);
+  const knownLogIdsRef = useRef<Set<string> | null>(null);
+
+  // We stop polling before slow meals finish; say so instead of silently dropping them
+  const notifyStillWorking = () => {
+    if (pendingFoods.length === 0) return;
+    const names = pendingFoods.map(p => `"${p.name}"`).join(', ');
+    notify(`still working on ${names}. refresh in a minute to see it.`);
+  };
 
   // Poll for log updates while there are pending foods.
   useEffect(() => {
     if (pendingFoods.length === 0) {
       if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null; }
       if (pollTimeoutRef.current) { clearTimeout(pollTimeoutRef.current); pollTimeoutRef.current = null; }
-      knownLogCountRef.current = null;
+      knownLogIdsRef.current = null;
       return;
     }
 
@@ -46,18 +64,17 @@ function NewSmartLog() {
     pollCountRef.current = 0;
     // Baseline = logs shown before the submission. Taking it from the first poll instead
     // would miss logs the background task already created, leaving the placeholder stuck.
-    knownLogCountRef.current = logs.length;
+    knownLogIdsRef.current = new Set(logs.map(l => l._id));
 
     pollIntervalRef.current = setInterval(async () => {
       pollCountRef.current++;
       const latestLogs = await refreshLogs({ force: true });
-      if (Array.isArray(latestLogs)) {
-        if (knownLogCountRef.current === null) {
-          knownLogCountRef.current = latestLogs.length;
-        } else if (latestLogs.length > knownLogCountRef.current) {
-          const added = latestLogs.length - knownLogCountRef.current;
-          knownLogCountRef.current = latestLogs.length;
-          setPendingFoods(prev => prev.slice(added));
+      if (Array.isArray(latestLogs) && knownLogIdsRef.current) {
+        const known = knownLogIdsRef.current;
+        const arrived = latestLogs.filter(l => !known.has(l._id));
+        if (arrived.length > 0) {
+          arrived.forEach(l => known.add(l._id));
+          setPendingFoods(prev => resolvePending(prev, arrived.map(l => l.meal_name)));
         }
       }
       requestAnimationFrame(() => {
@@ -69,12 +86,14 @@ function NewSmartLog() {
         clearInterval(pollIntervalRef.current!);
         pollIntervalRef.current = null;
         if (pollTimeoutRef.current) { clearTimeout(pollTimeoutRef.current); pollTimeoutRef.current = null; }
+        notifyStillWorking();
         setPendingFoods([]);
       }
     }, 1500);
 
     pollTimeoutRef.current = setTimeout(() => {
       if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null; }
+      notifyStillWorking();
       setPendingFoods([]);
       pollTimeoutRef.current = null;
     }, 31000);
@@ -105,11 +124,11 @@ function NewSmartLog() {
     if (!mealDescription.trim()) return;
 
     setIsSubmitting(true);
-    setIsJiggling(true);
     tutorialEvent('tutorial:log-created');
 
     // Add to pending foods immediately
     const pendingMeal: PendingFood = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       name: mealDescription,
       timestamp: new Date().toISOString()
     };
@@ -136,19 +155,31 @@ function NewSmartLog() {
         throw new Error(`parse-meal failed (${response.status})`);
       }
 
+      // The parse returns each item right away; show those while ingredients resolve
+      const items: { description?: string; servings?: number }[] = Array.isArray(response.body?.recipes)
+        ? response.body.recipes
+        : [];
+      if (items.length > 0) {
+        setPendingFoods(prev => prev.flatMap(p => p.id !== pendingMeal.id ? [p] : items.map((item, i) => ({
+          id: `${pendingMeal.id}-${i}`,
+          name: item.description || pendingMeal.name,
+          servings: Number(item.servings) > 0 ? Number(item.servings) : undefined,
+          timestamp: pendingMeal.timestamp,
+        }))));
+      }
+
       setMealDescription('');
-      setIsJiggling(false);
       setIsSubmitting(false);
 
       // Invalidate recipes cache since parse-meal can create new recipes
       try { localStorage.removeItem('recipes_cache'); } catch (e) {}
     } catch (error) {
       console.error('Error parsing meal:', error);
-      setIsJiggling(false);
+      notify("couldn't log that meal. check your connection and try again.");
       setIsSubmitting(false);
 
       // Remove from pending on error
-      setPendingFoods(prev => prev.filter(p => p.timestamp !== pendingMeal.timestamp));
+      setPendingFoods(prev => prev.filter(p => p.id !== pendingMeal.id));
       // Still refresh to show any partial results
       refreshLogs({ force: true });
     }
@@ -165,23 +196,23 @@ function NewSmartLog() {
       >
          <EntryFormBubble className="entry-form-bubble">
           <NewLogInputJournal
+            aria-label="describe what you ate"
             placeholder="a bowl of steel-cut oats with blueberries with a 12oz latte"
             value={mealDescription}
             onChange={handleTyping}
             onKeyDown={handleKeyDown}
-            disabled={isSubmitting}
-            $jiggling={isJiggling}
+            readOnly={isSubmitting}
+            aria-disabled={isSubmitting}
             required
           />
           <div className='new-smart-log-button-container'>
             {!isSubmitting && mealDescription && (
               <NewLogButton
                 type="submit"
+                aria-label="log meal"
                 disabled={isSubmitting}
-                onMouseEnter={() => setIsSubmitHovered(true)}
-                onMouseLeave={() => setIsSubmitHovered(false)}
               >
-                {isSubmitHovered ? <IsOk/> : <Arrow/>}
+                <Arrow aria-hidden />
               </NewLogButton>
             )}
           </div>

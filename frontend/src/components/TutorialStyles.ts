@@ -163,8 +163,10 @@ export const TutorialPrevBtn = styled.button`
   padding: 6px 12px;
   transition: color 0.2s ease;
 
-  &:hover {
-    color: rgba(255, 255, 255, 0.7);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      color: rgba(255, 255, 255, 0.7);
+    }
   }
 
   &:disabled {
@@ -183,8 +185,10 @@ export const TutorialNextBtn = styled.button`
   padding: 6px 12px;
   transition: color 0.2s ease;
 
-  &:hover {
-    color: rgba(192, 132, 252, 1);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      color: rgba(192, 132, 252, 1);
+    }
   }
 
   &:disabled {
@@ -212,7 +216,9 @@ export const TutorialSkipBtn = styled.button`
   gap: 6px;
   transition: color 0.2s ease, opacity 0.2s ease;
 
-  &:hover {
-    color: rgba(216, 180, 254, 1);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      color: rgba(216, 180, 254, 1);
+    }
   }
 `;

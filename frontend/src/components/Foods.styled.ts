@@ -80,13 +80,17 @@ export const FoodsContainer = styled.div`
     padding: 12px 18px;
     box-shadow: 0 2px 16px oklch(0 0 0 / 28%), inset 0 1px 0 oklch(0.924 0.063 295 / 4%);
 
-    &:hover {
-      background-color: oklch(0.279 0.075 295 / 65%);
+    @media (hover: hover) and (pointer: fine) {
+      &:hover {
+        background-color: oklch(0.279 0.075 295 / 65%);
+      }
     }
 
-    &:hover input,
-    &:hover textarea {
-      color: oklch(0.924 0.063 295 / 92%);
+    @media (hover: hover) and (pointer: fine) {
+      &:hover input,
+      &:hover textarea {
+        color: oklch(0.924 0.063 295 / 92%);
+      }
     }
   }
 `;
@@ -147,8 +151,10 @@ export const FoodTagDelete = styled.button`
   flex-shrink: 0;
   transition: max-width 0.22s ease, padding 0.22s ease, opacity 0.15s ease, color 0.15s ease;
 
-  &:hover {
-    color: oklch(0.924 0.063 295 / 90%);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      color: oklch(0.924 0.063 295 / 90%);
+    }
   }
 `;
 
@@ -183,8 +189,10 @@ export const FoodTag = styled.div<FoodTagProps>`
   line-height: 26px;
   color: oklch(0.924 0.063 295 / 92%);
 
-  &:hover {
-    background-color: oklch(0.376 0.129 295 / 60%);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background-color: oklch(0.376 0.129 295 / 60%);
+    }
   }
 
   ${({ $selected }) => $selected && css`
@@ -284,8 +292,10 @@ export const TutorialFoodDetailModal = styled.div`
     border-radius: 0;
     padding: 0;
 
-    &:hover {
-      background-color: oklch(0.924 0.063 295 / 3%);
+    @media (hover: hover) and (pointer: fine) {
+      &:hover {
+        background-color: oklch(0.924 0.063 295 / 3%);
+      }
     }
   }
 
@@ -508,8 +518,10 @@ export const ImageUploadButton = styled.button`
   width: 36px;
   height: 36px;
 
-  &:hover {
-    background-color: oklch(0.924 0.063 295 / 20%);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background-color: oklch(0.924 0.063 295 / 20%);
+    }
   }
 `;
 
@@ -534,10 +546,12 @@ export const FoodLogButton = styled(HoverButton)`
     height: 15px;
   }
 
-  &:hover svg {
-    fill: oklch(0.214 0.038 295);
-    width: 15px;
-    height: 15px;
+  @media (hover: hover) and (pointer: fine) {
+    &:hover svg {
+      fill: oklch(0.214 0.038 295);
+      width: 15px;
+      height: 15px;
+    }
   }
 `;
 
@@ -584,7 +598,9 @@ export const RemoveImageButton = styled.button`
   transition: background-color 0.2s ease;
   padding: 0;
 
-  &:hover {
-    background-color: oklch(0.5 0.2 25 / 80%);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background-color: oklch(0.5 0.2 25 / 80%);
+    }
   }
 `;

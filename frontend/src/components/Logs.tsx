@@ -1,4 +1,5 @@
 import 'react-date-range/dist/styles.css'; // main style file
+import { useNotify } from './StatusMessage';
 import 'react-date-range/dist/theme/default.css';
 
 import {useState, useRef, useEffect, useCallback} from 'react'
@@ -18,9 +19,10 @@ import type { Recipe } from './RecipeBlurb';
 import { tutorialEvent } from './TryTutorial';
 import { GlobalEditStyles } from './EditLogStyles';
 import { formatQuantity } from './utlis';
+import { pluralize } from './pluralize';
 import {
   LogListContainer, LogsWrapper, LogWrapper,
-  NoLogsMessage, DateDividerEl, DayButton,
+  NoLogsMessage, NoLogsHint, DateDividerEl, DayButton,
   DeletingWrapper, MealComponentsWrapper, MealRowContainer,
 } from './LogStyles';
 
@@ -70,6 +72,7 @@ function LogList (){
   // Create recipe modal — log ID of the meal to convert
   const [createRecipeLogId, setCreateRecipeLogId] = useState<string | null>(null);
   const refreshLogs = useRefreshLogs();
+  const notify = useNotify();
   // Debounce timer ref for hover
   const hoverDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -133,6 +136,7 @@ function LogList (){
 
       // Cache miss — fetch from API
       const response = await request('/recipes/list', 'GET');
+      if (response.status !== 200) throw new Error(`recipes/list failed (${response.status})`);
       if (response.body?.recipes && Array.isArray(response.body.recipes)) {
         const recipes: Recipe[] = response.body.recipes;
         try { localStorage.setItem('recipes_cache', JSON.stringify(recipes)); } catch (e) {}
@@ -141,22 +145,27 @@ function LogList (){
           setSelectedRecipe(recipe);
           setSelectedRecipeLogId(logId ?? null);
           tutorialEvent('tutorial:recipe-opened');
+        } else {
+          notify("couldn't find this recipe. it may have been deleted.");
         }
       }
     } catch (error) {
       console.error('Error fetching recipe:', error);
+      notify("couldn't open this recipe. try again.");
     }
-  }, []);
+  }, [notify]);
 
   const handleDeleteRecipe = async (recipeId: string) => {
-    if (!confirm('Are you sure you want to delete this recipe?')) return;
+    if (!confirm("delete this recipe? you can't undo this. meals you've logged stay, but they won't be linked to it anymore.")) return;
     try {
-      await request(`/recipes/delete?recipe_id=${recipeId}`, 'DELETE');
+      const response = await request(`/recipes/delete?recipe_id=${encodeURIComponent(recipeId)}`, 'DELETE');
+      if (response.status !== 200) throw new Error(`recipes/delete failed (${response.status})`);
       try { localStorage.removeItem('recipes_cache'); } catch (e) {}
       setSelectedRecipe(null);
       refreshLogs({ force: true });
     } catch (error) {
       console.error('Error deleting recipe:', error);
+      notify("couldn't delete this recipe. try again.");
     }
   };
 
@@ -176,12 +185,15 @@ function LogList (){
     setSelectedRecipe(null);
     setSelectedRecipeLogId(null);
     setSyncingRecipeIds(prev => new Set(prev).add(recipeId));
+    notify('updating past meals with this recipe…');
     try {
       const formData = new FormData();
       formData.append('recipe_id', recipeId);
-      await request('/recipes/sync-logs', 'POST', formData);
+      const response = await request('/recipes/sync-logs', 'POST', formData);
+      if (response.status !== 200) throw new Error(`sync-logs failed (${response.status})`);
     } catch (error) {
       console.error('Error syncing logs:', error);
+      notify('past meals not updated. try again.');
     }
     await refreshLogs({ force: true });
     setSyncingRecipeIds(prev => {
@@ -189,18 +201,21 @@ function LogList (){
       next.delete(recipeId);
       return next;
     });
-  }, [refreshLogs]);
+  }, [refreshLogs, notify]);
 
   const handleUnlinkLog = useCallback(async (logId: string) => {
     setSelectedRecipe(null);
     setSelectedRecipeLogId(null);
     setUnlinkingLogIds(prev => new Set(prev).add(logId));
+    notify('unlinking this meal from its recipe…');
     try {
       const fd = new FormData();
       fd.append('log_id', logId);
-      await request('/recipes/unlink-log', 'POST', fd);
+      const response = await request('/recipes/unlink-log', 'POST', fd);
+      if (response.status !== 200) throw new Error(`unlink-log failed (${response.status})`);
     } catch (error) {
       console.error('Error unlinking log from recipe:', error);
+      notify("couldn't unlink this meal. try again.");
     }
     await refreshLogs({ force: true });
     setUnlinkingLogIds(prev => {
@@ -208,23 +223,16 @@ function LogList (){
       next.delete(logId);
       return next;
     });
-  }, [refreshLogs]);
+  }, [refreshLogs, notify]);
 
   // Early return AFTER all hooks
   if (logsLoading && logs.length === 0 && pendingFoods.length === 0) {
     return (
-      <LogListContainer className="log-list">
+      <LogListContainer className="log-list" aria-busy={logsLoading || pendingFoods.length > 0}>
         <GlobalEditStyles />
         {[1].map((idx) => (
           <LogWrapper key={`loading-${idx}`}>
-            <motion.div
-              initial={{ opacity: 0.35 }}
-              animate={{ opacity: [0.35, 0.9, 0.35] }}
-              transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut', delay: idx * 0.12 }}
-              style={{ width: '100%' }}
-            >
-              <MealLoading />
-            </motion.div>
+            <MealLoading />
           </LogWrapper>
         ))}
       </LogListContainer>
@@ -234,9 +242,12 @@ function LogList (){
   // Early return AFTER all hooks
   if (logs.length === 0 && pendingFoods.length === 0) {
     return (
-      <LogListContainer className="log-list">
+      <LogListContainer className="log-list" aria-busy={logsLoading || pendingFoods.length > 0}>
         <GlobalEditStyles />
-        <NoLogsMessage>no logs in this time.</NoLogsMessage>
+        <NoLogsMessage>
+          nothing logged in this range
+          <NoLogsHint>describe what you ate to log it, or pick another date range.</NoLogsHint>
+        </NoLogsMessage>
       </LogListContainer>
     );
   }
@@ -272,14 +283,24 @@ function LogList (){
     if (components.length === 0) return 'No components';
     if (components.length === 1) {
       const comp = components[0];
-      return `${Math.round(comp.weight_in_grams)} g of ${comp.food_name.split(',')[0]}`;
+      return `${Math.round(comp.weight_in_grams)}g of ${comp.food_name.split(',')[0]}`;
     }
     return `${components.length} components`;
   };
-  const rowTransition = { type: 'spring', stiffness: 360, damping: 32, mass: 0.6 } as const;
+  // Rows only animate their position (layout="position"): animating size would scale-distort
+  // their text. Fades are short tweens; moving rows use the spring.
+  const rowTransition = {
+    duration: 0.18,
+    ease: [0.23, 1, 0.32, 1],
+    layout: { type: 'spring', stiffness: 360, damping: 32, mass: 0.6 },
+  } as const;
+  // Placeholder and arriving log crossfade in the same spot, so it reads as one row resolving
+  const rowEnter = { opacity: 0, filter: 'blur(2px)' };
+  const rowShown = { opacity: 1, filter: 'blur(0px)' };
+  const rowExit = { opacity: 0, scale: 0.98, filter: 'blur(2px)' };
 
   return (
-    <LogListContainer className="log-list">
+    <LogListContainer className="log-list" aria-busy={logsLoading || pendingFoods.length > 0}>
       <GlobalEditStyles />
       <LayoutGroup>
       {sortedDays.map(([dayStart, { logs: dateLogs, pending: datePending }], dayIndex) => {
@@ -296,34 +317,28 @@ function LogList (){
         const isTutorialDayTarget = dayIndex === 1 || (dayIndex === 0 && sortedDays.length === 1);
 
         return (
-          <LogsWrapper as={motion.div} layout key={dayStart}>
+          <LogsWrapper key={dayStart}>
             {/* Date divider for this group */}
             <DateDivider date={new Date(dayStart)} tutorialTarget={isTutorialDayTarget} />
 
             {/* Render pending foods for this date first */}
             <AnimatePresence initial={false} mode="popLayout">
-              {sortedPending.map((pendingFood, index) => (
+              {sortedPending.map((pendingFood) => (
                 <motion.div
-                  key={`pending-${pendingFood.timestamp}-${pendingFood.name}-${index}`}
-                  layout
-                  initial={{ opacity: 0, y: 10, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                  key={`pending-${pendingFood.id}`}
+                  layout="position"
+                  initial={rowEnter}
+                  animate={rowShown}
+                  exit={{ opacity: 0, filter: 'blur(2px)' }}
                   transition={rowTransition}
                   style={{ width: '100%' }}
                 >
                   <LogWrapper>
-                    <motion.div
-                      style={{ width: '100%', filter: 'blur(4px)' }}
-                      initial={{ opacity: 0.5, scale: 0.98 }}
-                      animate={{
-                        opacity: [0.5, 0.9, 0.5],
-                        scale: 1,
-                        transition: { delay: index * 0.15, duration: 1.6, repeat: Infinity, ease: 'easeInOut' }
-                      }}
-                    >
-                      <MealLoading/>
-                    </motion.div>
+                    {/* The whole description until the parse returns, then each item's name */}
+                    <MealLoading
+                      name={pendingFood.name}
+                      servings={pendingFood.servings}
+                    />
                   </LogWrapper>
                 </motion.div>
               ))}
@@ -366,15 +381,12 @@ function LogList (){
                 return (
                   <motion.div
                     key={log._id}
-                    layout
-                    initial={{ opacity: 0, y: 12, scale: 0.98 }}
-                    animate={isSyncing
-                      ? { opacity: [1, 0.35, 1], y: 0, scale: 1 }
-                      : { opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -10, scale: 0.98 }}
-                    transition={isSyncing
-                      ? { duration: 0.9, repeat: Infinity, ease: 'easeInOut' }
-                      : rowTransition}
+                    layout="position"
+                    initial={rowEnter}
+                    aria-busy={isSyncing}
+                    animate={isSyncing ? { opacity: 0.5, filter: 'blur(0px)' } : rowShown}
+                    exit={rowExit}
+                    transition={rowTransition}
                     style={{ width: '100%' }}
                   >
                     <DeletingWrapper $isDeleting={deletingLogId === log._id}>
@@ -394,7 +406,7 @@ function LogList (){
                             onToggle={() => setExpandedLogId(isExpanded ? null : log._id)}
                             onNameClick={handleMealNameClick}
                             onDeleteStart={() => setDeletingLogId(log._id)}
-                            onMouseEnter={() => handleLogMouseEnter(log._id, `${log.meal_name} (${servingsText} ${safeServings === 1 ? "serving" : "servings"})`)}
+                            onMouseEnter={() => handleLogMouseEnter(log._id, `${log.meal_name} (${servingsText} ${pluralize('serving', safeServings)})`)}
                             onMouseLeave={handleLogMouseLeave}
                           />
                         </LogWrapper>

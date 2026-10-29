@@ -102,8 +102,10 @@ export const SubmitInfoUpdateButton = styled(SvgButton)`
     width: auto;
   }
 
-  &:hover svg {
-    fill: rgba(192, 132, 252, 1);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover svg {
+      fill: rgba(192, 132, 252, 1);
+    }
   }
 `;
 

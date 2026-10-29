@@ -38,9 +38,11 @@ export const DeleteXButton = styled.button`
   padding: 4px 6px;
   transition: color 0.15s ease, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 
-  &:hover {
-    color: oklch(0.924 0.063 295 / 90%);
-    transform: rotate(90deg) scale(1.2);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      color: oklch(0.924 0.063 295 / 90%);
+      transform: rotate(90deg) scale(1.2);
+    }
   }
 `;
 
@@ -240,8 +242,10 @@ export const NutrientSuggestionItem = styled.li<NutrientSuggestionItemProps>`
     color: oklch(0.924 0.063 295 / 95%);
   `}
 
-  &:hover {
-    background-color: oklch(0.924 0.063 295 / 8%);
-    color: oklch(0.924 0.063 295 / 95%);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background-color: oklch(0.924 0.063 295 / 8%);
+      color: oklch(0.924 0.063 295 / 95%);
+    }
   }
 `;

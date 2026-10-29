@@ -350,11 +350,11 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink, onSy
                       alignItems: 'baseline',
                       padding: '10px 0',
                       borderBottom: '1px solid rgba(255,255,255,0.06)',
-                      fontFamily: 'Inconsolata, monospace',
+                      fontFamily: 'var(--font-mono)',
                       fontSize: 17,
                       color: 'rgba(255,255,255,0.75)',
                     }}>
-                      <span>{ingredient.food_name || 'Unknown'}</span>
+                      <span>{ingredient.food_name || 'unnamed ingredient'}</span>
                       <span style={{ color: 'rgba(255,255,255,0.4)', marginLeft: 12 }}>
                         {ingredient.amount || `${Math.round(ingredient.weight_in_grams)}g`}
                       </span>
@@ -392,7 +392,7 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink, onSy
                     background: 'none',
                     border: 'none',
                     color: 'rgba(255,255,255,0.4)',
-                    fontFamily: 'Inconsolata, monospace',
+                    fontFamily: 'var(--font-mono)',
                     fontSize: 20,
                     cursor: 'pointer',
                     padding: '6px 10px',
@@ -410,7 +410,7 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink, onSy
                     background: 'none',
                     border: 'none',
                     color: 'rgba(255,255,255,0.4)',
-                    fontFamily: 'Inconsolata, monospace',
+                    fontFamily: 'var(--font-mono)',
                     fontSize: 20,
                     cursor: 'pointer',
                     padding: '6px 10px',
@@ -429,8 +429,8 @@ function RecipeCard({ recipe, onClose, onDelete, onUpdate, logId, onUnlink, onSy
                 <DeleteRecipeIconButton
                   as={motion.button}
                   onClick={() => onDelete(recipe.recipe_id)}
-                  title="Delete Recipe"
-                  aria-label="Delete Recipe"
+                  title="delete recipe"
+                  aria-label="delete recipe"
                   whileHover={{ scale: 1.08, y: -1 }}
                   whileTap={{ scale: 0.92, y: 0 }}
                   transition={{ type: 'spring', stiffness: 380, damping: 20, mass: 0.6 }}

@@ -40,11 +40,17 @@ export const CreateRecipeButton = styled.button`
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 200ms ease, transform 160ms cubic-bezier(0.23, 1, 0.32, 1), scale 100ms cubic-bezier(0.23, 1, 0.32, 1);
 
-  &:hover {
-    background-color: oklch(0.33 0.105 295 / 90%);
-    transform: translateY(-2px);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background-color: oklch(0.33 0.105 295 / 90%);
+      transform: translateY(-2px);
+    }
+  }
+
+  &:active {
+    scale: 0.97;
   }
 
   &:disabled {
@@ -87,12 +93,23 @@ export const RecipeCardEl = styled.div`
   border-radius: 12px;
   padding: 20px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition:
+    background-color 200ms ease,
+    box-shadow 200ms ease,
+    transform 200ms cubic-bezier(0.23, 1, 0.32, 1),
+    scale 100ms cubic-bezier(0.23, 1, 0.32, 1);
 
-  &:hover {
-    background-color: oklch(0.279 0.075 295 / 95%);
-    transform: translateY(-4px);
-    box-shadow: 0 8px 24px oklch(0 0 0 / 45%), 0 0 0 1px oklch(0.637 0.185 295 / 15%);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background-color: oklch(0.279 0.075 295 / 95%);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px oklch(0 0 0 / 45%), 0 0 0 1px oklch(0.637 0.185 295 / 15%);
+    }
+  }
+
+  /* scale composes with the hover lift instead of replacing it */
+  &:active {
+    scale: 0.98;
   }
 `;
 

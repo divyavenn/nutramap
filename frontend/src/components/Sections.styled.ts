@@ -13,8 +13,10 @@ export const SvgButton = styled.button`
     height: 50px;
   }
 
-  &:hover svg {
-    fill: oklch(0.924 0.063 295);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover svg {
+      fill: oklch(0.924 0.063 295);
+    }
   }
 `;
 
@@ -23,7 +25,7 @@ export const HeaderLinkButton = styled(Link)`
   border: none;
   padding: 6px;
   cursor: pointer;
-  margin-right: 4px;
+  margin-inline-end: 4px;
   display: flex;
   align-items: center;
   border-radius: 8px;
@@ -35,12 +37,23 @@ export const HeaderLinkButton = styled(Link)`
     transition: fill 0.15s ease;
   }
 
-  &:hover {
-    background-color: oklch(0.924 0.063 295 / 6%);
+  /* Some icons (question_mark.svg) ship hardcoded path fills; let the CSS fill win
+     so hover and active colors show. */
+  svg path {
+    fill: inherit;
+    fill-opacity: inherit;
   }
 
-  &:hover svg {
-    fill: var(--accent-purple);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background-color: oklch(0.924 0.063 295 / 6%);
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover svg {
+      fill: var(--accent-purple);
+    }
   }
 `;
 
@@ -58,7 +71,9 @@ export const LoginButton = styled.button`
     height: 30px;
   }
 
-  &:hover svg {
-    fill: oklch(0.924 0.063 295);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover svg {
+      fill: oklch(0.924 0.063 295);
+    }
   }
 `;

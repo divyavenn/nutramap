@@ -2,7 +2,6 @@ import styled, { css, keyframes, createGlobalStyle } from 'styled-components';
 import { HoverButton, ImageButton } from './Sections';
 
 export const GlobalEditStyles = createGlobalStyle`
-  @import url('https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&display=swap');
 
   input[type="number"]::-webkit-outer-spin-button,
   input[type="number"]::-webkit-inner-spin-button {
@@ -42,22 +41,13 @@ export const GlobalEditStyles = createGlobalStyle`
 `;
 
 const pixelateOut = keyframes`
-  0%   { opacity: 1;   filter: none;                         transform: scale(1)    translateY(0); }
-  20%  { opacity: 0.9; filter: blur(1px);                    transform: scale(1)    translateY(0); }
-  40%  { opacity: 0.8; filter: blur(2px) contrast(1.2);      transform: scale(0.98) translateY(0); }
-  60%  { opacity: 0.6; filter: blur(3px) contrast(1.4);      transform: scale(0.95) translateY(2px); }
-  80%  { opacity: 0.4; filter: blur(4px) contrast(1.6);      transform: scale(0.9)  translateY(4px); }
-  90%  { opacity: 0.2; filter: blur(1px) contrast(2);        transform: scale(1.05) translateY(-2px); }
-  95%  { opacity: 0.1; filter: blur(0)   brightness(1.5);    transform: scale(1.02) translateY(0); }
-  100% { opacity: 0;   filter: blur(0);                      transform: scale(0); }
+  from { opacity: 1; filter: blur(0);   transform: scale(1); }
+  to   { opacity: 0; filter: blur(2px); transform: scale(0.97); }
 `;
 
 const confirmAnimation = keyframes`
   0%   { transform: scale(1); }
-  20%  { transform: scale(1.2); }
-  40%  { transform: scale(0.9); }
-  60%  { transform: scale(1.1); }
-  80%  { transform: scale(0.95); }
+  40%  { transform: scale(0.92); }
   100% { transform: scale(1); }
 `;
 
@@ -70,7 +60,7 @@ export const EditFormContainer = styled.form<{ $submitting?: boolean; $deleting?
   `}
 
   ${p => p.$deleting && css`
-    animation: ${pixelateOut} 0.4s ease-in forwards;
+    animation: ${pixelateOut} 180ms cubic-bezier(0.23, 1, 0.32, 1) forwards;
     pointer-events: none;
   `}
 `;
@@ -83,7 +73,7 @@ export const FormDropdownWrapper = styled.div`
   border-radius: 14px;
   width: 100%;
   max-width: calc(var(--modal-width) + 150px);
-  transition: all 0.1s ease;
+  transition: background-color 100ms ease;
 `;
 
 export const EditEntryFormBubble = styled.div<{ $active?: boolean }>`
@@ -94,14 +84,14 @@ export const EditEntryFormBubble = styled.div<{ $active?: boolean }>`
   flex-direction: row;
   align-self: center;
   align-items: center;
-  font-family: Inconsolata;
+  font-family: var(--font-mono);
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   border-radius: 14px;
   background-color: var(--purple);
   color: var(--white);
   justify-content: flex-start;
-  transition: all 0.1s ease;
+  transition: background-color 100ms ease, color 100ms ease;
   box-sizing: border-box;
 
   ${p => p.$active && css`
@@ -109,24 +99,32 @@ export const EditEntryFormBubble = styled.div<{ $active?: boolean }>`
     border-bottom-right-radius: 0;
   `}
 
-  &:hover {
-    background-color: var(--hover-white);
-    color: #1e002e;
+  /* Inputs inside drop their outline; the bubble shows focus instead */
+  &:focus-within {
+    box-shadow: 0 0 0 2px var(--accent-purple);
+  }
+
+  /* Don't invert colors under the cursor while someone is typing in it */
+  @media (hover: hover) and (pointer: fine) {
+    &:hover:not(:focus-within) {
+      background-color: var(--hover-white);
+      color: var(--color-text-inverse);
+    }
   }
 `;
 
 export const EditInputFoodName = styled.textarea`
   background: none;
   padding: 0;
-  font-family: Inconsolata;
+  font-family: var(--font-mono);
   color: inherit;
   outline: none;
   transition: background-color 0.1s ease, color 0.1s ease;
-  text-align: left;
+  text-align: start;
   height: auto;
   word-wrap: break-word;
   white-space: normal;
-  line-height: 1.2;
+  line-height: 1.4;
   resize: none;
   overflow: hidden;
   box-sizing: border-box;
@@ -134,28 +132,30 @@ export const EditInputFoodName = styled.textarea`
 `;
 
 export const EditInputPortion = styled.input`
-  font-family: Inconsolata;
+  font-family: var(--font-mono);
   height: var(--edit-log-input-height);
 
-  &:hover {
-    color: #000000;
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      color: var(--color-text-inverse);
+    }
   }
 `;
 
 export const EditGramsDisplay = styled.div`
-  font-family: Inconsolata;
+  font-family: var(--font-mono);
   font-size: inherit;
   color: inherit;
   opacity: 0.8;
-  padding-left: 10px;
-  text-align: left;
+  padding-inline-start: 10px;
+  text-align: start;
 `;
 
 export const EditInputDate = styled.input`
   border: none;
   background-color: transparent;
   color: inherit;
-  font-family: Inconsolata;
+  font-family: var(--font-mono);
   border-radius: 5px;
   outline: none;
   height: var(--edit-log-input-height);
@@ -164,10 +164,6 @@ export const EditInputDate = styled.input`
     display: none;
     -webkit-appearance: none;
     appearance: none;
-  }
-
-  &:hover {
-    color: white;
   }
 `;
 
@@ -178,18 +174,20 @@ export const EditInputTimeWrapper = styled.div`
   background: none;
   color: inherit;
   border: none;
-  font-family: Inconsolata;
-  text-align: right;
+  font-family: var(--font-mono);
+  text-align: end;
   width: 100%;
   height: var(--edit-log-input-height);
 
   input {
     width: 100%;
-    text-align: right;
+    text-align: end;
   }
 
-  &:hover {
-    color: #000000;
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      color: var(--color-text-inverse);
+    }
   }
 `;
 
@@ -201,7 +199,7 @@ export const SuggestionsContainer = styled.div`
 
 export const SuggestionsList = styled.ul`
   list-style-type: none;
-  padding-left: 0;
+  padding-inline-start: 0;
   margin: 0;
   width: 100%;
   max-height: 300px;
@@ -209,42 +207,46 @@ export const SuggestionsList = styled.ul`
   opacity: 1;
   transition: opacity 0.1s ease, max-height 0.1s ease;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-
-  &::-webkit-scrollbar {
-    display: none;
-  }
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
 `;
 
 export const SuggestionItem = styled.li<{ $selected?: boolean }>`
   padding: 10px 40px 10px 27px;
-  font-family: Inconsolata;
+  font-family: var(--font-mono);
   color: var(--white);
   cursor: pointer;
   transition: background-color 0.1s ease, color 0.1s ease;
 
-  &:hover {
-    background-color: #ffffffa1;
-    color: #1e002e;
+  /* Square hover fill would paint past the dropdown's rounded bottom corners */
+  &:last-child {
+    border-radius: 0 0 14px 14px;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background-color: var(--hover-white);
+      color: var(--color-text-inverse);
+    }
   }
 
   ${p => p.$selected && css`
-    background-color: #ffffffa1;
-    color: #1e002e;
+    background-color: var(--hover-white);
+    color: var(--color-text-inverse);
   `}
 `;
 
 export const DeleteLogButtonContainer = styled.div<{ $hide?: boolean }>`
   display: flex;
   width: 40px;
-  margin-right: 10px;
+  margin-inline-end: 10px;
   margin-top: 20px;
   align-items: start;
 
   ${p => p.$hide && css`
     opacity: 0;
-    transform: scale(0);
-    transition: opacity 0.3s ease, transform 0.3s ease;
+    transform: scale(0.9);
+    transition: opacity 150ms ease-out, transform 150ms cubic-bezier(0.23, 1, 0.32, 1);
   `}
 `;
 
@@ -253,7 +255,7 @@ export const DeleteLogBtn = styled(ImageButton)`
   clear: none;
   background: transparent;
   border: none;
-  font-size: 10px;
+  font-size: 0.625rem;
   text-align: center;
   cursor: pointer;
 
@@ -262,8 +264,10 @@ export const DeleteLogBtn = styled(ImageButton)`
     height: 20px;
   }
 
-  &:hover svg {
-    fill: #ffffff;
+  @media (hover: hover) and (pointer: fine) {
+    &:hover svg {
+      fill: #ffffff;
+    }
   }
 `;
 
@@ -273,20 +277,20 @@ export const EditLogSubmitContainer = styled.div`
   justify-content: flex-end;
   padding-top: 8px;
   align-items: start;
-  margin-left: 5px;
+  margin-inline-start: 5px;
   margin-top: 20px;
-  margin-right: 5px;
-  padding-left: 20px;
+  margin-inline-end: 5px;
+  padding-inline-start: 20px;
 `;
 
 export const EditLogSubmitBtn = styled(HoverButton)<{ $confirming?: boolean }>`
   background: none;
-  margin-left: 10px;
+  margin-inline-start: 10px;
   cursor: pointer;
   order: 1;
 
   ${p => p.$confirming && css`
-    animation: ${confirmAnimation} 1.2s ease-in-out;
+    animation: ${confirmAnimation} 250ms cubic-bezier(0.23, 1, 0.32, 1);
   `}
 
   svg {
@@ -294,8 +298,10 @@ export const EditLogSubmitBtn = styled(HoverButton)<{ $confirming?: boolean }>`
     height: 25px;
   }
 
-  &:hover svg {
-    fill: #ffffff;
+  @media (hover: hover) and (pointer: fine) {
+    &:hover svg {
+      fill: #ffffff;
+    }
   }
 `;
 

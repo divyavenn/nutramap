@@ -16,23 +16,26 @@ export const RangeSelector = styled.div`
   align-items: center;
 `;
 
-export const TodayButton = styled.div`
+export const TodayButton = styled.button`
   justify-self: center;
   align-self: center;
   width: 70px;
   padding: 3px 5px;
-  border: 1px solid #ffffff;
+  background: none;
+  border: 1px solid var(--white);
   border-radius: 20px;
-  font-family: Inconsolata;
-  color: #ffffff;
-  font-size: 15px;
+  font-family: var(--font-mono);
+  color: var(--white);
+  font-size: var(--text-caption);
   font-weight: 400;
   text-align: center;
   cursor: pointer;
 
-  &:hover {
-    border-color: #a855f7;
-    color: #a855f7;
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      border-color: var(--accent-purple);
+      color: var(--color-accent-text);
+    }
   }
 `;
 
@@ -51,13 +54,15 @@ export const DateSelectorEl = styled.div`
   object-fit: contain;
 `;
 
-export const RangeText = styled.div`
+export const RangeText = styled.button`
   padding: 10px;
   order: 1;
-  color: #a855f7;
-  font-size: 18px;
-  font-family: Inconsolata;
-  font-weight: 300;
+  background: none;
+  border: 0;
+  color: var(--color-accent-text);
+  font-size: var(--text-medium);
+  font-family: var(--font-mono);
+  font-weight: 400;
   cursor: pointer;
 `;
 
@@ -67,8 +72,8 @@ interface MonthArrowProps {
 
 export const MonthArrow = styled(ImageButton)<MonthArrowProps>`
   display: block;
-  padding-left: ${({ $left }) => ($left ? '10px' : '0px')};
-  padding-right: ${({ $left }) => ($left ? '0px' : '10px')};
+  padding-inline-start: ${({ $left }) => ($left ? '10px' : '0px')};
+  padding-inline-end: ${({ $left }) => ($left ? '0px' : '10px')};
   clear: none;
   align-self: center;
   order: 1;
@@ -76,16 +81,18 @@ export const MonthArrow = styled(ImageButton)<MonthArrowProps>`
   flex-shrink: 1;
   flex-basis: 0%;
   background: none;
-  font-size: 10px;
+  font-size: 0.625rem;
   text-align: center;
 
   svg {
-    fill: #a855f7;
+    fill: var(--color-9);
     height: 20px;
   }
 
-  &:hover svg {
-    fill: #a855f7;
+  @media (hover: hover) and (pointer: fine) {
+    &:hover svg {
+      fill: var(--color-11);
+    }
   }
 `;
 
@@ -113,12 +120,12 @@ export const DateSelectorGlobalStyles = createGlobalStyle`
     line-height: 3.000em;
     height: 3.000em;
     text-align: center;
-    color: #ffffff;
+    color: var(--white);
   }
 
   .rdrDayInMonth {
     opacity: 1 !important;
-    color: #ffffff;
+    color: var(--white);
   }
 
   .rdrDayOutOfMonth {
@@ -126,7 +133,7 @@ export const DateSelectorGlobalStyles = createGlobalStyle`
   }
 
   .rdrDayNumber span {
-    color: #ffffff;
+    color: var(--white);
   }
 
   .rdrDayDisabled span {
@@ -136,7 +143,7 @@ export const DateSelectorGlobalStyles = createGlobalStyle`
 
   .rdrDayNumber span.rdrDayToday {
     background-color: #1e002e;
-    color: #ffffff;
+    color: var(--white);
   }
 
   .rdrDayStartPreview,
@@ -145,7 +152,7 @@ export const DateSelectorGlobalStyles = createGlobalStyle`
   }
 
   .rdrMonthAndYearPickers select {
-    color: #ffffff;
+    color: var(--white);
     background-color: #1e002e;
     display: flex;
     flex-direction: row;
@@ -155,11 +162,11 @@ export const DateSelectorGlobalStyles = createGlobalStyle`
   }
 
   .rdrNextPrevButton i {
-    color: #ffffff;
+    color: var(--white);
   }
 
   .rdrNextPrevButton:hover i {
-    color: #a29bfe;
+    color: var(--color-accent-text);
   }
 
   .rdrMonthPicker {
@@ -187,7 +194,7 @@ export const DateSelectorGlobalStyles = createGlobalStyle`
 
   ${CalendarPopup} .rdrInputRanges input {
     background-color: transparent;
-    color: #fff;
+    color: var(--white);
   }
 
   ${CalendarPopup} .rdrDateDisplayWrapper {
@@ -196,7 +203,7 @@ export const DateSelectorGlobalStyles = createGlobalStyle`
 
   ${CalendarPopup} .rdrDateDisplayWrapper input::placeholder,
   ${CalendarPopup} .rdrDateDisplayWrapper input {
-    color: #ffffff;
+    color: var(--white);
     background-color: transparent;
     box-shadow: none;
   }
@@ -206,13 +213,13 @@ export const DateSelectorGlobalStyles = createGlobalStyle`
   }
 
   ${CalendarPopup} .rdrDateDisplayItemActive {
-    border: 1px solid white !important;
+    border: 1px solid var(--white) !important;
     box-shadow: none;
   }
 
   ${CalendarPopup} .rdrDateInput .rdrDateDisplayItem :active {
     color: #e20000;
-    border-color: white;
+    border-color: var(--white);
     background-color: transparent;
   }
 
@@ -224,7 +231,7 @@ export const DateSelectorGlobalStyles = createGlobalStyle`
   ${CalendarPopup} .rdrMonthAndYearWrapper {
     background-color: transparent;
     border: none;
-    color: #fff;
+    color: var(--white);
     text-align: center;
     border-top-left-radius: 20px;
     border-top-right-radius: 20px;
@@ -241,12 +248,12 @@ export const DateSelectorGlobalStyles = createGlobalStyle`
   }
 
   ${CalendarPopup} .rdrDateRangeWrapper {
-    color: #fff;
+    color: var(--white);
   }
 
   ${CalendarPopup} .rdrMonthAndYearPickers {
     font-weight: 600;
-    color: #fff;
+    color: var(--white);
   }
 
   ${CalendarPopup} .rdrWeekDays {
@@ -256,13 +263,13 @@ export const DateSelectorGlobalStyles = createGlobalStyle`
   ${CalendarPopup} .rdrMonthAndYearWrapper,
   ${CalendarPopup} .rdrWeekDay,
   ${CalendarPopup} .rdrDayNumber {
-    color: #ffffff;
+    color: var(--white);
   }
 
   ${CalendarPopup} .rdrDay:not(.rdrDayPassive):not(.rdrDayDisabled):hover .rdrInRange,
   ${CalendarPopup} .rdrDay:not(.rdrDayPassive):not(.rdrDayDisabled):hover .rdrDayNumber span {
     background-color: rgba(128, 128, 128, 0.3) !important;
-    color: white !important;
+    color: var(--white) !important;
   }
 
   ${CalendarPopup} .rdrDayStartPreview,
@@ -276,14 +283,14 @@ export const DateSelectorGlobalStyles = createGlobalStyle`
   ${CalendarPopup} .rdrDayInPreview span,
   ${CalendarPopup} .rdrDayEndPreview span,
   ${CalendarPopup} .rdrDay:hover span {
-    color: white !important;
+    color: var(--white) !important;
     opacity: 1 !important;
   }
 
   ${CalendarPopup} .rdrDayStartSelected.rdrDayStartPreview,
   ${CalendarPopup} .rdrDayEndSelected.rdrDayEndPreview,
   ${CalendarPopup} .rdrDayInSelected.rdrDayInPreview {
-    background-color: #ff69b4 !important;
+    background-color: var(--color-7) !important;
     opacity: 1 !important;
     z-index: 5 !important;
   }
@@ -291,7 +298,7 @@ export const DateSelectorGlobalStyles = createGlobalStyle`
   ${CalendarPopup} .rdrDayStartSelected.rdrDayStartPreview span,
   ${CalendarPopup} .rdrDayEndSelected.rdrDayEndPreview span,
   ${CalendarPopup} .rdrDayInSelected.rdrDayInPreview span {
-    color: white !important;
+    color: var(--white) !important;
     font-weight: bold !important;
     opacity: 1 !important;
   }
@@ -299,7 +306,7 @@ export const DateSelectorGlobalStyles = createGlobalStyle`
   ${CalendarPopup} .rdrDaySelected:not(.rdrDayDisabled):not(.rdrDayPassive) .rdrInRange,
   ${CalendarPopup} .rdrDaySelected:not(.rdrDayDisabled):not(.rdrDayPassive) .rdrDayNumber span {
     background-color: #1e002e !important;
-    color: white !important;
+    color: var(--white) !important;
     border-radius: 50% !important;
     opacity: 1 !important;
   }
@@ -317,17 +324,17 @@ export const DateSelectorGlobalStyles = createGlobalStyle`
     align-items: center;
     gap: 10px;
     background-color: var(--purple);
-    color: white;
+    color: var(--white);
   }
 
   ${DatePickerPopup} .rdrDay {
     background: transparent;
-    color: white;
+    color: var(--white);
     border-radius: 5px;
   }
 
   ${DatePickerPopup} .rdrDayInMonth {
-    color: white;
+    color: var(--white);
   }
 
   ${DatePickerPopup} .rdrDayOutOfMonth {
@@ -337,56 +344,56 @@ export const DateSelectorGlobalStyles = createGlobalStyle`
   ${DatePickerPopup} .rdrNextPrevButton {
     background: none;
     border: none;
-    color: white;
+    color: var(--white);
   }
 
   ${DatePickerPopup} .rdrNextPrevButton i {
-    color: white;
+    color: var(--white);
   }
 
   ${DatePickerPopup} .rdrNextPrevButton:hover i {
-    color: #a29bfe;
+    color: var(--color-accent-text);
   }
 
   ${DatePickerPopup} .rdrDayToday span {
     background-color: #1e002e;
-    color: white;
+    color: var(--white);
     border-radius: 50%;
   }
 
   ${DatePickerPopup} .rdrWeekDays {
     background-color: transparent;
-    color: white;
+    color: var(--white);
   }
 
   ${DatePickerPopup} .rdrMonthAndYearPickers select {
     background-color: #1e002e;
-    color: white;
+    color: var(--white);
   }
 
   /* --- Global react-datepicker overrides --- */
   .react-datepicker__day {
-    color: white !important;
+    color: var(--white) !important;
     font-weight: normal !important;
   }
 
   .react-datepicker__current-month,
   .react-datepicker__day-name {
-    color: white !important;
+    color: var(--white) !important;
   }
 
   .react-datepicker__day:hover {
     background-color: rgba(128, 128, 128, 0.3) !important;
-    color: white !important;
+    color: var(--white) !important;
     opacity: 1 !important;
   }
 
   .react-datepicker__day.selected-day {
-    background-color: #ff69b4 !important;
-    color: white !important;
+    background-color: var(--color-7) !important;
+    color: var(--white) !important;
     border-radius: 50% !important;
     font-weight: bold !important;
-    box-shadow: 0 0 0 2px white !important;
+    box-shadow: 0 0 0 2px var(--white) !important;
     position: relative !important;
     z-index: 5 !important;
     transform: scale(1.1) !important;
@@ -400,36 +407,36 @@ export const DateSelectorGlobalStyles = createGlobalStyle`
 
   .custom-datepicker .react-datepicker__header {
     background-color: transparent;
-    color: white;
+    color: var(--white);
     text-align: center;
   }
 
   .custom-datepicker .react-datepicker__day {
     background: transparent;
-    color: white;
+    color: var(--white);
     border-radius: 5px;
   }
 
   .custom-datepicker .react-datepicker__day--in-range {
     background-color: #1e002e;
-    color: white;
+    color: var(--white);
     border-radius: 50%;
   }
 
   .custom-datepicker .react-datepicker__navigation {
     background: none;
-    color: white;
+    color: var(--white);
   }
 
   .custom-datepicker .react-datepicker__today-button {
     background-color: transparent;
-    color: white;
+    color: var(--white);
   }
 
   /* --- DatePickerPopup-scoped react-datepicker overrides --- */
   ${DatePickerPopup} .react-datepicker__day:hover:not(.react-datepicker__day--selected):not(.react-datepicker__day--keyboard-selected):not(.selected-day) {
     background-color: rgba(128, 128, 128, 0.3) !important;
-    color: white !important;
+    color: var(--white) !important;
     opacity: 1 !important;
   }
 `;

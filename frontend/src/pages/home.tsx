@@ -22,8 +22,10 @@ const WatchLink = styled(motion.a)`
   cursor: pointer;
   text-decoration: none;
 
-  &:hover {
-    opacity: 0.75;
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      opacity: 0.75;
+    }
   }
 `;
 

@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useRef, KeyboardEvent } from 'react';
+import { useNotify } from './StatusMessage';
 import { formatTime, tolocalDateString, parseQuantity, formatQuantity } from './utlis'; // eslint-disable-line @typescript-eslint/no-unused-vars
 import { request } from './endpoints';
 import { useRefreshLogs } from './dashboard_states';
 import { tutorialEvent } from './TryTutorial';
-import { AnimatedText } from './AnimatedText';
+import { SavingText } from './SavingText';
+import { pluralize } from './pluralize';
+import Caret from '../assets/images/caret-right.svg?react';
 import {
   RecipeBubble, MealToggleBtn,
   FoodNameSpace, FoodPortionSpace, FoodDateSpace,
@@ -44,6 +47,7 @@ function MealHeader({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const refreshLogs = useRefreshLogs();
+  const notify = useNotify();
 
   const weightPerServing = servings > 0 ? total_weight_grams / servings : null;
   const canOpenRecipe = Boolean(recipe_id);
@@ -94,6 +98,7 @@ function MealHeader({
       refreshLogs({ force: true });
     } catch (error) {
       console.error('Error saving field:', error);
+      notify('changes not saved. try again.');
       setServingsInput(String(servings));
       setGramsInput(String(Math.round(total_weight_grams)));
       setDateInput(new Date(date));
@@ -144,6 +149,12 @@ function MealHeader({
       if (e.key === 'Enter') {
         e.preventDefault();
         saveToServer(field, dateInput);
+      } else if (e.key === 'Escape') {
+        // Keyboard way out of edit mode (pointer users click outside)
+        setServingsInput(String(servings));
+        setGramsInput(String(Math.round(total_weight_grams)));
+        setDateInput(new Date(date));
+        setIsEditable(false);
       }
     };
 
@@ -157,6 +168,7 @@ function MealHeader({
       refreshLogs({ force: true });
     } catch (error) {
       console.error('Error deleting log:', error);
+      notify(`couldn't delete ${meal_name}. try again.`);
       setIsDeleting(false);
     }
   };
@@ -171,13 +183,12 @@ function MealHeader({
   const safeServings = Number.isFinite(servingsValue) && servingsValue > 0 ? servingsValue : 1;
   const count = formatQuantity(safeServings, 2);
   const cleanedServingLabel = serving_size_label?.replace(/^\d+(?:\.\d+)?(?:\s*\/\s*\d+)?\s+/, "").trim();
-  let unitText = cleanedServingLabel || "serving";
-  if (safeServings !== 1 && unitText === "serving") {
-    unitText = "servings";
-  } else if (safeServings !== 1 && unitText && !unitText.endsWith("s")) {
-    unitText = `${unitText}s`;
-  }
+  const unitLabel = cleanedServingLabel || "serving";
+  const unitText = pluralize(unitLabel, safeServings);
   const portionText = `${count} ${unitText}`;
+  // Edit mode uses the same unit, following the number being typed
+  const editServings = parseQuantity(servingsInput);
+  const editUnitText = pluralize(unitLabel, Number.isFinite(editServings) && editServings > 0 ? editServings : safeServings);
 
   if (isDeleting) return null;
 
@@ -188,6 +199,8 @@ function MealHeader({
       className={canOpenRecipe ? 'tutorial-meal-with-recipe' : 'tutorial-meal-without-recipe'}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
+      onFocus={onMouseEnter}
+      onBlur={onMouseLeave}
     >
       <MealToggleBtn
         $expanded={expanded}
@@ -197,9 +210,10 @@ function MealHeader({
           onToggle();
           if (!expanded) tutorialEvent('tutorial:meal-expanded');
         }}
-        aria-label={expanded ? 'Collapse' : 'Expand'}
+        aria-expanded={expanded}
+        aria-label={`ingredients for ${meal_name}`}
       >
-        ›
+        <Caret aria-hidden />
       </MealToggleBtn>
 
       {isEditable ? (
@@ -210,6 +224,7 @@ function MealHeader({
         >
           <FoodNameSpace>
             <ClickableMealName
+              type="button"
               className={canOpenRecipe ? 'tutorial-recipe-name-link' : undefined}
               onClick={handleNameClick}
             >
@@ -219,9 +234,10 @@ function MealHeader({
 
           <FoodDateSpace>
             {savingField === 'date' ? (
-              <AnimatedText text={formatDateStr(dateInput)} />
+              <SavingText>{formatDateStr(dateInput)}</SavingText>
             ) : (
               <EditInputDate
+                aria-label="log date"
                 type="date"
                 value={formatDateStr(dateInput)}
                 onChange={handleDateChange}
@@ -230,11 +246,13 @@ function MealHeader({
             )}
           </FoodDateSpace>
 
-          <FoodPortionSpace style={{ gap: '4px', alignItems: 'baseline', flexWrap: 'nowrap' }}>
+          <FoodPortionSpace style={{ gap: '4px', alignItems: 'baseline' }}>
             {savingField === 'servings' ? (
-              <AnimatedText text={servingsInput} />
+              <SavingText>{servingsInput}</SavingText>
             ) : (
               <EditInputPortion
+                aria-label={pluralize(unitLabel, 2)}
+                autoFocus
                 type="text"
                 value={servingsInput}
                 onChange={handleServingsChange}
@@ -242,15 +260,16 @@ function MealHeader({
                 style={{ width: `${Math.max(servingsInput.length, 1) + 1}ch`, flexShrink: 0 }}
               />
             )}
-            <span>servings</span>
+            <span>{editUnitText}</span>
             {weightPerServing != null && (
               <>
                 <span>(</span>
                 <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 0 }}>
                   {savingField === 'grams' ? (
-                    <AnimatedText text={gramsInput} />
+                    <SavingText>{gramsInput}</SavingText>
                   ) : (
                     <EditInputPortion
+                      aria-label="weight in grams"
                       type="number"
                       min="0"
                       value={gramsInput}
@@ -274,6 +293,7 @@ function MealHeader({
           <FoodNameSpace as="span">
             {canOpenRecipe ? (
               <ClickableMealName
+                type="button"
                 className="tutorial-recipe-name-link"
                 onClick={(e: React.MouseEvent) => {
                   e.stopPropagation();
@@ -287,13 +307,14 @@ function MealHeader({
             )}
           </FoodNameSpace>
           <FoodDateSpace />
-          <FoodPortionSpace as="span">
+          {/* The keyboard path into edit mode; its click bubbles to the bubble's handler */}
+          <FoodPortionSpace as="button" type="button" aria-label={`edit ${meal_name}: ${portionText}`}>
             {portionText}{total_weight_grams > 0 ? ` (${Math.round(total_weight_grams)}g)` : ''}
           </FoodPortionSpace>
         </RecipeBubble>
       )}
 
-      <HoverDeleteBtn onClick={handleDelete} aria-label="Delete meal">×</HoverDeleteBtn>
+      <HoverDeleteBtn onClick={handleDelete} aria-label={`delete ${meal_name}`}>×</HoverDeleteBtn>
     </MealRowContainer>
   );
 }

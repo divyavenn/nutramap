@@ -13,8 +13,9 @@ function Title() {
 
 function Heading({words} : WordsProps) {
   return (
-  <div className="greeting"> {words}
-  </div>
+  // h1 for the page heading; margin/line-height reset so the .greeting look is unchanged
+  <h1 className="greeting" style={{ margin: 0, lineHeight: 'inherit' }}> {words}
+  </h1>
   )
 }
 

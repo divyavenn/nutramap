@@ -73,11 +73,23 @@ const GrainBackground: React.FC<GrainBackgroundProps> = ({ children }) => {
     const grainOffscreen = grainCv.transferControlToOffscreen();
     const cloudOffscreen = cloudCv.transferControlToOffscreen();
 
+    // Only animate when motion is allowed and the tab is visible; otherwise
+    // the worker paints a single static frame.
+    const motionOk = window.matchMedia('(prefers-reduced-motion: no-preference)');
+    const shouldAnimate = () => motionOk.matches && !document.hidden;
+
     worker.postMessage(
       { type: 'init', grain: grainOffscreen, cloud: cloudOffscreen,
-        width: window.innerWidth, height: window.innerHeight },
+        width: window.innerWidth, height: window.innerHeight,
+        animate: shouldAnimate() },
       [grainOffscreen, cloudOffscreen],
     );
+
+    const syncAnimation = () => {
+      worker.postMessage({ type: shouldAnimate() ? 'start' : 'stop' });
+    };
+    document.addEventListener('visibilitychange', syncAnimation);
+    motionOk.addEventListener('change', syncAnimation);
 
     const resize = () => {
       worker.postMessage({ type: 'resize', width: window.innerWidth, height: window.innerHeight });
@@ -86,6 +98,8 @@ const GrainBackground: React.FC<GrainBackgroundProps> = ({ children }) => {
 
     return () => {
       window.removeEventListener('resize', resize);
+      document.removeEventListener('visibilitychange', syncAnimation);
+      motionOk.removeEventListener('change', syncAnimation);
       worker.terminate();
       workerRef.current = null;
     };

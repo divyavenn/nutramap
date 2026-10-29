@@ -1,0 +1,30 @@
+/* App-wide interaction defaults. */
+
+/* Press feedback: every enabled button acknowledges the press. Uses the individual `scale`
+   property so it composes with any transform a component already sets (hover lifts,
+   rotations) instead of replacing it. */
+:where(button, [role="button"]) {
+  transition: scale 150ms ease-out;
+}
+
+button:not(:disabled):active,
+[role="button"]:not([aria-disabled="true"]):active {
+  scale: 0.96;
+}
+
+/* Reduced motion: fewer and gentler, not none. Keyframe animations (pulses, dissolves,
+   jiggles) collapse to their end state; color and opacity transitions still run.
+   Framer Motion animations are handled by <MotionConfig reducedMotion="user">. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  button:not(:disabled):active,
+  [role="button"]:not([aria-disabled="true"]):active {
+    scale: none;
+  }
+}

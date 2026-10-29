@@ -28,7 +28,7 @@ const Modal = styled(motion.div)`
 `;
 
 const Title = styled.h2`
-  font-family: 'Abyssinica SIL', Georgia, Times, 'Times New Roman', serif;
+  font-family: 'Abyssinica SIL', Georgia, serif;
   font-size: 22px;
   font-weight: normal;
   color: rgba(255, 255, 255, 0.9);
@@ -36,7 +36,7 @@ const Title = styled.h2`
 `;
 
 const Subtitle = styled.p`
-  font-family: 'Ubuntu', sans-serif;
+  font-family: Ubuntu, system-ui, sans-serif;
   font-size: 13px;
   color: rgba(255, 255, 255, 0.45);
   margin: -16px 0 0;
@@ -47,8 +47,8 @@ const NameInput = styled.input`
   border: none;
   border-bottom: 1px solid rgba(255, 255, 255, 0.3);
   color: rgba(255, 245, 220, 0.9);
-  font-family: Inconsolata, monospace;
-  font-size: 18px;
+  font-family: var(--font-mono);
+  font-size: var(--text-medium);
   outline: none;
   padding: 4px 2px 6px;
   width: 100%;
@@ -57,6 +57,13 @@ const NameInput = styled.input`
   &::placeholder {
     color: rgba(255, 255, 255, 0.25);
   }
+`;
+
+const ErrorText = styled.p`
+  font-family: Ubuntu, system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin: 8px 0 0;
 `;
 
 const ButtonRow = styled.div`
@@ -69,13 +76,15 @@ const CancelBtn = styled.button`
   background: none;
   border: none;
   color: rgba(255, 255, 255, 0.4);
-  font-family: 'Ubuntu', sans-serif;
+  font-family: Ubuntu, system-ui, sans-serif;
   font-size: 13px;
   cursor: pointer;
   padding: 8px 12px;
 
-  &:hover {
-    color: rgba(255, 255, 255, 0.8);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      color: rgba(255, 255, 255, 0.8);
+    }
   }
 `;
 
@@ -84,7 +93,7 @@ const SubmitBtn = styled.button`
   border: none;
   border-radius: 8px;
   color: rgba(255, 255, 255, 0.9);
-  font-family: 'Ubuntu', sans-serif;
+  font-family: Ubuntu, system-ui, sans-serif;
   font-size: 13px;
   cursor: pointer;
   padding: 8px 20px;
@@ -94,8 +103,10 @@ const SubmitBtn = styled.button`
   align-items: center;
   justify-content: center;
 
-  &:hover:not(:disabled) {
-    background: rgba(140, 60, 255, 0.95);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover:not(:disabled) {
+      background: rgba(140, 60, 255, 0.95);
+    }
   }
 
   &:disabled {
@@ -114,12 +125,15 @@ interface CreateRecipeModalProps {
 function CreateRecipeModal({ logId, mealName, onClose, onSuccess }: CreateRecipeModalProps) {
   const [recipeName, setRecipeName] = useState(mealName);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const refreshLogs = useRefreshLogs();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!recipeName.trim() || isSubmitting) return;
     setIsSubmitting(true);
+    setError(null);
+    const genericError = 'recipe not created. try again, or try a different name.';
     try {
       const fd = new FormData();
       fd.append('log_id', logId);
@@ -127,14 +141,18 @@ function CreateRecipeModal({ logId, mealName, onClose, onSuccess }: CreateRecipe
       const response = await request('/recipes/create-from-meal', 'POST', fd);
       if (response.status !== 200) {
         console.error('Error creating recipe:', response.status, response.body);
-        alert(`Failed to create recipe: ${response.body?.detail || 'Unknown error'}`);
+        const detail = String(response.body?.detail ?? '');
+        setError(/exist/i.test(detail)
+          ? `you already have a recipe called "${recipeName.trim()}". choose another name.`
+          : genericError);
         return;
       }
       try { localStorage.removeItem('recipes_cache'); } catch {}
       refreshLogs({ force: true });
       onSuccess();
-    } catch (error) {
-      console.error('Error creating recipe:', error);
+    } catch (err) {
+      console.error('Error creating recipe:', err);
+      setError(genericError);
     } finally {
       setIsSubmitting(false);
     }
@@ -160,15 +178,19 @@ function CreateRecipeModal({ logId, mealName, onClose, onSuccess }: CreateRecipe
         <form onSubmit={handleSubmit}>
           <NameInput
             value={recipeName}
-            onChange={(e) => setRecipeName(e.target.value)}
+            onChange={(e) => { setRecipeName(e.target.value); if (error) setError(null); }}
             placeholder="recipe name"
+            aria-label="recipe name"
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? 'create-recipe-error' : undefined}
             autoFocus
             onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
           />
+          {error && <ErrorText id="create-recipe-error" role="alert">{error}</ErrorText>}
           <ButtonRow style={{ marginTop: 24 }}>
             <CancelBtn type="button" onClick={onClose}>cancel</CancelBtn>
             <SubmitBtn type="submit" disabled={!recipeName.trim() || isSubmitting}>
-              {isSubmitting ? <AnimatedText text="saving" /> : 'create recipe'}
+              {isSubmitting ? <AnimatedText text="creating recipe…" /> : 'create recipe'}
             </SubmitBtn>
           </ButtonRow>
         </form>

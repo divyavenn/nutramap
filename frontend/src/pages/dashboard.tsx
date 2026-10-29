@@ -1,9 +1,10 @@
 /// <reference types="vite-plugin-svgr/client" />
-import { StrictMode, useEffect, useState } from 'react'
+import { StrictMode, useEffect } from 'react'
 import styled from 'styled-components'
-import { AnimatePresence, LayoutGroup, motion } from 'framer-motion'
+import { LayoutGroup } from 'framer-motion'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { LogList } from '../components/Logs'
+import { StatusMessage } from '../components/StatusMessage'
 import { DateSelector } from '../components/DateSelector'
 import { Heading } from '../components/Title'
 import { Header } from '../components/Sections'
@@ -35,9 +36,7 @@ const TwoCol = styled.div`
   width: 100%;
   box-sizing: border-box;
   gap: 40px;
-  padding-left: 10%;
-  padding-right: 10%;
-  overflow: hidden;
+  padding-inline: 10%;
 
   @media (max-width: ${BREAKPOINT}) {
     flex-direction: column;
@@ -82,22 +81,15 @@ const RightCol = styled.div`
   }
 `
 
-/* Sticky-centered: pins its visual center to 50vh regardless of document offset */
 const RightContent = styled.div`
-  position: sticky;
+  width: 100%;
   margin-top: 4%;
   display: flex;
   flex-direction: column;
   align-items: center;
 
-  body[data-tutorial-active='true'] & {
-    position: static;
-  }
-
   @media (max-width: ${BREAKPOINT}) {
-    position: static;
     margin-top: 0;
-    transform: none;
   }
 `
 
@@ -124,9 +116,8 @@ const LogScroller = styled.div`
   overflow-y: auto;
   overscroll-behavior-y: contain;
   width: 100%;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  &::-webkit-scrollbar { display: none; }
+  /* Visible scrollbar: it's the only cue that more logs are below */
+  scrollbar-width: thin;
 
   @media (max-width: ${BREAKPOINT}) {
     flex: none;
@@ -136,43 +127,10 @@ const LogScroller = styled.div`
   }
 `
 
-const DesktopOnly = styled.div`
-  @media (max-width: ${BREAKPOINT}) { display: none; }
-`
-
 const Center = styled.div`
     display: flex;
     justify-content: center;
     width: 100%;
-`
-const MobileOnly = styled.div`
-  display: none;
-  @media (max-width: ${BREAKPOINT}) {
-    display: flex;
-    justify-content: center;
-    width: 100%;
-  }
-`
-
-const LoadRail = styled(motion.div)`
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  width: 100%;
-  margin-top: 10px;
-`
-
-const LoadChip = styled(motion.div)<{$active: boolean}>`
-  border-radius: 999px;
-  padding: 8px 14px;
-  font-size: 13px;
-  letter-spacing: 0.02em;
-  color: #f7f3ff;
-  border: 1px solid ${({ $active }) => ($active ? 'rgba(164, 130, 255, 0.9)' : 'rgba(164, 130, 255, 0.35)')};
-  background: ${({ $active }) => ($active ? 'rgba(53, 18, 89, 0.8)' : 'rgba(26, 14, 39, 0.48)')};
-  backdrop-filter: blur(3px);
 `
 
 type DashboardLocationState = {
@@ -182,8 +140,6 @@ type DashboardLocationState = {
     submittedAt: number;
   };
 };
-
-type BootstrapPhase = 'idle' | 'authenticating' | 'hydrating';
 
 /* ── Page ────────────────────────────────────────────────────── */
 
@@ -199,7 +155,6 @@ function Dashboard() {
   const isLoggedIn = !isLoginExpired()
   const location = useLocation()
   const navigate = useNavigate()
-  const [bootstrapPhase, setBootstrapPhase] = useState<BootstrapPhase>('idle')
   const locationState = (location.state as DashboardLocationState | null) || null
   const loginBootstrap = locationState?.loginBootstrap
 
@@ -229,8 +184,6 @@ function Dashboard() {
 
     let cancelled = false
     const bootstrapLogin = async () => {
-      setBootstrapPhase('authenticating')
-
       const response = await request(
         '/auth/submit_login',
         'POST',
@@ -243,10 +196,10 @@ function Dashboard() {
 
       if (response.status !== 200 || !response.body?.access_token) {
         const loginError = response.status === 403
-          ? 'Incorrect password. Please try again.'
+          ? "that password didn't work. check it and try again."
           : response.status === 404
-            ? 'Account not found. Create an account to continue.'
-            : 'Login failed. Please try again.'
+            ? 'no account with that email. check the spelling or create an account.'
+            : "couldn't log in. check your connection and try again."
         navigate('/login', { replace: true, state: { loginError } })
         return
       }
@@ -257,7 +210,6 @@ function Dashboard() {
       }
       localStorage.setItem('access_token', response.body.access_token)
       sessionStorage.removeItem('isTrial')
-      setBootstrapPhase('hydrating')
       const hasFoodsCache = !!localStorage.getItem('foods')
       const hasNutrientsCache = !!localStorage.getItem('nutrients')
 
@@ -282,7 +234,6 @@ function Dashboard() {
       ])
 
       if (cancelled) return
-      setBootstrapPhase('idle')
       navigate('/dashboard', { replace: true, state: null })
     }
 
@@ -303,20 +254,24 @@ function Dashboard() {
         { to: '/myrecipes', img: <RecipesIcon /> },
       ]} />
 
+      <main>
       <Heading words={greeting} />
       <Center>
         <DateSelector />
       </Center>
 
-      <LayoutGroup id="dashboard">
       <TwoCol>
+        {/* Scoped to the log list so log changes don't re-measure the nutrient dashboard */}
+        <LayoutGroup id="dashboard">
         <LeftCol>
           <LeftContent>
             <LogScroller>
               <LogList />
+              <StatusMessage />
             </LogScroller>
           </LeftContent>
         </LeftCol>
+        </LayoutGroup>
 
         <RightCol>
           <RightContent>
@@ -325,7 +280,7 @@ function Dashboard() {
           </RightContent>
         </RightCol>
       </TwoCol>
-      </LayoutGroup>
+      </main>
     </StrictMode>
   )
 }

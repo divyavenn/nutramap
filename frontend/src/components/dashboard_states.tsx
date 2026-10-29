@@ -106,8 +106,10 @@ function getLogsCacheAuthKey(): string {
 
 // Define a type for pending foods with timestamps
 export interface PendingFood {
+  id: string;
   name: string;
   timestamp: string;
+  servings?: number;  // known once the meal is parsed
 }
 
 const dateRangeAtom= atom<TimePeriod>({

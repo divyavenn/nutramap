@@ -1,5 +1,5 @@
 import foodPanelLogo from '../assets/images/nutramap_logo.png'
-import questionMark from '../assets/images/question_mark.svg'
+import QuestionMark from '../assets/images/question_mark.svg?react'
 import React, { useState } from 'react';
 import {Link, useLocation} from 'react-router-dom';
 import { isLoginExpired } from './utlis';
@@ -46,6 +46,15 @@ type PageLinkIcon = {
   img: React.ReactNode;
 };
 
+// Icon-only nav links need a name for screen readers and voice control
+const NAV_LABELS: Record<string, string> = {
+  '/dashboard': 'dashboard',
+  '/account': 'account',
+  '/login': 'log in',
+  '/myfoods': 'my foods',
+  '/myrecipes': 'my recipes',
+};
+
 function Header({linkIcons, children} : {linkIcons? : PageLinkIcon[], children?: React.ReactNode}) {
   const location = useLocation();
   const isTrial = sessionStorage.getItem('isTrial') === 'true';
@@ -72,24 +81,27 @@ function Header({linkIcons, children} : {linkIcons? : PageLinkIcon[], children?:
         "add custom foods with pictures of nutrition labels",
         "easy as texting your mother",
       ]} />
-      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+      <div style={{ marginInlineStart: 'auto', display: 'flex', alignItems: 'center' }}>
       {processedLinkIcons &&
         processedLinkIcons.map((link) => {
           const isActive = location.pathname === link.to;
           return (
           <HeaderLinkButton key={link.to}
                 to={link.to}
+                aria-label={NAV_LABELS[link.to] ?? link.to.replace('/', '')}
+                aria-current={isActive ? 'page' : undefined}
                 className={link.to === '/try' || link.to === '/dashboard' ? 'tutorial-home-link' : undefined}
-                style={isActive ? { fill: '#a855f7' } : undefined}>
+                style={isActive ? { fill: 'var(--accent-purple)' } : undefined}>
                 {React.cloneElement(link.img as React.ReactElement, {
-                  style: isActive ? { fill: '#a855f7' } : undefined
+                  style: isActive ? { fill: 'var(--accent-purple)' } : undefined,
+                  'aria-hidden': true,
                 })}
           </HeaderLinkButton> )
         })
       }
       {children}
-      <HeaderLinkButton className="tutorial-home-link" to="/try" title="Take a tour">
-        <img src={questionMark} alt="Take a tour" width="30" height="30" />
+      <HeaderLinkButton className="tutorial-home-link" to="/try" title="take a tour" aria-label="take a tour">
+        <QuestionMark />
       </HeaderLinkButton>
       </div>
     </section>

@@ -2,6 +2,7 @@
 import { StrictMode, useEffect } from 'react'
 import styled from 'styled-components'
 import { LogList} from '../components/Logs'
+import { StatusMessage } from '../components/StatusMessage'
 import { DateSelector} from '../components/DateSelector'
 import {Heading} from '../components/Title'
 import { Header} from '../components/Sections'
@@ -216,6 +217,7 @@ function TryFoodPanel(){
       <LeftContent>
         <LogScroller>
           <LogList/>
+          <StatusMessage />
         </LogScroller>
       </LeftContent>
     </LeftCol>

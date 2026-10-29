@@ -37,8 +37,10 @@ const DemoLink = styled(motion.a)`
   text-decoration: none;
   font-family: 'Public Sans', system-ui, sans-serif;
 
-  &:hover {
-    color: oklch(0.637 0.185 295);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      color: oklch(0.637 0.185 295);
+    }
   }
 `;
 

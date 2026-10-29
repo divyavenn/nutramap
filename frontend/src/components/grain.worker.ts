@@ -1,7 +1,8 @@
 // grain.worker.ts
 // Runs the grain + cloud canvas animation entirely off the main thread
 // via OffscreenCanvas.  The main thread transfers canvas control once on
-// mount and posts a 'resize' message whenever the viewport changes.
+// mount and posts a 'resize' message whenever the viewport changes, plus
+// 'start' / 'stop' when the tab visibility or reduced-motion preference changes.
 
 // ── Tuning constants (must match GrainBackground.tsx) ─────────────────────────
 const CLOUD_S     = 1000;
@@ -136,6 +137,20 @@ function drawCloud() {
       cloudCtx.drawImage(cloudOffscreen, x, y);
 }
 
+// ── Animation loop ─────────────────────────────────────────────────────────────
+function start() {
+  if (intervalId !== null) return;
+  intervalId = setInterval(() => {
+    const now = performance.now();
+    drawGrain();
+    if (now - lastCloud >= ci) { lastCloud = now; drawCloud(); }
+  }, gi);
+}
+
+function stop() {
+  if (intervalId !== null) { clearInterval(intervalId); intervalId = null; }
+}
+
 // ── Message handler ────────────────────────────────────────────────────────────
 self.onmessage = (e: MessageEvent) => {
   const { type } = e.data;
@@ -152,16 +167,16 @@ self.onmessage = (e: MessageEvent) => {
     initGrain();
     initCloud();
 
+    // Always paint one frame so reduced-motion users still get static grain.
     drawGrain();
     drawCloud();
 
-    if (intervalId !== null) clearInterval(intervalId);
-    intervalId = setInterval(() => {
-      const now = performance.now();
-      drawGrain();
-      if (now - lastCloud >= ci) { lastCloud = now; drawCloud(); }
-    }, gi);
+    stop();
+    if (e.data.animate) start();
   }
+
+  if (type === 'start') start();
+  if (type === 'stop') stop();
 
   if (type === 'resize') {
     if (grainCanvas) { grainCanvas.width = e.data.width; grainCanvas.height = e.data.height; }

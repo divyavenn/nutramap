@@ -7,11 +7,15 @@ interface AnimatedTextProps {
 }
 
 export function AnimatedText({ text, className = '', speed = 80 }: AnimatedTextProps) {
+  // JS-driven motion isn't covered by MotionConfig or the CSS media query
+  const reduceMotion = typeof window !== 'undefined'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const [visibleCount, setVisibleCount] = useState(0);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentRef = useRef(0);
 
   useEffect(() => {
+    if (reduceMotion) return;
     const letters = text.split('');
     currentRef.current = 0;
     setVisibleCount(0);
@@ -43,7 +47,11 @@ export function AnimatedText({ text, className = '', speed = 80 }: AnimatedTextP
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, [text, speed]);
+  }, [text, speed, reduceMotion]);
+
+  if (reduceMotion) {
+    return <div className={className}>{text}</div>;
+  }
 
   const letters = text.split('');
   const colors = [

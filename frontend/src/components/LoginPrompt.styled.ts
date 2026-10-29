@@ -62,8 +62,10 @@ export const LoginPromptBtn = styled.button<LoginPromptBtnProps>`
   border-bottom-left-radius: ${({ $variant }) => $variant === 'primary' ? '30px' : '0'};
   border-bottom-right-radius: ${({ $variant }) => $variant === 'secondary' ? '30px' : '0'};
 
-  &:hover {
-    background: black;
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background: black;
+    }
   }
 `;
 

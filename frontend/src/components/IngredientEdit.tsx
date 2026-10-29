@@ -4,7 +4,7 @@ import {request} from './endpoints';
 import '../assets/css/variables.css';
 import { useRefreshLogs } from './dashboard_states';
 import * as S from './IngredientEdit.styled';
-import { AnimatedText } from './AnimatedText';
+import { SavingText } from './SavingText';
 
 interface Props {
   food_name?: string;
@@ -313,59 +313,56 @@ useEffect(() => {
     setIsSubmitting(true);
 
 
-    // Add a delay to show the animation before submitting
-    setTimeout(async () => {
-      const formDataObj = new FormData();
-      formDataObj.append('food_name', formData.food_name || '');
-      formDataObj.append('amount', formData.amount);
-      // Don't send weight_in_grams - let the backend estimate it from amount
-      // The weight field is only used for display and manual blur updates
-      if (formData.food_id) {
-        formDataObj.append('food_id', formData.food_id); // Send food_id to skip RRF matching
+    const formDataObj = new FormData();
+    formDataObj.append('food_name', formData.food_name || '');
+    formDataObj.append('amount', formData.amount);
+    // Don't send weight_in_grams - let the backend estimate it from amount
+    // The weight field is only used for display and manual blur updates
+    if (formData.food_id) {
+      formDataObj.append('food_id', formData.food_id); // Send food_id to skip RRF matching
+    }
+
+    let response: any = undefined;
+
+    // Editing or adding a recipe ingredient
+    if (recipeId) {
+      formDataObj.append('recipe_id', recipeId);
+
+      if (componentIndex !== undefined) {
+        // Editing existing ingredient
+        formDataObj.append('component_index', String(componentIndex));
+        response = await request('/recipes/edit-ingredient', 'POST', formDataObj);
+      } else {
+        // Adding new ingredient
+        response = await request('/recipes/add-ingredient', 'POST', formDataObj);
+      }
+    }
+
+    // If successful, update the grams in local state
+    if (response && response.status === 200 && response.body) {
+      // Call optional onSave callback FIRST to refresh parent component
+      if (onSave) {
+        await onSave();
       }
 
-      let response: any = undefined;
-
-      // Editing or adding a recipe ingredient
-      if (recipeId) {
-        formDataObj.append('recipe_id', recipeId);
-
-        if (componentIndex !== undefined) {
-          // Editing existing ingredient
-          formDataObj.append('component_index', String(componentIndex));
-          response = await request('/recipes/edit-ingredient', 'POST', formDataObj);
-        } else {
-          // Adding new ingredient
-          response = await request('/recipes/add-ingredient', 'POST', formDataObj);
-        }
+      // For new ingredients, clear the form
+      // For existing ingredients, the parent refresh will update the display
+      if (componentIndex === undefined) {
+        setFormData({
+          food_name: '',
+          amount: '',
+          weight_in_grams: '',
+          food_id: undefined
+        });
       }
+    }
 
-      // If successful, update the grams in local state
-      if (response && response.status === 200 && response.body) {
-        // Call optional onSave callback FIRST to refresh parent component
-        if (onSave) {
-          await onSave();
-        }
+    refreshLogs({ force: true });
 
-        // For new ingredients, clear the form
-        // For existing ingredients, the parent refresh will update the display
-        if (componentIndex === undefined) {
-          setFormData({
-            food_name: '',
-            amount: '',
-            weight_in_grams: '',
-            food_id: undefined
-          });
-        }
-      }
-
-      refreshLogs({ force: true });
-
-      // Reset the submission state after a short delay to show the animation
-      setTimeout(() => {
-        setIsSubmitting(false);
-      }, 500);
-    }, 800); // Delay before actual submission
+    // Let the confirm pulse finish before re-enabling the form
+    setTimeout(() => {
+      setIsSubmitting(false);
+    }, 250);
   }
 
 
@@ -405,7 +402,7 @@ useEffect(() => {
       // Reset the deletion state (though it won't be visible anymore)
       setIsDeleting(false);
 
-    }, 500); // Delay before actual deletion
+    }, 180); // Let the exit animation play before the row is removed
   }
 ;
 
@@ -428,7 +425,7 @@ useEffect(() => {
             <S.FoodNameSpace>
               {isSubmitting ? (
                 <S.AnimatedFoodName>
-                  <AnimatedText text={formData.food_name || ''} />
+                  <SavingText>{formData.food_name || ''}</SavingText>
                 </S.AnimatedFoodName>
               ) : (
                 <S.FoodNameInput
@@ -460,7 +457,7 @@ useEffect(() => {
                 <S.FoodWeightSpace>
                     {isSavingWeight ? (
                       <S.AnimatedWeightText>
-                        <AnimatedText text={`${formData.weight_in_grams} g`} />
+                        <SavingText>{`${formData.weight_in_grams} g`}</SavingText>
                       </S.AnimatedWeightText>
                     ) : (
                       <>
