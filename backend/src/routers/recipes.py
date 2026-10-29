@@ -392,10 +392,10 @@ def calculate_name_similarity(name1: str, name2: str) -> float:
 
 
 # Processing that changes what a food is; only pick a candidate with one of these if the
-# user actually said it.
+# user actually said it. Deliberately excludes words USDA uses on ordinary entries
+# ("Carrots, cooked, boiled, drained", "Tomato products, canned, sauce").
 _PROCESSING_WORDS = (
-    "juice", "puree", "pureed", "babyfood", "baby food", "canned", "drained", "dehydrated",
-    "dried", "powder", "frozen", "concentrate", "fried", "breaded", "sweetened", "candied",
+    "juice", "puree", "pureed", "babyfood", "baby food", "dehydrated", "concentrate", "candied",
 )
 
 
@@ -568,7 +568,13 @@ async def find_high_confidence_match(ingredient_name: str, db: Database, user: d
     if len(top_candidates) > 1:
         top_candidates = _prefilter_tied_candidates(ingredient_name, top_candidates, original_query)
 
-    if len(top_candidates) > 1:
+    # Fast path: Jev breaks the tie and judges base-vs-dish (~100ms; a second call only if unsure)
+    jev_choice, jev_is_base, jev_answered = await _jev_judge_match(ingredient_name, top_candidates, original_query)
+
+    if len(top_candidates) > 1 and jev_choice:
+        print(f"    ⚡ Jev picked '{jev_choice['food_name']}' from {len(top_candidates)} tied candidates")
+        best_result = jev_choice
+    elif len(top_candidates) > 1:
         # No clear winner from name similarity — ask the LLM to break the tie
         print(
             f"    🔍 {len(top_candidates)} tied candidates at sim={best_similarity:.2f} "
@@ -579,7 +585,16 @@ async def find_high_confidence_match(ingredient_name: str, db: Database, user: d
     else:
         best_result = top_candidates[0]
 
-    is_base = _is_likely_base_ingredient(ingredient_name)
+    if jev_is_base is not None:
+        is_base = jev_is_base
+    elif jev_answered:
+        # Jev is still unsure after its follow-up. Breaking a single food down usually still
+        # lands close; logging a dish as one food (overnight oats as plain oats) silently
+        # drops ingredients. So take the cheaper mistake.
+        is_base = False
+    else:
+        # Jev not configured or unreachable
+        is_base = _is_likely_base_ingredient(ingredient_name)
     print(
         f"    🔍 Best match for '{ingredient_name}': '{best_result['food_name']}' "
         f"(similarity={best_similarity:.2f}, is_base={is_base})"
@@ -593,6 +608,147 @@ async def find_high_confidence_match(ingredient_name: str, db: Database, user: d
     }
 
 
+def _jev_match_questions(ingredient_name: str, candidates: List[dict]) -> Tuple[dict, dict]:
+    """Jev questions for a matched ingredient, plus the option label -> candidate map."""
+    questions = {
+        "is_base": {
+            "type": "noul",
+            "instructions": (
+                "Is the ingredient a single basic food that a nutrition database lists as-is, "
+                "rather than a dish made by combining several ingredients?"
+            ),
+            "criteria": {
+                "true": "One food, possibly prepared or cooked: milk, banana, cooked rice, bagel, olive oil, boiled carrots",
+                "false": "A dish of several ingredients: pizza, chicken curry, sandwich, sambar, lasagna, smoothie",
+            },
+        },
+    }
+    labels = {f"option_{i + 1}": c for i, c in enumerate(candidates)}
+    if len(candidates) > 1:
+        questions["best_match"] = {
+            "type": "choice",
+            "instructions": (
+                "Which database entry is what the user actually ate? Use the meal description for "
+                "context (carrot in a soup is boiled; carrots with ranch are raw). Don't pick an entry "
+                "processed in a way the user didn't mention (juiced, pureed, babyfood, canned, drained). "
+                "If several fit, pick the simplest, most common option."
+            ),
+            "criteria": {label: c["food_name"] for label, c in labels.items()},
+        }
+    return questions, labels
+
+
+def _jev_match_state(ingredient_name: str, original_query: Optional[str]) -> dict:
+    return {"ingredient": ingredient_name, "meal_description": original_query or ""}
+
+
+def _jev_followup_questions(candidates: List[dict]) -> Tuple[dict, dict]:
+    """
+    Second-round questions for when the first answer was unsure. Each brings different
+    evidence rather than re-asking the same thing: a per-entry judgment of the actual
+    database rows, and a narrower "is it several foods combined?" question.
+    """
+    questions = {
+        "combined": {
+            "type": "noul",
+            "instructions": (
+                "Does the ingredient refer to something made by combining two or more distinct foods "
+                "(for example oats soaked in milk, or a sauce made from several ingredients), rather "
+                "than one food that may be cooked or prepared?"
+            ),
+        },
+    }
+    labels = {}
+    for i, c in enumerate(candidates):
+        label = f"match_{i + 1}"
+        labels[label] = c
+        questions[label] = {
+            "type": "noul",
+            "instructions": {
+                "question": (
+                    "Is this database entry an accurate record of what the user ate for this ingredient, "
+                    "given the meal description? Answer false if it is a different food, a different "
+                    "preparation than described, or only part of what the ingredient contains."
+                ),
+                "database_entry": c["food_name"],
+            },
+        }
+    return questions, labels
+
+
+def _noul_verdict(probability: Optional[float]) -> Optional[bool]:
+    """True/False when a noul is decisive, None when it's in the unsure band."""
+    if probability is None:
+        return None
+    if probability >= 0.7:
+        return True
+    if probability <= 0.3:
+        return False
+    return None
+
+
+async def _jev_judge_match(
+    ingredient_name: str,
+    candidates: List[dict],
+    original_query: Optional[str],
+) -> Tuple[Optional[dict], Optional[bool], bool]:
+    """
+    Progressive Jev judgment for a matched ingredient:
+    1. One request: which tied candidate the user ate, and is it a single food or a dish.
+    2. Only if either answer was unsure: one follow-up request with narrower questions.
+
+    Returns (chosen candidate or None, is_base or None, jev_answered). None values mean
+    Jev couldn't decide; jev_answered says whether Jev was reachable at all.
+    """
+    from src.routers.jev import ask_jev, confident_choice, noul_value
+
+    state = _jev_match_state(ingredient_name, original_query)
+    questions, labels = _jev_match_questions(ingredient_name, candidates)
+    answers = await ask_jev(state, questions)
+    if not answers:
+        return None, None, False
+
+    chosen = labels.get(confident_choice(answers.get("best_match")) or "")
+    is_base = _noul_verdict(noul_value(answers.get("is_base")))
+
+    needs_choice = len(candidates) > 1 and chosen is None
+    if not needs_choice and is_base is not None:
+        return chosen, is_base, True
+
+    followup_questions, followup_labels = _jev_followup_questions(candidates)
+    followup = await ask_jev(state, followup_questions)
+    if not followup:
+        return chosen, is_base, True
+
+    match_scores = {
+        label: noul_value(followup.get(label)) or 0.0 for label in followup_labels
+    }
+    ranked = sorted(match_scores.items(), key=lambda item: item[1], reverse=True)
+    best_label, best_score = ranked[0]
+    runner_up = ranked[1][1] if len(ranked) > 1 else 0.0
+    # This question is strict, so absolute scores run low; what's reliable is a clear lead.
+    # (Eval: the top entry was right 34/34 times; genuinely ambiguous sets were within 0.15.)
+    clear_winner = best_score >= 0.3 and best_score - runner_up >= 0.2
+
+    if needs_choice and clear_winner:
+        chosen = followup_labels[best_label]
+        print(f"    ⚡ Jev follow-up picked '{chosen['food_name']}' (match={best_score:.2f}, lead={best_score - runner_up:.2f})")
+
+    if is_base is None:
+        if best_score >= 0.7:
+            # A database entry fits what they ate as a whole (ketchup, soy sauce), so use it
+            # as-is even though it's technically made of several ingredients
+            is_base = True
+        else:
+            combined = _noul_verdict(noul_value(followup.get("combined")))
+            if combined is not None:
+                is_base = not combined
+        if is_base is not None:
+            print(f"    ⚡ Jev follow-up judged '{ingredient_name}' as {'a single food' if is_base else 'a dish'}")
+
+    return chosen, is_base, True
+
+
 def _is_likely_base_ingredient(name: str) -> bool:
     """Check if this is likely a base ingredient vs a composite dish."""
     name_lower = name.lower().strip()
@@ -602,8 +758,12 @@ def _is_likely_base_ingredient(name: str) -> bool:
         'powder', 'paste', 'leaves', 'leaf', 'seeds', 'seed',
         'spice', 'seasoning', 'extract', 'oil', 'flour'
     ]
+    # Whole words only: "oil" must not match "boiled", "and" must not match "brandy"
+    def has_word(word):
+        return re.search(rf"\b{re.escape(word)}(?:e?s)?\b", name_lower) is not None
+
     for pattern in always_base_patterns:
-        if pattern in name_lower:
+        if has_word(pattern):
             return True
 
     # Composite dish indicators
@@ -625,7 +785,7 @@ def _is_likely_base_ingredient(name: str) -> bool:
 
     # Check if it's a composite dish
     for keyword in dish_keywords:
-        if keyword in name_lower:
+        if has_word(keyword):
             return False
 
     # Common base ingredients (single foods that exist in USDA)

@@ -31,6 +31,7 @@ pip install modal
 modal setup
 modal secret create nutramap-secrets \
   OPENAI_API_KEY="your-key" \
+  JEV_KEY="your-typesafe-key" \
   MONGO_URI="your-mongo-uri" \
   DB_NAME="nutramapper" \
   JWT_SECRET_KEY="your-secret" \
@@ -107,10 +108,17 @@ BACKEND_URL=https://your-modal-url.modal.run
 ### `backend/.env.local` (for local Docker development)
 ```bash
 OPENAI_API_KEY=xxx
+JEV_KEY=xxx            # optional: TypeSafe Jev for fast match judgments (falls back to OpenAI)
 MONGO_URI=xxx
 DB_NAME=nutramapper
 JWT_SECRET_KEY=xxx
 JWT_ALGORITHM=HS256
+
+# Optional model overrides
+FAST_LLM_MODEL=gpt-4.1-nano     # gram estimates, LLM tie-break fallback
+MEAL_PARSE_MODEL=gpt-4o-mini    # meal parsing, dish decomposition
+USE_JEV=true                    # set false to skip Jev even when JEV_KEY is set
+JEV_MIN_CONFIDENCE=0.8          # below this, a Jev choice falls back to the LLM
 ```
 
 ### Modal Secrets (for production backend)
